@@ -12,3 +12,13 @@ Sofascore-alternativ for dansk fodbold. Next.js (App Router) + React + TypeScrip
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
 - Kampdata: fiktive (`src/data/matches.ts`); valgfrit live-data fra TheSportsDB (`src/api/thesportsdb.ts`).
 - Klublogoer: `public/logos/<slug>.*`, ellers TheSportsDB, ellers forbogstaver (`src/lib/badges.ts`).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
