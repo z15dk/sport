@@ -45,7 +45,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
                   <td className="num pos">{i + 1}</td>
                   <td>
                     <Link className="club-cell" href={paths.club(r.club.slug)}>
-                      <TeamBadge name={r.club.name} colors={r.club.colors} size={28} />
+                      <TeamBadge link={false} name={r.club.name} colors={r.club.colors} size={28} />
                       <span className="club-cell__text">
                         <strong>{r.club.name}</strong>
                         <span>

@@ -1,6 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
+import { teamByName } from '../data/teams'
+import { paths } from '../lib/site'
 import { useBadge } from './BadgeProvider'
 
 interface Props {
@@ -8,9 +11,21 @@ interface Props {
   src?: string
   size?: number
   colors?: [string, string]
+  /** Link the badge to the team's page when the team is known (default true) */
+  link?: boolean
 }
 
-export function TeamBadge({ name, src, size = 20, colors }: Props) {
+export function TeamBadge({ link = true, ...props }: Props) {
+  const team = link ? teamByName(props.name) : undefined
+  if (!team) return <Badge {...props} />
+  return (
+    <Link className="badge-link" href={paths.club(team.slug)} aria-label={`Gå til ${team.name}`} title={team.name}>
+      <Badge {...props} />
+    </Link>
+  )
+}
+
+function Badge({ name, src, size = 20, colors }: Omit<Props, 'link'>) {
   const known = useBadge(name)
   const url = src ?? known
   const [failed, setFailed] = useState(false)

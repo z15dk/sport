@@ -41,7 +41,7 @@ export default function ClubsIndex() {
               {d.clubs.map((c) => (
                 <li key={c.id}>
                   <Link href={paths.club(c.slug)}>
-                    <TeamBadge name={c.name} colors={c.colors} size={36} />
+                    <TeamBadge link={false} name={c.name} colors={c.colors} size={36} />
                     <span>
                       <strong>{c.name}</strong>
                       <em>{c.city}</em>
@@ -63,7 +63,7 @@ export default function ClubsIndex() {
               {teams.map((t) => (
                 <li key={t.slug}>
                   <Link href={paths.club(t.slug)}>
-                    <TeamBadge name={t.name} colors={t.colors} size={36} />
+                    <TeamBadge link={false} name={t.name} colors={t.colors} size={36} />
                     <span>
                       <strong>{t.name}</strong>
                       <em>{t.country}</em>

@@ -14,8 +14,9 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
   const showScore = state === 'live' || finished
 
   return (
-    <li>
-      <Link className={`match match--${state}`} href={paths.match(match.slug)}>
+    <li className={`match match--${state}`}>
+      {/* Covers the whole row; the club badges sit on top and link to the clubs */}
+      <Link className="stretched-link" href={paths.match(match.slug)} aria-label={`${home.name} – ${away.name}`} />
       <time className="match__time" dateTime={match.kickoff.toISOString()}>
           {showDate && <span className="match__date">{formatDayMonth(isoDate(match.kickoff))}</span>}
           {formatTime(match.kickoff)}
@@ -45,7 +46,6 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
         )}
       </div>
       {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
-      </Link>
     </li>
   )
 }

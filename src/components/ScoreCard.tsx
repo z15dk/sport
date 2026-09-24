@@ -11,7 +11,12 @@ export function ScoreCard({ match }: { match: Match }) {
   const lost = (a?: number, b?: number) => match.state === 'finished' && a !== undefined && b !== undefined && a < b
 
   return (
-    <Link className={`score-card score-card--${match.state}`} href={paths.match(match.slug)}>
+    <article className={`score-card score-card--${match.state}`}>
+      <Link
+        className="stretched-link"
+        href={paths.match(match.slug)}
+        aria-label={`${match.home.name} – ${match.away.name}`}
+      />
       <span className="score-card__head">
         <span className="score-card__league">{match.league}</span>
         {tag && <span className="score-card__tag">{tag}</span>}
@@ -26,6 +31,6 @@ export function ScoreCard({ match }: { match: Match }) {
           </span>
         )
       })}
-    </Link>
+    </article>
   )
 }

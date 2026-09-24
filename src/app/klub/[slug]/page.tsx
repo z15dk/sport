@@ -81,7 +81,7 @@ function DanishClub({ club, division }: { club: Club; division: Division }) {
       />
       <div className="clubs">
         <header className="club-hero" style={{ '--club-bg': club.colors[0], '--club-fg': club.colors[1] } as React.CSSProperties}>
-          <TeamBadge name={club.name} colors={club.colors} size={96} />
+          <TeamBadge link={false} name={club.name} colors={club.colors} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
               <Link href={paths.league(division.slug)}>{division.name}</Link> · {club.city}
@@ -189,7 +189,7 @@ function TeamPage({ team }: { team: TeamEntry }) {
       />
       <div className="clubs">
         <header className="club-hero">
-          <TeamBadge name={team.name} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
+          <TeamBadge link={false} name={team.name} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
               {sport.label} · {team.league}
