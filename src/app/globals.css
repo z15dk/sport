@@ -390,7 +390,7 @@ h1, h2, p { margin: 0; }
 .switch button.is-active { background: var(--lime); color: var(--ink); }
 
 /* Clubs page */
-.clubs { display: flex; flex-direction: column; gap: 16px; max-width: 1040px; }
+.clubs { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1040px; margin-inline: auto; }
 .clubs__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .table-panel { overflow: hidden; }
 .table-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 18px; flex-wrap: wrap; }
@@ -559,7 +559,7 @@ h2.league__name { margin: 0; }
 .crumbs a:hover { color: var(--ink); text-decoration: underline; }
 
 /* Match page */
-.match-page { display: flex; flex-direction: column; gap: 16px; max-width: 1040px; }
+.match-page { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1040px; margin-inline: auto; }
 .match-page .duel { padding: 28px 20px; }
 .duel__team a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .match-page__title {
