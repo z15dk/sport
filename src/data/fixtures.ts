@@ -17,7 +17,7 @@ export function hashString(str: string) {
   return Math.abs(h)
 }
 
-function poisson(lambda: number, rand: () => number) {
+export function poisson(lambda: number, rand: () => number) {
   const limit = Math.exp(-lambda)
   let k = 0
   let p = rand()

@@ -1,7 +1,7 @@
 import type { Match } from '../types'
 import { ScoreCard } from './ScoreCard'
 
-export function LiveStrip({ matches }: { matches: Match[] }) {
+export function LiveStrip({ matches, onOpen }: { matches: Match[]; onOpen: (m: Match) => void }) {
   const live = matches.filter((m) => m.state === 'live')
   const finished = matches
     .filter((m) => m.state === 'finished')
@@ -32,7 +32,7 @@ export function LiveStrip({ matches }: { matches: Match[] }) {
             </h2>
             <div className="strip__cards">
               {s.items.map((m) => (
-                <ScoreCard key={m.id} match={m} />
+                <ScoreCard key={m.id} match={m} onOpen={onOpen} />
               ))}
             </div>
           </div>

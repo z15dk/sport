@@ -6,13 +6,18 @@ function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
 }
 
-export function MatchRow({ match }: { match: Match }) {
+export function MatchRow({ match, onOpen }: { match: Match; onOpen: (m: Match) => void }) {
   const { home, away, state } = match
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
 
   return (
-    <li className={`match match--${state}`}>
+    <li>
+      <button
+        className={`match match--${state}`}
+        onClick={() => onOpen(match)}
+        aria-label={`${home.name} mod ${away.name} – se kampdetaljer`}
+      >
       <time className="match__time" dateTime={match.kickoff.toISOString()}>
         {formatTime(match.kickoff)}
       </time>
@@ -41,6 +46,7 @@ export function MatchRow({ match }: { match: Match }) {
         )}
       </div>
       {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
+      </button>
     </li>
   )
 }

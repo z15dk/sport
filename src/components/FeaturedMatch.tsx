@@ -12,7 +12,13 @@ function countdown(ms: number) {
 }
 
 /** Highlights the next kickoff (favourite leagues first), or a live match if nothing is upcoming. */
-export function FeaturedMatch({ matches, pinned }: { matches: Match[]; pinned: Set<string> }) {
+interface Props {
+  matches: Match[]
+  pinned: Set<string>
+  onOpen: (m: Match) => void
+}
+
+export function FeaturedMatch({ matches, pinned, onOpen }: Props) {
   const now = useNow(1000)
   const upcoming = matches
     .filter((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
@@ -65,6 +71,9 @@ export function FeaturedMatch({ matches, pinned }: { matches: Match[]; pinned: S
         Kl. {formatTime(match.kickoff)}
         {match.venue && ` · ${match.venue}`}
       </p>
+      <button className="featured__cta" onClick={() => onOpen(match)}>
+        Se statistik og indbyrdes opgør →
+      </button>
     </section>
   )
 }

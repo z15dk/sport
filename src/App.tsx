@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Header } from './components/Header'
 import { SportRail } from './components/SportRail'
 import { LiveStrip } from './components/LiveStrip'
@@ -11,6 +11,7 @@ import { StatTiles } from './components/StatTiles'
 import { useMatches, type DataSource } from './hooks/useMatches'
 import { useHashRoute } from './hooks/useHashRoute'
 import { ClubsPage } from './components/ClubsPage'
+import { MatchDetail } from './components/MatchDetail'
 import { usePersistentState } from './hooks/usePersistentState'
 import { formatLong, isSameDay, toIsoDate } from './dates'
 import { SPORTS } from './sports'
@@ -48,6 +49,9 @@ export default function App() {
   const [date, setDate] = useState(() => new Date())
   const [filter, setFilter] = useState<StateFilter>('all')
   const [query, setQuery] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
+  const openMatch = useCallback((m: Match) => setOpenId(m.id), [])
+  const closeMatch = useCallback(() => setOpenId(null), [])
 
   const isToday = isSameDay(date, new Date())
   const { matches, loading, error, isDemo, updatedAt, refresh } = useMatches(toIsoDate(date), sport, source, isToday)
@@ -77,6 +81,8 @@ export default function App() {
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
+  // Look the match up on every render so live scores stay current while the sheet is open
+  const selected = openId ? matches.find((m) => m.id === openId) : undefined
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportLabel = SPORTS.find((s) => s.id === sport)!.label
 
@@ -102,7 +108,7 @@ export default function App() {
           </div>
         ) : (
           <div className="page">
-            <LiveStrip matches={searched} />
+            <LiveStrip matches={searched} onOpen={openMatch} />
 
             {isDemo && (
               <div className="banner" role="status">
@@ -143,6 +149,7 @@ export default function App() {
                         group={g}
                         pinned={pinned.has(g.leagueId)}
                         onTogglePin={() => togglePin(g.leagueId)}
+                      onOpen={openMatch}
                       />
                     ))}
                   </div>
@@ -150,7 +157,7 @@ export default function App() {
               </main>
 
               <aside className="aside">
-                <FeaturedMatch matches={matches} pinned={pinned} />
+                <FeaturedMatch matches={matches} pinned={pinned} onOpen={openMatch} />
                 <StatTiles
                   matches={matches}
                   updatedAt={updatedAt}
@@ -163,6 +170,7 @@ export default function App() {
           </div>
         )}
       </div>
+      {selected && <MatchDetail match={selected} onClose={closeMatch} />}
     </div>
   )
 }

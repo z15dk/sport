@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import type { LeagueGroup } from '../types'
+import type { LeagueGroup, Match } from '../types'
 import { MatchRow } from './MatchRow'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
+  onOpen: (m: Match) => void
   group: LeagueGroup
   pinned: boolean
   onTogglePin: () => void
 }
 
-export function LeagueSection({ group, pinned, onTogglePin }: Props) {
+export function LeagueSection({ group, pinned, onTogglePin, onOpen }: Props) {
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
 
@@ -41,7 +42,7 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
       {open && (
         <ul className="league__matches">
           {group.matches.map((m) => (
-            <MatchRow key={m.id} match={m} />
+            <MatchRow key={m.id} match={m} onOpen={onOpen} />
           ))}
         </ul>
       )}
