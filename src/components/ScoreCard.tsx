@@ -18,7 +18,7 @@ export function ScoreCard({ match }: { match: Match }) {
         const other = i === 0 ? match.away : match.home
         return (
           <div key={i} className={`score-card__team${lost(t.score, other.score) ? ' is-lost' : ''}`}>
-            <TeamBadge name={t.name} src={t.badge} size={26} />
+            <TeamBadge name={t.name} src={t.badge} colors={t.colors} size={26} />
             <span className="score-card__name">{t.name}</span>
             <span className="score-card__score">{showScore ? (t.score ?? '–') : ''}</span>
           </div>

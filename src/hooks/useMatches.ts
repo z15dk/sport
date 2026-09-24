@@ -17,13 +17,15 @@ interface State {
 }
 
 /**
- * Loads matches for a day and sport. Falls back to demo data if the API
- * fails, and refreshes periodically while live matches can change.
+ * Loads matches for a day and sport, either fictional or from the API.
+ * Falls back to fictional data if the API fails, and refreshes periodically while live matches can change.
  */
-export function useMatches(date: string, sport: SportId, autoRefresh: boolean) {
+export type DataSource = 'fictional' | 'api'
+
+export function useMatches(date: string, sport: SportId, source: DataSource, autoRefresh: boolean) {
   const [state, setState] = useState<State>({ key: '', matches: [], error: null, isDemo: false, updatedAt: null })
   const [tick, setTick] = useState(0)
-  const key = `${date}|${sport}|${tick}`
+  const key = `${date}|${sport}|${source}|${tick}`
 
   const refresh = useCallback(() => setTick((t) => t + 1), [])
 
@@ -31,7 +33,7 @@ export function useMatches(date: string, sport: SportId, autoRefresh: boolean) {
     const controller = new AbortController()
     const apiName = SPORTS.find((s) => s.id === sport)!.apiName
 
-    const load = forceDemo
+    const load = forceDemo || source === 'fictional'
       ? Promise.resolve({ matches: demoMatches(date, sport), isDemo: true, error: null })
       : fetchEventsByDay(date, apiName, controller.signal)
           .then((matches) => ({ matches, isDemo: false, error: null }))
@@ -51,7 +53,7 @@ export function useMatches(date: string, sport: SportId, autoRefresh: boolean) {
       })
 
     return () => controller.abort()
-  }, [date, sport, key])
+  }, [date, sport, source, key])
 
   useEffect(() => {
     if (!autoRefresh) return

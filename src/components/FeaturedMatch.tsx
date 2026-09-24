@@ -32,14 +32,14 @@ export function FeaturedMatch({ matches, pinned }: { matches: Match[]; pinned: S
       </header>
       <div className="featured__teams">
         <div className="featured__team">
-          <TeamBadge name={match.home.name} src={match.home.badge} size={56} />
+          <TeamBadge name={match.home.name} src={match.home.badge} colors={match.home.colors} size={56} />
           <span>{match.home.name}</span>
         </div>
         <span className="featured__vs">
           {isLive ? `${match.home.score ?? 0}–${match.away.score ?? 0}` : 'VS'}
         </span>
         <div className="featured__team">
-          <TeamBadge name={match.away.name} src={match.away.badge} size={56} />
+          <TeamBadge name={match.away.name} src={match.away.badge} colors={match.away.colors} size={56} />
           <span>{match.away.name}</span>
         </div>
       </div>

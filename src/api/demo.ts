@@ -1,15 +1,12 @@
 import type { Match, MatchState, SportId } from '../types'
 import { toIsoDate } from '../dates'
+import { DIVISIONS } from '../data/danishClubs'
+import { hashString, pairClubs, playMatch, seeded } from '../data/fixtures'
 
-// Offline demo data used when the API is unreachable or when ?demo is in the URL.
+// Fictional match data. Football uses the Danish divisions; other sports use
+// a small set of well-known teams.
 
-const FIXTURES: Record<SportId, { league: string; country: string; teams: string[] }[]> = {
-  soccer: [
-    { league: 'Superliga', country: 'Danmark', teams: ['FC København', 'Brøndby IF', 'FC Midtjylland', 'AGF', 'FC Nordsjælland', 'Randers FC'] },
-    { league: 'Premier League', country: 'England', teams: ['Arsenal', 'Liverpool', 'Manchester City', 'Chelsea', 'Tottenham', 'Newcastle'] },
-    { league: 'LaLiga', country: 'Spanien', teams: ['Real Madrid', 'Barcelona', 'Atlético Madrid', 'Sevilla'] },
-    { league: 'Serie A', country: 'Italien', teams: ['Inter', 'Milan', 'Juventus', 'Napoli'] },
-  ],
+const OTHER: Record<Exclude<SportId, 'soccer'>, { league: string; country: string; teams: string[] }[]> = {
   basketball: [
     { league: 'NBA', country: 'USA', teams: ['Boston Celtics', 'LA Lakers', 'Denver Nuggets', 'Golden State Warriors'] },
     { league: 'Basketligaen', country: 'Danmark', teams: ['Bakken Bears', 'Svendborg Rabbits', 'Horsens IC', 'Randers Cimbria'] },
@@ -22,47 +19,94 @@ const FIXTURES: Record<SportId, { league: string; country: string; teams: string
     { league: 'Herreligaen', country: 'Danmark', teams: ['Aalborg Håndbold', 'GOG', 'Bjerringbro-Silkeborg', 'Skjern Håndbold'] },
     { league: 'Champions League', country: 'Europa', teams: ['Barça', 'Veszprém', 'Kiel', 'Magdeburg'] },
   ],
-  tennis: [
-    { league: 'ATP Tokyo', country: 'Japan', teams: ['H. Rune', 'C. Alcaraz', 'J. Sinner', 'T. Fritz'] },
-  ],
+  tennis: [{ league: 'ATP Tokyo', country: 'Japan', teams: ['H. Rune', 'C. Alcaraz', 'J. Sinner', 'T. Fritz'] }],
 }
 
-function seeded(seed: number) {
-  let s = seed
-  return () => {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
+// Typical kickoff slots per division (local time)
+const SLOTS: Record<string, string[]> = {
+  superliga: ['14:00', '16:00', '16:00', '18:00', '19:00', '20:00'],
+  '1div': ['13:00', '14:00', '15:00', '15:00', '17:00', '18:30'],
+  '2div': ['13:00', '13:00', '14:00', '15:00', '15:00', '16:00'],
+  '3div': ['12:00', '13:00', '13:00', '14:00', '14:00', '15:00'],
+}
+
+function stateAt(kickoff: Date, now: number, fullTimeMin: number) {
+  const elapsed = (now - kickoff.getTime()) / 60000
+  let state: MatchState = 'upcoming'
+  let statusLabel: string | undefined
+  let progress = 0
+  if (elapsed > fullTimeMin) {
+    state = 'finished'
+    statusLabel = 'Slut'
+    progress = 1
+  } else if (elapsed >= 0) {
+    state = 'live'
+    const half = fullTimeMin <= 60 ? 30 : 45
+    const pause = 15
+    if (elapsed >= half && elapsed < half + pause) statusLabel = 'Pause'
+    else {
+      const minute = elapsed < half ? Math.floor(elapsed) + 1 : Math.floor(elapsed) - pause + 1
+      statusLabel = `${Math.min(minute, half * 2)}'`
+    }
+    progress = Math.min(1, elapsed / fullTimeMin)
   }
+  return { state, statusLabel, progress }
 }
 
-export function demoMatches(date: string, sport: SportId): Match[] {
-  const rand = seeded(Number(date.replaceAll('-', '')) + sport.length * 17)
-  const now = Date.now()
+function danishFootball(date: string, now: number): Match[] {
+  const isToday = date === toIsoDate(new Date(now))
   const matches: Match[] = []
 
-  for (const [li, lg] of FIXTURES[sport].entries()) {
+  for (const [di, div] of DIVISIONS.entries()) {
+    const rand = seeded(hashString(`${div.id}-${date}`))
+    const pairs = pairClubs(div.clubs, rand)
+    const slots = SLOTS[div.id]
+
+    for (const [pi, [home, away]] of pairs.entries()) {
+      let kickoff = new Date(`${date}T${slots[pi % slots.length]}:00`)
+      // Keep one match per division live today so the page always has action
+      if (isToday && pi === 0) kickoff = new Date(now - (12 + di * 23) * 60000)
+
+      const [hg, ag] = playMatch(div, home, away, rand)
+      const { state, statusLabel, progress } = stateAt(kickoff, now, 110)
+      const hasScore = state !== 'upcoming'
+      // A live score is the final score scaled down to how far the match has come
+      const partial = (g: number) => (state === 'finished' ? g : Math.floor(g * progress))
+
+      matches.push({
+        id: `dk-${div.id}-${date}-${pi}`,
+        league: div.name,
+        leagueId: `dk-${div.id}`,
+        leagueOrder: di,
+        country: 'Danmark',
+        kickoff,
+        state,
+        statusLabel,
+        venue: home.city,
+        home: { name: home.name, colors: home.colors, score: hasScore ? partial(hg) : undefined },
+        away: { name: away.name, colors: away.colors, score: hasScore ? partial(ag) : undefined },
+      })
+    }
+  }
+  return matches
+}
+
+function otherSport(date: string, sport: Exclude<SportId, 'soccer'>, now: number): Match[] {
+  const rand = seeded(hashString(`${sport}-${date}`))
+  const isToday = date === toIsoDate(new Date(now))
+  const matches: Match[] = []
+
+  for (const [li, lg] of OTHER[sport].entries()) {
     for (let i = 0; i + 1 < lg.teams.length; i += 2) {
       const hour = 12 + Math.floor(rand() * 10)
       const minute = [0, 15, 30, 45][Math.floor(rand() * 4)]
       let kickoff = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`)
-      // Keep the first match of each league live today so the demo always has action
-      if (i === 0 && date === toIsoDate(new Date())) kickoff = new Date(now - (18 + li * 29) * 60000)
-      const elapsed = (now - kickoff.getTime()) / 60000
+      if (i === 0 && isToday) kickoff = new Date(now - (18 + li * 29) * 60000)
 
-      let state: MatchState = 'upcoming'
-      let statusLabel: string | undefined
-      if (elapsed > 110) {
-        state = 'finished'
-        statusLabel = 'Slut'
-      } else if (elapsed >= 0) {
-        state = 'live'
-        const minuteOfPlay = elapsed < 45 ? Math.floor(elapsed) + 1 : elapsed < 60 ? 45 : Math.floor(elapsed) - 14
-        statusLabel = elapsed >= 45 && elapsed < 60 ? 'Pause' : `${Math.min(minuteOfPlay, 90)}'`
-      }
-
+      const { state, statusLabel, progress } = stateAt(kickoff, now, 110)
       const hasScore = state !== 'upcoming'
-      const progress = state === 'finished' ? 1 : Math.max(0, Math.min(1, elapsed / 105))
-      const goals = () => Math.floor(rand() * 4 * progress)
+      const scale = sport === 'basketball' ? 110 : sport === 'handball' ? 30 : 4
+      const points = () => Math.floor((sport === 'basketball' ? 0.8 + rand() * 0.3 : rand()) * scale * progress)
       matches.push({
         id: `demo-${sport}-${li}-${i}`,
         league: lg.league,
@@ -71,10 +115,15 @@ export function demoMatches(date: string, sport: SportId): Match[] {
         kickoff,
         state,
         statusLabel,
-        home: { name: lg.teams[i], score: hasScore ? goals() : undefined },
-        away: { name: lg.teams[i + 1], score: hasScore ? goals() : undefined },
+        home: { name: lg.teams[i], score: hasScore ? points() : undefined },
+        away: { name: lg.teams[i + 1], score: hasScore ? points() : undefined },
       })
     }
   }
   return matches
+}
+
+export function demoMatches(date: string, sport: SportId): Match[] {
+  const now = Date.now()
+  return sport === 'soccer' ? danishFootball(date, now) : otherSport(date, sport, now)
 }

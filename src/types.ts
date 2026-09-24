@@ -6,12 +6,16 @@ export interface Team {
   name: string
   badge?: string
   score?: number
+  /** [background, text] for the fallback badge */
+  colors?: [string, string]
 }
 
 export interface Match {
   id: string
   league: string
   leagueId: string
+  /** Lower sorts first when leagues are otherwise equal */
+  leagueOrder?: number
   country?: string
   leagueBadge?: string
   kickoff: Date

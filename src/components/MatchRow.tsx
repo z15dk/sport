@@ -21,7 +21,7 @@ export function MatchRow({ match }: { match: Match }) {
           const other = i === 0 ? away : home
           return (
             <div key={i} className={`team${finished && lost(team, other) ? ' team--lost' : ''}`}>
-              <TeamBadge name={team.name} src={team.badge} />
+              <TeamBadge name={team.name} src={team.badge} colors={team.colors} />
               <span className="team__name">{team.name}</span>
             </div>
           )
