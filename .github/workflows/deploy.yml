@@ -1,0 +1,41 @@
+name: Deploy til lokal server
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Runs on the self-hosted runner installed on the local server (see DEPLOY.md)
+    runs-on: [self-hosted, scoreline]
+    env:
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/var/www/scoreline' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+        env:
+          VITE_THESPORTSDB_KEY: ${{ secrets.THESPORTSDB_KEY }}
+
+      - name: Kopiér build til webmappen
+        run: |
+          mkdir -p "$DEPLOY_DIR"
+          if command -v rsync >/dev/null; then
+            rsync -a --delete dist/ "$DEPLOY_DIR/"
+          else
+            find "$DEPLOY_DIR" -mindepth 1 -delete
+            cp -r dist/. "$DEPLOY_DIR/"
+          fi
+          echo "Udrullet ${GITHUB_REF_NAME}@${GITHUB_SHA::7} til $DEPLOY_DIR" | tee -a "$GITHUB_STEP_SUMMARY"

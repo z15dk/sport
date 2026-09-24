@@ -31,6 +31,10 @@ Hvis API'et ikke kan nås, vises demodata, så siden altid kan vises.
 API-klienten ligger i `src/api/thesportsdb.ts` og mapper svaret til den fælles
 `Match`-type i `src/types.ts`, så en anden udbyder kan skiftes ind senere.
 
+## Udrulning
+
+Hvert push udrulles automatisk til den lokale server. Se [DEPLOY.md](DEPLOY.md).
+
 ## Scripts
 
 - `npm run dev` – udviklingsserver
