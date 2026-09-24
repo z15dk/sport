@@ -1,5 +1,7 @@
 import type { Match } from '../types'
 import type { Club, Division } from '../data/danishClubs'
+import type { TeamEntry } from '../data/teams'
+import { sportById } from '../sports'
 import { SITE_NAME, SITE_URL, paths } from './site'
 
 // schema.org structured data, read by search engines and AI assistants.
@@ -110,5 +112,17 @@ export function organizationLd() {
     description: 'Resultater, kampprogram, stillinger og statistik for dansk fodbold fra Superligaen til 3. division.',
     areaServed: 'DK',
     knowsLanguage: 'da',
+  }
+}
+
+export function teamPageLd(team: TeamEntry) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SportsTeam',
+    name: team.name,
+    sport: sportById(team.sport).label,
+    url: `${SITE_URL}${paths.club(team.slug)}`,
+    memberOf: { '@type': 'SportsOrganization', name: team.league },
+    ...(team.country && { location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressCountry: team.country } } }),
   }
 }

@@ -8,7 +8,7 @@ import { hashString, pairClubs, playMatch, seeded } from './fixtures'
 // a small set of well-known teams. Everything is deterministic for a given
 // date and moment, so the server and the browser produce the same matches.
 
-const OTHER: Record<Exclude<SportId, 'soccer'>, { league: string; country: string; teams: string[] }[]> = {
+export const OTHER: Record<Exclude<SportId, 'soccer'>, { league: string; country: string; teams: string[] }[]> = {
   basketball: [
     { league: 'NBA', country: 'USA', teams: ['Boston Celtics', 'LA Lakers', 'Denver Nuggets', 'Golden State Warriors'] },
     { league: 'Basketligaen', country: 'Danmark', teams: ['Bakken Bears', 'Svendborg Rabbits', 'Horsens IC', 'Randers Cimbria'] },
@@ -161,6 +161,20 @@ export function clubMatches(clubName: string, fromDate: string, days: number, no
     const date = d.toISOString().slice(0, 10)
     const m = danishFootball(date, now).find((x) => x.home.name === clubName || x.away.name === clubName)
     if (m) out.push(m)
+  }
+  return out
+}
+
+/** Fictional matches for any team (any sport) over a range of days from `fromDate` */
+export function teamMatches(teamName: string, sport: SportId, fromDate: string, days: number, now: number): Match[] {
+  const out: Match[] = []
+  for (let i = 0; i < days; i++) {
+    const d = new Date(`${fromDate}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + i)
+    const date = d.toISOString().slice(0, 10)
+    for (const m of getMatches(date, sport, now)) {
+      if (m.home.name === teamName || m.away.name === teamName) out.push(m)
+    }
   }
   return out
 }

@@ -1,33 +1,43 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SEASON, allClubs, clubBySlug } from '../../../data/danishClubs'
+import { SEASON, type Club, type Division } from '../../../data/danishClubs'
+import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
 import { standings } from '../../../data/fixtures'
-import { clubMatches } from '../../../data/matches'
+import { clubMatches, teamMatches } from '../../../data/matches'
 import { ROUNDS_PLAYED, clubStats } from '../../../data/matchInsights'
 import { FormChips } from '../../../components/FormChips'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { JsonLd, breadcrumbLd, clubLd, faqLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { Updated } from '../../../components/Updated'
-import { clubFaq } from '../../../lib/faq'
+import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
+import { sportById } from '../../../sports'
 
 export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
 
 export function generateStaticParams() {
-  return allClubs().map(({ club }) => ({ slug: club.slug }))
+  return allTeams().map((t) => ({ slug: t.slug }))
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const found = clubBySlug((await params).slug)
-  if (!found) return { title: 'Klubben findes ikke' }
-  const { club, division } = found
+  const team = teamBySlug((await params).slug)
+  if (!team) return { title: 'Klubben findes ikke' }
+  if (!team.danish) {
+    const sport = sportById(team.sport).label.toLowerCase()
+    return {
+      title: `${team.name} – resultater og kampprogram (${team.league})`,
+      description: `Seneste resultater og kommende kampe for ${team.name} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
+      alternates: { canonical: paths.club(team.slug) },
+    }
+  }
+  const { club, division } = team.danish
   const stats = clubStats(club.name)!
   return {
     title: `${club.name} – resultater, kampprogram og stilling ${SEASON}`,
@@ -37,9 +47,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function ClubPage({ params }: { params: Params }) {
-  const found = clubBySlug((await params).slug)
-  if (!found) notFound()
-  const { club, division } = found
+  const team = teamBySlug((await params).slug)
+  if (!team) notFound()
+  return team.danish ? <DanishClub {...team.danish} /> : <TeamPage team={team} />
+}
+
+/** Full page for Danish football clubs, which have season and table data */
+function DanishClub({ club, division }: { club: Club; division: Division }) {
   const stats = clubStats(club.name)!
   const r = stats.row
   const now = Date.now()
@@ -142,6 +156,85 @@ export default async function ClubPage({ params }: { params: Params }) {
         </section>
         <Faq items={faq} />
         <p className="muted small">Alle resultater og tal er fiktive.</p>
+      </div>
+    </div>
+  )
+}
+
+/** Page for any other team: built from its matches alone */
+function TeamPage({ team }: { team: TeamEntry }) {
+  const now = Date.now()
+  const today = isoDate(now)
+  const around = teamMatches(team.name, team.sport, addDays(today, -7), 15, now)
+  const recent = around.filter((m) => m.state === 'finished').slice(-5).reverse()
+  const upcoming = around.filter((m) => m.state !== 'finished').slice(0, 5)
+  const faq = teamFaq(team, upcoming[0], recent[0])
+  const sport = sportById(team.sport)
+  const last = recent[0]
+  const next = upcoming[0]
+  const opponent = (m: typeof last) => (m.home.name === team.name ? m.away.name : m.home.name)
+  const score = (m: typeof last) =>
+    m.home.name === team.name ? `${m.home.score ?? 0}-${m.away.score ?? 0}` : `${m.away.score ?? 0}-${m.home.score ?? 0}`
+
+  return (
+    <div className="page">
+      <JsonLd data={teamPageLd(team)} />
+      <JsonLd data={webPageLd(paths.club(team.slug), team.name, new Date(now))} />
+      <JsonLd data={faqLd(faq)} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: 'Klubber', path: paths.clubs() },
+          { name: team.name, path: paths.club(team.slug) },
+        ])}
+      />
+      <div className="clubs">
+        <header className="club-hero">
+          <TeamBadge name={team.name} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
+          <div className="club-hero__text">
+            <span className="club-hero__eyebrow">
+              {sport.label} · {team.league}
+              {team.country && ` · ${team.country}`}
+            </span>
+            <h1>{team.name}</h1>
+          </div>
+        </header>
+
+        <p className="lead">
+          {team.name} spiller i {team.league}.
+          {last && ` Seneste kamp: ${score(last)} mod ${opponent(last)}.`}
+          {next && ` Næste kamp er mod ${opponent(next)}.`}
+        </p>
+        <Updated at={now} />
+
+        <div className="club-grid">
+          <section className="league">
+            <header className="league__header">
+              <div className="league__toggle">
+                <h2 className="league__name">Seneste resultater</h2>
+              </div>
+            </header>
+            <ul className="league__matches">
+              {recent.map((m) => (
+                <MatchRow key={m.id} match={m} showDate />
+              ))}
+            </ul>
+          </section>
+          <section className="league">
+            <header className="league__header">
+              <div className="league__toggle">
+                <h2 className="league__name">Kommende kampe</h2>
+              </div>
+            </header>
+            <ul className="league__matches">
+              {upcoming.map((m) => (
+                <MatchRow key={m.id} match={m} showDate />
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        <Faq items={faq} />
+        <p className="muted small">Alle resultater er fiktive.</p>
       </div>
     </div>
   )

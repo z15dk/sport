@@ -2,6 +2,7 @@ import type { Match } from '../types'
 import type { Club, Division } from '../data/danishClubs'
 import type { StandingRow } from '../data/fixtures'
 import type { ClubStats, PastMatch } from '../data/matchInsights'
+import type { TeamEntry } from '../data/teams'
 import { formatLong, formatTime } from './time'
 
 // Short questions and answers for each page type. They are written as the
@@ -10,6 +11,13 @@ import { formatLong, formatTime } from './time'
 export interface FaqItem {
   q: string
   a: string
+}
+
+/** Danish genitive: "AGF's", "Boston Celtics'", "FC Københavns" */
+export function genitive(name: string) {
+  if (/[sxz]$/i.test(name)) return `${name}'`
+  if (/[A-ZÆØÅ]$/.test(name)) return `${name}'s`
+  return `${name}s`
 }
 
 const when = (d: Date) => `${formatLong(d)} kl. ${formatTime(d)}`
@@ -101,12 +109,12 @@ export function clubFaq(
     const other = last.home.name === club.name ? as : hs
     const opponent = last.home.name === club.name ? last.away.name : last.home.name
     items.push({
-      q: `Hvad blev ${club.name}s seneste resultat?`,
+      q: `Hvad blev ${genitive(club.name)} seneste resultat?`,
       a: `${own > other ? 'Sejr' : own < other ? 'Nederlag' : 'Uafgjort'} ${own}-${other} mod ${opponent} ${formatLong(last.kickoff)}.`,
     })
   }
   items.push({
-    q: `Hvordan er ${club.name}s form?`,
+    q: `Hvordan er ${genitive(club.name)} form?`,
     a: `De seneste fem kampe: ${r.form
       .slice(-5)
       .map((f) => (f === 'V' ? 'sejr' : f === 'U' ? 'uafgjort' : 'nederlag'))
@@ -134,4 +142,22 @@ export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
     },
     { q: `Hvor mange rykker op og ned i ${division.name}?`, a: MOVEMENT[division.id] },
   ]
+}
+
+export function teamFaq(team: TeamEntry, next?: Match, last?: Match): FaqItem[] {
+  const items: FaqItem[] = [{ q: `Hvilken turnering spiller ${team.name} i?`, a: `${team.name} spiller i ${team.league}.` }]
+  if (next) {
+    const opponent = next.home.name === team.name ? next.away.name : next.home.name
+    items.push({ q: `Hvornår spiller ${team.name} næste gang?`, a: `${team.name} møder ${opponent} ${when(next.kickoff)}.` })
+  }
+  if (last) {
+    const own = last.home.name === team.name ? (last.home.score ?? 0) : (last.away.score ?? 0)
+    const other = last.home.name === team.name ? (last.away.score ?? 0) : (last.home.score ?? 0)
+    const opponent = last.home.name === team.name ? last.away.name : last.home.name
+    items.push({
+      q: `Hvad blev ${genitive(team.name)} seneste resultat?`,
+      a: `${own > other ? 'Sejr' : own < other ? 'Nederlag' : 'Uafgjort'} ${own}-${other} mod ${opponent} ${formatLong(last.kickoff)}.`,
+    })
+  }
+  return items
 }

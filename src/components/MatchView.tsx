@@ -5,6 +5,7 @@ import { formatShortYear, formatTime } from '../lib/time'
 import { paths } from '../lib/site'
 import { clubStats, findClub, headToHead, matchStats, type ClubStats } from '../data/matchInsights'
 import { findMatch } from '../data/matches'
+import { teamByName } from '../data/teams'
 import { useNow } from '../hooks/useNow'
 import type { Match } from '../types'
 import { StatBar } from './StatBar'
@@ -28,8 +29,8 @@ export function MatchView({ slug, date, initialNow }: Props) {
 }
 
 function ClubName({ name }: { name: string }) {
-  const club = findClub(name)
-  return club ? <Link href={paths.club(club.club.slug)}>{name}</Link> : <>{name}</>
+  const team = teamByName(name)
+  return team ? <Link href={paths.club(team.slug)}>{name}</Link> : <>{name}</>
 }
 
 function MatchBody({ match, now }: { match: Match; now: number }) {

@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findMatch } from '../../../data/matches'
-import { clubStats, findClub, headToHead } from '../../../data/matchInsights'
+import { clubStats, headToHead } from '../../../data/matchInsights'
+import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { matchFaq } from '../../../lib/faq'
 import { dateFromMatchSlug } from '../../../lib/slug'
@@ -43,7 +44,7 @@ export default async function MatchPage({ params }: { params: Params }) {
   const found = load(slug)
   if (!found) notFound()
   const { match, date, now } = found
-  const clubSlug = (name: string) => findClub(name)?.club.slug
+  const clubSlug = (name: string) => teamByName(name)?.slug
   const homeStats = clubStats(match.home.name)
   const awayStats = clubStats(match.away.name)
   const faq = matchFaq(match, headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)

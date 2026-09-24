@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { DIVISIONS, SEASON } from '../../data/danishClubs'
 import { TeamBadge } from '../../components/TeamBadge'
 import { paths } from '../../lib/site'
+import { allTeams, type TeamEntry } from '../../data/teams'
+import { sportById } from '../../sports'
 
 export const metadata: Metadata = {
   title: `Danske fodboldklubber ${SEASON} – Superliga til 3. division`,
@@ -11,6 +13,13 @@ export const metadata: Metadata = {
 }
 
 export default function ClubsIndex() {
+  // Every non-Danish-football team in the register, grouped by sport and league
+  const others = new Map<string, TeamEntry[]>()
+  for (const t of allTeams()) {
+    if (t.danish) continue
+    const key = `${sportById(t.sport).label} · ${t.league}`
+    others.set(key, [...(others.get(key) ?? []), t])
+  }
   return (
     <div className="page">
       <div className="clubs">
@@ -36,6 +45,28 @@ export default function ClubsIndex() {
                     <span>
                       <strong>{c.name}</strong>
                       <em>{c.city}</em>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+
+        <h2 className="feed__title clubs__subtitle">Andre sportsgrene</h2>
+        {[...others.entries()].map(([title, teams]) => (
+          <section key={title} className="panel club-index">
+            <header className="table-panel__head">
+              <h3 className="panel__title">{title}</h3>
+            </header>
+            <ul className="club-index__grid">
+              {teams.map((t) => (
+                <li key={t.slug}>
+                  <Link href={paths.club(t.slug)}>
+                    <TeamBadge name={t.name} colors={t.colors} size={36} />
+                    <span>
+                      <strong>{t.name}</strong>
+                      <em>{t.country}</em>
                     </span>
                   </Link>
                 </li>

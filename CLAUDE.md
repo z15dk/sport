@@ -9,6 +9,8 @@ Sofascore-alternativ for dansk fodbold. Next.js (App Router) + React + TypeScrip
 - Før push: `npm run lint` og `npm run build` skal være grønne.
 - Hver kamp, klub og turnering har sin egen server-renderede side (SEO/GEO) med
   metadata og schema.org JSON-LD (`src/lib/jsonld.tsx`). Nye sider skal have det samme.
+- Alle hold kommer fra ét register (`src/data/teams.ts`). Hvert hold dér får automatisk en side
+  på `/klub/<slug>`, links, plads på `/klubber` og i sitemap. Nye datakilder skal tilføje deres hold dér.
 - Resultaterne er fiktive: siden skal forblive `noindex` (styres af `SITE_INDEXABLE`)
   indtil der kommer rigtige data.
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
