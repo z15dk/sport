@@ -3,6 +3,8 @@ import { Suspense } from 'react'
 import { Header } from '../components/Header'
 import { SportRail } from '../components/SportRail'
 import { BadgeProvider } from '../components/BadgeProvider'
+import { Footer } from '../components/Footer'
+import { JsonLd, organizationLd } from '../lib/jsonld'
 import { getClubBadges } from '../lib/badges'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
 import './globals.css'
@@ -37,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
+        <JsonLd data={organizationLd()} />
         <BadgeProvider badges={badges}>
           <div className="app">
             <Suspense fallback={<nav className="rail" aria-label="Sportsgrene" />}>
@@ -45,6 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="app__main">
               <Header />
               {children}
+              <Footer />
             </div>
           </div>
         </BadgeProvider>

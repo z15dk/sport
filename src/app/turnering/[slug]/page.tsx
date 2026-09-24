@@ -7,7 +7,10 @@ import { ROUNDS_PLAYED } from '../../../data/matchInsights'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
-import { JsonLd, breadcrumbLd, leagueLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
+import { Faq } from '../../../components/Faq'
+import { Updated } from '../../../components/Updated'
+import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 
@@ -40,10 +43,13 @@ export default async function LeaguePage({ params }: { params: Params }) {
     .filter((m) => m.leagueSlug === division.slug)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const [first, second] = rows
+  const faq = leagueFaq(division, rows)
 
   return (
     <div className="page">
       <JsonLd data={leagueLd(division)} />
+      <JsonLd data={webPageLd(paths.league(division.slug), division.name, new Date(now))} />
+      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Turneringer', path: paths.league('superliga') },
@@ -66,6 +72,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           {first.points - second.points === 0 ? 'lige med' : `${first.points - second.points} point foran`}{' '}
           {second.club.name}. Nederst ligger {rows.at(-1)!.club.name} med {rows.at(-1)!.points} point.
         </p>
+        <Updated at={now} />
 
         <section className="panel table-panel">
           <header className="table-panel__head">
@@ -92,6 +99,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
             </ul>
           </section>
         )}
+
+        <Faq items={faq} />
       </div>
     </div>
   )

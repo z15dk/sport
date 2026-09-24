@@ -8,6 +8,7 @@ export const SITE_URL = (process.env.SITE_URL || 'http://localhost:5173').replac
 export const INDEXABLE = process.env.SITE_INDEXABLE === 'true'
 
 export const paths = {
+  about: () => '/om',
   home: (params?: { sport?: string; dato?: string }) => {
     const q = new URLSearchParams()
     if (params?.sport && params.sport !== 'fodbold') q.set('sport', params.sport)

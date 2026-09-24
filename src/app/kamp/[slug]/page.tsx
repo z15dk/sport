@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findMatch } from '../../../data/matches'
-import { clubStats, findClub } from '../../../data/matchInsights'
+import { clubStats, findClub, headToHead } from '../../../data/matchInsights'
+import { Faq } from '../../../components/Faq'
+import { matchFaq } from '../../../lib/faq'
 import { dateFromMatchSlug } from '../../../lib/slug'
 import { summary } from '../../../lib/matchText'
 import { formatFull } from '../../../lib/time'
 import { paths } from '../../../lib/site'
-import { JsonLd, breadcrumbLd, matchLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, faqLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +44,10 @@ export default async function MatchPage({ params }: { params: Params }) {
   if (!found) notFound()
   const { match, date, now } = found
   const clubSlug = (name: string) => findClub(name)?.club.slug
+  const homeStats = clubStats(match.home.name)
+  const awayStats = clubStats(match.away.name)
+  const faq = matchFaq(match, headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)
+  const title = `${match.home.name} – ${match.away.name}`
 
   return (
     <div className="page">
@@ -53,7 +59,12 @@ export default async function MatchPage({ params }: { params: Params }) {
           { name: `${match.home.name} – ${match.away.name}`, path: paths.match(match.slug) },
         ])}
       />
+      <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
+      <JsonLd data={faqLd(faq)} />
       <MatchView slug={slug} date={date} initialNow={now} />
+      <div className="match-page match-page--after">
+        <Faq items={faq} />
+      </div>
     </div>
   )
 }

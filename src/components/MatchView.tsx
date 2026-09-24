@@ -10,6 +10,7 @@ import type { Match } from '../types'
 import { StatBar } from './StatBar'
 import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
+import { Updated } from './Updated'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -23,7 +24,7 @@ export function MatchView({ slug, date, initialNow }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match} />
+  return <MatchBody match={match} now={now} />
 }
 
 function ClubName({ name }: { name: string }) {
@@ -31,7 +32,7 @@ function ClubName({ name }: { name: string }) {
   return club ? <Link href={paths.club(club.club.slug)}>{name}</Link> : <>{name}</>
 }
 
-function MatchBody({ match }: { match: Match }) {
+function MatchBody({ match, now }: { match: Match; now: number }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
   const stats = matchStats(match)
@@ -91,6 +92,7 @@ function MatchBody({ match }: { match: Match }) {
         {home.name} – {away.name}
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
+      <Updated at={now} />
 
       <div className="match-page__grid">
         {stats && (

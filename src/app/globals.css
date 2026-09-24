@@ -622,3 +622,30 @@ h2.league__name { margin: 0; }
   .toolbar { flex-wrap: nowrap; }
   .toolbar .search { order: 0; flex: 1; flex-basis: auto; }
 }
+
+/* Freshness, FAQ, about, footer */
+.updated { font-size: 12px; color: var(--ink-3); margin-top: -8px; }
+.faq { padding-bottom: 8px; }
+.faq__list { margin: 0; padding: 0 18px 12px; display: flex; flex-direction: column; }
+.faq__item { padding: 12px 0; border-top: 1px solid var(--line); }
+.faq__item:first-child { border-top: 0; }
+.faq__item dt { font-weight: 700; margin-bottom: 4px; }
+.faq__item dd { margin: 0; color: var(--ink-2); line-height: 1.5; max-width: 72ch; }
+.match-page--after { margin-top: 16px; }
+.prose__section { padding-bottom: 18px; }
+.prose__section p { padding: 0 18px; line-height: 1.6; max-width: 72ch; color: var(--ink-2); }
+.prose__section p + p { margin-top: 10px; }
+.prose a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.footer {
+  margin: 8px 24px 32px 4px; padding: 24px; border-radius: var(--radius); background: var(--ink); color: #fff;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.footer__cols { display: flex; flex-wrap: wrap; gap: 32px 64px; }
+.footer h2 { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; text-transform: uppercase; color: var(--lime); margin: 0 0 8px; }
+.footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.footer a { color: #fff; opacity: 0.85; }
+.footer a:hover { opacity: 1; text-decoration: underline; }
+.footer__note { font-size: 12px; opacity: 0.6; }
+@media (max-width: 900px) {
+  .footer { order: 3; margin: 8px 16px 24px; }
+}

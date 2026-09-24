@@ -37,7 +37,7 @@ mkdir -p "$BASE/releases"
 if [ -n "$DOMAIN" ]; then SITE_URL="https://$DOMAIN"; else SITE_URL="http://$(curl -fsS4 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):$PORT"; fi
 if [ ! -f "$BASE/env" ]; then
   cat > "$BASE/env" <<ENV
-# Settings for Scoreline. Restart after changes: systemctl restart scoreline
+# Settings for Scoreline. After changes rebuild and restart with: sudo scoreline-update --force
 NODE_ENV=production
 PORT=$PORT
 SITE_URL=$SITE_URL
@@ -45,6 +45,8 @@ SITE_URL=$SITE_URL
 SITE_INDEXABLE=false
 THESPORTSDB_KEY=3
 NEXT_PUBLIC_THESPORTSDB_KEY=3
+# IndexNow key (openssl rand -hex 16). Only used when SITE_INDEXABLE=true
+INDEXNOW_KEY=
 ENV
 fi
 cat > "$BASE/deploy.conf" <<CONF

@@ -73,3 +73,42 @@ export function breadcrumbLd(items: { name: string; path: string }[]) {
     })),
   }
 }
+
+export function faqLd(items: { q: string; a: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((it) => ({
+      '@type': 'Question',
+      name: it.q,
+      acceptedAnswer: { '@type': 'Answer', text: it.a },
+    })),
+  }
+}
+
+export function webPageLd(path: string, name: string, modified: Date, description?: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    url: `${SITE_URL}${path}`,
+    name,
+    ...(description && { description }),
+    inLanguage: 'da-DK',
+    dateModified: modified.toISOString(),
+    isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: SITE_URL },
+    publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
+  }
+}
+
+export function organizationLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/favicon.svg`,
+    description: 'Resultater, kampprogram, stillinger og statistik for dansk fodbold fra Superligaen til 3. division.',
+    areaServed: 'DK',
+    knowsLanguage: 'da',
+  }
+}

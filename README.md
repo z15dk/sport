@@ -51,9 +51,21 @@ og AI-assistenter kan læse indholdet uden JavaScript.
 - Et kort resumé i almindelig tekst øverst på kamp-, klub- og turneringssider
 - `sitemap.xml` og `robots.txt`
 
+- Synlig "Opdateret"-tid samt `WebPage.dateModified` på kamp-, klub- og turneringssider
+- Spørgsmål og svar (med `FAQPage`-data) på kamp-, klub- og turneringssider
+- "Om Scoreline" (`/om`) med `Organization`-data og en sidefod, der linker til alle rækker
+- IndexNow (`/indexnow.txt`): giver Bing m.fl. besked, så snart en kamp er slut
+
 **Siden er sat til `noindex`, og `robots.txt` blokerer alle crawlere**, fordi
-resultaterne er fiktive. Sæt `SITE_INDEXABLE=true` og `SITE_URL` til det rigtige
-domæne, når der kommer rigtige data (se `.env.example`).
+resultaterne er fiktive. IndexNow er også slået fra.
+
+### Når vi går live
+
+1. Rigtige resultater skal være på plads.
+2. Sæt i `/opt/scoreline/env` på serveren: `SITE_URL=https://det-rigtige-domæne.dk`,
+   `SITE_INDEXABLE=true` og `INDEXNOW_KEY=<openssl rand -hex 16>`.
+3. Byg igen: `sudo scoreline-update --force` (indstillingerne bages ind ved bygget).
+4. Tilmeld domænet i Google Search Console og Bing Webmaster Tools og indsend `/sitemap.xml`.
 
 ## Klublogoer
 

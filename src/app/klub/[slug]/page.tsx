@@ -9,7 +9,10 @@ import { FormChips } from '../../../components/FormChips'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { JsonLd, breadcrumbLd, clubLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, clubLd, faqLd, webPageLd } from '../../../lib/jsonld'
+import { Faq } from '../../../components/Faq'
+import { Updated } from '../../../components/Updated'
+import { clubFaq } from '../../../lib/faq'
 import { addDays, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 
@@ -44,6 +47,7 @@ export default async function ClubPage({ params }: { params: Params }) {
   const around = clubMatches(club.name, addDays(today, -7), 15, now)
   const recent = around.filter((m) => m.state === 'finished').slice(-5).reverse()
   const upcoming = around.filter((m) => m.state !== 'finished').slice(0, 5)
+  const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
   const table = standings(division, ROUNDS_PLAYED)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
@@ -53,6 +57,8 @@ export default async function ClubPage({ params }: { params: Params }) {
   return (
     <div className="page">
       <JsonLd data={clubLd(club, division)} />
+      <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
+      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Klubber', path: paths.clubs() },
@@ -75,6 +81,7 @@ export default async function ClubPage({ params }: { params: Params }) {
           {club.name} ligger nr. {stats.position} i {division.name} med {r.points} point efter {r.played} kampe ({r.won}{' '}
           sejre, {r.drawn} uafgjorte og {r.lost} nederlag) og en målscore på {r.goalsFor}-{r.goalsAgainst}.
         </p>
+        <Updated at={now} />
 
         <section className="tiles tiles--club" aria-label="Sæsonen i tal">
           <div className="tile tile--lime">
@@ -133,6 +140,7 @@ export default async function ClubPage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={nearby} highlight={club.id} offset={start} total={table.length} />
         </section>
+        <Faq items={faq} />
         <p className="muted small">Alle resultater og tal er fiktive.</p>
       </div>
     </div>
