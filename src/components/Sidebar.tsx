@@ -12,28 +12,37 @@ export function Sidebar({ groups, pinned }: Props) {
 
   const list = (items: LeagueGroup[]) => (
     <ul className="side-list">
-      {items.map((g) => (
-        <li key={g.leagueId}>
-          <a href={`#league-${g.leagueId}`}>
-            <TeamBadge name={g.league} src={g.leagueBadge} size={18} />
-            <span className="side-list__name">{g.league}</span>
-            <span className="side-list__count">{g.matches.length}</span>
-          </a>
-        </li>
-      ))}
+      {items.map((g) => {
+        const live = g.matches.some((m) => m.state === 'live')
+        return (
+          <li key={g.leagueId}>
+            <a href={`#league-${g.leagueId}`}>
+              <TeamBadge name={g.league} src={g.leagueBadge} size={26} />
+              <span className="side-list__text">
+                <span className="side-list__name">{g.league}</span>
+                {g.country && <span className="side-list__country">{g.country}</span>}
+              </span>
+              {live && <span className="live-dot" aria-label="Live" />}
+              <span className="side-list__count">{g.matches.length}</span>
+            </a>
+          </li>
+        )
+      })}
     </ul>
   )
 
   return (
-    <aside className="sidebar card" aria-label="Turneringer">
+    <aside className="sidebar" aria-label="Turneringer">
       {favorites.length > 0 && (
-        <>
-          <h2 className="card__title">Favoritter</h2>
+        <div className="panel">
+          <h2 className="panel__title">Favoritter</h2>
           {list(favorites)}
-        </>
+        </div>
       )}
-      <h2 className="card__title">Turneringer i dag</h2>
-      {others.length > 0 ? list(others) : <p className="muted small">Ingen turneringer</p>}
+      <div className="panel">
+        <h2 className="panel__title">Turneringer</h2>
+        {others.length > 0 ? list(others) : <p className="muted small pad">Ingen turneringer denne dag</p>}
+      </div>
     </aside>
   )
 }

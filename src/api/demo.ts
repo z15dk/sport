@@ -1,4 +1,5 @@
 import type { Match, MatchState, SportId } from '../types'
+import { toIsoDate } from '../dates'
 
 // Offline demo data used when the API is unreachable or when ?demo is in the URL.
 
@@ -43,7 +44,9 @@ export function demoMatches(date: string, sport: SportId): Match[] {
     for (let i = 0; i + 1 < lg.teams.length; i += 2) {
       const hour = 12 + Math.floor(rand() * 10)
       const minute = [0, 15, 30, 45][Math.floor(rand() * 4)]
-      const kickoff = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`)
+      let kickoff = new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`)
+      // Keep the first match of each league live today so the demo always has action
+      if (i === 0 && date === toIsoDate(new Date())) kickoff = new Date(now - (18 + li * 29) * 60000)
       const elapsed = (now - kickoff.getTime()) / 60000
 
       let state: MatchState = 'upcoming'

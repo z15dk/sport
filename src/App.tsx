@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Header } from './components/Header'
-import { SportTabs } from './components/SportTabs'
+import { SportRail } from './components/SportRail'
+import { LiveStrip } from './components/LiveStrip'
 import { DateStrip } from './components/DateStrip'
 import { FilterBar } from './components/FilterBar'
 import { LeagueSection } from './components/LeagueSection'
 import { Sidebar } from './components/Sidebar'
-import { SummaryPanel } from './components/SummaryPanel'
+import { FeaturedMatch } from './components/FeaturedMatch'
+import { StatTiles } from './components/StatTiles'
 import { useMatches } from './hooks/useMatches'
 import { usePersistentState } from './hooks/usePersistentState'
-import { isSameDay, toIsoDate } from './dates'
+import { formatLong, isSameDay, toIsoDate } from './dates'
+import { SPORTS } from './sports'
 import type { LeagueGroup, Match, SportId, StateFilter } from './types'
 
 const STATE_ORDER = { live: 0, upcoming: 1, finished: 2, postponed: 3 } as const
@@ -32,19 +35,11 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
 }
 
 export default function App() {
-  const [theme, setTheme] = usePersistentState<'light' | 'dark'>(
-    'theme',
-    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
-  )
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [sport, setSport] = useState<SportId>('soccer')
   const [date, setDate] = useState(() => new Date())
   const [filter, setFilter] = useState<StateFilter>('all')
   const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   const isToday = isSameDay(date, new Date())
   const { matches, loading, error, isDemo, updatedAt, refresh } = useMatches(toIsoDate(date), sport, isToday)
@@ -74,68 +69,74 @@ export default function App() {
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
+  const liveCount = matches.filter((m) => m.state === 'live').length
+  const sportLabel = SPORTS.find((s) => s.id === sport)!.label
 
   return (
-    <>
-      <Header
-        query={query}
-        onQueryChange={setQuery}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      />
-      <SportTabs value={sport} onChange={setSport} />
+    <div className="app">
+      <SportRail value={sport} onChange={setSport} />
 
-      <div className="layout">
-        <Sidebar groups={allGroups} pinned={pinned} />
+      <div className="app__main">
+        <Header
+          query={query}
+          onQueryChange={setQuery}
+          liveCount={liveCount}
+          onShowLive={() => setFilter('live')}
+        />
 
-        <main className="feed">
-          <div className="card feed__controls">
-            <DateStrip selected={date} onSelect={setDate} />
-            <FilterBar value={filter} onChange={setFilter} counts={counts} />
-          </div>
+        <div className="page">
+          <LiveStrip matches={searched} />
 
           {isDemo && (
             <div className="banner" role="status">
-              Viser demodata – {error ? 'API’et kunne ikke nås.' : 'demotilstand er slået til.'}
+              Viser demodata. {error ? 'Kampene kunne ikke hentes fra API’et.' : 'Demotilstand er slået til.'}
             </div>
           )}
 
-          {loading && matches.length === 0 ? (
-            <div className="card">
-              {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="skeleton" />
-              ))}
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="card empty">
-              <p className="empty__icon" aria-hidden>
-                📭
-              </p>
-              <p>{query ? `Ingen kampe matcher “${query}”.` : 'Ingen kampe for den valgte dag og filter.'}</p>
-            </div>
-          ) : (
-            <div className={`card league-list${loading ? ' is-loading' : ''}`}>
-              {groups.map((g) => (
-                <LeagueSection
-                  key={g.leagueId}
-                  group={g}
-                  pinned={pinned.has(g.leagueId)}
-                  onTogglePin={() => togglePin(g.leagueId)}
-                />
-              ))}
-            </div>
-          )}
-        </main>
+          <div className="grid">
+            <Sidebar groups={allGroups} pinned={pinned} />
 
-        <SummaryPanel
-          date={date}
-          matches={matches}
-          updatedAt={updatedAt}
-          isDemo={isDemo}
-          error={error}
-          onRefresh={refresh}
-        />
+            <main className="feed">
+              <div className="feed__head">
+                <h1 className="feed__title">
+                  {sportLabel}
+                  <span>{formatLong(date)}</span>
+                </h1>
+                <FilterBar value={filter} onChange={setFilter} counts={counts} />
+              </div>
+              <DateStrip selected={date} onSelect={setDate} />
+
+              {loading && matches.length === 0 ? (
+                <div className="panel">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} className="skeleton" />
+                  ))}
+                </div>
+              ) : groups.length === 0 ? (
+                <div className="panel empty">
+                  <p>{query ? `Ingen kampe matcher “${query}”.` : 'Ingen kampe for den valgte dag og filter.'}</p>
+                </div>
+              ) : (
+                <div className={`league-list${loading ? ' is-loading' : ''}`}>
+                  {groups.map((g) => (
+                    <LeagueSection
+                      key={g.leagueId}
+                      group={g}
+                      pinned={pinned.has(g.leagueId)}
+                      onTogglePin={() => togglePin(g.leagueId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </main>
+
+            <aside className="aside">
+              <FeaturedMatch matches={matches} pinned={pinned} />
+              <StatTiles matches={matches} updatedAt={updatedAt} isDemo={isDemo} onRefresh={refresh} />
+            </aside>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   )
 }

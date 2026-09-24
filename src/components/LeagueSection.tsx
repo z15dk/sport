@@ -17,12 +17,13 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
     <section className="league" id={`league-${group.leagueId}`}>
       <header className="league__header">
         <button className="league__toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <TeamBadge name={group.league} src={group.leagueBadge} size={22} />
+          <TeamBadge name={group.league} src={group.leagueBadge} size={28} />
           <span className="league__titles">
             {group.country && <span className="league__country">{group.country}</span>}
             <span className="league__name">{group.league}</span>
           </span>
           {liveCount > 0 && <span className="league__live">{liveCount} live</span>}
+          <span className="league__count">{group.matches.length} kampe</span>
           <span className={`chevron${open ? ' is-open' : ''}`} aria-hidden>
             ›
           </span>

@@ -2,11 +2,8 @@ import { formatTime } from '../dates'
 import type { Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
 
-function outcome(team: Team, other: Team): 'win' | 'loss' | 'draw' | undefined {
-  if (team.score === undefined || other.score === undefined) return undefined
-  if (team.score > other.score) return 'win'
-  if (team.score < other.score) return 'loss'
-  return 'draw'
+function lost(team: Team, other: Team) {
+  return team.score !== undefined && other.score !== undefined && team.score < other.score
 }
 
 export function MatchRow({ match }: { match: Match }) {
@@ -14,27 +11,36 @@ export function MatchRow({ match }: { match: Match }) {
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
 
-  const teamLine = (team: Team, other: Team) => {
-    const res = finished ? outcome(team, other) : undefined
-    return (
-      <div className={`team${res === 'loss' ? ' team--muted' : ''}${res === 'win' ? ' team--winner' : ''}`}>
-        <TeamBadge name={team.name} src={team.badge} />
-        <span className="team__name">{team.name}</span>
-        <span className="team__score">{showScore ? (team.score ?? '–') : ''}</span>
-      </div>
-    )
-  }
-
   return (
     <li className={`match match--${state}`}>
-      <div className="match__time">
-        <time dateTime={match.kickoff.toISOString()}>{formatTime(match.kickoff)}</time>
-        {match.statusLabel && <span className={`match__status match__status--${state}`}>{match.statusLabel}</span>}
-      </div>
+      <time className="match__time" dateTime={match.kickoff.toISOString()}>
+        {formatTime(match.kickoff)}
+      </time>
       <div className="match__teams">
-        {teamLine(home, away)}
-        {teamLine(away, home)}
+        {[home, away].map((team, i) => {
+          const other = i === 0 ? away : home
+          return (
+            <div key={i} className={`team${finished && lost(team, other) ? ' team--lost' : ''}`}>
+              <TeamBadge name={team.name} src={team.badge} />
+              <span className="team__name">{team.name}</span>
+            </div>
+          )
+        })}
       </div>
+      <div className="match__scores" aria-label={showScore ? `${home.score ?? 0} – ${away.score ?? 0}` : undefined}>
+        {showScore ? (
+          <>
+            <span className={finished && lost(home, away) ? 'is-lost' : ''}>{home.score ?? '–'}</span>
+            <span className={finished && lost(away, home) ? 'is-lost' : ''}>{away.score ?? '–'}</span>
+          </>
+        ) : (
+          <>
+            <span>–</span>
+            <span>–</span>
+          </>
+        )}
+      </div>
+      {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
     </li>
   )
 }
