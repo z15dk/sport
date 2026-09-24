@@ -9,7 +9,20 @@ npm install
 npm run dev
 ```
 
-Åbn http://localhost:5173. Tilføj `?demo` til URL'en for at bruge demodata i stedet for API'et.
+Åbn http://localhost:5173.
+
+### Altid nyeste version: `npm run live`
+
+```bash
+npm run live
+```
+
+Starter udviklingsserveren på http://localhost:5173 og henter automatisk nye
+commits fra GitHub hvert 15. sekund. Siden i browseren opdaterer sig selv.
+Ændres afhængigheder eller Vite-opsætning, køres `npm install` og serveren
+genstartes automatisk. Har du selv lokale ændringer, springes opdateringen over.
+
+`npm run live -- <branch>` skifter til og følger en bestemt branch. Tilføj `?demo` til URL'en for at bruge demodata i stedet for API'et.
 
 ## Forsiden
 
@@ -30,10 +43,6 @@ Hvis API'et ikke kan nås, vises demodata, så siden altid kan vises.
 
 API-klienten ligger i `src/api/thesportsdb.ts` og mapper svaret til den fælles
 `Match`-type i `src/types.ts`, så en anden udbyder kan skiftes ind senere.
-
-## Udrulning
-
-Hvert push udrulles automatisk til den lokale server. Se [DEPLOY.md](DEPLOY.md).
 
 ## Scripts
 
