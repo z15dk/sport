@@ -13,6 +13,24 @@ npm run live
 automatisk nye commits fra GitHub hvert 15. sekund; siden opdaterer sig selv.
 `npm run dev` starter kun serveren.
 
+## Drift på egen server (VPS)
+
+På en Debian/Ubuntu-server installeres alt med én kommando:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/z15dk/sport/claude/sofascore-alternativ-forside-r7xj0k/deploy/install.sh | sudo bash
+```
+
+Med domæne og HTTPS (DNS skal pege på serveren):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/z15dk/sport/claude/sofascore-alternativ-forside-r7xj0k/deploy/install.sh | sudo DOMAIN=ditdomæne.dk bash
+```
+
+Serveren tjekker GitHub hvert minut. Nye commits bygges i deres egen mappe og tages
+først i brug, når bygget lykkes (`deploy/update.sh`). Indstillinger ligger i
+`/opt/scoreline/env`; log: `journalctl -u scoreline -f`.
+
 ## Sider
 
 Hver side har sin egen adresse og bliver renderet på serveren, så søgemaskiner

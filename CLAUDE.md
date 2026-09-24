@@ -4,6 +4,8 @@ Sofascore-alternativ for dansk fodbold. Next.js (App Router) + React + TypeScrip
 
 - Alt arbejde skal committes og pushes med det samme. Brugeren kører `npm run live`
   lokalt (http://localhost:5173), som automatisk henter nyeste push og genindlæser siden.
+- Brugerens VPS følger branchen via `deploy/update.sh` (systemd-timer hvert minut) og
+  udruller hvert push automatisk. Et push der ikke bygger, bliver aldrig udrullet.
 - Før push: `npm run lint` og `npm run build` skal være grønne.
 - Hver kamp, klub og turnering har sin egen server-renderede side (SEO/GEO) med
   metadata og schema.org JSON-LD (`src/lib/jsonld.tsx`). Nye sider skal have det samme.
