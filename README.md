@@ -22,7 +22,9 @@ commits fra GitHub hvert 15. sekund. Siden i browseren opdaterer sig selv.
 Ændres afhængigheder eller Vite-opsætning, køres `npm install` og serveren
 genstartes automatisk. Har du selv lokale ændringer, springes opdateringen over.
 
-`npm run live -- <branch>` skifter til og følger en bestemt branch. Tilføj `?demo` til URL'en for at bruge demodata i stedet for API'et.
+`npm run live -- <branch>` skifter til og følger en bestemt branch.
+
+Tilføj `?demo` til URL'en for at bruge demodata i stedet for API'et.
 
 ## Forsiden
 
