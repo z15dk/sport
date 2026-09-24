@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
   const title = `${match.home.name} – ${match.away.name}${score} | ${match.league} ${formatFull(match.kickoff)}`
-  const description = summary(match, clubStats(match.home.name), clubStats(match.away.name))
+  const description = summary(match, clubStats(match.home.name, found.now), clubStats(match.away.name, found.now))
   return {
     title: { absolute: title },
     description,
@@ -45,8 +45,8 @@ export default async function MatchPage({ params }: { params: Params }) {
   if (!found) notFound()
   const { match, date, now } = found
   const clubSlug = (name: string) => teamByName(name)?.slug
-  const homeStats = clubStats(match.home.name)
-  const awayStats = clubStats(match.away.name)
+  const homeStats = clubStats(match.home.name, now)
+  const awayStats = clubStats(match.away.name, now)
   const faq = matchFaq(match, headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 

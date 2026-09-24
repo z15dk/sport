@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { DIVISIONS, SEASON, divisionBySlug } from '../../../data/danishClubs'
-import { standings } from '../../../data/fixtures'
+import { standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
-import { ROUNDS_PLAYED } from '../../../data/matchInsights'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
@@ -25,10 +24,12 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const division = divisionBySlug((await params).slug)
   if (!division) return { title: 'Turneringen findes ikke' }
-  const leader = standings(division, ROUNDS_PLAYED)[0]
+  const table = standings(division, Date.now())
+  const leader = table[0]
+  const rounds = Math.max(...table.map((r) => r.played))
   return {
     title: `${division.name} ${SEASON} – stilling, resultater og kampprogram`,
-    description: `Stillingen i ${division.name} ${SEASON} efter ${ROUNDS_PLAYED} runder. ${leader.club.name} fører med ${leader.points} point. Se alle ${division.clubs.length} klubber, resultater og kommende kampe.`,
+    description: `Stillingen i ${division.name} ${SEASON} efter ${rounds} runder. ${leader.club.name} fører med ${leader.points} point. Se alle ${division.clubs.length} klubber, resultater og kommende kampe.`,
     alternates: { canonical: paths.league(division.slug) },
   }
 }
@@ -36,8 +37,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function LeaguePage({ params }: { params: Params }) {
   const division = divisionBySlug((await params).slug)
   if (!division) notFound()
-  const rows = standings(division, ROUNDS_PLAYED)
   const now = Date.now()
+  const rows = standings(division, now)
+  const rounds = Math.max(...rows.map((r) => r.played))
   const today = isoDate(now)
   const todays = getMatches(today, 'soccer', now)
     .filter((m) => m.leagueSlug === division.slug)
@@ -68,7 +70,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         </div>
 
         <p className="lead">
-          Efter {ROUNDS_PLAYED} runder fører {first.club.name} {division.name} med {first.points} point,{' '}
+          Efter {rounds} runder fører {first.club.name} {division.name} med {first.points} point,{' '}
           {first.points - second.points === 0 ? 'lige med' : `${first.points - second.points} point foran`}{' '}
           {second.club.name}. Nederst ligger {rows.at(-1)!.club.name} med {rows.at(-1)!.points} point.
         </p>
@@ -77,7 +79,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
-            <span className="tag">Fiktiv · efter {ROUNDS_PLAYED} runder</span>
+            <span className="tag">Fiktiv · efter {rounds} runder</span>
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>

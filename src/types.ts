@@ -30,6 +30,10 @@ export interface Match {
   home: Team
   away: Team
   venue?: string
+  /** Round number within the competition */
+  round?: number
+  /** Set once finished; cup ties level after full time are decided on penalties */
+  winner?: 'home' | 'away' | 'draw'
 }
 
 export interface LeagueGroup {

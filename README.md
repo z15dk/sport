@@ -77,8 +77,9 @@ Logoer findes i denne rækkefølge:
 
 ## Data
 
-Kampe og resultater er fiktive og genereres ud fra dato og klubbernes styrke
-(`src/data/matches.ts`, `src/data/fixtures.ts`). Klubberne for sæson 2026/27 står
+Kampe og resultater er fiktive. For de danske rækker findes et helt sæsonprogram
+(`src/data/season.ts`): én ligarunde om ugen fra 17. juli og pokalrunder om onsdagen.
+Stillinger, klubsider og forsiden bygger alle på det samme program, så tallene hænger sammen. Klubberne for sæson 2026/27 står
 i `src/data/danishClubs.ts`. På forsiden kan man skifte til live-data fra
 TheSportsDB, som dog ikke dækker de lavere danske rækker.
 

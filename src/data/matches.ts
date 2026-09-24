@@ -1,8 +1,9 @@
 import type { Match, MatchState, SportId } from '../types'
 import { danishTime, isoDate } from '../lib/time'
 import { matchSlug } from '../lib/slug'
-import { DIVISIONS } from './danishClubs'
-import { hashString, pairClubs, playMatch, seeded } from './fixtures'
+import { clubByName } from './danishClubs'
+import { hashString, seeded } from './fixtures'
+import { clubFixtures, fixturesOn, toMatch } from './season'
 
 // Fictional match data. Football uses the Danish divisions; other sports use
 // a small set of well-known teams. Everything is deterministic for a given
@@ -22,14 +23,6 @@ export const OTHER: Record<Exclude<SportId, 'soccer'>, { league: string; country
     { league: 'Champions League', country: 'Europa', teams: ['Barça', 'Veszprém', 'Kiel', 'Magdeburg'] },
   ],
   tennis: [{ league: 'ATP Tokyo', country: 'Japan', teams: ['H. Rune', 'C. Alcaraz', 'J. Sinner', 'T. Fritz'] }],
-}
-
-// Typical kickoff slots per division (Danish time)
-const SLOTS: Record<string, string[]> = {
-  superliga: ['14:00', '16:00', '16:00', '18:00', '19:00', '20:00'],
-  '1div': ['13:00', '14:00', '15:00', '15:00', '17:00', '18:30'],
-  '2div': ['13:00', '13:00', '14:00', '15:00', '15:00', '16:00'],
-  '3div': ['12:00', '13:00', '13:00', '14:00', '14:00', '15:00'],
 }
 
 // Minutes after kickoff at which a match is over (incl. half time)
@@ -63,44 +56,7 @@ function liveKickoff(now: number, offsetMin: number) {
 }
 
 function danishFootball(date: string, now: number): Match[] {
-  const isToday = date === isoDate(now)
-  const matches: Match[] = []
-
-  for (const [di, div] of DIVISIONS.entries()) {
-    const rand = seeded(hashString(`${div.id}-${date}`))
-    const pairs = pairClubs(div.clubs, rand)
-    const slots = SLOTS[div.id]
-
-    for (const [pi, [home, away]] of pairs.entries()) {
-      let kickoff = danishTime(date, slots[pi % slots.length])
-      // Keep one match per division live today so the page always has action
-      if (isToday && pi === 0) kickoff = liveKickoff(now, 12 + di * 23)
-
-      const [hg, ag] = playMatch(div, home, away, rand)
-      const { state, statusLabel, progress } = stateAt(kickoff, now)
-      const hasScore = state !== 'upcoming'
-      // A live score is the final score scaled down to how far the match has come
-      const partial = (g: number) => (state === 'finished' ? g : Math.floor(g * progress))
-
-      matches.push({
-        id: `dk-${div.id}-${date}-${pi}`,
-        slug: matchSlug(home.name, away.name, date),
-        sport: 'soccer',
-        league: div.name,
-        leagueId: `dk-${div.id}`,
-        leagueSlug: div.slug,
-        leagueOrder: di,
-        country: 'Danmark',
-        kickoff,
-        state,
-        statusLabel,
-        venue: home.city,
-        home: { name: home.name, colors: home.colors, score: hasScore ? partial(hg) : undefined },
-        away: { name: away.name, colors: away.colors, score: hasScore ? partial(ag) : undefined },
-      })
-    }
-  }
-  return matches
+  return fixturesOn(date).map((f) => toMatch(f, now))
 }
 
 function otherSport(date: string, sport: Exclude<SportId, 'soccer'>, now: number): Match[] {
@@ -152,17 +108,10 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
   return undefined
 }
 
-/** Fictional matches for one club over a range of days around `date` */
-export function clubMatches(clubName: string, fromDate: string, days: number, now: number): Match[] {
-  const out: Match[] = []
-  for (let i = 0; i < days; i++) {
-    const d = new Date(`${fromDate}T12:00:00Z`)
-    d.setUTCDate(d.getUTCDate() + i)
-    const date = d.toISOString().slice(0, 10)
-    const m = danishFootball(date, now).find((x) => x.home.name === clubName || x.away.name === clubName)
-    if (m) out.push(m)
-  }
-  return out
+/** Every match of a Danish club this season (league and cup), in date order */
+export function clubMatches(clubName: string, now: number): Match[] {
+  const club = clubByName(clubName)
+  return club ? clubFixtures(club.club.id).map((f) => toMatch(f, now)) : []
 }
 
 /** Fictional matches for any team (any sport) over a range of days from `fromDate` */

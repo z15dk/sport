@@ -14,7 +14,7 @@ Sofascore-alternativ for dansk fodbold. Next.js (App Router) + React + TypeScrip
 - Resultaterne er fiktive: siden skal forblive `noindex` (styres af `SITE_INDEXABLE`)
   indtil der kommer rigtige data.
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
-- Kampdata: fiktive (`src/data/matches.ts`); valgfrit live-data fra TheSportsDB (`src/api/thesportsdb.ts`).
+- Kampdata: fiktivt sæsonprogram for de danske rækker (`src/data/season.ts`, liga + pokal), andre sportsgrene i `src/data/matches.ts`. Brug altid `shuffle()` med seed – aldrig `sort(() => rand() - 0.5)`, ellers er server og browser uenige; valgfrit live-data fra TheSportsDB (`src/api/thesportsdb.ts`).
 - Klublogoer: `public/logos/<slug>.*`, ellers TheSportsDB, ellers forbogstaver (`src/lib/badges.ts`).
 
 <!-- BEGIN:nextjs-agent-rules -->

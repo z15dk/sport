@@ -1,6 +1,6 @@
 import type { Club, Division } from './danishClubs'
 
-// Deterministic fictional results for the Danish divisions.
+// Deterministic building blocks for the fictional results.
 
 export function seeded(seed: number) {
   let s = seed % 2147483647
@@ -38,13 +38,23 @@ export function playMatch(div: Division, home: Club, away: Club, rand: () => num
   return [poisson(lh, rand), poisson(la, rand)]
 }
 
-/** Pairs every club with another, in a different order per seed. */
-export function pairClubs(clubs: Club[], rand: () => number): [Club, Club][] {
-  const list = [...clubs]
+/**
+ * Shuffles a copy of `items` with the seeded generator (Fisher-Yates). Never use
+ * sort(() => rand() - 0.5): its result depends on the engine's sort algorithm,
+ * so the server and the browser could end up with different fixtures.
+ */
+export function shuffle<T>(items: T[], rand: () => number): T[] {
+  const list = [...items]
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
     ;[list[i], list[j]] = [list[j], list[i]]
   }
+  return list
+}
+
+/** Pairs every club with another, in a different order per seed. */
+export function pairClubs(clubs: Club[], rand: () => number): [Club, Club][] {
+  const list = shuffle(clubs, rand)
   const pairs: [Club, Club][] = []
   for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]])
   return pairs
@@ -63,63 +73,4 @@ export function roundRobin(clubs: Club[], round: number): [Club, Club][] {
     pairs.push(round % 2 === 0 ? [a, b] : [b, a])
   }
   return pairs
-}
-
-export interface StandingRow {
-  club: Club
-  played: number
-  won: number
-  drawn: number
-  lost: number
-  goalsFor: number
-  goalsAgainst: number
-  points: number
-  form: ('V' | 'U' | 'T')[]
-}
-
-/** Fictional table after `rounds` rounds of the season. */
-export function standings(div: Division, rounds: number): StandingRow[] {
-  const rows = new Map<string, StandingRow>(
-    div.clubs.map((club) => [
-      club.id,
-      { club, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] },
-    ]),
-  )
-  for (let r = 0; r < rounds; r++) {
-    const rand = seeded(hashString(`${div.id}-season-${r}`))
-    for (const [home, away] of roundRobin(div.clubs, r)) {
-      const [hg, ag] = playMatch(div, home, away, rand)
-      const h = rows.get(home.id)!
-      const a = rows.get(away.id)!
-      h.played++
-      a.played++
-      h.goalsFor += hg
-      h.goalsAgainst += ag
-      a.goalsFor += ag
-      a.goalsAgainst += hg
-      const result = (row: StandingRow, f: number, a: number) => {
-        if (f > a) {
-          row.won++
-          row.points += 3
-          row.form.push('V')
-        } else if (f < a) {
-          row.lost++
-          row.form.push('T')
-        } else {
-          row.drawn++
-          row.points++
-          row.form.push('U')
-        }
-      }
-      result(h, hg, ag)
-      result(a, ag, hg)
-    }
-  }
-  return [...rows.values()].sort(
-    (x, y) =>
-      y.points - x.points ||
-      y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) ||
-      y.goalsFor - x.goalsFor ||
-      x.club.name.localeCompare(y.club.name, 'da'),
-  )
 }

@@ -1,10 +1,9 @@
 import type { Match } from '../types'
 import { clubByName, type Division } from './danishClubs'
-import { hashString, playMatch, poisson, seeded, standings, type StandingRow } from './fixtures'
+import { hashString, playMatch, poisson, seeded } from './fixtures'
+import { standings, type StandingRow } from './season'
 
 // Fictional background data for the match detail view.
-
-export const ROUNDS_PLAYED = 10
 
 export function findClub(name: string) {
   return clubByName(name)
@@ -16,10 +15,10 @@ export interface ClubStats {
   division: Division
 }
 
-export function clubStats(name: string): ClubStats | undefined {
+export function clubStats(name: string, now: number): ClubStats | undefined {
   const found = findClub(name)
   if (!found) return undefined
-  const table = standings(found.division, ROUNDS_PLAYED)
+  const table = standings(found.division, now)
   const index = table.findIndex((r) => r.club.id === found.club.id)
   return { position: index + 1, row: table[index], division: found.division }
 }

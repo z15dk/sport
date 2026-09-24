@@ -3,9 +3,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SEASON, type Club, type Division } from '../../../data/danishClubs'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
-import { standings } from '../../../data/fixtures'
+import { standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
-import { ROUNDS_PLAYED, clubStats } from '../../../data/matchInsights'
+import { clubStats } from '../../../data/matchInsights'
+import { ClubMatches } from '../../../components/ClubMatches'
+import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
@@ -38,7 +40,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     }
   }
   const { club, division } = team.danish
-  const stats = clubStats(club.name)!
+  const stats = clubStats(club.name, Date.now())!
   return {
     title: `${club.name} – resultater, kampprogram og stilling ${SEASON}`,
     description: `${club.name} fra ${club.city} spiller i ${division.name} ${SEASON} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
@@ -54,15 +56,14 @@ export default async function ClubPage({ params }: { params: Params }) {
 
 /** Full page for Danish football clubs, which have season and table data */
 function DanishClub({ club, division }: { club: Club; division: Division }) {
-  const stats = clubStats(club.name)!
-  const r = stats.row
   const now = Date.now()
-  const today = isoDate(now)
-  const around = clubMatches(club.name, addDays(today, -7), 15, now)
-  const recent = around.filter((m) => m.state === 'finished').slice(-5).reverse()
-  const upcoming = around.filter((m) => m.state !== 'finished').slice(0, 5)
+  const stats = clubStats(club.name, now)!
+  const r = stats.row
+  const season = clubMatches(club.name, now)
+  const recent = season.filter((m) => m.state === 'finished').reverse()
+  const upcoming = season.filter((m) => m.state !== 'finished')
   const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
-  const table = standings(division, ROUNDS_PLAYED)
+  const table = standings(division, now)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
   const start = Math.max(0, Math.min(i - 2, table.length - 5))
@@ -118,42 +119,22 @@ function DanishClub({ club, division }: { club: Club; division: Division }) {
           </div>
         </section>
 
-        <div className="club-grid">
-          <section className="league">
-            <header className="league__header">
-              <div className="league__toggle">
-                <h2 className="league__name">Seneste resultater</h2>
-              </div>
-            </header>
-            <ul className="league__matches">
-              {recent.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
-          </section>
-          <section className="league">
-            <header className="league__header">
-              <div className="league__toggle">
-                <h2 className="league__name">Kommende kampe</h2>
-              </div>
-            </header>
-            <ul className="league__matches">
-              {upcoming.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
-          </section>
+        <div className="club-layout">
+          <ClubMatches clubName={club.name} initialNow={now} />
+          <div className="club-layout__side">
+            <FormChart clubName={club.name} initialNow={now} />
+            <section className="panel table-panel">
+              <header className="table-panel__head">
+                <h2 className="panel__title">Stilling · {division.name}</h2>
+                <Link className="text-btn" href={paths.league(division.slug)}>
+                  Hele stillingen
+                </Link>
+              </header>
+              <StandingsTable division={division} rows={nearby} highlight={club.id} offset={start} total={table.length} compact />
+            </section>
+          </div>
         </div>
 
-        <section className="panel table-panel">
-          <header className="table-panel__head">
-            <h2 className="panel__title">Stilling · {division.name}</h2>
-            <Link className="text-btn" href={paths.league(division.slug)}>
-              Hele stillingen
-            </Link>
-          </header>
-          <StandingsTable division={division} rows={nearby} highlight={club.id} offset={start} total={table.length} />
-        </section>
         <Faq items={faq} />
         <p className="muted small">Alle resultater og tal er fiktive.</p>
       </div>

@@ -37,8 +37,8 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
   const stats = matchStats(match)
-  const homeStats = clubStats(home.name)
-  const awayStats = clubStats(away.name)
+  const homeStats = clubStats(home.name, now)
+  const awayStats = clubStats(away.name, now)
   const h2h = headToHead(home.name, away.name, match.kickoff)
   const wins = { home: 0, draw: 0, away: 0 }
   for (const m of h2h) {

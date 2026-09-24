@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { Division } from '../data/danishClubs'
-import type { StandingRow } from '../data/fixtures'
+import type { StandingRow } from '../data/season'
 import { paths } from '../lib/site'
 import { FormChips } from './FormChips'
 import { TeamBadge } from './TeamBadge'
@@ -13,14 +13,16 @@ interface Props {
   offset?: number
   /** Clubs in the full table, for the relegation zone */
   total?: number
+  /** Narrow version for side columns: fewer columns */
+  compact?: boolean
 }
 
-export function StandingsTable({ division, rows, highlight, offset = 0, total = rows.length }: Props) {
+export function StandingsTable({ division, rows, highlight, offset = 0, total = rows.length, compact }: Props) {
   const isTop = division.id === 'superliga'
   return (
     <>
       <div className="table-wrap">
-        <table className="table">
+        <table className={`table${compact ? ' table--compact' : ''}`}>
           <thead>
             <tr>
               <th className="num">#</th>

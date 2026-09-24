@@ -1,6 +1,6 @@
 import type { Match } from '../types'
 import type { Club, Division } from '../data/danishClubs'
-import type { StandingRow } from '../data/fixtures'
+import type { StandingRow } from '../data/season'
 import type { ClubStats, PastMatch } from '../data/matchInsights'
 import type { TeamEntry } from '../data/teams'
 import { formatLong, formatTime } from './time'
