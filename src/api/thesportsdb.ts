@@ -1,7 +1,9 @@
-import type { Match, MatchState } from '../types'
+import type { Match, MatchState, SportId } from '../types'
+import { matchSlug } from '../lib/slug'
+import { isoDate } from '../lib/time'
 
-// Free public test key is "3". Set VITE_THESPORTSDB_KEY for a premium key.
-const API_KEY = import.meta.env.VITE_THESPORTSDB_KEY || '3'
+// Free public test key is "3". Set NEXT_PUBLIC_THESPORTSDB_KEY for a premium key.
+const API_KEY = process.env.NEXT_PUBLIC_THESPORTSDB_KEY || '3'
 const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
 
 interface ApiEvent {
@@ -64,28 +66,36 @@ function toStatusLabel(e: ApiEvent, state: MatchState): string | undefined {
   return undefined
 }
 
-function mapEvent(e: ApiEvent): Match {
+function mapEvent(e: ApiEvent, sport: SportId): Match {
   const state = toState(e)
+  const kickoff = toKickoff(e)
   return {
     id: e.idEvent,
+    slug: matchSlug(e.strHomeTeam, e.strAwayTeam, isoDate(kickoff)),
+    sport,
     league: e.strLeague,
     leagueId: e.idLeague,
     leagueBadge: e.strLeagueBadge ?? undefined,
     country: e.strCountry ?? undefined,
-    kickoff: toKickoff(e),
+    kickoff,
     state,
     statusLabel: toStatusLabel(e, state),
-    home: { name: e.strHomeTeam, badge: e.strHomeTeamBadge ?? undefined, score: toScore(e.intHomeScore) },
-    away: { name: e.strAwayTeam, badge: e.strAwayTeamBadge ?? undefined, score: toScore(e.intAwayScore) },
+    home: { name: e.strHomeTeam, badge: e.strHomeTeamBadge ? `${e.strHomeTeamBadge}/tiny` : undefined, score: toScore(e.intHomeScore) },
+    away: { name: e.strAwayTeam, badge: e.strAwayTeamBadge ? `${e.strAwayTeamBadge}/tiny` : undefined, score: toScore(e.intAwayScore) },
     venue: e.strVenue ?? undefined,
   }
 }
 
 /** Fetch all events for a given date (YYYY-MM-DD) and sport name. */
-export async function fetchEventsByDay(date: string, sport: string, signal?: AbortSignal): Promise<Match[]> {
-  const url = `${BASE_URL}/eventsday.php?d=${encodeURIComponent(date)}&s=${encodeURIComponent(sport)}`
+export async function fetchEventsByDay(
+  date: string,
+  sport: SportId,
+  apiName: string,
+  signal?: AbortSignal,
+): Promise<Match[]> {
+  const url = `${BASE_URL}/eventsday.php?d=${encodeURIComponent(date)}&s=${encodeURIComponent(apiName)}`
   const res = await fetch(url, { signal })
   if (!res.ok) throw new Error(`API svarede ${res.status}`)
   const data: { events: ApiEvent[] | null } = await res.json()
-  return (data.events ?? []).map(mapEvent)
+  return (data.events ?? []).map((e) => mapEvent(e, sport))
 }

@@ -1,5 +1,8 @@
-import { formatTime } from '../dates'
-import { useNow } from '../hooks/useNow'
+'use client'
+
+import Link from 'next/link'
+import { formatTime } from '../lib/time'
+import { paths } from '../lib/site'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 
@@ -15,11 +18,10 @@ function countdown(ms: number) {
 interface Props {
   matches: Match[]
   pinned: Set<string>
-  onOpen: (m: Match) => void
+  now: number
 }
 
-export function FeaturedMatch({ matches, pinned, onOpen }: Props) {
-  const now = useNow(1000)
+export function FeaturedMatch({ matches, pinned, now }: Props) {
   const upcoming = matches
     .filter((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
@@ -71,9 +73,9 @@ export function FeaturedMatch({ matches, pinned, onOpen }: Props) {
         Kl. {formatTime(match.kickoff)}
         {match.venue && ` · ${match.venue}`}
       </p>
-      <button className="featured__cta" onClick={() => onOpen(match)}>
+      <Link className="featured__cta" href={paths.match(match.slug)}>
         Se statistik og indbyrdes opgør →
-      </button>
+      </Link>
     </section>
   )
 }

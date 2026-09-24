@@ -1,6 +1,6 @@
-import { formatTime } from '../dates'
+import { formatTime } from '../lib/time'
 import type { Match } from '../types'
-import type { DataSource } from '../hooks/useMatches'
+import type { DataSource } from './MatchesView'
 
 interface Props {
   matches: Match[]

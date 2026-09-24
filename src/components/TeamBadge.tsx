@@ -1,4 +1,7 @@
+'use client'
+
 import { useState } from 'react'
+import { useBadge } from './BadgeProvider'
 
 interface Props {
   name: string
@@ -8,12 +11,16 @@ interface Props {
 }
 
 export function TeamBadge({ name, src, size = 20, colors }: Props) {
+  const known = useBadge(name)
+  const url = src ?? known
   const [failed, setFailed] = useState(false)
-  if (src && !failed) {
+
+  if (url && !failed) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
       <img
         className="badge"
-        src={`${src}/tiny`}
+        src={url}
         alt=""
         width={size}
         height={size}

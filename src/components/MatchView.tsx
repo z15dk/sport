@@ -1,32 +1,37 @@
-import { useEffect, useRef } from 'react'
-import { formatLong, formatTime } from '../dates'
+'use client'
+
+import Link from 'next/link'
+import { formatShortYear, formatTime } from '../lib/time'
+import { paths } from '../lib/site'
 import { clubStats, findClub, headToHead, matchStats, type ClubStats } from '../data/matchInsights'
+import { findMatch } from '../data/matches'
+import { useNow } from '../hooks/useNow'
 import type { Match } from '../types'
 import { StatBar } from './StatBar'
+import { FormChips } from './FormChips'
+import { summary } from '../lib/matchText'
 import { TeamBadge } from './TeamBadge'
 
-const dateFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
-
 interface Props {
-  match: Match
-  onClose: () => void
+  slug: string
+  date: string
+  initialNow: number
 }
 
-export function MatchDetail({ match, onClose }: Props) {
-  const closeRef = useRef<HTMLButtonElement>(null)
+/** Match page body. Regenerates the match as time passes so live scores tick. */
+export function MatchView({ slug, date, initialNow }: Props) {
+  const now = useNow(30_000, initialNow)
+  const match = findMatch(slug, date, now)
+  if (!match) return null
+  return <MatchBody match={match} />
+}
 
-  useEffect(() => {
-    closeRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = overflow
-    }
-  }, [onClose])
+function ClubName({ name }: { name: string }) {
+  const club = findClub(name)
+  return club ? <Link href={paths.club(club.club.slug)}>{name}</Link> : <>{name}</>
+}
 
+function MatchBody({ match }: { match: Match }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
   const stats = matchStats(match)
@@ -44,42 +49,50 @@ export function MatchDetail({ match, onClose }: Props) {
   const colorsOf = (name: string) => findClub(name)?.club.colors
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true" aria-label={`${home.name} mod ${away.name}`}>
-      <div className="sheet__backdrop" onClick={onClose} />
-      <div className="sheet__panel">
-        <header className="sheet__top">
-          <span className="sheet__league">
-            {match.league} · {formatLong(match.kickoff)}
-          </span>
-          <button ref={closeRef} className="sheet__close" onClick={onClose} aria-label="Luk kampvisning">
-            ×
-          </button>
-        </header>
+    <article className="match-page">
+      <nav className="crumbs" aria-label="Brødkrummer">
+        <Link href="/">Kampe</Link>
+        <span aria-hidden>/</span>
+        {match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : <span>{match.league}</span>}
+        <span aria-hidden>/</span>
+        <span>
+          {home.name} – {away.name}
+        </span>
+      </nav>
 
-        <section className="duel">
-          <div className="duel__team">
-            <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={64} />
-            <strong>{home.name}</strong>
-            {homeStats && <span className="duel__pos">{homeStats.position}. plads</span>}
-          </div>
-          <div className="duel__center">
-            {showScore ? (
-              <span className={`duel__score duel__score--${state}`}>
-                {home.score ?? 0}–{away.score ?? 0}
-              </span>
-            ) : (
-              <span className="duel__score">{formatTime(match.kickoff)}</span>
-            )}
-            <span className={`status status--${state}`}>{match.statusLabel ?? 'Kommende'}</span>
-          </div>
-          <div className="duel__team">
-            <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={64} />
-            <strong>{away.name}</strong>
-            {awayStats && <span className="duel__pos">{awayStats.position}. plads</span>}
-          </div>
-        </section>
-        {match.venue && <p className="sheet__venue">Spilles i {match.venue}</p>}
+      <header className="duel">
+        <div className="duel__team">
+          <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={72} />
+          <strong>
+            <ClubName name={home.name} />
+          </strong>
+          {homeStats && <span className="duel__pos">{homeStats.position}. plads</span>}
+        </div>
+        <div className="duel__center">
+          {showScore ? (
+            <span className={`duel__score duel__score--${state}`}>
+              {home.score ?? 0}–{away.score ?? 0}
+            </span>
+          ) : (
+            <span className="duel__score">{formatTime(match.kickoff)}</span>
+          )}
+          <span className={`status status--${state}`}>{match.statusLabel ?? 'Kommende'}</span>
+        </div>
+        <div className="duel__team">
+          <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={72} />
+          <strong>
+            <ClubName name={away.name} />
+          </strong>
+          {awayStats && <span className="duel__pos">{awayStats.position}. plads</span>}
+        </div>
+      </header>
 
+      <h1 className="match-page__title">
+        {home.name} – {away.name}
+      </h1>
+      <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
+
+      <div className="match-page__grid">
         {stats && (
           <section className="sheet__section">
             <h2 className="sheet__title">Kampstatistik</h2>
@@ -128,7 +141,7 @@ export function MatchDetail({ match, onClose }: Props) {
               return (
                 <li key={i} className="h2h__row">
                   <span className="h2h__meta">
-                    {dateFmt.format(m.date)}
+                    {formatShortYear(m.date)}
                     <em>{m.competition}</em>
                   </span>
                   <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
@@ -149,7 +162,7 @@ export function MatchDetail({ match, onClose }: Props) {
           <p className="muted small">Alle resultater er fiktive.</p>
         </section>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -181,21 +194,9 @@ function ClubComparison({ home, away }: { home: ClubStats; away: ClubStats }) {
         awayText={perGame(a.goalsFor, a.played).toFixed(1).replace('.', ',')}
       />
       <div className="form-compare">
-        <span className="form">
-          {h.form.slice(-5).map((f, k) => (
-            <span key={k} className={`form__chip form__chip--${f}`}>
-              {f}
-            </span>
-          ))}
-        </span>
+        <FormChips form={h.form} />
         <span className="statbar__label">Form</span>
-        <span className="form">
-          {a.form.slice(-5).map((f, k) => (
-            <span key={k} className={`form__chip form__chip--${f}`}>
-              {f}
-            </span>
-          ))}
-        </span>
+        <FormChips form={a.form} />
       </div>
     </>
   )

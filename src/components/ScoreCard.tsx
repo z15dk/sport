@@ -1,19 +1,17 @@
-import { formatTime } from '../dates'
+import Link from 'next/link'
+import { formatTime } from '../lib/time'
+import { paths } from '../lib/site'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 
 /** Compact match card used in the live/results strip. */
-export function ScoreCard({ match, onOpen }: { match: Match; onOpen: (m: Match) => void }) {
+export function ScoreCard({ match }: { match: Match }) {
   const showScore = match.state === 'live' || match.state === 'finished'
   const tag = match.state === 'upcoming' ? formatTime(match.kickoff) : match.statusLabel
   const lost = (a?: number, b?: number) => match.state === 'finished' && a !== undefined && b !== undefined && a < b
 
   return (
-    <button
-      className={`score-card score-card--${match.state}`}
-      onClick={() => onOpen(match)}
-      aria-label={`${match.home.name} mod ${match.away.name} – se kampdetaljer`}
-    >
+    <Link className={`score-card score-card--${match.state}`} href={paths.match(match.slug)}>
       <span className="score-card__head">
         <span className="score-card__league">{match.league}</span>
         {tag && <span className="score-card__tag">{tag}</span>}
@@ -28,6 +26,6 @@ export function ScoreCard({ match, onOpen }: { match: Match; onOpen: (m: Match) 
           </span>
         )
       })}
-    </button>
+    </Link>
   )
 }

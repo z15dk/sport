@@ -2,16 +2,20 @@ import type { SportId } from './types'
 
 export interface SportDef {
   id: SportId
+  /** URL value, e.g. ?sport=ishockey */
+  slug: string
   label: string
-  icon: string
   /** Sport name used by TheSportsDB */
   apiName: string
 }
 
 export const SPORTS: SportDef[] = [
-  { id: 'soccer', label: 'Fodbold', icon: '⚽', apiName: 'Soccer' },
-  { id: 'basketball', label: 'Basketball', icon: '🏀', apiName: 'Basketball' },
-  { id: 'ice_hockey', label: 'Ishockey', icon: '🏒', apiName: 'Ice Hockey' },
-  { id: 'handball', label: 'Håndbold', icon: '🤾', apiName: 'Handball' },
-  { id: 'tennis', label: 'Tennis', icon: '🎾', apiName: 'Tennis' },
+  { id: 'soccer', slug: 'fodbold', label: 'Fodbold', apiName: 'Soccer' },
+  { id: 'basketball', slug: 'basketball', label: 'Basketball', apiName: 'Basketball' },
+  { id: 'ice_hockey', slug: 'ishockey', label: 'Ishockey', apiName: 'Ice Hockey' },
+  { id: 'handball', slug: 'haandbold', label: 'Håndbold', apiName: 'Handball' },
+  { id: 'tennis', slug: 'tennis', label: 'Tennis', apiName: 'Tennis' },
 ]
+
+export const sportBySlug = (slug?: string) => SPORTS.find((s) => s.slug === slug) ?? SPORTS[0]
+export const sportById = (id: SportId) => SPORTS.find((s) => s.id === id)!

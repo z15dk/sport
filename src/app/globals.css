@@ -533,3 +533,92 @@ button.score-card:hover { transform: translateY(-2px); }
   .duel__team strong { font-size: 13px; }
   .h2h__team { font-size: 13px; }
 }
+
+/* ---- Next.js pages ---- */
+.header .nav { margin-left: 16px; }
+.toolbar { display: flex; align-items: center; gap: 12px; }
+.toolbar .search { margin-left: 0; max-width: 520px; }
+.toolbar .live-chip { margin-left: auto; }
+.date-strip__arrow { display: grid; place-items: center; }
+a.match, a.score-card { color: var(--ink); }
+a.score-card:hover { transform: translateY(-2px); }
+.league__name { color: inherit; }
+a.league__name:hover { text-decoration: underline; text-underline-offset: 3px; }
+h2.league__name { margin: 0; }
+.chevron-btn {
+  border: 0; background: none; color: var(--ink-3); font-size: 20px; padding: 8px; line-height: 1;
+  transition: transform 0.15s;
+}
+.chevron-btn.is-open { transform: rotate(90deg); }
+.featured__cta { text-align: center; }
+.lead { font-size: 16px; line-height: 1.55; max-width: 68ch; color: var(--ink-2); }
+
+/* Breadcrumbs */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); }
+.crumbs a { color: var(--ink-2); font-weight: 600; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; }
+
+/* Match page */
+.match-page { display: flex; flex-direction: column; gap: 16px; max-width: 1040px; }
+.match-page .duel { padding: 28px 20px; }
+.duel__team a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.match-page__title {
+  font-family: var(--display); font-style: italic; font-weight: 800; font-size: 40px; line-height: 1;
+  text-transform: uppercase; text-wrap: balance;
+}
+.match-page__summary { font-size: 16px; line-height: 1.55; max-width: 68ch; color: var(--ink-2); margin-top: -6px; }
+.match-page__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.match-page__grid > :last-child { grid-column: 1 / -1; }
+
+/* Club page */
+.club-hero {
+  display: flex; align-items: center; gap: 20px; padding: 24px; border-radius: var(--radius);
+  background: var(--ink); color: #fff; position: relative; overflow: hidden;
+}
+.club-hero::after {
+  content: ''; position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%;
+  background: var(--club-bg); opacity: 0.35;
+}
+.club-hero__text { display: flex; flex-direction: column; gap: 4px; position: relative; z-index: 1; min-width: 0; }
+.club-hero h1 {
+  font-family: var(--display); font-style: italic; font-weight: 800; font-size: 52px; line-height: 0.95;
+  text-transform: uppercase;
+}
+.club-hero__eyebrow { font-size: 13px; font-weight: 600; color: var(--lime); }
+.club-hero__eyebrow a:hover { text-decoration: underline; }
+.club-hero .badge { position: relative; z-index: 1; }
+.tiles--club { grid-template-columns: repeat(4, 1fr); }
+.tile--form { background: var(--surface); }
+.club-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.club-grid .league__toggle { padding: 14px 16px 6px; }
+.table tr.is-highlight td { background: var(--lime); }
+.club-cell:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Clubs index */
+.club-index__grid {
+  list-style: none; margin: 0; padding: 0 12px 14px; display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.club-index__grid a { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.club-index__grid a:hover { background: var(--lime); }
+.club-index__grid span { display: flex; flex-direction: column; min-width: 0; }
+.club-index__grid em { font-style: normal; font-size: 12px; color: var(--ink-3); }
+
+@media (max-width: 900px) {
+  .header .nav { margin-left: 0; order: 2; }
+  .match-page__grid, .club-grid { grid-template-columns: 1fr; }
+  .tiles--club { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .match-page__title { font-size: 30px; }
+  .club-hero { padding: 18px; gap: 14px; }
+  .club-hero h1 { font-size: 36px; }
+  .toolbar .live-chip { padding: 10px 14px; }
+}
+.toolbar { flex-wrap: wrap; }
+.match__date { display: block; font-size: 11px; font-weight: 700; color: var(--ink); }
+.table tr.is-highlight td { background: #eefbc4; }
+@media (max-width: 900px) {
+  .toolbar { flex-wrap: nowrap; }
+  .toolbar .search { order: 0; flex: 1; flex-basis: auto; }
+}

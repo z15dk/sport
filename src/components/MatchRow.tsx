@@ -1,4 +1,6 @@
-import { formatTime } from '../dates'
+import Link from 'next/link'
+import { formatDayMonth, formatTime, isoDate } from '../lib/time'
+import { paths } from '../lib/site'
 import type { Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
 
@@ -6,21 +8,18 @@ function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
 }
 
-export function MatchRow({ match, onOpen }: { match: Match; onOpen: (m: Match) => void }) {
+export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean }) {
   const { home, away, state } = match
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
 
   return (
     <li>
-      <button
-        className={`match match--${state}`}
-        onClick={() => onOpen(match)}
-        aria-label={`${home.name} mod ${away.name} – se kampdetaljer`}
-      >
+      <Link className={`match match--${state}`} href={paths.match(match.slug)}>
       <time className="match__time" dateTime={match.kickoff.toISOString()}>
-        {formatTime(match.kickoff)}
-      </time>
+          {showDate && <span className="match__date">{formatDayMonth(isoDate(match.kickoff))}</span>}
+          {formatTime(match.kickoff)}
+        </time>
       <div className="match__teams">
         {[home, away].map((team, i) => {
           const other = i === 0 ? away : home
@@ -46,7 +45,7 @@ export function MatchRow({ match, onOpen }: { match: Match; onOpen: (m: Match) =
         )}
       </div>
       {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
-      </button>
+      </Link>
     </li>
   )
 }

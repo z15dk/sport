@@ -1,30 +1,33 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { SPORTS } from '../sports'
-import type { SportId } from '../types'
+import { paths } from '../lib/site'
 import { SportIcon } from './SportIcon'
 
-interface Props {
-  value: SportId
-  onChange: (s: SportId) => void
-}
+export function SportRail() {
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const active = pathname === '/' ? (params.get('sport') ?? 'fodbold') : undefined
 
-export function SportRail({ value, onChange }: Props) {
   return (
     <nav className="rail" aria-label="Sportsgrene">
-      <a className="rail__logo" href="/" aria-label="Scoreline forside">
+      <Link className="rail__logo" href="/" aria-label="Scoreline forside">
         S<span>.</span>
-      </a>
+      </Link>
       <div className="rail__items">
         {SPORTS.map((s) => (
-          <button
+          <Link
             key={s.id}
-            className={`rail__item${s.id === value ? ' is-active' : ''}`}
-            onClick={() => onChange(s.id)}
-            aria-current={s.id === value ? 'page' : undefined}
+            href={paths.home({ sport: s.slug })}
+            className={`rail__item${s.slug === active ? ' is-active' : ''}`}
+            aria-current={s.slug === active ? 'page' : undefined}
             title={s.label}
           >
             <SportIcon sport={s.id} />
             <span className="rail__label">{s.label}</span>
-          </button>
+          </Link>
         ))}
       </div>
     </nav>

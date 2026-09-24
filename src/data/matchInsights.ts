@@ -1,16 +1,13 @@
 import type { Match } from '../types'
-import { DIVISIONS, type Club, type Division } from './danishClubs'
+import { clubByName, type Division } from './danishClubs'
 import { hashString, playMatch, poisson, seeded, standings, type StandingRow } from './fixtures'
 
 // Fictional background data for the match detail view.
 
-const ROUNDS_PLAYED = 10
-
-const CLUB_INDEX = new Map<string, { club: Club; division: Division }>()
-for (const division of DIVISIONS) for (const club of division.clubs) CLUB_INDEX.set(club.name, { club, division })
+export const ROUNDS_PLAYED = 10
 
 export function findClub(name: string) {
-  return CLUB_INDEX.get(name)
+  return clubByName(name)
 }
 
 export interface ClubStats {

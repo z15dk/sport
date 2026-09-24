@@ -1,33 +1,47 @@
+'use client'
+
+import Link from 'next/link'
 import { useState } from 'react'
-import type { LeagueGroup, Match } from '../types'
+import type { LeagueGroup } from '../types'
+import { paths } from '../lib/site'
 import { MatchRow } from './MatchRow'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
-  onOpen: (m: Match) => void
   group: LeagueGroup
   pinned: boolean
   onTogglePin: () => void
 }
 
-export function LeagueSection({ group, pinned, onTogglePin, onOpen }: Props) {
+export function LeagueSection({ group, pinned, onTogglePin }: Props) {
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
 
   return (
     <section className="league" id={`league-${group.leagueId}`}>
       <header className="league__header">
-        <button className="league__toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <div className="league__toggle">
           <TeamBadge name={group.league} src={group.leagueBadge} size={28} />
           <span className="league__titles">
             {group.country && <span className="league__country">{group.country}</span>}
-            <span className="league__name">{group.league}</span>
+            {group.leagueSlug ? (
+              <Link className="league__name" href={paths.league(group.leagueSlug)}>
+                {group.league}
+              </Link>
+            ) : (
+              <span className="league__name">{group.league}</span>
+            )}
           </span>
           {liveCount > 0 && <span className="league__live">{liveCount} live</span>}
           <span className="league__count">{group.matches.length} kampe</span>
-          <span className={`chevron${open ? ' is-open' : ''}`} aria-hidden>
-            ›
-          </span>
+        </div>
+        <button
+          className={`chevron-btn${open ? ' is-open' : ''}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? `Skjul ${group.league}` : `Vis ${group.league}`}
+        >
+          ›
         </button>
         <button
           className={`star${pinned ? ' is-on' : ''}`}
@@ -42,7 +56,7 @@ export function LeagueSection({ group, pinned, onTogglePin, onOpen }: Props) {
       {open && (
         <ul className="league__matches">
           {group.matches.map((m) => (
-            <MatchRow key={m.id} match={m} onOpen={onOpen} />
+            <MatchRow key={m.id} match={m} />
           ))}
         </ul>
       )}

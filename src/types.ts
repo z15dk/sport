@@ -12,10 +12,15 @@ export interface Team {
 
 export interface Match {
   id: string
+  /** URL slug for the match page, e.g. fc-koebenhavn-broendby-if-2026-09-24 */
+  slug: string
+  sport: SportId
   league: string
   leagueId: string
   /** Lower sorts first when leagues are otherwise equal */
   leagueOrder?: number
+  /** Set for leagues that have their own page */
+  leagueSlug?: string
   country?: string
   leagueBadge?: string
   kickoff: Date
@@ -29,6 +34,8 @@ export interface Match {
 
 export interface LeagueGroup {
   leagueId: string
+  /** Set for leagues that have their own page */
+  leagueSlug?: string
   league: string
   country?: string
   leagueBadge?: string

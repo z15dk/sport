@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import type { LeagueGroup } from '../types'
+import { paths } from '../lib/site'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -16,7 +18,7 @@ export function Sidebar({ groups, pinned }: Props) {
         const live = g.matches.some((m) => m.state === 'live')
         return (
           <li key={g.leagueId}>
-            <a href={`#league-${g.leagueId}`}>
+            <Link href={g.leagueSlug ? paths.league(g.leagueSlug) : `#league-${g.leagueId}`}>
               <TeamBadge name={g.league} src={g.leagueBadge} size={26} />
               <span className="side-list__text">
                 <span className="side-list__name">{g.league}</span>
@@ -24,7 +26,7 @@ export function Sidebar({ groups, pinned }: Props) {
               </span>
               {live && <span className="live-dot" aria-label="Live" />}
               <span className="side-list__count">{g.matches.length}</span>
-            </a>
+            </Link>
           </li>
         )
       })}

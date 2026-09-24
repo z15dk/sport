@@ -1,9 +1,12 @@
+import { slugify } from '../lib/slug'
+
 // Danish men's football, season 2026/27. Clubs are listed roughly by expected
 // strength (strongest first); the demo generator uses the order for scores.
 // `unverified` marks clubs whose division could not be confirmed from sources.
 
 export interface Club {
   id: string
+  slug: string
   name: string
   city: string
   /** [background, text] used for the fallback badge */
@@ -13,6 +16,7 @@ export interface Club {
 
 export interface Division {
   id: string
+  slug: string
   name: string
   short: string
   clubs: Club[]
@@ -20,6 +24,7 @@ export interface Division {
 
 const c = (id: string, name: string, city: string, bg: string, fg = '#ffffff', unverified?: boolean): Club => ({
   id,
+  slug: slugify(name),
   name,
   city,
   colors: [bg, fg],
@@ -31,6 +36,7 @@ export const SEASON = '2026/27'
 export const DIVISIONS: Division[] = [
   {
     id: 'superliga',
+    slug: 'superliga',
     name: 'Superliga',
     short: 'SL',
     clubs: [
@@ -50,6 +56,7 @@ export const DIVISIONS: Division[] = [
   },
   {
     id: '1div',
+    slug: '1-division',
     name: '1. division',
     short: '1D',
     clubs: [
@@ -69,6 +76,7 @@ export const DIVISIONS: Division[] = [
   },
   {
     id: '2div',
+    slug: '2-division',
     name: '2. division',
     short: '2D',
     clubs: [
@@ -88,6 +96,7 @@ export const DIVISIONS: Division[] = [
   },
   {
     id: '3div',
+    slug: '3-division',
     name: '3. division',
     short: '3D',
     clubs: [
@@ -106,3 +115,10 @@ export const DIVISIONS: Division[] = [
     ],
   },
 ]
+
+export const divisionBySlug = (slug: string) => DIVISIONS.find((d) => d.slug === slug)
+
+const CLUBS = DIVISIONS.flatMap((division) => division.clubs.map((club) => ({ club, division })))
+export const clubBySlug = (slug: string) => CLUBS.find((x) => x.club.slug === slug)
+export const clubByName = (name: string) => CLUBS.find((x) => x.club.name === name)
+export const allClubs = () => CLUBS
