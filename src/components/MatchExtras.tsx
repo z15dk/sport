@@ -5,7 +5,7 @@ import { PartnerLogo } from './PartnerLogo'
 
 /** Small channel logo or name under the kickoff time in lists */
 export function MatchChannel({ match }: { match: Match }) {
-  const [channel] = channelsFor(match.leagueSlug, match.sport, match.id, match.country)
+  const [channel] = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
   if (!channel) return null
   return (
     <span className="match__channel" title={`Vises på ${channel.name}`}>
@@ -54,7 +54,7 @@ function TvIcon() {
 
 /** Odds and TV box on the match page */
 export function MatchExtrasPanel({ match }: { match: Match }) {
-  const channels = channelsFor(match.leagueSlug, match.sport, match.id, match.country)
+  const channels = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
   const odds = oddsFor(match)
   const tvLabel = match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'
   return (
