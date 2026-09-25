@@ -3,6 +3,7 @@ import { formatDayMonth, formatTime, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
 import type { Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
+import { MatchExtrasLine } from './MatchExtras'
 
 function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
@@ -46,6 +47,7 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
         )}
       </div>
       {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
+      <MatchExtrasLine match={match} />
     </li>
   )
 }

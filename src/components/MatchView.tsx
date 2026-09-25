@@ -13,6 +13,7 @@ import { StatBar } from './StatBar'
 import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
 import { Updated } from './Updated'
+import { MatchExtrasPanel } from './MatchExtras'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -89,6 +90,8 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
           {awayStats && <span className="duel__pos">{awayStats.position}. plads</span>}
         </div>
       </header>
+
+      <MatchExtrasPanel match={match} />
 
       <h1 className="match-page__title">
         {home.name} – {away.name}

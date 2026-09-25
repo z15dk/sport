@@ -1,0 +1,44 @@
+import type { SportId } from '../types'
+
+// Betting and TV partners. These are placeholders: replace names and links
+// with the real partners, and put their logos in
+//   public/logos/bookmakere/<id>.svg|png|webp|jpg
+//   public/logos/kanaler/<id>.svg|png|webp|jpg
+// Without a logo file the name is shown instead.
+
+export interface Partner {
+  id: string
+  name: string
+  /** Where "Til bookmaker" / the channel logo links to; no link when empty */
+  url?: string
+}
+
+/** The bookmaker whose odds are shown with every upcoming match */
+export const BOOKMAKER: Partner = { id: 'odds-partner', name: 'Odds-partner' }
+
+/** Required with any gambling marketing in Denmark */
+export const RESPONSIBLE_GAMBLING = { text: '18+ · Spil ansvarligt · Hjælp: StopSpillet.dk', url: 'https://stopspillet.dk' }
+
+const TV: Partner = { id: 'tv-kanal', name: 'TV-kanal' }
+const STREAM: Partner = { id: 'streaming', name: 'Streaming' }
+
+/** Channel per league (by league slug), falling back to one per sport */
+const CHANNELS_BY_LEAGUE: Record<string, Partner[]> = {
+  superliga: [TV, STREAM],
+}
+const CHANNELS_BY_SPORT: Record<SportId, Partner[]> = {
+  soccer: [STREAM],
+  ice_hockey: [STREAM],
+  basketball: [STREAM],
+  handball: [TV],
+  tennis: [STREAM],
+}
+
+/** Channels showing a match; the pick is stable per match so it does not change between visits */
+export function channelsFor(leagueSlug: string | undefined, sport: SportId, matchId: string): Partner[] {
+  const options = (leagueSlug && CHANNELS_BY_LEAGUE[leagueSlug]) || CHANNELS_BY_SPORT[sport]
+  if (options.length <= 1) return options
+  let h = 0
+  for (const ch of matchId) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return [options[h % options.length]]
+}

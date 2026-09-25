@@ -80,6 +80,12 @@ Klublogoer findes i denne rækkefølge:
 2. Klubbens logo fra TheSportsDB (caches i et døgn)
 3. Klubbens forbogstaver i klubfarverne
 
+## Odds og TV
+
+Under hver kommende kamp vises TV-kanal og odds med bookmakerens logo, og kampsiden har en
+større odds-boks. Partnerne er pladsholdere: skift navn og link i `src/data/partners.ts` og læg
+logoerne i `public/logos/bookmakere/` og `public/logos/kanaler/`. Odds er fiktive.
+
 ## Data
 
 Kampe og resultater er fiktive. For de danske rækker findes et helt sæsonprogram

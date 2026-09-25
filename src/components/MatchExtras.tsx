@@ -1,0 +1,96 @@
+import { BOOKMAKER, RESPONSIBLE_GAMBLING, channelsFor } from '../data/partners'
+import { formatOdds, oddsFor } from '../data/odds'
+import type { Match } from '../types'
+import { PartnerLogo } from './PartnerLogo'
+
+/** Thin line under a match in lists: where it is shown, and the odds before kickoff */
+export function MatchExtrasLine({ match }: { match: Match }) {
+  if (match.state === 'finished' || match.state === 'postponed') return null
+  const channels = channelsFor(match.leagueSlug, match.sport, match.id)
+  const odds = oddsFor(match)
+  return (
+    <div className="match-extras">
+      <span className="match-extras__tv" aria-label="Vises på">
+        <TvIcon />
+        {channels.map((c) => (
+          <PartnerLogo key={c.id} partner={c} kind="kanal" height={16} />
+        ))}
+      </span>
+      {odds && (
+        <span className="match-extras__odds">
+          <OddsChip label="1" value={odds.home} />
+          {odds.draw && <OddsChip label="X" value={odds.draw} />}
+          <OddsChip label="2" value={odds.away} />
+          <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={16} />
+        </span>
+      )}
+    </div>
+  )
+}
+
+function OddsChip({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="odds-chip">
+      <em>{label}</em>
+      {formatOdds(value)}
+    </span>
+  )
+}
+
+function TvIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M8 21h8M9 2l3 4 3-4" />
+    </svg>
+  )
+}
+
+/** Odds and TV box on the match page */
+export function MatchExtrasPanel({ match }: { match: Match }) {
+  const channels = channelsFor(match.leagueSlug, match.sport, match.id)
+  const odds = oddsFor(match)
+  const tvLabel = match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'
+  return (
+    <section className="extras-panel" aria-label="Odds og TV">
+      <div className="extras-panel__tv">
+        <span className="extras-panel__label">
+          <TvIcon /> {tvLabel}
+        </span>
+        <span className="extras-panel__channels">
+          {channels.map((c) => (
+            <PartnerLogo key={c.id} partner={c} kind="kanal" height={28} />
+          ))}
+        </span>
+      </div>
+      {odds && (
+        <div className="extras-panel__odds">
+          <div className="extras-panel__odds-head">
+            <span className="extras-panel__label">Odds</span>
+            <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={24} />
+          </div>
+          <div className="odds-grid" style={{ gridTemplateColumns: `repeat(${odds.draw ? 3 : 2}, 1fr)` }}>
+            <OddsBox label="1" team={match.home.name} value={odds.home} />
+            {odds.draw && <OddsBox label="X" team="Uafgjort" value={odds.draw} />}
+            <OddsBox label="2" team={match.away.name} value={odds.away} />
+          </div>
+          {match.sport === 'ice_hockey' && <p className="extras-panel__note">Gælder resultatet efter ordinær tid.</p>}
+          <a className="extras-panel__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
+            {RESPONSIBLE_GAMBLING.text}
+          </a>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function OddsBox({ label, team, value }: { label: string; team: string; value: number }) {
+  return (
+    <div className="odds-box">
+      <span className="odds-box__label">
+        {label} <em>{team}</em>
+      </span>
+      <strong>{formatOdds(value)}</strong>
+    </div>
+  )
+}

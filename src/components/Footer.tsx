@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { leagueGroups } from '../data/leagues'
 import { sportById } from '../sports'
 import { INDEXABLE, SITE_NAME, paths } from '../lib/site'
+import { RESPONSIBLE_GAMBLING } from '../data/partners'
 
 /** Site-wide footer; also gives crawlers a path to every league and key page. */
 export function Footer() {
@@ -38,6 +39,12 @@ export function Footer() {
         </div>
       </nav>
       {!INDEXABLE && <p className="footer__note">Under udvikling – alle resultater er fiktive.</p>}
+      <p className="footer__note">
+        Odds vises for spillere over 18 år.{' '}
+        <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
+          {RESPONSIBLE_GAMBLING.text}
+        </a>
+      </p>
     </footer>
   )
 }

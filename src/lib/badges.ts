@@ -1,5 +1,5 @@
 import 'server-only'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
 import { CUP_NAME } from '../data/season'
@@ -137,6 +137,17 @@ function badgeFromList(teams: ApiTeam[], names: string[]): string | undefined {
   return badge ? `${badge}/small` : undefined
 }
 
+/** File names (without extension) in public/logos/<folder> */
+function partnerIds(folder: string): string[] {
+  try {
+    return readdirSync(path.join(process.cwd(), 'public', 'logos', folder))
+      .filter((f) => EXTENSIONS.some((ext) => f.endsWith(`.${ext}`)))
+      .map((f) => f.replace(/\.[^.]+$/, ''))
+  } catch {
+    return []
+  }
+}
+
 // ---- League logos ----
 
 interface LeagueLogoSource {
@@ -223,7 +234,15 @@ export function getBadges(): Promise<Record<string, string>> {
         return url ? ([club.name, url] as const) : undefined
       }),
     )
-    const map = Object.fromEntries([...entries.filter((e) => e !== undefined), ...leagues])
+    // Partner logos (bookmaker, TV channels), keyed "bookmaker:<id>" / "kanal:<id>"
+    const partners: [string, string][] = []
+    for (const [folder, key] of [['bookmakere', 'bookmaker'], ['kanaler', 'kanal']] as const) {
+      for (const id of partnerIds(folder)) {
+        const logo = localLogo(id, folder)
+        if (logo) partners.push([`${key}:${id}`, logo])
+      }
+    }
+    const map = Object.fromEntries([...entries.filter((e) => e !== undefined), ...leagues, ...partners])
     // Try again on the next request if nothing came back (e.g. the API was down)
     if (Object.keys(map).length === 0) cached = undefined
     return map
