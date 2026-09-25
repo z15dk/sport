@@ -7,9 +7,13 @@ import { competitionLabel } from '../data/leagues'
 interface Props {
   groups: LeagueGroup[]
   pinned: Set<string>
+  /** The tournament the match list is filtered to */
+  selected?: string
+  onSelect: (leagueId: string | undefined) => void
 }
 
-export function Sidebar({ groups, pinned }: Props) {
+/** The day's tournaments; clicking one filters the match list to it, clicking it again shows all */
+export function Sidebar({ groups, pinned, selected, onSelect }: Props) {
   const favorites = groups.filter((g) => pinned.has(g.leagueId))
   const others = groups.filter((g) => !pinned.has(g.leagueId))
 
@@ -17,17 +21,23 @@ export function Sidebar({ groups, pinned }: Props) {
     <ul className="side-list">
       {items.map((g) => {
         const live = g.matches.some((m) => m.state === 'live')
+        const active = g.leagueId === selected
         return (
-          <li key={g.leagueId}>
-            <Link href={g.leagueSlug ? paths.league(g.leagueSlug) : `#league-${g.leagueId}`}>
-              <TeamBadge name={g.league} src={g.leagueBadge} size={26} label={competitionLabel(g.league)} />
+          <li key={g.leagueId} className={active ? 'is-active' : undefined}>
+            <button type="button" aria-pressed={active} onClick={() => onSelect(active ? undefined : g.leagueId)}>
+              <TeamBadge link={false} name={g.league} src={g.leagueBadge} size={26} label={competitionLabel(g.league)} />
               <span className="side-list__text">
                 <span className="side-list__name">{g.league}</span>
                 {g.country && <span className="side-list__country">{g.country}</span>}
               </span>
               {live && <span className="live-dot" aria-label="Live" />}
               <span className="side-list__count">{g.matches.length}</span>
-            </Link>
+            </button>
+            {g.leagueSlug && (
+              <Link className="side-list__page" href={paths.league(g.leagueSlug)} title={`${g.league}: stilling og statistik`} aria-label={`Gå til ${g.league}`}>
+                ›
+              </Link>
+            )}
           </li>
         )
       })}
@@ -36,6 +46,11 @@ export function Sidebar({ groups, pinned }: Props) {
 
   return (
     <aside className="sidebar" aria-label="Turneringer">
+      {selected && (
+        <button type="button" className="side-reset" onClick={() => onSelect(undefined)}>
+          ✕ Vis alle turneringer
+        </button>
+      )}
       {favorites.length > 0 && (
         <div className="panel">
           <h2 className="panel__title">Favoritter</h2>

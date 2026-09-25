@@ -77,6 +77,10 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const [source, setSource] = usePersistentState<DataSource>('dataSource', 'fictional')
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>('all')
+  // Tournament picked in the sidebar; it belongs to the sport it was picked in
+  const [picked, setPicked] = useState<{ sport: SportFilter; id: string }>()
+  const league = picked?.sport === sport ? picked.id : undefined
+  const setLeague = (id: string | undefined) => setPicked(id ? { sport, id } : undefined)
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
   const [tick, setTick] = useState(0)
@@ -118,11 +122,12 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return range
-    return range.filter((m) =>
+    const inLeague = league ? range.filter((m) => m.leagueId === league) : range
+    if (!q) return inLeague
+    return inLeague.filter((m) =>
       [m.home.name, m.away.name, m.league, m.country ?? ''].some((s) => s.toLowerCase().includes(q)),
     )
-  }, [range, query])
+  }, [range, query, league])
 
   const counts = useMemo(
     () => ({
@@ -195,7 +200,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
       {/* On phones the sports come first, above the live strip */}
       <SportTabs active={sport} className="sport-tabs--mobile" />
 
-      <LiveStrip matches={searched} upcoming={upcoming} now={now} />
+      <LiveStrip matches={searched} upcoming={league ? upcoming.filter((m) => m.leagueId === league) : upcoming} now={now} />
 
       {!usingApi && (apiError || ((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">
@@ -220,7 +225,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
       )}
 
       <div className="grid">
-        <Sidebar groups={allGroups} pinned={pinned} />
+        <Sidebar groups={allGroups} pinned={pinned} selected={league} onSelect={setLeague} />
 
         <main className="feed">
           <SportTabs active={sport} className="sport-tabs--desktop" />

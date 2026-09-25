@@ -56,7 +56,7 @@ h1, h2, p { margin: 0; }
 
 /* App shell */
 .app { display: flex; min-height: 100vh; }
-.app__main { flex: 1; min-width: 0; }
+.app__main { flex: 1; min-width: 0; max-width: 1400px; margin-inline: auto; }  /* the whole site at most 1400px wide */
 
 /* Sport rail */
 .rail {
@@ -149,8 +149,19 @@ h1, h2, p { margin: 0; }
 /* Sidebar */
 .sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
 .side-list { list-style: none; margin: 0; padding: 0 8px 10px; }
-.side-list a { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; }
-.side-list a:hover { background: var(--surface-2); }
+.side-list li { display: flex; align-items: center; border-radius: 12px; }
+.side-list li:hover { background: var(--surface-2); }
+.side-list li.is-active { background: var(--lime); }
+.side-list button {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 9px 10px; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 12px;
+}
+.side-list li.is-active .side-list__country { color: var(--ink-2); }
+.side-list__page { flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: 4px; border-radius: 8px; font-weight: 800; color: var(--ink-2); }
+.side-list__page:hover { background: var(--surface); color: var(--ink); }
+.side-reset {
+  width: 100%; padding: 10px 14px; border: 0; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-weight: 700; cursor: pointer;
+}
 .side-list__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .side-list__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-list__country { font-size: 12px; color: var(--ink-3); }
