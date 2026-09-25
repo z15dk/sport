@@ -21,10 +21,15 @@ export const RESPONSIBLE_GAMBLING = { text: '18+ · Spil ansvarligt · Hjælp: S
 
 const TV: Partner = { id: 'tv-kanal', name: 'TV-kanal' }
 const STREAM: Partner = { id: 'streaming', name: 'Streaming' }
+/** Streams every Danish ice hockey match (logo: public/logos/kanaler/direkte-sport.jpg) */
+const DIREKTE_SPORT: Partner = { id: 'direkte-sport', name: 'Direkte Sport' }
+
+const isDanish = (country?: string) => country === 'Danmark' || country === 'Denmark'
 
 /** Channel per league (by league slug), falling back to one per sport */
 const CHANNELS_BY_LEAGUE: Record<string, Partner[]> = {
   superliga: [TV, STREAM],
+  metalligaen: [DIREKTE_SPORT],
 }
 const CHANNELS_BY_SPORT: Record<SportId, Partner[]> = {
   soccer: [STREAM],
@@ -37,7 +42,9 @@ const CHANNELS_BY_SPORT: Record<SportId, Partner[]> = {
 }
 
 /** Channels showing a match; the pick is stable per match so it does not change between visits */
-export function channelsFor(leagueSlug: string | undefined, sport: SportId, matchId: string): Partner[] {
+export function channelsFor(leagueSlug: string | undefined, sport: SportId, matchId: string, country?: string): Partner[] {
+  // All Danish ice hockey, also games from API-Sports outside our league pages
+  if (sport === 'ice_hockey' && isDanish(country)) return [DIREKTE_SPORT]
   const options = (leagueSlug && CHANNELS_BY_LEAGUE[leagueSlug]) || CHANNELS_BY_SPORT[sport]
   if (options.length <= 1) return options
   let h = 0
