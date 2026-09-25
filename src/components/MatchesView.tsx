@@ -149,6 +149,13 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
+  // Match in focus: kick-off 12-24 hours ahead, counted from the start of the hour so the pick stays put for the hour
+  const hour = Math.floor(now / 3_600_000)
+  const featured = useMemo(() => {
+    if (usingApi) return []
+    const from = hour * 3_600_000 + 12 * 3_600_000
+    return upcomingMatches(sport, hour * 3_600_000, 1, 10_000).filter((m) => m.kickoff.getTime() >= from)
+  }, [usingApi, sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
   const upcoming = useMemo(() => {
     if (!usingApi) return upcomingMatches(sport, now)
@@ -296,7 +303,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         </main>
 
         <aside className="aside">
-          <FeaturedMatch matches={matches} pinned={pinned} now={now} />
+          <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${sport}|${hour}`} />
           <StatTiles
             matches={matches}
             updatedAt={new Date(now)}

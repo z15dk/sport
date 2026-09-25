@@ -1002,3 +1002,7 @@ h2.league__name { margin: 0; }
   .admin-list__row { grid-template-columns: 36px minmax(0, 1fr); }
   .admin-source, .logo-editor { grid-column: 2; justify-self: start; }
 }
+.featured__odds { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.featured__odds .match__odds { justify-content: center; }
+.featured__odds .odds-by__text { color: var(--ink); opacity: 0.7; }
+.featured__rg { font-size: 11px; color: var(--ink); opacity: 0.7; }
