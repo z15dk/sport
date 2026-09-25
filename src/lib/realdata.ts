@@ -21,7 +21,16 @@ const MAX_ROUNDS = 40
 
 const file = (): string => process.env.REAL_DATA_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'real-data.json')
 
-type JobState = { running: boolean; lastFull?: number; lastHot?: number; lastError?: string; requests: number; missing?: string[] }
+type JobState = {
+  running: boolean
+  lastFull?: number
+  lastHot?: number
+  lastError?: string
+  requests: number
+  missing?: string[]
+  /** What each division was matched to at TheSportsDB */
+  lookups?: Record<string, string>
+}
 // On globalThis: the job (started from instrumentation) and the pages load separate copies of this module
 const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData; __scorelineMergedKey?: string }
 const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
@@ -42,7 +51,8 @@ function apply() {
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
-  for (const [id, events] of Object.entries(db?.leagues ?? {})) if (!leagues[id]?.length && events.length) leagues[id] = events
+  // The source with more of the season wins (our database has the Danish divisions in full)
+  for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (leagues[id]?.length ?? 0)) leagues[id] = events
   if (!tsdbData && !db) return setRealData(undefined)
   setRealData({
     version: hashString(key).toString(36),
@@ -171,6 +181,17 @@ const API_SPORT: Record<string, string> = { soccer: 'Soccer', ice_hockey: 'Ice H
 const API_COUNTRY: Record<string, string> = { Danmark: 'Denmark', Tyskland: 'Germany', Sverige: 'Sweden', Norge: 'Norway', England: 'England' }
 const leagueIds = new Map<string, number | null>()
 
+/** Other names TheSportsDB may use for a division */
+const LEAGUE_ALIASES: Record<string, string[]> = {
+  '1div': ['Danish 1st Division', 'Danish 1. Division', 'NordicBet Liga', 'Betinia Liga'],
+  '2div': ['Danish 2nd Division', 'Danish 2. Division'],
+  '3div': ['Danish 3rd Division', 'Danish 3. Division'],
+  liga3: ['German 3. Liga', 'German 3 Liga', '3. Liga'],
+  metalligaen: ['Danish Metal Ligaen', 'Metal Ligaen', 'Danish Hockey League', 'Danish Ice Hockey League', 'Metal Ligaen Denmark'],
+  shl: ['Swedish SHL', 'Swedish Hockey League', 'SHL'],
+  basketligaen: ['Danish Basketligaen', 'Basketligaen', 'Danish Basketball League', 'Danish Basket Ligaen'],
+}
+
 /** TheSportsDB's id for a division: known, or found by name among the country's leagues */
 async function leagueIdFor(division: Division): Promise<number | undefined> {
   if (KNOWN_LEAGUE_IDS[division.id]) return KNOWN_LEAGUE_IDS[division.id]
@@ -184,15 +205,27 @@ async function leagueIdFor(division: Division): Promise<number | undefined> {
     state.lastError = error
     return undefined // try again next run
   }
-  const wanted = [division.apiLeague, division.name].filter((n): n is string => !!n).map(normalize)
-  const league = (data?.countries ?? []).find((l) =>
-    [l.strLeague, ...(l.strLeagueAlternate ?? '').split(',')].map(normalize).some((n) => n && wanted.includes(n)),
-  )
+  const wanted = [division.apiLeague, division.name, ...(LEAGUE_ALIASES[division.id] ?? [])]
+    .filter((n): n is string => !!n)
+    .map(normalize)
+  const names = (l: { strLeague: string; strLeagueAlternate?: string | null }) =>
+    [l.strLeague, ...(l.strLeagueAlternate ?? '').split(',')].map(normalize).filter(Boolean)
+  const leagues = data?.countries ?? []
+  // An exact name first; otherwise the shortest league whose name contains ours (not "... Women", "... U19")
+  const league =
+    leagues.find((l) => names(l).some((n) => wanted.includes(n))) ??
+    leagues
+      .filter((l) => !/women|kvinde|damer|u\d\d|youth|reserve/i.test(l.strLeague))
+      .filter((l) => names(l).some((n) => wanted.some((w) => w.length > 3 && ` ${n} `.includes(` ${w} `))))
+      .sort((a, b) => a.strLeague.length - b.strLeague.length)[0]
+  state.lookups = { ...state.lookups, [division.id]: league ? `${league.strLeague} (${league.idLeague})` : `ikke fundet blandt ${leagues.length} ligaer i ${country}` }
   leagueIds.set(division.id, league ? Number(league.idLeague) : null)
   return league ? Number(league.idLeague) : undefined
 }
 
-const isDue = (divisionId: string, now = Date.now()) => now - (base()?.checked?.[divisionId] ?? 0) > FULL_EVERY_MS - 60_000
+/** Leagues with fixtures are refreshed every six hours; leagues not found yet are tried again every run */
+const isDue = (divisionId: string, now = Date.now()) =>
+  !base()?.leagues[divisionId]?.length || now - (base()?.checked?.[divisionId] ?? 0) > FULL_EVERY_MS - 60_000
 
 /** Fetches every division not looked up within the last six hours */
 async function runFull() {
@@ -295,7 +328,8 @@ export function realDataStatus() {
       return {
         id,
         name,
-        source: base()?.leagues[id]?.length ? 'TheSportsDB' : events.length ? 'kampdatabasen' : undefined,
+        source: events.length && events[0].id.startsWith('db-') ? 'kampdatabasen' : events.length ? 'TheSportsDB' : undefined,
+        lookup: KNOWN_LEAGUE_IDS[id] ? `kendt id ${KNOWN_LEAGUE_IDS[id]}` : state.lookups?.[id],
         events: events.length,
         finished: events.filter((e) => e.state === 'finished').length,
         teams: [...new Set(events.flatMap((e) => [e.home, e.away]))].sort(),

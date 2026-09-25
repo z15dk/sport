@@ -44,6 +44,7 @@ export default function DataStatusPage() {
                   ? `${l.events} kampe, heraf ${l.finished} spillet (fra ${l.source}).`
                   : 'Ingen kampe hos TheSportsDB eller i kampdatabasen (eller ikke hentet endnu) – ligaen vises ikke på siden.'}
               </p>
+              {l.lookup && <p className="muted small">TheSportsDB: {l.lookup}</p>}
               {l.teams.length > 0 && <p>Hold: {l.teams.join(', ')}</p>}
               {unknown.length > 0 && (
                 <p className="unverified">
