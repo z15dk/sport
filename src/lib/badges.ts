@@ -6,7 +6,7 @@ import { slugify } from './slug'
 import { API_KEY, cacheDir, requestCount, tsdb } from './tsdb'
 import { customLogoUrl } from './customLogos'
 import { seasonClubs } from '../data/season'
-import { CHANNELS } from '../data/partners'
+import { channelData } from './channels'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
 
 // Club and league logos.
@@ -283,9 +283,9 @@ export async function getBadges(): Promise<Record<string, string>> {
   for (const [key, e] of Object.entries(state.cache.entries)) if (e.url) map[key] = e.url
   // Uploads in the admin pages win, then files in public/logos, then TheSportsDB
   const all: Record<string, string> = { ...map, ...localLogos(), ...uploadedLogos() }
-  // Channel logos uploaded in the admin pages (stored as kanal-<id>)
-  for (const channel of CHANNELS) {
-    const url = customLogoUrl(`kanal-${channel.id}`)
+  // Channel logos: uploaded in the admin pages (stored as kanal-<id>), else a local file, else the TV listings' logo
+  for (const channel of channelData().data.channels) {
+    const url = customLogoUrl(`kanal-${channel.id}`) ?? all[`kanal:${channel.id}`] ?? channel.logo
     if (url) all[`kanal:${channel.id}`] = url
   }
   // Clubs renamed in the admin pages keep the logo found under their original name

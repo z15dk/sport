@@ -5,6 +5,7 @@
 
 import type { Incident, MatchState } from '../types'
 import type { ExternalGame } from './external'
+import type { ChannelData } from './channels'
 
 export interface RealEvent {
   id: string
@@ -38,8 +39,8 @@ export interface RealData {
   external?: ExternalGame[]
   /** Club names changed in the admin pages, by club slug */
   clubNames?: Record<string, string>
-  /** Links on the channel logos, set in the admin pages, by channel id */
-  channelLinks?: Record<string, string>
+  /** Channels, rules, exceptions and TV listings (src/data/channels.ts) */
+  channels?: ChannelData
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */

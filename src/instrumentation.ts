@@ -9,6 +9,8 @@ export async function register() {
   ])
   const { startApiSportsSync } = await import('./lib/apisports')
   startApiSportsSync()
+  const { startTvSync } = await import('./lib/channels')
+  startTvSync()
   startIndexNow()
   startRealDataSync()
   startLogoSync()

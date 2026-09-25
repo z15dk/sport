@@ -1,4 +1,5 @@
-import { BOOKMAKER, RESPONSIBLE_GAMBLING, channelsFor } from '../data/partners'
+import { BOOKMAKER, RESPONSIBLE_GAMBLING } from '../data/partners'
+import { channelsFor } from '../data/channels'
 import { formatOdds, oddsFor, type Odds } from '../data/odds'
 import type { Match } from '../types'
 import { PartnerLogo } from './PartnerLogo'
@@ -8,7 +9,7 @@ import { PartnerLogo } from './PartnerLogo'
  * the score ('logo'); one without is shown by name under the kickoff time ('name').
  */
 export function MatchChannel({ match, only, small }: { match: Match; only: 'logo' | 'name'; small?: boolean }) {
-  const [channel] = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
+  const [channel] = channelsFor(match)
   if (!channel) return null
   return (
     <span className={`match__channel match__channel--${only}${small ? ' match__channel--small' : ''}`} title={`Vises på ${channel.name}`}>
@@ -57,7 +58,7 @@ function TvIcon() {
 
 /** Odds and TV box on the match page */
 export function MatchExtrasPanel({ match }: { match: Match }) {
-  const channels = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
+  const channels = channelsFor(match)
   const odds = oddsFor(match)
   const tvLabel = match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'
   if (!channels.length && !odds) return null

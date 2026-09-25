@@ -1041,3 +1041,10 @@ h2.league__name { margin: 0; }
 .link-editor input { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); flex: 1 1 220px; min-width: 0; }
 .link-editor__ok { color: #2b6b00; font-size: 12px; font-weight: 600; }
 .extras-panel .partner-logo img { border-radius: 8px; }
+.admin .panel > .panel__title { padding: 16px 18px 4px; }
+.admin-match { grid-template-columns: 52px minmax(0, 1fr) auto auto; }
+.admin-match__time { font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-rule { grid-template-columns: minmax(0, 1fr) auto; }
+.admin-daynav { display: flex; gap: 14px; font-weight: 600; font-size: 13px; }
+.admin-daynav a:hover { text-decoration: underline; }
+.logo-editor select, .admin-filter select { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
