@@ -44,6 +44,16 @@ function namesOf(name: string) {
   return [name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
 }
 
+/** Words of a name (normalized, 3+ letters), for loose matching across sources */
+const COMMON = new Set(['and', 'the', 'city', 'united', 'real', 'sporting', 'athletic', 'club', 'county', 'town', 'rovers', 'wanderers'])
+const words = (name: string) => normalize(name).split(' ').filter((w) => w.length >= 3 && !COMMON.has(w))
+
+/** Whether one of our club's names shares a word with a name from another source ("HIK" / "Hellerup IK") */
+function alike(names: string[], other: string) {
+  const theirs = new Set(words(other))
+  return names.some((n) => words(n).some((w) => theirs.has(w)))
+}
+
 /**
  * The day's matches: our leagues' season, updated with API-Sports' live score
  * where API-Sports has the same match, plus API-Sports' games in other leagues.
@@ -58,8 +68,18 @@ export function getMatches(date: string, sport: SportFilter, now: number): Match
     for (const h of namesOf(m.home.name)) for (const a of namesOf(m.away.name)) byKey.set(gameKey(m.kickoff, h, a), i)
   })
   const extra: ExternalGame[] = []
+  const taken = new Set<number>()
+  const names = ours.map((m) => ({ home: namesOf(m.home.name), away: namesOf(m.away.name) }))
   for (const g of external) {
-    const i = byKey.get(gameKey(g.kickoff, g.home.name, g.away.name))
+    let i = byKey.get(gameKey(g.kickoff, g.home.name, g.away.name))
+    // Names written differently ("Holbæk B and I" / "Holbæk B&I"): same day and each side shares a word
+    if (i === undefined) {
+      const loose = ours.flatMap((_, j) =>
+        !taken.has(j) && alike(names[j].home, g.home.name) && alike(names[j].away, g.away.name) ? [j] : [],
+      )
+      if (loose.length === 1) i = loose[0]
+    }
+    if (i !== undefined) taken.add(i)
     if (i === undefined) {
       extra.push(g)
       continue
@@ -133,15 +153,10 @@ export function findExternalGame(match: Match): ExternalGame | undefined {
   if (exact) return exact
   // Looser: same day and sport, and each side shares a word with one of the club's names ("HIK" / "Hellerup IK")
   const day = isoDate(match.kickoff)
-  const words = (name: string) => normalize(name).split(' ').filter((w) => w.length >= 3)
-  const like = (names: string[], other: string) => {
-    const theirs = new Set(words(other))
-    return names.some((n) => words(n).some((w) => theirs.has(w)))
-  }
   const home = namesOf(match.home.name)
   const away = namesOf(match.away.name)
   const candidates = external.filter(
-    (g) => g.sport === match.sport && isoDate(new Date(g.kickoff)) === day && like(home, g.home.name) && like(away, g.away.name),
+    (g) => g.sport === match.sport && isoDate(new Date(g.kickoff)) === day && alike(home, g.home.name) && alike(away, g.away.name),
   )
   return candidates.length === 1 ? candidates[0] : undefined
 }
