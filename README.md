@@ -69,9 +69,12 @@ resultaterne er fiktive. IndexNow er også slået fra.
 3. Byg igen: `sudo scoreline-update --force` (indstillingerne bages ind ved bygget).
 4. Tilmeld domænet i Google Search Console og Bing Webmaster Tools og indsend `/sitemap.xml`.
 
-## Klublogoer
+## Klub- og ligalogoer
 
-Logoer findes i denne rækkefølge:
+Ligalogoer hentes fra TheSportsDB's ligaliste for hvert land og hver sport; en fil i
+`public/logos/ligaer/<liga-slug>.svg|png|webp|jpg` (fx `superliga.svg`) bruges i stedet.
+
+Klublogoer findes i denne rækkefølge:
 
 1. En fil i `public/logos/<klub-slug>.svg|png|webp|jpg` (fx `fc-koebenhavn.png`)
 2. Klubbens logo fra TheSportsDB (caches i et døgn)

@@ -774,3 +774,6 @@ h2.league__name { margin: 0; }
 .clubs__country { display: flex; align-items: center; gap: 10px; }
 .clubs__country .flag { width: 30px; height: 20px; }
 @media (max-width: 900px) { .division-tabs { align-items: stretch; } }
+.league-title__row { display: flex; align-items: center; gap: 14px; }
+.league-title__row .badge { background: var(--surface); border-radius: 14px; padding: 4px; }
+.league-title__row .badge--fallback { border-radius: 50%; padding: 0; }

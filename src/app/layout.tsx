@@ -5,7 +5,7 @@ import { SportRail } from '../components/SportRail'
 import { BadgeProvider } from '../components/BadgeProvider'
 import { Footer } from '../components/Footer'
 import { JsonLd, organizationLd } from '../lib/jsonld'
-import { getClubBadges } from '../lib/badges'
+import { getBadges } from '../lib/badges'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const badges = await getClubBadges()
+  const badges = await getBadges()
   return (
     <html lang="da">
       <head>

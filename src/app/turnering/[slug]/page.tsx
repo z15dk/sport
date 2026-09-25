@@ -5,8 +5,10 @@ import { standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
+import { TeamBadge } from '../../../components/TeamBadge'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
+import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
 import { Updated } from '../../../components/Updated'
 import { leagueFaq } from '../../../lib/faq'
@@ -39,6 +41,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
   if (!division) notFound()
   const now = Date.now()
   const rows = standings(division, now)
+  const badges = await getBadges()
   const rounds = Math.max(...rows.map((r) => r.played))
   const today = isoDate(now)
   const todays = getMatches(today, 'soccer', now)
@@ -49,7 +52,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
 
   return (
     <div className="page">
-      <JsonLd data={leagueLd(division)} />
+      <JsonLd data={leagueLd(division, badges[division.name])} />
       <JsonLd data={webPageLd(paths.league(division.slug), division.name, new Date(now))} />
       <JsonLd data={faqLd(faq)} />
       <JsonLd
@@ -60,8 +63,11 @@ export default async function LeaguePage({ params }: { params: Params }) {
       />
       <div className="clubs">
         <div className="clubs__head">
-          <h1 className="feed__title">
-            {division.name}
+          <h1 className="feed__title league-title">
+            <span className="league-title__row">
+              <TeamBadge link={false} name={division.name} label={division.short} colors={['#0f110c', '#c6f135']} size={56} />
+              {division.name}
+            </span>
             <span>
               Sæson {SEASON} · {division.clubs.length} klubber
             </span>

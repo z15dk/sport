@@ -55,13 +55,14 @@ export function clubLd(club: Club, division: Division) {
   }
 }
 
-export function leagueLd(division: Division) {
+export function leagueLd(division: Division, logo?: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsOrganization',
     name: division.name,
     sport: sportById(division.sport ?? 'soccer').label,
     url: `${SITE_URL}${paths.league(division.slug)}`,
+    ...(logo && { logo: logo.startsWith('/') ? `${SITE_URL}${logo}` : logo }),
     member: division.clubs.map((c) => teamLd(c.name, c.slug, sportById(division.sport ?? 'soccer').label)),
   }
 }
