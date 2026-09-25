@@ -58,6 +58,8 @@ export interface LeagueGroup {
   league: string
   country?: string
   leagueBadge?: string
+  /** Our league order (Superliga before 1. division); unset for leagues outside our list */
+  order?: number
   matches: Match[]
 }
 

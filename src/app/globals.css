@@ -1109,3 +1109,6 @@ h2.league__name { margin: 0; }
 .side-country .side-list { padding: 0 0 4px 14px; }
 .side-country__flag { font-size: 14px; line-height: 1; }
 .side-country__code { font-size: 8px; font-weight: 800; letter-spacing: 0.02em; padding: 2px 3px; border-radius: 3px; background: var(--surface-2); color: var(--ink-2); }
+.side-list__link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 12px; }
+.side-list li.is-empty .side-list__name, .side-list li.is-empty .side-list__count, .side-list li.is-empty .side-list__page { color: var(--ink-3); }
+.side-list li.is-empty .side-list__name { font-weight: 500; }

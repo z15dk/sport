@@ -29,6 +29,10 @@ export function Sidebar({ groups, pinned, selected, onSelect }: Props) {
     const c = danishCountry(g.country)
     byCountry.set(c, [...(byCountry.get(c) ?? []), g])
   }
+  // Within a country: live first, then our leagues in our order, then the rest by name
+  for (const items of byCountry.values()) {
+    items.sort((a, b) => Number(isLive(b)) - Number(isLive(a)) || (a.order ?? 999) - (b.order ?? 999) || a.league.localeCompare(b.league, 'da'))
+  }
   const rank = (c: string, items: LeagueGroup[]) => (items.some(isLive) ? 0 : 2) + (c === 'Danmark' ? 0 : 1)
   const countries = [...byCountry.entries()].sort(
     ([a, x], [b, y]) => rank(a, x) - rank(b, y) || a.localeCompare(b, 'da'),
@@ -39,10 +43,29 @@ export function Sidebar({ groups, pinned, selected, onSelect }: Props) {
     <ul className="side-list">
       {items.map((g) => {
         const active = g.leagueId === selected
+        const logo = <TeamBadge link={false} name={g.league} src={g.leagueBadge} size={20} label={competitionLabel(g.league)} />
+        // Leagues without matches this day go straight to their page
+        if (!g.matches.length && g.leagueSlug) {
+          return (
+            <li key={g.leagueId} className="is-empty">
+              <Link className="side-list__link" href={paths.league(g.leagueSlug)} title={`${g.league}: ingen kampe denne dag – se stilling og program`}>
+                {logo}
+                <span className="side-list__text">
+                  <span className="side-list__name">{g.league}</span>
+                  {showCountry && g.country && <span className="side-list__country">{danishCountry(g.country)}</span>}
+                </span>
+                <span className="side-list__count">0</span>
+              </Link>
+              <span className="side-list__page" aria-hidden>
+                ›
+              </span>
+            </li>
+          )
+        }
         return (
           <li key={g.leagueId} className={active ? 'is-active' : undefined}>
             <button type="button" aria-pressed={active} onClick={() => onSelect(active ? undefined : g.leagueId)}>
-              <TeamBadge link={false} name={g.league} src={g.leagueBadge} size={20} label={competitionLabel(g.league)} />
+              {logo}
               <span className="side-list__text" title={g.country ? `${g.league} · ${danishCountry(g.country)}` : g.league}>
                 <span className="side-list__name">{g.league}</span>
                 {showCountry && g.country && <span className="side-list__country">{danishCountry(g.country)}</span>}

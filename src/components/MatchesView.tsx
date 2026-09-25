@@ -19,6 +19,7 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
+import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
 import Link from 'next/link'
 import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
@@ -42,6 +43,7 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
         league: m.league,
         country: m.country,
         leagueBadge: m.leagueBadge,
+        order: m.leagueOrder,
         matches: [],
       }
       map.set(m.leagueId, g)
@@ -156,7 +158,17 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
     }
     return [...byDay.entries()]
   }, [visible])
-  const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
+  // The sidebar lists every league we cover in the chosen sport, also those without matches this day
+  const allGroups = useMemo(() => {
+    const groups = groupByLeague(matches, pinned)
+    const have = new Set(groups.map((g) => g.leagueId))
+    const covered = DIVISIONS.flatMap((d, i): LeagueGroup[] => {
+      const leagueId = `${d.countryCode.toLowerCase()}-${d.id}`
+      if (have.has(leagueId) || (sport !== 'all' && sportOf(d) !== sport) || !shownDivisions().includes(d)) return []
+      return [{ leagueId, leagueSlug: d.slug, league: d.name, country: d.country, order: i, matches: [] }]
+    })
+    return [...groups, ...covered]
+  }, [matches, pinned, sport, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sport === 'all' ? ALL_SPORTS : sportById(sport)
   // Match in focus: kick-off 12-24 hours ahead, counted from the start of the hour so the pick stays put for the hour
