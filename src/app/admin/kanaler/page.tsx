@@ -6,6 +6,8 @@ import { getBadges } from '../../../lib/badges'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { CHANNELS } from '../../../data/partners'
 import { LogoEditor } from '../../../components/admin/LogoEditor'
+import { LinkEditor } from '../../../components/admin/LinkEditor'
+import { channelLinks } from '../../../lib/channelLinks'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Kanaler · Admin', robots: { index: false, follow: false } }
@@ -14,6 +16,7 @@ export const metadata: Metadata = { title: 'Kanaler · Admin', robots: { index: 
 export default async function AdminChannels() {
   if (!(await isAdmin())) redirect('/admin')
   const badges = await getBadges()
+  const links = channelLinks().links
   return (
     <div className="page">
       <div className="clubs admin">
@@ -46,6 +49,7 @@ export default async function AdminChannels() {
                   )}
                   <span className="admin-list__name">
                     <strong>{channel.name}</strong>
+                    <LinkEditor id={channel.id} url={links[channel.id]} />
                   </span>
                   <span className={`admin-source admin-source--${uploaded ? 'upload' : logo ? 'fil' : 'forbogstaver'}`}>
                     {uploaded ? 'Uploadet her' : logo ? 'Fil i public/logos/kanaler' : 'Intet logo'}
@@ -56,7 +60,9 @@ export default async function AdminChannels() {
             })}
           </ul>
         </section>
-        <p className="muted small">Hvilke kampe hver kanal vises ved, står i src/data/partners.ts.</p>
+        <p className="muted small">
+          Hvilke kampe hver kanal vises ved, står i src/data/partners.ts. Kampe uden kanal viser ingen kanal. Linket åbner i en ny fane.
+        </p>
       </div>
     </div>
   )

@@ -1037,3 +1037,7 @@ h2.league__name { margin: 0; }
   .match__slot { display: none; }
   .match__right .match__odds .odds-chip { width: 40px; }
 }
+.link-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-weight: 500; }
+.link-editor input { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); flex: 1 1 220px; min-width: 0; }
+.link-editor__ok { color: #2b6b00; font-size: 12px; font-weight: 600; }
+.extras-panel .partner-logo img { border-radius: 8px; }

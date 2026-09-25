@@ -38,6 +38,8 @@ export interface RealData {
   external?: ExternalGame[]
   /** Club names changed in the admin pages, by club slug */
   clubNames?: Record<string, string>
+  /** Links on the channel logos, set in the admin pages, by channel id */
+  channelLinks?: Record<string, string>
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */

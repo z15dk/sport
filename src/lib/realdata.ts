@@ -11,6 +11,7 @@ import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
 import { externalGames } from './apisports'
 import { clubNameOverrides } from './clubNames'
+import { channelLinks } from './channelLinks'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -52,7 +53,8 @@ function apply() {
   const db = databaseSeason()
   const external = externalGames()
   const names = clubNameOverrides()
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}`
+  const links = channelLinks()
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${links.version}`
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -76,6 +78,7 @@ function apply() {
     checked: tsdbData?.checked,
     external: external.games,
     clubNames: names.names,
+    channelLinks: links.links,
   })
 }
 

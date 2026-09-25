@@ -60,18 +60,21 @@ export function MatchExtrasPanel({ match }: { match: Match }) {
   const channels = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
   const odds = oddsFor(match)
   const tvLabel = match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'
+  if (!channels.length && !odds) return null
   return (
     <section className="extras-panel" aria-label="Odds og TV">
-      <div className="extras-panel__tv">
-        <span className="extras-panel__label">
-          <TvIcon /> {tvLabel}
-        </span>
-        <span className="extras-panel__channels">
-          {channels.map((c) => (
-            <PartnerLogo key={c.id} partner={c} kind="kanal" height={28} />
-          ))}
-        </span>
-      </div>
+      {channels.length > 0 && (
+        <div className="extras-panel__tv">
+          <span className="extras-panel__label">
+            <TvIcon /> {tvLabel}
+          </span>
+          <span className="extras-panel__channels">
+            {channels.map((c) => (
+              <PartnerLogo key={c.id} partner={c} kind="kanal" height={40} />
+            ))}
+          </span>
+        </div>
+      )}
       {odds && (
         <div className="extras-panel__odds">
           <div className="extras-panel__odds-head">
