@@ -5,6 +5,7 @@ import type { MatchState, SportId } from '../types'
 import type { ExternalGame } from '../data/external'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
+import { createHash } from 'node:crypto'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -230,6 +231,8 @@ const APIS: Record<Api, ApiDef> = {
   },
 }
 
+const fingerprint = (key?: string) => (key ? createHash('sha256').update(key).digest('hex').slice(0, 12) : undefined)
+
 const keyFor = (api: Api) =>
   process.env[`API_SPORTS_KEY_${api.replace('-', '_').toUpperCase()}`]?.trim() || process.env.API_SPORTS_KEY?.trim() || undefined
 
@@ -248,6 +251,8 @@ interface ApiState {
   lastError?: string
   lastErrorAt?: number
   requests?: number
+  /** Fingerprint of the key the error came with; a new key is tried right away */
+  keyFingerprint?: string
 }
 type Store = Record<string, ApiState>
 
@@ -339,6 +344,7 @@ async function fetchDay(api: Api, date: string) {
     if (!res.ok || errors.length) {
       s.lastError = `${res.status} ${errors.join('; ') || res.statusText}`
       s.lastErrorAt = Date.now()
+      s.keyFingerprint = fingerprint(keyFor(api))
       // Do not ask for this day again right away
       s.days[date] = { fetchedAt: Date.now(), games: s.days[date]?.games ?? [] }
       return
@@ -357,8 +363,8 @@ function dueDay(api: Api, now: number): string | undefined {
   const s = mem.store[api] ?? { days: {} }
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (remaining <= 2) return undefined
-  // Wait an hour after an error (a plan restriction or a wrong key would repeat)
-  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000) return undefined
+  // Wait an hour after an error (a plan restriction or a wrong key would repeat), unless the key has changed since
+  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
   const today = isoDate(now)
   const age = (d: string) => now - (s.days[d]?.fetchedAt ?? 0)
   const todays = s.days[today]?.games ?? []
