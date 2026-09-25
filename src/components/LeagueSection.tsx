@@ -6,6 +6,8 @@ import type { LeagueGroup } from '../types'
 import { paths } from '../lib/site'
 import { MatchRow } from './MatchRow'
 import { competitionLabel } from '../data/leagues'
+import { OddsBy } from './MatchExtras'
+import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -17,6 +19,7 @@ interface Props {
 export function LeagueSection({ group, pinned, onTogglePin }: Props) {
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
+  const hasOdds = group.matches.some((m) => m.state === 'upcoming')
 
   return (
     <section className="league" id={`league-${group.leagueId}`}>
@@ -34,7 +37,7 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
             )}
           </span>
           {liveCount > 0 && <span className="league__live">{liveCount} live</span>}
-          <span className="league__count">{group.matches.length} kampe</span>
+          {hasOdds ? <OddsBy /> : <span className="league__count">{group.matches.length} kampe</span>}
         </div>
         <button
           className={`chevron-btn${open ? ' is-open' : ''}`}
@@ -60,6 +63,11 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
             <MatchRow key={m.id} match={m} />
           ))}
         </ul>
+      )}
+      {open && hasOdds && (
+        <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
+          {RESPONSIBLE_GAMBLING.text}
+        </a>
       )}
     </section>
   )

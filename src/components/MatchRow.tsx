@@ -3,7 +3,8 @@ import { formatDayMonth, formatTime, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
 import type { Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
-import { MatchExtrasLine } from './MatchExtras'
+import { MatchChannel, MatchOdds } from './MatchExtras'
+import { oddsFor } from '../data/odds'
 
 function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
@@ -14,14 +15,19 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
 
+  const odds = oddsFor(match)
+
   return (
     <li className={`match match--${state}`}>
       {/* Covers the whole row; the club badges sit on top and link to the clubs */}
       <Link className="stretched-link" href={paths.match(match.slug)} aria-label={`${home.name} – ${away.name}`} />
-      <time className="match__time" dateTime={match.kickoff.toISOString()}>
+      <div className="match__when">
+        <time className="match__time" dateTime={match.kickoff.toISOString()}>
           {showDate && <span className="match__date">{formatDayMonth(isoDate(match.kickoff))}</span>}
           {formatTime(match.kickoff)}
         </time>
+        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} />}
+      </div>
       <div className="match__teams">
         {[home, away].map((team, i) => {
           const other = i === 0 ? away : home
@@ -33,21 +39,19 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
           )
         })}
       </div>
-      <div className="match__scores" aria-label={showScore ? `${home.score ?? 0} – ${away.score ?? 0}` : undefined}>
-        {showScore ? (
-          <>
-            <span className={finished && lost(home, away) ? 'is-lost' : ''}>{home.score ?? '–'}</span>
-            <span className={finished && lost(away, home) ? 'is-lost' : ''}>{away.score ?? '–'}</span>
-          </>
+      <div className="match__right">
+        {odds ? (
+          <MatchOdds odds={odds} />
         ) : (
           <>
-            <span>–</span>
-            <span>–</span>
+            <div className="match__scores" aria-label={showScore ? `${home.score ?? 0} – ${away.score ?? 0}` : undefined}>
+              <span className={finished && lost(home, away) ? 'is-lost' : ''}>{showScore ? (home.score ?? '–') : '–'}</span>
+              <span className={finished && lost(away, home) ? 'is-lost' : ''}>{showScore ? (away.score ?? '–') : '–'}</span>
+            </div>
+            {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
           </>
         )}
       </div>
-      {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
-      <MatchExtrasLine match={match} />
     </li>
   )
 }

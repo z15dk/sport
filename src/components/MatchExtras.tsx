@@ -1,30 +1,36 @@
 import { BOOKMAKER, RESPONSIBLE_GAMBLING, channelsFor } from '../data/partners'
-import { formatOdds, oddsFor } from '../data/odds'
+import { formatOdds, oddsFor, type Odds } from '../data/odds'
 import type { Match } from '../types'
 import { PartnerLogo } from './PartnerLogo'
 
-/** Thin line under a match in lists: where it is shown, and the odds before kickoff */
-export function MatchExtrasLine({ match }: { match: Match }) {
-  if (match.state === 'finished' || match.state === 'postponed') return null
-  const channels = channelsFor(match.leagueSlug, match.sport, match.id)
-  const odds = oddsFor(match)
+/** Small channel logo or name under the kickoff time in lists */
+export function MatchChannel({ match }: { match: Match }) {
+  const [channel] = channelsFor(match.leagueSlug, match.sport, match.id)
+  if (!channel) return null
   return (
-    <div className="match-extras">
-      <span className="match-extras__tv" aria-label="Vises på">
-        <TvIcon />
-        {channels.map((c) => (
-          <PartnerLogo key={c.id} partner={c} kind="kanal" height={16} />
-        ))}
-      </span>
-      {odds && (
-        <span className="match-extras__odds">
-          <OddsChip label="1" value={odds.home} />
-          {odds.draw && <OddsChip label="X" value={odds.draw} />}
-          <OddsChip label="2" value={odds.away} />
-          <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={16} />
-        </span>
-      )}
-    </div>
+    <span className="match__channel" title={`Vises på ${channel.name}`}>
+      <PartnerLogo partner={channel} kind="kanal" height={12} />
+    </span>
+  )
+}
+
+/** 1 X 2 odds in the right-hand column of a match row; the bookmaker is shown in the league header */
+export function MatchOdds({ odds }: { odds: Odds }) {
+  return (
+    <span className="match__odds" aria-label="Odds">
+      <OddsChip label="1" value={odds.home} />
+      {odds.draw && <OddsChip label="X" value={odds.draw} />}
+      <OddsChip label="2" value={odds.away} />
+    </span>
+  )
+}
+
+/** "Odds fra <bookmaker>" for league headers */
+export function OddsBy() {
+  return (
+    <span className="odds-by">
+      <span className="odds-by__text">Odds fra</span> <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={14} />
+    </span>
   )
 }
 
