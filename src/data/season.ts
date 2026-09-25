@@ -239,6 +239,15 @@ function current(): Season {
 export const allFixtures = () => current().fixtures
 export const fixturesOn = (date: string) => current().byDate.get(date) ?? []
 export const clubFixtures = (clubId: string) => current().fixtures.filter((f) => f.home.id === clubId || f.away.id === clubId)
+/** Leagues shown with real data, with their next match after `now` (for the front page) */
+export function realLeagues(now: number): { division: Division; next?: Fixture }[] {
+  const { fixtures, realDivisions } = current()
+  return DIVISIONS.filter((d) => realDivisions.has(d.id)).map((division) => ({
+    division,
+    next: fixtures.find((f) => f.division === division && f.real && f.kickoff.getTime() > now && f.real.state !== 'postponed'),
+  }))
+}
+
 /** True when the division shows real fixtures and results */
 export const isRealDivision = (div: Division) => current().realDivisions.has(div.id)
 export const isFinished = (f: Fixture, now: number) =>

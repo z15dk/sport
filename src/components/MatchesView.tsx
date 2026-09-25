@@ -13,8 +13,11 @@ import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches } from '../data/matches'
+import { realLeagues } from '../data/season'
+import Link from 'next/link'
+import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
-import { formatLong } from '../lib/time'
+import { danishTime, formatLong, formatTime } from '../lib/time'
 import { sportById } from '../sports'
 import type { LeagueGroup, Match, SportId, StateFilter } from '../types'
 
@@ -121,6 +124,8 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
+  // Next real match from the chosen day on (or from now when that is later)
+  const real = sport === 'soccer' ? realLeagues(Math.max(now, danishTime(date, '00:00').getTime())) : []
 
   return (
     <div className="page">
@@ -148,11 +153,25 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
       {!usingApi && (
         <div className="banner" role="status">
-          {apiError
-            ? 'Live-data kunne ikke hentes, så du ser fiktive resultater.'
-            : matches.some((m) => m.real)
-              ? `Rigtige kampe og resultater: ${[...new Set(matches.filter((m) => m.real).map((m) => m.league))].join(', ')}. Øvrige resultater er fiktive.`
-              : 'Fiktive resultater – kampene og scoringerne er opdigtede.'}
+          {apiError ? (
+            'Live-data kunne ikke hentes, så du ser fiktive resultater.'
+          ) : real.length > 0 ? (
+            <>
+              Rigtige kampe og resultater:{' '}
+              {real.map(({ division, next }, i) => (
+                <span key={division.id}>
+                  {i > 0 && ', '}
+                  <Link href={paths.league(division.slug)}>{division.name}</Link>
+                  {!matches.some((m) => m.real && m.leagueSlug === division.slug) && next && (
+                    <> (ingen kampe denne dag – næste: {next.home.name} – {next.away.name} {formatLong(next.kickoff)} kl. {formatTime(next.kickoff)})</>
+                  )}
+                </span>
+              ))}
+              . Øvrige resultater er fiktive.
+            </>
+          ) : (
+            'Fiktive resultater – kampene og scoringerne er opdigtede.'
+          )}
         </div>
       )}
 

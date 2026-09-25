@@ -900,3 +900,4 @@ h2.league__name { margin: 0; }
 }
 /* In one column the side banner would land above the matches; the feed banners cover it there */
 @media (max-width: 900px) { .ad--side { display: none; } }
+.banner a { text-decoration: underline; text-underline-offset: 2px; }
