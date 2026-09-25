@@ -2,7 +2,6 @@ import 'server-only'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
-import { CUP_NAME } from '../data/season'
 import { slugify } from './slug'
 import { API_KEY, cacheDir, requestCount, tsdb } from './tsdb'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
@@ -61,10 +60,6 @@ function wanted(): Wanted[] {
       country: d.country,
       names: [d.apiLeague, d.name].filter((n): n is string => !!n),
     })),
-    { key: CUP_NAME, kind: 'league', sport: 'soccer', country: 'Danmark', names: ['Danish Cup', 'DBU Pokalen', 'Landspokalturneringen'] },
-    { key: 'NBA', kind: 'league', sport: 'basketball', country: 'USA', names: ['NBA'] },
-    { key: 'NHL', kind: 'league', sport: 'ice_hockey', country: 'USA', names: ['NHL'] },
-    { key: 'Herreligaen', kind: 'league', sport: 'handball', country: 'Danmark', names: ['Danish Handball League', 'Herreligaen'] },
   ]
   return [...leagues, ...clubs]
 }

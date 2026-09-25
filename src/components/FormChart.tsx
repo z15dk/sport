@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { clubMatches } from '../data/matches'
-import { matchStats } from '../data/matchInsights'
 import { useNow } from '../hooks/useNow'
 import { OUTCOME_LABEL, outcomeFor } from '../lib/result'
 import { paths } from '../lib/site'
@@ -29,17 +28,14 @@ export function FormChart({ clubName, initialNow }: { clubName: string; initialN
     const isHome = m.home.name === clubName
     const own = (isHome ? m.home.score : m.away.score) ?? 0
     const other = (isHome ? m.away.score : m.home.score) ?? 0
-    const stats = matchStats(m)
-    const shots = stats?.find((s) => s.label === 'Skud på mål')
-    const shotEdge = shots ? ((isHome ? shots.home - shots.away : shots.away - shots.home) || 0) * 0.15 : 0
     const outcome = outcomeFor(m, clubName)!
     // A typical winning margin is ~1 goal in football/hockey and ~8 points in basketball
     const margin = m.sport === 'basketball' ? 8 : 1
-    let value = (own - other) / margin + (m.sport === 'soccer' ? shotEdge : 0)
+    let value = (own - other) / margin
     // Keep the direction true to the result and give every bar a visible height
     if (outcome === 'V') value = Math.max(0.6, value)
     else if (outcome === 'T') value = Math.min(-0.6, value)
-    else value = Math.max(-0.45, Math.min(0.45, shotEdge || 0.25))
+    else value = 0.25
     if (m.sport !== 'soccer' && outcome !== 'U' && m.statusLabel !== 'Slut') value = Math.sign(value) * 0.6 // overtime: narrow result
     return { match: m, outcome, value: Math.max(-MAX, Math.min(MAX, value)), opponent: isHome ? m.away : m.home }
   })

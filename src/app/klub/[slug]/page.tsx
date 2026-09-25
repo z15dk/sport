@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
-import { isRealDivision, standings } from '../../../data/season'
+import { standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
@@ -90,7 +90,8 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
           <TeamBadge link={false} name={club.name} colors={club.colors} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
-              <Link href={paths.league(division.slug)}>{division.name}</Link> · {club.city}
+              <Link href={paths.league(division.slug)}>{division.name}</Link>
+              {club.city && ` · ${club.city}`}
             </span>
             <h1>{club.name}</h1>
             {club.unverified && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
@@ -146,11 +147,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
 
         <AdSlot placement="content" />
         <Faq items={faq} />
-        <p className="muted small">
-          {isRealDivision(division)
-            ? `Kampe og resultater i ${division.name} er rigtige (TheSportsDB). Pokalkampe og statistik er fiktive.`
-            : 'Alle resultater og tal er fiktive.'}
-        </p>
+        <p className="muted small">Kampe og resultater: TheSportsDB.</p>
       </div>
     </div>
   )
@@ -230,7 +227,6 @@ function TeamPage({ team }: { team: TeamEntry }) {
 
         <AdSlot placement="content" />
         <Faq items={faq} />
-        <p className="muted small">Alle resultater er fiktive.</p>
       </div>
     </div>
   )

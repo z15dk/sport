@@ -42,13 +42,13 @@ export default function DataStatusPage() {
               <p>
                 {l.events > 0
                   ? `${l.events} kampe, heraf ${l.finished} spillet. Vises med rigtige resultater.`
-                  : 'Ingen kampe hentet endnu – ligaen vises med fiktive resultater indtil da.'}
+                  : 'Ingen kampe hos TheSportsDB (eller ikke hentet endnu) – ligaen vises ikke på siden.'}
               </p>
               {l.teams.length > 0 && <p>Hold: {l.teams.join(', ')}</p>}
               {unknown.length > 0 && (
                 <p className="unverified">
-                  Ikke fundet i klubregistret (får ingen klubside): {unknown.join(', ')}. Tilføj dem i src/data/leagues.ts eller
-                  som apiName.
+                  Ikke fundet i klubregistret (får en side uden farver og by): {unknown.join(', ')}. Tilføj dem i src/data/leagues.ts
+                  eller som apiName.
                 </p>
               )}
             </section>

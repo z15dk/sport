@@ -29,7 +29,7 @@ export function MatchOdds({ odds }: { odds: Odds }) {
 export function OddsBy() {
   return (
     <span className="odds-by">
-      <span className="odds-by__text">Odds fra</span> <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={14} />
+      <span className="odds-by__text" title="Odds er eksempler, indtil en bookmaker-aftale er på plads">Eksempel-odds fra</span> <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={14} />
     </span>
   )
 }
@@ -72,7 +72,7 @@ export function MatchExtrasPanel({ match }: { match: Match }) {
       {odds && (
         <div className="extras-panel__odds">
           <div className="extras-panel__odds-head">
-            <span className="extras-panel__label">Odds</span>
+            <span className="extras-panel__label">Eksempel-odds</span>
             <PartnerLogo partner={BOOKMAKER} kind="bookmaker" height={24} />
           </div>
           <div className="odds-grid" style={{ gridTemplateColumns: `repeat(${odds.draw ? 3 : 2}, 1fr)` }}>

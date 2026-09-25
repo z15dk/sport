@@ -59,7 +59,7 @@ og AI-assistenter kan læse indholdet uden JavaScript.
 - IndexNow (`/indexnow.txt`): giver Bing m.fl. besked, så snart en kamp er slut
 
 **Siden er sat til `noindex`, og `robots.txt` blokerer alle crawlere**, fordi
-resultaterne er fiktive. IndexNow er også slået fra.
+siden er under test. IndexNow er også slået fra.
 
 ### Når vi går live
 
@@ -69,15 +69,15 @@ resultaterne er fiktive. IndexNow er også slået fra.
 3. Byg igen: `sudo scoreline-update --force` (indstillingerne bages ind ved bygget).
 4. Tilmeld domænet i Google Search Console og Bing Webmaster Tools og indsend `/sitemap.xml`.
 
-## Rigtige resultater (Superliga)
+## Rigtige resultater
 
-Superligaens kampprogram og resultater er rigtige. Et baggrundsjob (`src/lib/realdata.ts`) henter
-hele sæsonen runde for runde fra TheSportsDB hver 6. time, og runder med kampe omkring nu hvert
+Siden har ingen fiktive resultater: alle kampe og resultater kommer fra TheSportsDB. Et baggrundsjob (`src/lib/realdata.ts`) henter
+hele sæsonen for hver liga runde for runde fra TheSportsDB hver 6. time, og runder med kampe omkring nu hvert
 10. minut. Data gemmes i `real-data.json` (på VPS'en i `/opt/scoreline/`), så en genstart starter med
-dem. Indtil de er hentet, vises Superligaen med fiktive resultater. Stilling, klubsider, forside og
-kampsider bygges af de rigtige kampe; pokal, statistik og indbyrdes opgør er stadig fiktive.
+dem. Ligaer TheSportsDB ikke har kampe for, vises ikke. Indbyrdes opgør og klubhistorik kommer fra
+vores kampdatabase (`football.db`). Odds er eksempler.
 
-Flere ligaer: tilføj division-id → TheSportsDB-liga-id i `REAL_LEAGUES` (`src/data/real.ts`).
+Flere ligaer: tilføj en `Division` med `apiLeague`; kendte id'er står i `KNOWN_LEAGUE_IDS` (`src/data/real.ts`).
 Status og hold der ikke kan kobles til klubregistret: **`/status/data`**.
 
 ## Reklamer
@@ -102,15 +102,14 @@ Se hvor langt hentningen er, og hvad der mangler: **`/status/logoer`**.
 
 Under hver kommende kamp vises TV-kanal og odds med bookmakerens logo, og kampsiden har en
 større odds-boks. Partnerne er pladsholdere: skift navn og link i `src/data/partners.ts` og læg
-logoerne i `public/logos/bookmakere/` og `public/logos/kanaler/`. Odds er fiktive.
+logoerne i `public/logos/bookmakere/` og `public/logos/kanaler/`. Odds er eksempler og mærket sådan.
 
 ## Data
 
-Kampe og resultater er fiktive. For de danske rækker findes et helt sæsonprogram
-(`src/data/season.ts`): én ligarunde om ugen fra 17. juli og pokalrunder om onsdagen.
-Stillinger, klubsider og forsiden bygger alle på det samme program, så tallene hænger sammen. Klubberne for sæson 2026/27 står
-i `src/data/danishClubs.ts`. På forsiden kan man skifte til live-data fra
-TheSportsDB, som dog ikke dækker de lavere danske rækker.
+Alle kampe og resultater kommer fra TheSportsDB (se "Rigtige resultater" ovenfor); sæsonen bygges i
+`src/data/season.ts`, så stillinger, klubsider og forsiden bygger på de samme kampe. Klublister
+(farver, by) står i `src/data/leagues.ts` m.fl. På forsiden kan man også hente dagens kampe direkte
+fra TheSportsDB for alle ligaer ("Live-data").
 
 ## Scripts
 

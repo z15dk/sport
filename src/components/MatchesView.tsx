@@ -125,7 +125,9 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
   // Next real match from the chosen day on (or from now when that is later)
-  const real = sport === 'soccer' ? realLeagues(Math.max(now, danishTime(date, '00:00').getTime())) : []
+  const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => l.division.sport === undefined ? sport === 'soccer' : l.division.sport === sport)
+  // Only the top leagues are named when they have no matches, to keep the note short
+  const noMatchLeagues = real.filter((l) => l.division.id === 'superliga' && !matches.some((m) => m.leagueSlug === l.division.slug))
 
   return (
     <div className="page">
@@ -151,26 +153,24 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
       <LiveStrip matches={searched} />
 
-      {!usingApi && (
+      {!usingApi && (apiError || (sport === 'soccer' && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">
           {apiError ? (
-            'Live-data kunne ikke hentes, så du ser fiktive resultater.'
-          ) : real.length > 0 ? (
+            'Live-data kunne ikke hentes, så du ser vores egne data.'
+          ) : real.length === 0 ? (
+            'Kampene hentes fra TheSportsDB – kom tilbage om lidt.'
+          ) : (
             <>
-              Rigtige kampe og resultater:{' '}
-              {real.map(({ division, next }, i) => (
+              Ingen kampe denne dag i{' '}
+              {noMatchLeagues.map(({ division, next }, i) => (
                 <span key={division.id}>
-                  {i > 0 && ', '}
+                  {i > 0 && (i === noMatchLeagues.length - 1 ? ' og ' : ', ')}
                   <Link href={paths.league(division.slug)}>{division.name}</Link>
-                  {!matches.some((m) => m.real && m.leagueSlug === division.slug) && next && (
-                    <> (ingen kampe denne dag – næste: {next.home.name} – {next.away.name} {formatLong(next.kickoff)} kl. {formatTime(next.kickoff)})</>
-                  )}
+                  {next && ` (næste: ${next.home.name} – ${next.away.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)})`}
                 </span>
               ))}
-              . Øvrige resultater er fiktive.
+              .
             </>
-          ) : (
-            'Fiktive resultater – kampene og scoringerne er opdigtede.'
           )}
         </div>
       )}

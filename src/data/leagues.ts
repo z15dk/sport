@@ -1,4 +1,5 @@
 import { c, type Division } from './club'
+import { hasRealData } from './real'
 import { GERMANY } from './germany'
 import { ENGLAND } from './england'
 import { NORDIC } from './nordic'
@@ -129,10 +130,13 @@ export const seasonOf = (d: Division) => d.seasonLabel ?? SEASON
 export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
 export const sportOf = (d: Division): SportId => d.sport ?? 'soccer'
 
-/** Leagues grouped by sport and country, in the order they are listed */
+/** The leagues we have real fixtures for; only these are shown on the site */
+export const shownDivisions = () => DIVISIONS.filter((d) => hasRealData(d.id))
+
+/** Shown leagues grouped by sport and country, in the order they are listed */
 export function leagueGroups() {
   const groups = new Map<string, { sport: SportId; country: string; divisions: Division[] }>()
-  for (const d of DIVISIONS) {
+  for (const d of shownDivisions()) {
     const key = `${sportOf(d)}|${d.country}`
     if (!groups.has(key)) groups.set(key, { sport: sportOf(d), country: d.country, divisions: [] })
     groups.get(key)!.divisions.push(d)

@@ -1,7 +1,7 @@
-// Real fixtures and results for the leagues we fetch from TheSportsDB. A
+// Real fixtures and results from TheSportsDB for every league we list. A
 // server job (src/lib/realdata.ts) keeps them up to date; the server hands
 // the same data to the browser (RealDataProvider), so both build the same
-// season from it. Leagues without real data keep their fictional season.
+// season from it. Leagues TheSportsDB has no fixtures for are not shown.
 
 import type { MatchState } from '../types'
 
@@ -26,11 +26,24 @@ export interface RealData {
   fetchedAt: number
   /** Events per division id */
   leagues: Record<string, RealEvent[]>
+  /** When each division was last looked up in full (also those TheSportsDB has nothing for) */
+  checked?: Record<string, number>
 }
 
-/** Divisions we fetch real data for: division id -> TheSportsDB league id */
-export const REAL_LEAGUES: Record<string, number> = {
+/** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */
+export const KNOWN_LEAGUE_IDS: Record<string, number> = {
   superliga: 4340,
+  premierleague: 4328,
+  championship: 4329,
+  bundesliga: 4331,
+  bundesliga2: 4399,
+  allsvenskan: 4347,
+  eliteserien: 4358,
+}
+
+/** True when a division has real fixtures; divisions without are not shown anywhere */
+export function hasRealData(divisionId: string): boolean {
+  return (getRealData()?.leagues[divisionId]?.length ?? 0) > 0
 }
 
 type Holder = { __scorelineReal?: RealData; __scorelineRealLoader?: () => void }

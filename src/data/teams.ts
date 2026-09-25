@@ -1,12 +1,11 @@
 import type { SportId } from '../types'
-import { slugify } from '../lib/slug'
-import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
-import { OTHER } from './matches'
+import { sportOf, type Club, type Division } from './leagues'
+import { seasonClubs } from './season'
 
-// One register of every team we have data for. Each data source adds its
-// teams here, and every team automatically gets a page at /klub/<slug>,
-// links from match pages, a place on /klubber and in the sitemap.
-// A new club in any source therefore needs no extra work.
+// One register of every team playing in the leagues we show (from the real
+// season). Every team automatically gets a page at /klub/<slug>, links from
+// match pages, a place on /klubber and in the sitemap. Clubs missing from
+// our club list (src/data/leagues.ts etc.) are included with a plain badge.
 
 export interface TeamEntry {
   slug: string
@@ -22,46 +21,29 @@ export interface TeamEntry {
 }
 
 function build(): TeamEntry[] {
-  const entries: TeamEntry[] = []
-
-  // Leagues with a full season (football, ice hockey, basketball)
-  for (const division of DIVISIONS) {
-    for (const club of division.clubs) {
-      entries.push({
-        slug: club.slug,
-        name: club.name,
-        sport: sportOf(division),
-        league: division.name,
-        leagueSlug: division.slug,
-        country: division.country,
-        colors: club.colors,
-        season: { club, division },
-      })
-    }
-  }
-
-  // Other sports
-  for (const [sport, leagues] of Object.entries(OTHER) as [Exclude<SportId, 'soccer'>, (typeof OTHER)[keyof typeof OTHER]][]) {
-    for (const lg of leagues) {
-      for (const name of lg.teams) {
-        entries.push({ slug: slugify(name), name, sport, league: lg.league, country: lg.country })
-      }
-    }
-  }
-
-  // Keep slugs unique: a later team with a taken slug gets the sport appended
-  const seen = new Set<string>()
-  for (const e of entries) {
-    if (seen.has(e.slug)) e.slug = `${e.slug}-${slugify(e.sport)}`
-    seen.add(e.slug)
-  }
-  return entries
+  return seasonClubs().map(({ club, division }) => ({
+    slug: club.slug,
+    name: club.name,
+    sport: sportOf(division),
+    league: division.name,
+    leagueSlug: division.slug,
+    country: division.country,
+    colors: club.colors,
+    season: { club, division },
+  }))
 }
 
-const TEAMS = build()
-const BY_SLUG = new Map(TEAMS.map((t) => [t.slug, t]))
-const BY_NAME = new Map(TEAMS.map((t) => [t.name, t]))
+// Rebuilt when the season changes (new real data)
+let cache: { clubs: ReturnType<typeof seasonClubs>; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
+function teams() {
+  const clubs = seasonClubs()
+  if (cache?.clubs !== clubs) {
+    const list = build()
+    cache = { clubs, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName: new Map(list.map((t) => [t.name, t])) }
+  }
+  return cache
+}
 
-export const allTeams = () => TEAMS
-export const teamBySlug = (slug: string) => BY_SLUG.get(slug)
-export const teamByName = (name: string) => BY_NAME.get(name)
+export const allTeams = () => teams().list
+export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
+export const teamByName = (name: string) => teams().byName.get(name)

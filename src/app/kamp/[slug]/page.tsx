@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findMatch } from '../../../data/matches'
-import { clubStats, findClub, headToHead } from '../../../data/matchInsights'
+import { clubStats, findClub } from '../../../data/matchInsights'
 import { realHeadToHead } from '../../../lib/history'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
@@ -51,9 +51,9 @@ export default async function MatchPage({ params }: { params: Params }) {
   const awayStats = clubStats(match.away.name, now)
   const homeClub = findClub(match.home.name)?.club
   const awayClub = findClub(match.away.name)?.club
-  // Real meetings from the match database when both clubs are in it; otherwise fictional ones
+  // Real meetings from the match database when both clubs are in it
   const realH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
-  const faq = matchFaq(match, realH2h ?? headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)
+  const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 
   return (

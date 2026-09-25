@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { DIVISIONS, SEASON } from '../../data/leagues'
+import { SEASON, shownDivisions } from '../../data/leagues'
 import { JsonLd, breadcrumbLd, organizationLd } from '../../lib/jsonld'
 import { INDEXABLE, SITE_NAME, paths } from '../../lib/site'
 
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 }
 
 export default function AboutPage() {
-  const clubs = DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)
+  const divisions = shownDivisions()
+  const clubs = divisions.reduce((n, d) => n + d.clubs.length, 0)
   return (
     <div className="page">
       <JsonLd data={organizationLd()} />
@@ -22,7 +23,7 @@ export default function AboutPage() {
 
         {!INDEXABLE && (
           <p className="banner">
-            Scoreline er under udvikling. Superligaens kampe og resultater er rigtige (TheSportsDB); alle andre kampe, resultater og tal på siden er fiktive og kun til test.
+            Scoreline er under udvikling. Kampe og resultater kommer fra TheSportsDB, historik fra vores egen kampdatabase. Odds er eksempler.
           </p>
         )}
 
@@ -31,9 +32,9 @@ export default function AboutPage() {
           <p>
             Scoreline samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge. Vi dækker alle{' '}
             {clubs} klubber i{' '}
-            {DIVISIONS.map((d, i) => (
+            {divisions.map((d, i) => (
               <span key={d.id}>
-                {i > 0 && (i === DIVISIONS.length - 1 ? ' og ' : ', ')}
+                {i > 0 && (i === divisions.length - 1 ? ' og ' : ', ')}
                 <Link href={paths.league(d.slug)}>{d.name}</Link>
               </span>
             ))}{' '}

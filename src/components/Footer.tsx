@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { DIVISIONS, sportOf } from '../data/leagues'
+import { shownDivisions, sportOf } from '../data/leagues'
 import { INDEXABLE, SITE_NAME, paths } from '../lib/site'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { sportById } from '../sports'
@@ -7,12 +7,13 @@ import { Flag } from './Flag'
 
 /** Site-wide footer; one column per sport, and a path for crawlers to every league. */
 export function Footer() {
-  const sports = [...new Set(DIVISIONS.map(sportOf))]
+  const divisions = shownDivisions()
+  const sports = [...new Set(divisions.map(sportOf))]
   return (
     <footer className="footer">
       <nav className="footer__cols" aria-label="Sidefod">
         {sports.map((sport) => {
-          const leagues = DIVISIONS.filter((d) => sportOf(d) === sport)
+          const leagues = divisions.filter((d) => sportOf(d) === sport)
           return (
             <div key={sport} className={leagues.length > 6 ? 'footer__col--wide' : undefined}>
               <h2>{sportById(sport).label}</h2>
@@ -43,7 +44,7 @@ export function Footer() {
           </ul>
         </div>
       </nav>
-      {!INDEXABLE && <p className="footer__note">Under udvikling – resultaterne er fiktive, undtagen Superligaen.</p>}
+      {!INDEXABLE && <p className="footer__note">Under udvikling.</p>}
       <p className="footer__note">
         Odds vises for spillere over 18 år.{' '}
         <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { DIVISIONS, divisionBySlug, seasonOf } from '../../../data/leagues'
-import { isRealDivision, standings } from '../../../data/season'
+import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
+import { hasRealData } from '../../../data/real'
+import { standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
@@ -26,7 +27,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const division = divisionBySlug((await params).slug)
-  if (!division) return { title: 'Turneringen findes ikke' }
+  if (!division || !hasRealData(division.id)) return { title: 'Turneringen findes ikke' }
   const table = standings(division, Date.now())
   const leader = table[0]
   const rounds = Math.max(...table.map((r) => r.played))
@@ -39,13 +40,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function LeaguePage({ params }: { params: Params }) {
   const division = divisionBySlug((await params).slug)
-  if (!division) notFound()
+  // Leagues without real fixtures are not shown
+  if (!division || !hasRealData(division.id)) notFound()
   const now = Date.now()
   const rows = standings(division, now)
   const badges = await getBadges()
   const rounds = Math.max(...rows.map((r) => r.played))
   const today = isoDate(now)
-  const todays = getMatches(today, 'soccer', now)
+  const todays = getMatches(today, sportOf(division), now)
     .filter((m) => m.leagueSlug === division.slug)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const [first, second] = rows
@@ -87,7 +89,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
             <span className="tag">
-              {isRealDivision(division) ? 'Rigtige resultater' : 'Fiktiv'} · efter {rounds} runder
+              Efter {rounds} runder
             </span>
           </header>
           <StandingsTable division={division} rows={rows} />

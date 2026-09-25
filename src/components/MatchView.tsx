@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { formatShortYear, formatTime } from '../lib/time'
 import { paths } from '../lib/site'
-import { clubStats, findClub, headToHead, matchStats, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
+import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { sportOf } from '../data/leagues'
 import { findMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
@@ -40,10 +40,9 @@ function ClubName({ name }: { name: string }) {
 function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h?: PastMatch[] }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
-  const stats = matchStats(match)
   const homeStats = clubStats(home.name, now)
   const awayStats = clubStats(away.name, now)
-  const h2h = realH2h ?? headToHead(home.name, away.name, match.kickoff)
+  const h2h = realH2h ?? []
   const wins = { home: 0, draw: 0, away: 0 }
   for (const m of h2h) {
     const homeGoals = m.home === home.name ? m.homeScore : m.awayScore
@@ -102,23 +101,6 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
       <Updated at={now} />
 
       <div className="match-page__grid">
-        {stats && (
-          <section className="sheet__section">
-            <h2 className="sheet__title">Kampstatistik</h2>
-            {stats.map((s) => (
-              <StatBar
-                key={s.label}
-                label={s.label}
-                home={s.home}
-                away={s.away}
-                homeText={`${s.home}${s.suffix ?? ''}`}
-                awayText={`${s.away}${s.suffix ?? ''}`}
-                lowerIsBetter={['Gule kort', 'Frispark', 'Turnovers', 'Udvisningsminutter'].includes(s.label)}
-              />
-            ))}
-          </section>
-        )}
-
         <section className="sheet__section">
           <h2 className="sheet__title">Klubberne i sæsonen</h2>
           {homeStats && awayStats ? (
@@ -129,7 +111,7 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
         </section>
 
         <section className="sheet__section">
-          <h2 className="sheet__title">Seneste 5 indbyrdes opgør</h2>
+          <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
           <div className="h2h-summary">
             <div>
               <strong>{wins.home}</strong>
@@ -144,7 +126,11 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
               <span>{away.name}</span>
             </div>
           </div>
-          {h2h.length === 0 && <p className="muted small">Klubberne har ikke mødt hinanden i vores kampdatabase.</p>}
+          {h2h.length === 0 && (
+            <p className="muted small">
+              {realH2h ? 'Klubberne har ikke mødt hinanden i vores kampdatabase.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
+            </p>
+          )}
           <ul className="h2h">
             {h2h.map((m, i) => {
               const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
@@ -170,11 +156,7 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
             })}
           </ul>
           <p className="muted small">
-            {[
-              match.real ? 'Kampprogram og resultat er rigtige (TheSportsDB).' : 'Kampens resultat er fiktivt.',
-              realH2h ? 'Indbyrdes opgør er rigtige kampe fra vores kampdatabase.' : 'Indbyrdes opgør er fiktive.',
-              'Kampstatistikken er fiktiv.',
-            ].join(' ')}
+            Kampprogram og resultat: TheSportsDB.{realH2h ? ' Indbyrdes opgør: vores kampdatabase.' : ''}
           </p>
         </section>
       </div>

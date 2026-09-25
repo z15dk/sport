@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { DIVISIONS } from '../data/leagues'
+import { shownDivisions } from '../data/leagues'
 import { allTeams } from '../data/teams'
 import { getMatches } from '../data/matches'
 import { addDays, isoDate } from '../lib/time'
@@ -16,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: url('/'), changeFrequency: 'always', priority: 1 },
     { url: url(paths.clubs()), changeFrequency: 'weekly', priority: 0.6 },
-    ...DIVISIONS.map((d) => ({ url: url(paths.league(d.slug)), changeFrequency: 'daily' as const, priority: 0.8 })),
+    ...shownDivisions().map((d) => ({ url: url(paths.league(d.slug)), changeFrequency: 'daily' as const, priority: 0.8 })),
     ...allTeams().map((t) => ({ url: url(paths.club(t.slug)), changeFrequency: 'daily' as const, priority: t.season ? 0.7 : 0.4 })),
     { url: url(paths.about()), changeFrequency: 'monthly' as const, priority: 0.3 },
     ...matches.map((m) => ({

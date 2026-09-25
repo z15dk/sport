@@ -1,15 +1,17 @@
 import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { DIVISIONS, seasonOf } from '../data/leagues'
-import { REAL_LEAGUES, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
+import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
+import { normalize } from '../data/aliases'
+import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
 import { toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 
-// Background job fetching real fixtures and results from TheSportsDB for the
-// leagues in REAL_LEAGUES. The whole season is fetched round by round every
-// six hours; rounds with matches around now are refreshed every ten minutes.
+// Background job fetching real fixtures and results from TheSportsDB for
+// every division we list. The whole season is fetched round by round every
+// six hours (about 15 minutes for all leagues on the free key); rounds with
+// matches around now are refreshed every ten minutes.
 // Everything is kept in real-data.json so a restart starts with the data.
 
 const FULL_EVERY_MS = 6 * 3_600_000
@@ -18,7 +20,7 @@ const MAX_ROUNDS = 40
 
 const file = (): string => process.env.REAL_DATA_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'real-data.json')
 
-type JobState = { running: boolean; lastFull?: number; lastHot?: number; lastError?: string; requests: number }
+type JobState = { running: boolean; lastFull?: number; lastHot?: number; lastError?: string; requests: number; missing?: string[] }
 // On globalThis: the job (started from instrumentation) and the status page load separate copies of this module
 const holder = globalThis as { __scorelineRealJob?: JobState }
 const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
@@ -53,9 +55,9 @@ function save(data: RealData) {
   }
 }
 
-function publish(leagues: Record<string, RealEvent[]>) {
+function publish(leagues: Record<string, RealEvent[]>, checked = getRealData()?.checked ?? {}) {
   const version = hashString(JSON.stringify(leagues)).toString(36)
-  const data: RealData = { version, fetchedAt: Date.now(), leagues }
+  const data: RealData = { version, fetchedAt: Date.now(), leagues, checked }
   setRealData(data)
   save(data)
 }
@@ -110,9 +112,7 @@ async function fetchSeason(leagueId: number, season: string): Promise<RealEvent[
 const sortEvents = (events: RealEvent[]) => events.sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.id.localeCompare(b.id))
 
 /** The whole season, round by round until the rounds run out */
-async function fullLeague(divisionId: string, leagueId: number): Promise<RealEvent[] | undefined> {
-  const division = DIVISIONS.find((d) => d.id === divisionId)
-  if (!division) return undefined
+async function fullLeague(division: Division, leagueId: number): Promise<RealEvent[] | undefined> {
   const season = apiSeason(seasonOf(division))
   const regular = (division.meetings ?? 2) * (division.clubs.length - (division.clubs.length % 2 ? 0 : 1))
   const events: RealEvent[] = []
@@ -120,6 +120,8 @@ async function fullLeague(divisionId: string, leagueId: number): Promise<RealEve
     const round = await fetchRound(leagueId, season, r)
     if (!round) return undefined // a failed request: keep what we had
     if (round.length === 0 && r > regular) break
+    // Nothing in the first rounds: the league has no rounds for this season here
+    if (events.length === 0 && r >= 3) break
     events.push(...round)
   }
   // Some keys cannot look up rounds; the season list is the fallback
@@ -127,17 +129,51 @@ async function fullLeague(divisionId: string, leagueId: number): Promise<RealEve
   return sortEvents(events)
 }
 
-async function runFull() {
-  const leagues = { ...(getRealData()?.leagues ?? {}) }
-  let changed = false
-  for (const [divisionId, leagueId] of Object.entries(REAL_LEAGUES)) {
-    const events = await fullLeague(divisionId, leagueId)
-    if (events && events.length > 0) {
-      leagues[divisionId] = events
-      changed = true
-    }
+const API_SPORT: Record<string, string> = { soccer: 'Soccer', ice_hockey: 'Ice Hockey', basketball: 'Basketball' }
+const API_COUNTRY: Record<string, string> = { Danmark: 'Denmark', Tyskland: 'Germany', Sverige: 'Sweden', Norge: 'Norway', England: 'England' }
+const leagueIds = new Map<string, number | null>()
+
+/** TheSportsDB's id for a division: known, or found by name among the country's leagues */
+async function leagueIdFor(division: Division): Promise<number | undefined> {
+  if (KNOWN_LEAGUE_IDS[division.id]) return KNOWN_LEAGUE_IDS[division.id]
+  if (leagueIds.has(division.id)) return leagueIds.get(division.id) ?? undefined
+  const country = API_COUNTRY[division.country] ?? division.country
+  const { data, error } = await tsdb<{ countries?: { idLeague: string; strLeague: string; strLeagueAlternate?: string | null }[] | null }>(
+    `search_all_leagues.php?c=${encodeURIComponent(country)}&s=${encodeURIComponent(API_SPORT[sportOf(division)] ?? 'Soccer')}`,
+  )
+  state.requests++
+  if (error) {
+    state.lastError = error
+    return undefined // try again next run
   }
-  if (changed) publish(leagues)
+  const wanted = [division.apiLeague, division.name].filter((n): n is string => !!n).map(normalize)
+  const league = (data?.countries ?? []).find((l) =>
+    [l.strLeague, ...(l.strLeagueAlternate ?? '').split(',')].map(normalize).some((n) => n && wanted.includes(n)),
+  )
+  leagueIds.set(division.id, league ? Number(league.idLeague) : null)
+  return league ? Number(league.idLeague) : undefined
+}
+
+const isDue = (divisionId: string, now = Date.now()) => now - (getRealData()?.checked?.[divisionId] ?? 0) > FULL_EVERY_MS - 60_000
+
+/** Fetches every division not looked up within the last six hours */
+async function runFull() {
+  const missing: string[] = []
+  for (const division of DIVISIONS) {
+    if (!isDue(division.id)) {
+      if (!getRealData()?.leagues[division.id]?.length) missing.push(division.name)
+      continue
+    }
+    const leagueId = await leagueIdFor(division)
+    const events = leagueId ? await fullLeague(division, leagueId) : leagueIds.has(division.id) ? [] : undefined
+    if (!events) continue // a request failed: try again next run
+    if (events.length === 0) missing.push(division.name)
+    // Publish league by league, so leagues show up while the rest are fetched
+    const leagues = { ...(getRealData()?.leagues ?? {}) }
+    if (events.length > 0) leagues[division.id] = events
+    publish(leagues, { ...(getRealData()?.checked ?? {}), [division.id]: Date.now() })
+  }
+  state.missing = missing
   state.lastFull = Date.now()
 }
 
@@ -148,10 +184,11 @@ async function runHot() {
   const now = Date.now()
   const leagues = { ...current.leagues }
   let changed = false
-  for (const [divisionId, leagueId] of Object.entries(REAL_LEAGUES)) {
+  for (const division of DIVISIONS) {
+    const divisionId = division.id
     const events = leagues[divisionId]
-    const division = DIVISIONS.find((d) => d.id === divisionId)
-    if (!events || !division) continue
+    const leagueId = await leagueIdFor(division)
+    if (!events || !leagueId) continue
     const rounds = new Set(
       events
         .filter((e) => {
@@ -191,9 +228,9 @@ export function startRealDataSync() {
   if (started || process.env.REAL_DATA === 'off') return
   started = true
   loadFromDisk()
-  const stale = !getRealData() || Date.now() - getRealData()!.fetchedAt > FULL_EVERY_MS
-  if (stale) void guarded(runFull)
-  setInterval(() => void guarded(runFull), FULL_EVERY_MS).unref()
+  // Divisions not looked up lately are fetched right away (also after a deploy that adds leagues)
+  if (DIVISIONS.some((d) => isDue(d.id))) void guarded(runFull)
+  setInterval(() => void guarded(runFull), 30 * 60_000).unref()
   setInterval(() => void guarded(runHot), HOT_EVERY_MS).unref()
 }
 
@@ -214,11 +251,12 @@ export function realDataStatus() {
     lastHot: state.lastHot ? new Date(state.lastHot).toISOString() : null,
     lastError: state.lastError ?? null,
     requests: state.requests,
-    leagues: Object.keys(REAL_LEAGUES).map((id) => {
+    missing: state.missing ?? [],
+    leagues: DIVISIONS.map(({ id, name }) => {
       const events = data?.leagues[id] ?? []
       return {
         id,
-        name: DIVISIONS.find((d) => d.id === id)?.name ?? id,
+        name,
         events: events.length,
         finished: events.filter((e) => e.state === 'finished').length,
         teams: [...new Set(events.flatMap((e) => [e.home, e.away]))].sort(),
