@@ -20,7 +20,7 @@ import { nearestMatchDay, realLeagues, upcomingMatches } from '../data/season'
 import Link from 'next/link'
 import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
-import { danishTime, formatLong, formatTime } from '../lib/time'
+import { addDays, danishTime, formatDayMonth, formatLong, formatTime, isoDate } from '../lib/time'
 import { sportById } from '../sports'
 import type { LeagueGroup, Match, SportId, StateFilter } from '../types'
 
@@ -101,17 +101,24 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const matches = usingApi ? api!.matches! : fictional
   const apiError = apiReady ? api?.error : undefined
 
+  // The time view lists the chosen day and the ten days after it
+  const DAYS_AHEAD = 10
+  const range = useMemo(
+    () => (order === 'time' && !usingApi ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
+    [order, usingApi, date, sport, now, matches],
+  )
+
   const pinned = useMemo(() => new Set(pinnedList), [pinnedList])
   const togglePin = (id: string) =>
     setPinnedList((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]))
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return matches
-    return matches.filter((m) =>
+    if (!q) return range
+    return range.filter((m) =>
       [m.home.name, m.away.name, m.league, m.country ?? ''].some((s) => s.toLowerCase().includes(q)),
     )
-  }, [matches, query])
+  }, [range, query])
 
   const counts = useMemo(
     () => ({
@@ -125,11 +132,17 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
-  // Every match of the day by kick-off, then by league order
-  const sorted = useMemo(
-    () => [...visible].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99)),
-    [visible],
-  )
+  // Every match by kick-off, then by league order, one section per day
+  const days = useMemo(() => {
+    const sorted = [...visible].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99))
+    const byDay = new Map<string, Match[]>()
+    for (const m of sorted) {
+      const d = isoDate(m.kickoff)
+      if (!byDay.has(d)) byDay.set(d, [])
+      byDay.get(d)!.push(m)
+    }
+    return [...byDay.entries()]
+  }, [visible])
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
@@ -198,7 +211,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           <div className="feed__head">
             <h1 className="feed__title">
               {sportDef.label}
-              <span>{formatLong(date)}</span>
+              <span>{order === 'time' && !usingApi ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
             </h1>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
             <div className="switch switch--order" role="group" aria-label="Sortering">
@@ -212,7 +225,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           </div>
           <DateStrip selected={date} today={today} sport={sportDef.slug} />
 
-          {groups.length === 0 ? (
+          {(order === 'time' ? days.length === 0 : groups.length === 0) ? (
             <div className="panel empty">
               <p>{query ? `Ingen kampe matcher “${query}”.` : 'Ingen kampe for den valgte dag og filter.'}</p>
               {!query && (nextDay || prevDay) && (
@@ -231,30 +244,36 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
               )}
             </div>
           ) : order === 'time' ? (
-            <>
-              <section className="league">
-                <header className="league__header">
-                  <div className="league__toggle">
-                    <span className="league__titles">
-                      <span className="league__country">{formatLong(date)}</span>
-                      <h2 className="league__name">{sorted.length === 1 ? '1 kamp' : `${sorted.length} kampe`}</h2>
-                    </span>
-                    {sorted.some((m) => m.state === 'upcoming') && <OddsBy />}
-                  </div>
-                </header>
-                <ul className="league__matches">
-                  {sorted.map((m) => (
-                    <MatchRow key={m.id} match={m} showLeague />
-                  ))}
-                </ul>
-                {sorted.some((m) => m.state === 'upcoming') && (
-                  <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
-                    {RESPONSIBLE_GAMBLING.text}
-                  </a>
-                )}
-              </section>
-              <AdSlot placement="feed" index={1} />
-            </>
+            <div className="league-list">
+              {days.map(([day, list], i) => (
+                <Fragment key={day}>
+                  <section className="league">
+                    <header className="league__header">
+                      <div className="league__toggle">
+                        <span className="league__titles">
+                          <span className="league__country">{list.length === 1 ? '1 kamp' : `${list.length} kampe`}</span>
+                          <h2 className="league__name">{day === today ? `I dag · ${formatLong(day)}` : formatLong(day)}</h2>
+                        </span>
+                        {list.some((m) => m.state === 'upcoming') && <OddsBy />}
+                      </div>
+                    </header>
+                    <ul className="league__matches">
+                      {list.map((m) => (
+                        <MatchRow key={m.id} match={m} showLeague />
+                      ))}
+                    </ul>
+                    {list.some((m) => m.state === 'upcoming') && (
+                      <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
+                        {RESPONSIBLE_GAMBLING.text}
+                      </a>
+                    )}
+                  </section>
+                  {isFeedAdSpot(i, days.length) && (
+                    <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
+                  )}
+                </Fragment>
+              ))}
+            </div>
           ) : (
             <div className="league-list">
               {groups.map((g, i) => (
