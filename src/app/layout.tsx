@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   icons: { icon: '/favicon.svg' },
 }
 
+// Logos are found in the background after deploy, so pages are rendered per request to pick them up
+export const dynamic = 'force-dynamic'
+
 export const viewport: Viewport = {
   themeColor: '#0f110c',
   viewportFit: 'cover',

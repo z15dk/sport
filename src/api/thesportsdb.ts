@@ -3,7 +3,9 @@ import { matchSlug } from '../lib/slug'
 import { isoDate } from '../lib/time'
 
 // Free public test key is "3". Set NEXT_PUBLIC_THESPORTSDB_KEY for a premium key.
-const API_KEY = process.env.NEXT_PUBLIC_THESPORTSDB_KEY || '3'
+// "3" was the old free key; the free key is now "123"
+const configuredKey = process.env.NEXT_PUBLIC_THESPORTSDB_KEY || '123'
+const API_KEY = configuredKey === '3' ? '123' : configuredKey
 const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
 
 interface ApiEvent {

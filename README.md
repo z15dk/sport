@@ -71,14 +71,15 @@ resultaterne er fiktive. IndexNow er også slået fra.
 
 ## Klub- og ligalogoer
 
-Ligalogoer hentes fra TheSportsDB's ligaliste for hvert land og hver sport; en fil i
-`public/logos/ligaer/<liga-slug>.svg|png|webp|jpg` (fx `superliga.svg`) bruges i stedet.
+1. Egne filer vinder: `public/logos/<klub-slug>.*`, `public/logos/ligaer/<liga-slug>.*`
+   (fx `fc-koebenhavn.png`, `superliga.svg`).
+2. Ellers slås logoet op hos TheSportsDB af et baggrundsjob, der starter med serveren. Den gratis
+   nøgle tillader ca. 30 opslag i minuttet, så første gennemløb tager omkring 10 minutter; derefter
+   ligger logoerne i `logo-cache.json` og overlever genstart og opdateringer. Fundne logoer tjekkes
+   igen efter 7 dage, manglende efter 1 dag.
+3. Ellers vises klubbens forbogstaver i klubfarverne.
 
-Klublogoer findes i denne rækkefølge:
-
-1. En fil i `public/logos/<klub-slug>.svg|png|webp|jpg` (fx `fc-koebenhavn.png`)
-2. Klubbens logo fra TheSportsDB (caches i et døgn)
-3. Klubbens forbogstaver i klubfarverne
+Se hvor langt hentningen er, og hvad der mangler: **`/status/logoer`**.
 
 ## Odds og TV
 
