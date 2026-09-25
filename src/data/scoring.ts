@@ -11,5 +11,7 @@ export const GAME_LENGTH_MIN: Record<SportId, number> = {
   ice_hockey: 100,
   basketball: 120,
   handball: 80,
+  volleyball: 120,
+  american_football: 210,
   tennis: 120,
 }

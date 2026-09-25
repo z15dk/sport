@@ -1,4 +1,4 @@
-export type SportId = 'soccer' | 'basketball' | 'ice_hockey' | 'handball' | 'tennis'
+export type SportId = 'soccer' | 'basketball' | 'ice_hockey' | 'handball' | 'volleyball' | 'american_football' | 'tennis'
 
 export type MatchState = 'upcoming' | 'live' | 'finished' | 'postponed'
 

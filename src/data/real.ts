@@ -4,6 +4,7 @@
 // season from it. Leagues TheSportsDB has no fixtures for are not shown.
 
 import type { Incident, MatchState } from '../types'
+import type { ExternalGame } from './external'
 
 export interface RealEvent {
   id: string
@@ -33,6 +34,8 @@ export interface RealData {
   leagues: Record<string, RealEvent[]>
   /** When each division was last looked up in full (also those TheSportsDB has nothing for) */
   checked?: Record<string, number>
+  /** Games from API-Sports in the days around today, all sports */
+  external?: ExternalGame[]
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */

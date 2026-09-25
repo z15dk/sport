@@ -32,6 +32,8 @@ const CHANNELS_BY_SPORT: Record<SportId, Partner[]> = {
   basketball: [STREAM],
   handball: [TV],
   tennis: [STREAM],
+  volleyball: [STREAM],
+  american_football: [TV],
 }
 
 /** Channels showing a match; the pick is stable per match so it does not change between visits */

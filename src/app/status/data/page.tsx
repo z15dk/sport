@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { realDataStatus } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
 import { archiveStatus } from '../../../lib/archive'
+import { apiSportsStatus } from '../../../lib/apisports'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
@@ -21,6 +22,7 @@ export default function DataStatusPage() {
   const s = realDataStatus()
   const h = historyStatus()
   const a = archiveStatus()
+  const apis = apiSportsStatus()
   return (
     <div className="page">
       <div className="clubs prose">
@@ -96,6 +98,25 @@ export default function DataStatusPage() {
             {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
           </p>
           <p className="muted small">Hver færdigspillet kamp fra alle kilder gemmes her hvert 5. minut, med resultat, pauseresultat, tilskuere, mål og kort.</p>
+        </section>
+        <section className="panel prose__section">
+          <h2 className="panel__title">API-Sports</h2>
+          <p className="muted small">
+            Nøgler i serverens env: <code>API_SPORTS_KEY</code> (alle) eller <code>API_SPORTS_KEY_FOOTBALL</code>, <code>_BASKETBALL</code>,{' '}
+            <code>_NBA</code>, <code>_HOCKEY</code>, <code>_HANDBALL</code>, <code>_VOLLEYBALL</code>, <code>_AMERICAN_FOOTBALL</code>.
+          </p>
+          <ul>
+            {apis.map((x) => (
+              <li key={x.api}>
+                <strong>{x.label}</strong>:{' '}
+                {!x.hasKey
+                  ? 'ingen nøgle'
+                  : `${x.games} kampe i ${x.leagues.length} turneringer · kald tilbage i dag: ${x.remaining ?? '?'}${x.limit ? ` af ${x.limit}` : ''} · i dag hentet ${x.todayFetchedAt ?? 'ikke endnu'}`}
+                {x.lastError && <span className="unverified"> · Fejl: {x.lastError}</span>}
+                {x.leagues.length > 0 && <span className="muted small"> · {x.leagues.join(', ')}</span>}
+              </li>
+            ))}
+          </ul>
         </section>
       </div>
     </div>

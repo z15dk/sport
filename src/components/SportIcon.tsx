@@ -43,6 +43,20 @@ export function SportIcon({ sport, size = 22 }: { sport: SportId; size?: number 
           <path d="M4.5 7.5c4 1 7 4 7.5 13.4M19.5 7.5c-4 1-7 4-7.5 13.4M6 18.5c3-3 9-3 12 0" />
         </svg>
       )
+    case 'volleyball':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3c-1 4 0 7 3 9M12 3c3.5 1.5 6 4.5 6.8 8.3M3.4 9.5c3.5-.5 7 .5 8.6 2.5M3.4 9.5a9 9 0 006.4 11.3M12 12c-1.5 3-4.5 5.5-8 5.9M12 12c3 .4 6 2.4 7.6 5.4" />
+        </svg>
+      )
+    case 'american_football':
+      return (
+        <svg {...common}>
+          <ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-45 12 12)" />
+          <path d="M9 15l6-6M10.5 10.5l1.5 1.5M12 9l1.5 1.5M9 12l1.5 1.5" />
+        </svg>
+      )
     case 'tennis':
       return (
         <svg {...common}>

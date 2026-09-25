@@ -1,5 +1,9 @@
 import type { Match, SportId } from '../types'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
+import { getRealData } from './real'
+import { externalToMatch, gameKey, type ExternalGame } from './external'
+import { SEARCH_NAMES } from './aliases'
+import { isoDate } from '../lib/time'
 
 // Matches for the front page, match pages and club pages, all from the
 // real season in season.ts.
@@ -11,11 +15,43 @@ function leagueMatches(date: string, sport: SportId, now: number): Match[] {
     .map((f) => toMatch(f, now))
 }
 
-export function getMatches(date: string, sport: SportId, now: number): Match[] {
-  return leagueMatches(date, sport, now)
+/** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
+function namesOf(name: string) {
+  const club = seasonClub(name)?.club
+  return [name, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
 }
 
-const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey']
+/**
+ * The day's matches: our leagues' season, updated with API-Sports' live score
+ * where API-Sports has the same match, plus API-Sports' games in other leagues.
+ */
+export function getMatches(date: string, sport: SportId, now: number): Match[] {
+  const ours = leagueMatches(date, sport, now)
+  const external = (getRealData()?.external ?? []).filter((g) => g.sport === sport && isoDate(new Date(g.kickoff)) === date)
+  if (!external.length) return ours
+  const byKey = new Map<string, number>()
+  ours.forEach((m, i) => {
+    for (const h of namesOf(m.home.name)) for (const a of namesOf(m.away.name)) byKey.set(gameKey(m.kickoff, h, a), i)
+  })
+  const extra: ExternalGame[] = []
+  for (const g of external) {
+    const i = byKey.get(gameKey(g.kickoff, g.home.name, g.away.name))
+    if (i === undefined) {
+      extra.push(g)
+      continue
+    }
+    // Same match: API-Sports' live state and score win until our source has the final result
+    const m = ours[i]
+    const oursFinal = m.state === 'finished' && m.home.score !== undefined
+    if (!oursFinal && (g.state === 'live' || g.state === 'finished') && g.homeScore !== undefined && g.awayScore !== undefined) {
+      const x = externalToMatch(g)
+      ours[i] = { ...m, state: x.state, statusLabel: x.statusLabel, winner: x.winner, home: { ...m.home, score: g.homeScore }, away: { ...m.away, score: g.awayScore } }
+    }
+  }
+  return [...ours, ...extra.map(externalToMatch)]
+}
+
+const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football']
 
 export function findMatch(slug: string, date: string, now: number): Match | undefined {
   for (const sport of ALL_SPORTS) {

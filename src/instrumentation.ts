@@ -7,6 +7,8 @@ export async function register() {
     import('./lib/badges'),
     import('./lib/realdata'),
   ])
+  const { startApiSportsSync } = await import('./lib/apisports')
+  startApiSportsSync()
   startIndexNow()
   startRealDataSync()
   startLogoSync()

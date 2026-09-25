@@ -9,6 +9,7 @@ import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
+import { externalGames } from './apisports'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -48,7 +49,8 @@ const base = () => holder.__scorelineTsdb
 function apply() {
   const tsdbData = base()
   const db = databaseSeason()
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}`
+  const external = externalGames()
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}`
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -64,12 +66,13 @@ function apply() {
       })
     }
   }
-  if (!tsdbData && !db) return setRealData(undefined)
+  if (!tsdbData && !db && !external.games.length) return setRealData(undefined)
   setRealData({
     version: hashString(key).toString(36),
     fetchedAt: tsdbData?.fetchedAt ?? Date.now(),
     leagues,
     checked: tsdbData?.checked,
+    external: external.games,
   })
 }
 

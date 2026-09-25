@@ -1,0 +1,59 @@
+import type { Match, MatchState, SportId } from '../types'
+import { matchSlug } from '../lib/slug'
+import { isoDate } from '../lib/time'
+import { normalize } from './aliases'
+
+// Games from API-Sports (football, basketball, NBA, ice hockey, handball,
+// volleyball, NFL). The server job (src/lib/apisports.ts) fetches them day by
+// day and hands them to the browser with the rest of the real data.
+
+export interface ExternalGame {
+  /** "<api>-<id>", e.g. "football-1035037" */
+  id: string
+  sport: SportId
+  league: { id: string; name: string; country?: string; logo?: string }
+  home: { name: string; logo?: string }
+  away: { name: string; logo?: string }
+  /** ISO timestamp */
+  kickoff: string
+  state: MatchState
+  /** Minute or period while live, e.g. "67'", "Q3", "Pause" */
+  label?: string
+  homeScore?: number
+  awayScore?: number
+  venue?: string
+}
+
+/** Same date and the same two teams (by normalised name) */
+export const gameKey = (kickoff: string | Date, home: string, away: string) =>
+  `${isoDate(typeof kickoff === 'string' ? new Date(kickoff) : kickoff)}|${normalize(home)}|${normalize(away)}`
+
+export function externalToMatch(g: ExternalGame): Match {
+  const kickoff = new Date(g.kickoff)
+  const hasScore = g.state !== 'upcoming' && g.homeScore !== undefined && g.awayScore !== undefined
+  return {
+    id: g.id,
+    slug: matchSlug(g.home.name, g.away.name, isoDate(kickoff)),
+    sport: g.sport,
+    league: g.league.name,
+    leagueId: `ext-${g.id.split('-')[0]}-${g.league.id}`,
+    leagueOrder: 50,
+    country: g.league.country,
+    leagueBadge: g.league.logo,
+    kickoff,
+    state: g.state,
+    statusLabel: g.state === 'finished' ? 'Slut' : g.state === 'postponed' ? 'Udsat' : g.label,
+    venue: g.venue,
+    real: true,
+    winner:
+      g.state !== 'finished' || !hasScore
+        ? undefined
+        : g.homeScore! > g.awayScore!
+          ? 'home'
+          : g.homeScore! < g.awayScore!
+            ? 'away'
+            : 'draw',
+    home: { name: g.home.name, badge: g.home.logo, score: hasScore ? g.homeScore : undefined },
+    away: { name: g.away.name, badge: g.away.logo, score: hasScore ? g.awayScore : undefined },
+  }
+}

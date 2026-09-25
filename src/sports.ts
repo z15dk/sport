@@ -13,6 +13,9 @@ export const SPORTS: SportDef[] = [
   { id: 'soccer', slug: 'fodbold', label: 'Fodbold', apiName: 'Soccer' },
   { id: 'basketball', slug: 'basketball', label: 'Basketball', apiName: 'Basketball' },
   { id: 'ice_hockey', slug: 'ishockey', label: 'Ishockey', apiName: 'Ice Hockey' },
+  { id: 'handball', slug: 'haandbold', label: 'Håndbold', apiName: 'Handball' },
+  { id: 'volleyball', slug: 'volleyball', label: 'Volleyball', apiName: 'Volleyball' },
+  { id: 'american_football', slug: 'amerikansk-fodbold', label: 'Am. fodbold', apiName: 'American Football' },
 ]
 
 export const sportBySlug = (slug?: string) => SPORTS.find((s) => s.slug === slug) ?? SPORTS[0]

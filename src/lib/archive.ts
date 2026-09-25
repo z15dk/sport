@@ -126,6 +126,28 @@ export function archiveFinished() {
           }
         }
       }
+      // Games from API-Sports in other leagues
+      for (const g of data.external ?? []) {
+        if (g.state !== 'finished' || g.homeScore === undefined || g.awayScore === undefined) continue
+        const api = g.id.split('-')[0]
+        upsert.run(
+          g.id,
+          `API-Sports ${api}`,
+          `ext-${api}-${g.league.id}`,
+          g.league.name,
+          g.kickoff.slice(0, 4),
+          null,
+          g.kickoff,
+          g.home.name,
+          g.away.name,
+          g.homeScore,
+          g.awayScore,
+          null,
+          null,
+          null,
+          now,
+        )
+      }
       db.exec('COMMIT')
       state.saved = Number(db.prepare('SELECT COUNT(*) AS n FROM matches').get()?.n ?? 0)
       state.lastRun = now
