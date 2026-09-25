@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Suspense } from 'react'
 import { Header } from '../components/Header'
-import { SportRail } from '../components/SportRail'
 import { BadgeProvider } from '../components/BadgeProvider'
 import { Footer } from '../components/Footer'
 import { AdSlot } from '../components/AdSlot'
@@ -50,9 +48,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RealDataProvider data={real}>
           <BadgeProvider badges={badges}>
             <div className="app">
-              <Suspense fallback={<nav className="rail" aria-label="Sportsgrene" />}>
-                <SportRail />
-              </Suspense>
               <div className="app__main">
                 <Header />
                 <AdSlot placement="top" />

@@ -10,6 +10,7 @@ import { OddsBy } from './MatchExtras'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { Sidebar } from './Sidebar'
 import { FeaturedMatch } from './FeaturedMatch'
+import { SportTabs } from './SportTabs'
 import { StatTiles } from './StatTiles'
 import { AdSlot } from './AdSlot'
 import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
@@ -191,6 +192,9 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         </button>
       </div>
 
+      {/* On phones the sports come first, above the live strip */}
+      <SportTabs active={sport} className="sport-tabs--mobile" />
+
       <LiveStrip matches={searched} upcoming={upcoming} now={now} />
 
       {!usingApi && (apiError || ((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
@@ -219,6 +223,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         <Sidebar groups={allGroups} pinned={pinned} />
 
         <main className="feed">
+          <SportTabs active={sport} className="sport-tabs--desktop" />
           <div className="feed__head">
             <h1 className="feed__title">
               {sportDef.label}
