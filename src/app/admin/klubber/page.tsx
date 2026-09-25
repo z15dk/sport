@@ -4,6 +4,7 @@ import { isAdmin } from '../../../lib/admin'
 import { clubLogoOverview, type LogoSource } from '../../../lib/badges'
 import { DIVISIONS } from '../../../data/leagues'
 import { LogoEditor } from '../../../components/admin/LogoEditor'
+import { NameEditor } from '../../../components/admin/NameEditor'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { paths } from '../../../lib/site'
 
@@ -27,7 +28,7 @@ export default async function AdminClubs({ searchParams }: { searchParams: Searc
   const query = q.trim().toLowerCase()
   const rows = all.filter(
     (r) =>
-      (!query || r.club.name.toLowerCase().includes(query)) &&
+      (!query || r.club.name.toLowerCase().includes(query) || (r.club.originalName ?? '').toLowerCase().includes(query)) &&
       (!liga || r.division.id === liga) &&
       (!kilde || r.source === kilde),
   )
@@ -79,16 +80,18 @@ export default async function AdminClubs({ searchParams }: { searchParams: Searc
               <li key={club.id} className="admin-list__row">
                 <TeamBadge link={false} name={club.name} src={url} colors={club.colors} size={44} />
                 <span className="admin-list__name">
-                  {club.slug ? (
-                    <a href={paths.club(club.slug)} target="_blank" rel="noopener">
-                      {club.name}
-                    </a>
-                  ) : (
-                    club.name
-                  )}
+                  {club.slug ? <NameEditor slug={club.slug} name={club.name} originalName={club.originalName} /> : club.name}
                   <em>
                     {division.name}
                     {club.city ? ` · ${club.city}` : ''}
+                    {club.slug && (
+                      <>
+                        {' · '}
+                        <a href={paths.club(club.slug)} target="_blank" rel="noopener">
+                          Se klubside
+                        </a>
+                      </>
+                    )}
                   </em>
                 </span>
                 <span className={`admin-source admin-source--${source}`}>{SOURCE[source]}</span>

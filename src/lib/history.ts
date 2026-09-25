@@ -61,7 +61,7 @@ function resolver() {
   const ordered = [...DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer'), ...DIVISIONS.filter((d) => d.countryCode !== 'DK' || sportOf(d) !== 'soccer')]
   for (const d of ordered) {
     for (const club of d.clubs) {
-      for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) {
+      for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
         const key = n && normalize(n)
         if (key && !byName.has(key)) byName.set(key, club)
       }

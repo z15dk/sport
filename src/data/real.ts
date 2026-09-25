@@ -36,6 +36,8 @@ export interface RealData {
   checked?: Record<string, number>
   /** Games from API-Sports in the days around today, all sports */
   external?: ExternalGame[]
+  /** Club names changed in the admin pages, by club slug */
+  clubNames?: Record<string, string>
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */

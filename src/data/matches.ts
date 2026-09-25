@@ -18,7 +18,7 @@ function leagueMatches(date: string, sport: SportId, now: number): Match[] {
 /** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
 function namesOf(name: string) {
   const club = seasonClub(name)?.club
-  return [name, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
+  return [name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
 }
 
 /**

@@ -1006,3 +1006,8 @@ h2.league__name { margin: 0; }
 .featured__odds .match__odds { justify-content: center; }
 .featured__odds .odds-by__text { color: var(--ink); opacity: 0.7; }
 .featured__rg { font-size: 11px; color: var(--ink); opacity: 0.7; }
+.name-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.name-editor .text-btn { font-size: 12px; }
+.name-editor__original { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.name-editor--edit input { font: inherit; font-weight: 700; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--ink); min-width: 0; flex: 1 1 180px; }
+.admin-list__name em a { text-decoration: underline; }

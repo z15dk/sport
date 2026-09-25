@@ -130,6 +130,19 @@ export const seasonOf = (d: Division) => d.seasonLabel ?? SEASON
 export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
 export const sportOf = (d: Division): SportId => d.sport ?? 'soccer'
 
+/**
+ * Applies the club names changed in the admin pages (by slug) to our club
+ * lists. The original name is kept for matching the data sources.
+ */
+export function renameClubs(names: Record<string, string>) {
+  for (const d of DIVISIONS) {
+    for (const club of d.clubs) {
+      club.originalName ??= club.name
+      club.name = names[club.slug] ?? club.originalName
+    }
+  }
+}
+
 /** The leagues we have real fixtures for; only these are shown on the site */
 export const shownDivisions = () => DIVISIONS.filter((d) => hasRealData(d.id))
 

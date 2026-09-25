@@ -10,6 +10,7 @@ import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
 import { externalGames } from './apisports'
+import { clubNameOverrides } from './clubNames'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -50,7 +51,8 @@ function apply() {
   const tsdbData = base()
   const db = databaseSeason()
   const external = externalGames()
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}`
+  const names = clubNameOverrides()
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}`
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -73,6 +75,7 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     external: external.games,
+    clubNames: names.names,
   })
 }
 
@@ -326,6 +329,12 @@ export function startRealDataSync() {
   }
   archive()
   setInterval(archive, 5 * 60_000).unref()
+}
+
+/** Rebuilds the data now (after a change in the admin pages) */
+export function refreshRealData() {
+  readAt = 0
+  loadFromDisk()
 }
 
 /** Makes sure the latest data is loaded before a page renders */

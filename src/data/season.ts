@@ -2,7 +2,7 @@ import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
 import { SEARCH_NAMES, normalize } from './aliases'
-import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
+import { DIVISIONS, renameClubs, sportOf, type Club, type Division } from './leagues'
 import { hashString } from './fixtures'
 import { GAME_LENGTH_MIN, type Extra } from './scoring'
 import { matchSlug, slugify } from '../lib/slug'
@@ -41,12 +41,12 @@ export interface Fixture {
 /** Finds our club for a TheSportsDB team name; clubs we do not know get a stand-in */
 const REGISTER_SLUGS = new Set(DIVISIONS.flatMap((d) => d.clubs.map((c) => c.slug)))
 
-function clubResolver(div: Division) {
+function clubResolver(div: Division, names: Record<string, string>) {
   const byName = new Map<string, Club>()
   const candidates = DIVISIONS.filter((d) => d.countryCode === div.countryCode && sportOf(d) === sportOf(div)).flatMap((d) => d.clubs)
   // The division's own clubs first, so they win a shared name
   for (const club of [...div.clubs, ...candidates]) {
-    for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) {
+    for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
       const key = n && normalize(n)
       if (key && !byName.has(key)) byName.set(key, club)
     }
@@ -62,7 +62,7 @@ function clubResolver(div: Division) {
       // A club missing from our register (e.g. just promoted) still gets a page
       let slug = slugify(name)
       if (REGISTER_SLUGS.has(slug)) slug = `${slug}-${slugify(div.country)}`
-      unknown.set(name, { id: `x-${hashString(name).toString(36)}`, slug, name, city: '', colors: ['#5c6157', '#ffffff'] })
+      unknown.set(name, { id: `x-${hashString(name).toString(36)}`, slug, name: names[slug] ?? name, originalName: name, city: '', colors: ['#5c6157', '#ffffff'] })
     }
     return unknown.get(name)!
   }
@@ -74,7 +74,7 @@ function buildReal(real: RealData): Fixture[] {
     const di = DIVISIONS.findIndex((d) => d.id === divisionId)
     if (di < 0 || events.length === 0) continue
     const div = DIVISIONS[di]
-    const club = clubResolver(div)
+    const club = clubResolver(div, real.clubNames ?? {})
     for (const e of events) {
       const home = club(e.home)
       const away = club(e.away)
@@ -119,6 +119,8 @@ let season: Season | undefined
 function current(): Season {
   const real = getRealData()
   if (season && season.version === real?.version) return season
+  // Names changed in the admin pages, before anything is built from the clubs
+  renameClubs(real?.clubNames ?? {})
   const realDivisions = new Set(Object.entries(real?.leagues ?? {}).filter(([, e]) => e.length > 0).map(([id]) => id))
   const fixtures = (real ? buildReal(real) : []).sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const byDate = new Map<string, Fixture[]>()

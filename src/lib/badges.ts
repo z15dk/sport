@@ -48,11 +48,12 @@ interface Wanted {
 
 function wanted(): Wanted[] {
   const clubs: Wanted[] = allClubs().map(({ club, division }) => ({
-    key: club.name,
+    // Keyed by the original name, so a name changed in the admin pages keeps its logo
+    key: club.originalName ?? club.name,
     kind: 'club',
     sport: division.sport ?? 'soccer',
     country: division.country,
-    names: [club.apiName, SEARCH_NAMES[club.id], club.name].filter((n): n is string => !!n),
+    names: [club.apiName, SEARCH_NAMES[club.id], club.originalName, club.name].filter((n): n is string => !!n),
   }))
   const leagues: Wanted[] = [
     ...DIVISIONS.map((d) => ({
@@ -280,7 +281,12 @@ export async function getBadges(): Promise<Record<string, string>> {
   const map: Record<string, string> = {}
   for (const [key, e] of Object.entries(state.cache.entries)) if (e.url) map[key] = e.url
   // Uploads in the admin pages win, then files in public/logos, then TheSportsDB
-  return { ...map, ...localLogos(), ...uploadedLogos() }
+  const all: Record<string, string> = { ...map, ...localLogos(), ...uploadedLogos() }
+  // Clubs renamed in the admin pages keep the logo found under their original name
+  for (const { club } of everyClub()) {
+    if (club.originalName && club.originalName !== club.name && !all[club.name] && all[club.originalName]) all[club.name] = all[club.originalName]
+  }
+  return all
 }
 
 export type LogoSource = 'upload' | 'fil' | 'thesportsdb' | 'forbogstaver'
@@ -292,8 +298,8 @@ export function clubLogoOverview() {
   return everyClub()
     .map(({ club, division }) => {
       const upload = club.slug ? customLogoUrl(club.slug) : undefined
-      const file = local[club.name]
-      const api = state.cache.entries[club.name]?.url
+      const file = local[club.name] ?? (club.originalName && local[club.originalName])
+      const api = state.cache.entries[club.originalName ?? club.name]?.url
       const source: LogoSource = upload ? 'upload' : file ? 'fil' : api ? 'thesportsdb' : 'forbogstaver'
       return { club, division, url: upload ?? file ?? api, source }
     })

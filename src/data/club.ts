@@ -13,6 +13,8 @@ export interface Club {
   unverified?: boolean
   /** The club's name at TheSportsDB, when it differs (used to find its logo) */
   apiName?: string
+  /** The name from our club list or the data source, kept when the name is changed in the admin pages */
+  originalName?: string
 }
 
 export interface Division {
