@@ -76,7 +76,7 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
         <span className="match__slot">
           {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="logo" />}
         </span>
-        <span className="match__result">
+        <span className={odds ? 'match__result' : 'match__result match__result--score'}>
           {odds ? (
             <MatchOdds odds={odds} />
           ) : (

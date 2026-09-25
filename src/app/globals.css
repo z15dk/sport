@@ -1043,7 +1043,13 @@ h2.league__name { margin: 0; }
 .match__result { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .match__right .match__odds .odds-chip { width: 50px; min-width: 0; }
 .match__scores { display: flex; flex-direction: column; }
+/* Scores in their own column and the status in a fixed one, so the numbers line up whatever the status says */
+.match__result--score { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; }
+.match__result--score .match__scores { justify-self: end; }
+.match__result--score .status { justify-self: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 600px) {
+  .match__result--score { grid-template-columns: 40px 76px; gap: 6px; }
+  .match__result--score .status { padding: 5px 8px; font-size: 11px; }
   .match__right { grid-template-columns: auto; }
   .match__slot { display: none; }
   .match__right .match__odds .odds-chip { width: 40px; }
