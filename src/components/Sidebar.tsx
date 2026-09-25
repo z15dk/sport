@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { LeagueGroup } from '../types'
 import { paths } from '../lib/site'
 import { TeamBadge } from './TeamBadge'
+import { competitionLabel } from '../data/leagues'
 
 interface Props {
   groups: LeagueGroup[]
@@ -19,7 +20,7 @@ export function Sidebar({ groups, pinned }: Props) {
         return (
           <li key={g.leagueId}>
             <Link href={g.leagueSlug ? paths.league(g.leagueSlug) : `#league-${g.leagueId}`}>
-              <TeamBadge name={g.league} src={g.leagueBadge} size={26} />
+              <TeamBadge name={g.league} src={g.leagueBadge} size={26} label={competitionLabel(g.league)} />
               <span className="side-list__text">
                 <span className="side-list__name">{g.league}</span>
                 {g.country && <span className="side-list__country">{g.country}</span>}

@@ -1,5 +1,5 @@
 import type { Match } from '../types'
-import type { Club, Division } from '../data/danishClubs'
+import type { Club, Division } from '../data/leagues'
 import type { TeamEntry } from '../data/teams'
 import { sportById } from '../sports'
 import { SITE_NAME, SITE_URL, paths } from './site'
@@ -109,8 +109,8 @@ export function organizationLd() {
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/favicon.svg`,
-    description: 'Resultater, kampprogram, stillinger og statistik for dansk fodbold fra Superligaen til 3. division.',
-    areaServed: 'DK',
+    description: 'Resultater, kampprogram, stillinger og statistik for dansk og tysk fodbold – Superligaen, Bundesliga og rækkerne under.',
+    areaServed: ['DK', 'DE'],
     knowsLanguage: 'da',
   }
 }

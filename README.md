@@ -1,6 +1,8 @@
 # Scoreline
 
-Et Sofascore-alternativ for dansk fodbold, bygget med Next.js (App Router).
+Et Sofascore-alternativ for dansk og tysk fodbold, bygget med Next.js (App Router).
+
+Dækker Superligaen, 1., 2. og 3. division samt Bundesliga, 2. Bundesliga og 3. Liga.
 
 ## Kom i gang
 
@@ -41,8 +43,8 @@ og AI-assistenter kan læse indholdet uden JavaScript.
 | `/` (`?sport=…&dato=…`) | Dagens kampe, live-bånd, næste kamp |
 | `/kamp/<hjemme>-<ude>-<dato>` | Kampside: resultat, kampstatistik, sæsonsammenligning, 5 seneste indbyrdes opgør |
 | `/klub/<klub>` | Klubside: sæsonen i tal, seneste og kommende kampe, stilling |
-| `/turnering/<række>` | Stilling og dagens kampe for Superliga, 1., 2. og 3. division |
-| `/klubber` | Alle 48 klubber |
+| `/turnering/<række>` | Stilling og dagens kampe, fx `/turnering/superliga` eller `/turnering/bundesliga` |
+| `/klubber` | Alle klubber, grupperet efter land og række |
 
 ## SEO og GEO
 

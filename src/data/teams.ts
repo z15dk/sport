@@ -1,6 +1,6 @@
 import type { SportId } from '../types'
 import { slugify } from '../lib/slug'
-import { DIVISIONS, type Club, type Division } from './danishClubs'
+import { DIVISIONS, type Club, type Division } from './leagues'
 import { OTHER } from './matches'
 
 // One register of every team we have data for. Each data source adds its
@@ -17,14 +17,14 @@ export interface TeamEntry {
   leagueSlug?: string
   country?: string
   colors?: [string, string]
-  /** Present for Danish football clubs, which have full season data */
-  danish?: { club: Club; division: Division }
+  /** Present for clubs in the leagues we cover, which have full season data */
+  season?: { club: Club; division: Division }
 }
 
 function build(): TeamEntry[] {
   const entries: TeamEntry[] = []
 
-  // Danish football: Superliga to 3. division
+  // Football leagues with a full season (Denmark, Germany, ...)
   for (const division of DIVISIONS) {
     for (const club of division.clubs) {
       entries.push({
@@ -33,9 +33,9 @@ function build(): TeamEntry[] {
         sport: 'soccer',
         league: division.name,
         leagueSlug: division.slug,
-        country: 'Danmark',
+        country: division.country,
         colors: club.colors,
-        danish: { club, division },
+        season: { club, division },
       })
     }
   }

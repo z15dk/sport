@@ -1,7 +1,7 @@
 import 'server-only'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { allClubs } from '../data/danishClubs'
+import { DIVISIONS, allClubs } from '../data/leagues'
 
 // Club logos, looked up in this order:
 // 1. A file in public/logos/<club-slug>.(svg|png|webp|jpg)
@@ -54,8 +54,8 @@ function localLogo(slug: string): string | undefined {
   return undefined
 }
 
-// TheSportsDB league names for the divisions it covers (3. division is not covered)
-const API_LEAGUES = ['Danish Superliga', 'Danish 1st Division', 'Danish 2nd Division']
+// TheSportsDB league names, from the division data
+const API_LEAGUES = DIVISIONS.flatMap((d) => (d.apiLeague ? [d.apiLeague] : []))
 
 interface ApiTeam {
   strTeam: string
@@ -138,7 +138,7 @@ export function getClubBadges(): Promise<Record<string, string>> {
     const teams = await leagueTeams()
     const entries = await Promise.all(
       allClubs().map(async ({ club }) => {
-        const search = SEARCH_NAMES[club.id] ?? club.name
+        const search = club.apiName ?? SEARCH_NAMES[club.id] ?? club.name
         const url =
           localLogo(club.slug) ??
           badgeFromList(teams, [club.name, search]) ??

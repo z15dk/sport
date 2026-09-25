@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { DIVISIONS, SEASON } from '../../data/danishClubs'
+import { DIVISIONS, SEASON } from '../../data/leagues'
 import { JsonLd, breadcrumbLd, organizationLd } from '../../lib/jsonld'
 import { INDEXABLE, SITE_NAME, paths } from '../../lib/site'
 
 export const metadata: Metadata = {
   title: 'Om Scoreline – hvem vi er og hvor tallene kommer fra',
   description:
-    'Scoreline dækker dansk fodbold fra Superligaen til 3. division. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
+    'Scoreline dækker dansk og tysk fodbold fra Superligaen og Bundesliga og ned til 3. division og 3. Liga. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
   alternates: { canonical: paths.about() },
 }
 
@@ -29,12 +29,15 @@ export default function AboutPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Hvad er Scoreline?</h2>
           <p>
-            Scoreline samler resultater, kampprogram, stillinger og statistik for dansk herrefodbold. Vi dækker alle{' '}
-            {clubs} klubber i <Link href={paths.league('superliga')}>Superligaen</Link>,{' '}
-            <Link href={paths.league('1-division')}>1. division</Link>,{' '}
-            <Link href={paths.league('2-division')}>2. division</Link> og{' '}
-            <Link href={paths.league('3-division')}>3. division</Link> i sæson {SEASON} – også de rækker, som andre
-            sider kun dækker sparsomt.
+            Scoreline samler resultater, kampprogram, stillinger og statistik for dansk og tysk herrefodbold. Vi dækker alle{' '}
+            {clubs} klubber i{' '}
+            {DIVISIONS.map((d, i) => (
+              <span key={d.id}>
+                {i > 0 && (i === DIVISIONS.length - 1 ? ' og ' : ', ')}
+                <Link href={paths.league(d.slug)}>{d.name}</Link>
+              </span>
+            ))}{' '}
+            i sæson {SEASON} – også de rækker, som andre sider kun dækker sparsomt.
           </p>
         </section>
 

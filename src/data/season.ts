@@ -1,15 +1,14 @@
 import type { Match, MatchState } from '../types'
-import { DIVISIONS, type Club, type Division } from './danishClubs'
+import { DIVISIONS, type Club, type Division } from './leagues'
 import { hashString, playMatch, poisson, roundRobin, seeded, shuffle } from './fixtures'
 import { matchSlug } from '../lib/slug'
 import { addDays, danishTime, isoDate } from '../lib/time'
 
-// A fictional but consistent 2026/27 season for the Danish divisions:
-// one league round a week from 17 July, each club playing once a week, plus
-// midweek cup rounds. Tables, club pages and the front page all read from here.
+// A fictional but consistent 2026/27 season for every league we cover: one
+// round a week from the league's start date, each club playing once a week and
+// meeting everyone twice, plus midweek rounds of the Danish cup. Tables, club
+// pages and the front page all read from here.
 
-export const SEASON_START = '2026-07-17' // Friday, round 1
-const LEAGUE_ROUNDS = 22 // everyone meets twice
 export const CUP_NAME = 'Pokalturneringen'
 const FULL_TIME_MIN = 110
 
@@ -20,6 +19,9 @@ const SLOTS: Record<string, [number, string][]> = {
   '1div': [[6, '18:30'], [0, '18:30'], [1, '13:00'], [1, '15:00'], [2, '13:00'], [2, '15:00']],
   '2div': [[3, '18:30'], [1, '13:00'], [1, '14:00'], [2, '12:00'], [2, '13:00'], [2, '14:00']],
   '3div': [[4, '19:00'], [1, '12:00'], [1, '13:00'], [1, '14:00'], [2, '13:00'], [2, '14:00']],
+  bundesliga: [[0, '20:30'], [1, '15:30'], [1, '15:30'], [1, '15:30'], [1, '15:30'], [1, '15:30'], [1, '18:30'], [2, '15:30'], [2, '17:30']],
+  bundesliga2: [[0, '18:30'], [0, '18:30'], [1, '13:00'], [1, '13:00'], [1, '13:00'], [1, '20:30'], [2, '13:30'], [2, '13:30'], [2, '13:30']],
+  liga3: [[0, '19:00'], [1, '14:00'], [1, '14:00'], [1, '14:00'], [1, '14:00'], [1, '16:30'], [2, '13:30'], [2, '13:30'], [2, '16:30'], [3, '19:00']],
 }
 
 // Cup rounds on Wednesdays, a day no league plays: 48 clubs -> 24 -> 12 -> 6
@@ -43,14 +45,17 @@ export interface Fixture {
   penaltyWinner?: 'home' | 'away'
 }
 
+// The Danish cup has every club from the Danish divisions
+const CUP_DIVISIONS = DIVISIONS.filter((d) => d.countryCode === 'DK')
 const strengthRank = new Map<string, number>()
-DIVISIONS.forEach((d, di) => d.clubs.forEach((c, ci) => strengthRank.set(c.id, di * 100 + ci)))
+CUP_DIVISIONS.forEach((d, di) => d.clubs.forEach((c, ci) => strengthRank.set(c.id, di * 100 + ci)))
 
 function buildLeague(): Fixture[] {
   const out: Fixture[] = []
   for (const [di, div] of DIVISIONS.entries()) {
-    for (let round = 0; round < LEAGUE_ROUNDS; round++) {
-      const friday = addDays(SEASON_START, round * 7)
+    const rounds = 2 * (div.clubs.length - 1)
+    for (let round = 0; round < rounds; round++) {
+      const friday = addDays(div.seasonStart, round * 7)
       const rand = seeded(hashString(`${div.id}-round-${round}`))
       const slots = shuffle(SLOTS[div.id], rand)
       for (const [pi, [home, away]] of roundRobin(div.clubs, round).entries()) {
@@ -78,7 +83,7 @@ function buildLeague(): Fixture[] {
 
 function buildCup(): Fixture[] {
   const out: Fixture[] = []
-  let remaining = DIVISIONS.flatMap((d) => d.clubs)
+  let remaining = CUP_DIVISIONS.flatMap((d) => d.clubs)
   for (const [ri, date] of CUP_ROUNDS.entries()) {
     const rand = seeded(hashString(`cup-${ri}`))
     const drawn = shuffle(remaining, rand)
@@ -98,7 +103,7 @@ function buildCup(): Fixture[] {
         slug: matchSlug(home.name, away.name, date),
         competition: CUP_NAME,
         leagueId: 'dk-cup',
-        leagueOrder: 4,
+        leagueOrder: CUP_DIVISIONS.length - 0.5,
         round: ri + 1,
         home,
         away,
@@ -150,7 +155,7 @@ export function toMatch(f: Fixture, now: number): Match {
     leagueId: f.leagueId,
     leagueSlug: f.leagueSlug,
     leagueOrder: f.leagueOrder,
-    country: 'Danmark',
+    country: f.division?.country ?? 'Danmark',
     kickoff: f.kickoff,
     state,
     statusLabel,

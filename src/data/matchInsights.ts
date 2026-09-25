@@ -1,5 +1,5 @@
 import type { Match } from '../types'
-import { clubByName, type Division } from './danishClubs'
+import { clubByName, type Division } from './leagues'
 import { hashString, playMatch, poisson, seeded } from './fixtures'
 import { standings, type StandingRow } from './season'
 

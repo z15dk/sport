@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { Division } from '../data/danishClubs'
+import type { Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
 import { paths } from '../lib/site'
 import { FormChips } from './FormChips'
@@ -18,7 +18,6 @@ interface Props {
 }
 
 export function StandingsTable({ division, rows, highlight, offset = 0, total = rows.length, compact }: Props) {
-  const isTop = division.id === 'superliga'
   return (
     <>
       <div className="table-wrap">
@@ -40,7 +39,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
           <tbody>
             {rows.map((r, idx) => {
               const i = idx + offset
-              const zone = i < 2 ? (isTop ? 'zone--title' : 'zone--up') : i >= total - 2 ? 'zone--down' : ''
+              const zone = i < division.zones.top ? 'zone--up' : i >= total - division.zones.bottom ? 'zone--down' : ''
               const gd = r.goalsFor - r.goalsAgainst
               return (
                 <tr key={r.club.id} className={`${zone}${r.club.id === highlight ? ' is-highlight' : ''}`}>
@@ -77,7 +76,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
       </div>
       <footer className="table-legend">
         <span>
-          <i className="zone-dot zone-dot--up" /> {isTop ? 'Mesterskabsspil (top)' : 'Oprykning'}
+          <i className="zone-dot zone-dot--up" /> {division.zones.topLabel}
         </span>
         <span>
           <i className="zone-dot zone-dot--down" /> Nedrykning

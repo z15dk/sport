@@ -1,44 +1,28 @@
-import { slugify } from '../lib/slug'
+import { c, type Division } from './club'
+import { GERMANY } from './germany'
 
-// Danish men's football, season 2026/27. Clubs are listed roughly by expected
-// strength (strongest first); the demo generator uses the order for scores.
+// The football leagues we cover, season 2026/27. Clubs are listed roughly by
+// expected strength (strongest first); the fictional results use the order.
 // `unverified` marks clubs whose division could not be confirmed from sources.
+// Add a league by adding a Division here (or in its own file, like germany.ts):
+// fixtures, tables, league and club pages, sitemap and logos follow from it.
 
-export interface Club {
-  id: string
-  slug: string
-  name: string
-  city: string
-  /** [background, text] used for the fallback badge */
-  colors: [string, string]
-  unverified?: boolean
-}
-
-export interface Division {
-  id: string
-  slug: string
-  name: string
-  short: string
-  clubs: Club[]
-}
-
-const c = (id: string, name: string, city: string, bg: string, fg = '#ffffff', unverified?: boolean): Club => ({
-  id,
-  slug: slugify(name),
-  name,
-  city,
-  colors: [bg, fg],
-  unverified,
-})
+export type { Club, Division } from './club'
 
 export const SEASON = '2026/27'
 
-export const DIVISIONS: Division[] = [
+const DENMARK: Division[] = [
   {
     id: 'superliga',
     slug: 'superliga',
     name: 'Superliga',
     short: 'SL',
+    country: 'Danmark',
+    countryCode: 'DK',
+    seasonStart: '2026-07-17',
+    zones: { top: 6, topLabel: 'Mesterskabsspil', bottom: 2 },
+    movement: 'De seks bedste går videre til mesterskabsspillet, og de to dårligste rykker ned i 1. division.',
+    apiLeague: 'Danish Superliga',
     clubs: [
       c('fck', 'FC København', 'København', '#ffffff', '#0b2a7a'),
       c('fcm', 'FC Midtjylland', 'Herning', '#111111', '#e30613'),
@@ -59,6 +43,12 @@ export const DIVISIONS: Division[] = [
     slug: '1-division',
     name: '1. division',
     short: '1D',
+    country: 'Danmark',
+    countryCode: 'DK',
+    seasonStart: '2026-07-17',
+    zones: { top: 2, topLabel: 'Oprykning', bottom: 2 },
+    movement: 'De to bedste rykker op i Superligaen, og de to dårligste rykker ned i 2. division.',
+    apiLeague: 'Danish 1st Division',
     clubs: [
       c('vb', 'Vejle Boldklub', 'Vejle', '#d0021b'),
       c('aab', 'AaB', 'Aalborg', '#d0021b'),
@@ -79,6 +69,12 @@ export const DIVISIONS: Division[] = [
     slug: '2-division',
     name: '2. division',
     short: '2D',
+    country: 'Danmark',
+    countryCode: 'DK',
+    seasonStart: '2026-07-17',
+    zones: { top: 2, topLabel: 'Oprykning', bottom: 2 },
+    movement: 'De to bedste i oprykningsspillet rykker op i 1. division, og de to dårligste i kvalifikationsspillet rykker ned.',
+    apiLeague: 'Danish 2nd Division',
     clubs: [
       c('b93', 'B.93', 'København', '#ffffff', '#0b2a7a'),
       c('mbk', 'Middelfart Boldklub', 'Middelfart', '#0b2a7a'),
@@ -99,6 +95,11 @@ export const DIVISIONS: Division[] = [
     slug: '3-division',
     name: '3. division',
     short: '3D',
+    country: 'Danmark',
+    countryCode: 'DK',
+    seasonStart: '2026-07-17',
+    zones: { top: 2, topLabel: 'Oprykning', bottom: 3 },
+    movement: 'De to bedste i oprykningsspillet rykker op i 2. division, og de tre dårligste i nedrykningsspillet rykker ned i Danmarksserien.',
     clubs: [
       c('hol', 'Holbæk B&I', 'Holbæk', '#d0021b'),
       c('bro', 'Brønshøj BK', 'Brønshøj', '#ffd200', '#111111'),
@@ -116,9 +117,26 @@ export const DIVISIONS: Division[] = [
   },
 ]
 
+export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY]
+export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
+
+// Club ids key fixtures and tables across all leagues, so they must be unique
+{
+  const seen = new Set<string>()
+  for (const club of DIVISIONS.flatMap((d) => d.clubs)) {
+    if (seen.has(club.id)) throw new Error(`Duplicate club id "${club.id}" (${club.name})`)
+    seen.add(club.id)
+  }
+}
+
 export const divisionBySlug = (slug: string) => DIVISIONS.find((d) => d.slug === slug)
 
 const CLUBS = DIVISIONS.flatMap((division) => division.clubs.map((club) => ({ club, division })))
 export const clubBySlug = (slug: string) => CLUBS.find((x) => x.club.slug === slug)
 export const clubByName = (name: string) => CLUBS.find((x) => x.club.name === name)
 export const allClubs = () => CLUBS
+
+/** Short label for a league badge ("SL", "2B"); undefined for other competitions */
+export function competitionLabel(name: string) {
+  return DIVISIONS.find((d) => d.name === name)?.short
+}

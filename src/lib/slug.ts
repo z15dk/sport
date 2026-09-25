@@ -1,10 +1,11 @@
-const MAP: Record<string, string> = { æ: 'ae', ø: 'oe', å: 'aa', é: 'e', ü: 'u', ö: 'o', ä: 'a' }
+// Danish and German letters as they are usually written in URLs
+const MAP: Record<string, string> = { æ: 'ae', ø: 'oe', å: 'aa', é: 'e', ü: 'ue', ö: 'oe', ä: 'ae', ß: 'ss' }
 
 /** "FC København" -> "fc-koebenhavn" */
 export function slugify(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[æøåéüöä]/g, (ch) => MAP[ch])
+    .replace(/[æøåéüöäß]/g, (ch) => MAP[ch])
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/&/g, '-og-')

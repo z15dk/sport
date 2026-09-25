@@ -1,5 +1,5 @@
 import type { Match } from '../types'
-import type { Club, Division } from '../data/danishClubs'
+import type { Club, Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
 import type { ClubStats, PastMatch } from '../data/matchInsights'
 import type { TeamEntry } from '../data/teams'
@@ -123,12 +123,6 @@ export function clubFaq(
   return items
 }
 
-const MOVEMENT: Record<string, string> = {
-  superliga: 'De seks bedste går videre til mesterskabsspillet, og de to dårligste rykker ned i 1. division.',
-  '1div': 'De to bedste rykker op i Superligaen, og de to dårligste rykker ned i 2. division.',
-  '2div': 'De to bedste i oprykningsspillet rykker op i 1. division, og de to dårligste i kvalifikationsspillet rykker ned.',
-  '3div': 'De to bedste i oprykningsspillet rykker op i 2. division, og de tre dårligste i nedrykningsspillet rykker ned i Danmarksserien.',
-}
 
 export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
   const [first] = rows
@@ -138,9 +132,9 @@ export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
     { q: `Hvem ligger sidst i ${division.name}?`, a: `${bottom.club.name} ligger sidst med ${bottom.points} point.` },
     {
       q: `Hvor mange hold er der i ${division.name}?`,
-      a: `Der er ${division.clubs.length} hold, som møder hinanden to gange i grundspillet.`,
+      a: `Der er ${division.clubs.length} hold, som møder hinanden to gange ${division.countryCode === 'DK' ? 'i grundspillet' : 'i løbet af sæsonen'}.`,
     },
-    { q: `Hvor mange rykker op og ned i ${division.name}?`, a: MOVEMENT[division.id] },
+    { q: `Hvor mange rykker op og ned i ${division.name}?`, a: division.movement },
   ]
 }
 

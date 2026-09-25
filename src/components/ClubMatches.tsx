@@ -3,25 +3,17 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { clubMatches } from '../data/matches'
+import { competitionLabel } from '../data/leagues'
 import { useNow } from '../hooks/useNow'
 import { OUTCOME_LABEL, outcomeFor } from '../lib/result'
 import { paths } from '../lib/site'
 import { addDays, formatMonth, formatNumeric, formatTime, isoDate } from '../lib/time'
 import type { Match } from '../types'
+import { Flag } from './Flag'
 import { TeamBadge } from './TeamBadge'
 
 const PAGE = 8
 type Tab = 'finished' | 'upcoming'
-
-function DkFlag() {
-  return (
-    <svg className="flag" viewBox="0 0 37 28" aria-hidden>
-      <rect width="37" height="28" fill="#c8102e" />
-      <rect x="12" width="4" height="28" fill="#fff" />
-      <rect y="12" width="37" height="4" fill="#fff" />
-    </svg>
-  )
-}
 
 /** Club fixtures and results, as a paged list or a month calendar */
 export function ClubMatches({ clubName, initialNow }: { clubName: string; initialNow: number }) {
@@ -47,11 +39,11 @@ export function ClubMatches({ clubName, initialNow }: { clubName: string; initia
   const forward = () => setPage((p) => (tab === 'finished' ? p - 1 : p + 1))
 
   // Group consecutive matches of the same competition
-  const groups: { league: string; matches: Match[] }[] = []
+  const groups: { league: string; country?: string; matches: Match[] }[] = []
   for (const m of shown) {
     const last = groups.at(-1)
     if (last && last.league === m.league) last.matches.push(m)
-    else groups.push({ league: m.league, matches: [m] })
+    else groups.push({ league: m.league, country: m.country, matches: [m] })
   }
 
   return (
@@ -120,11 +112,11 @@ export function ClubMatches({ clubName, initialNow }: { clubName: string; initia
             groups.map((g, gi) => (
               <div key={`${g.league}-${gi}`} className="cm-group">
                 <div className="cm-group__head">
-                  <TeamBadge link={false} name={g.league} size={32} />
+                  <TeamBadge link={false} name={g.league} size={32} label={competitionLabel(g.league)} />
                   <span>
                     <strong>{g.league}</strong>
                     <span className="cm-group__country">
-                      <DkFlag /> Danmark
+                      <Flag country={g.country} /> {g.country}
                     </span>
                   </span>
                 </div>

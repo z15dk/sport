@@ -1,7 +1,7 @@
 import type { Match, MatchState, SportId } from '../types'
 import { danishTime, isoDate } from '../lib/time'
 import { matchSlug } from '../lib/slug'
-import { clubByName } from './danishClubs'
+import { clubByName } from './leagues'
 import { hashString, seeded } from './fixtures'
 import { clubFixtures, fixturesOn, toMatch } from './season'
 

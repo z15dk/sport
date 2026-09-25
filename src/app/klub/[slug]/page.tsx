@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SEASON, type Club, type Division } from '../../../data/danishClubs'
+import { SEASON, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
 import { standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
@@ -31,7 +31,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const team = teamBySlug((await params).slug)
   if (!team) return { title: 'Klubben findes ikke' }
-  if (!team.danish) {
+  if (!team.season) {
     const sport = sportById(team.sport).label.toLowerCase()
     return {
       title: `${team.name} – resultater og kampprogram (${team.league})`,
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       alternates: { canonical: paths.club(team.slug) },
     }
   }
-  const { club, division } = team.danish
+  const { club, division } = team.season
   const stats = clubStats(club.name, Date.now())!
   return {
     title: `${club.name} – resultater, kampprogram og stilling ${SEASON}`,
@@ -51,11 +51,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function ClubPage({ params }: { params: Params }) {
   const team = teamBySlug((await params).slug)
   if (!team) notFound()
-  return team.danish ? <DanishClub {...team.danish} /> : <TeamPage team={team} />
+  return team.season ? <LeagueClub {...team.season} /> : <TeamPage team={team} />
 }
 
-/** Full page for Danish football clubs, which have season and table data */
-function DanishClub({ club, division }: { club: Club; division: Division }) {
+/** Full page for clubs in the leagues we cover, which have season and table data */
+function LeagueClub({ club, division }: { club: Club; division: Division }) {
   const now = Date.now()
   const stats = clubStats(club.name, now)!
   const r = stats.row

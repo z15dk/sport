@@ -1,4 +1,4 @@
-import { DIVISIONS, clubByName } from '../data/danishClubs'
+import { DIVISIONS, clubByName } from '../data/leagues'
 import { getMatches } from '../data/matches'
 import { INDEXABLE, SITE_URL, paths } from './site'
 import { isoDate } from './time'

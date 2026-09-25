@@ -1,22 +1,23 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { DIVISIONS, SEASON } from '../../data/danishClubs'
+import { COUNTRIES, DIVISIONS, SEASON } from '../../data/leagues'
+import { Flag } from '../../components/Flag'
 import { TeamBadge } from '../../components/TeamBadge'
 import { paths } from '../../lib/site'
 import { allTeams, type TeamEntry } from '../../data/teams'
 import { sportById } from '../../sports'
 
 export const metadata: Metadata = {
-  title: `Danske fodboldklubber ${SEASON} – Superliga til 3. division`,
-  description: `Alle ${DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} klubber i Superligaen, 1., 2. og 3. division ${SEASON}.`,
+  title: `Fodboldklubber ${SEASON} – Danmark og Tyskland`,
+  description: `Alle ${DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} klubber i ${DIVISIONS.map((d) => d.name).join(', ')} ${SEASON}.`,
   alternates: { canonical: paths.clubs() },
 }
 
 export default function ClubsIndex() {
-  // Every non-Danish-football team in the register, grouped by sport and league
+  // Every team outside the football leagues, grouped by sport and league
   const others = new Map<string, TeamEntry[]>()
   for (const t of allTeams()) {
-    if (t.danish) continue
+    if (t.season) continue
     const key = `${sportById(t.sport).label} · ${t.league}`
     others.set(key, [...(others.get(key) ?? []), t])
   }
@@ -24,12 +25,16 @@ export default function ClubsIndex() {
     <div className="page">
       <div className="clubs">
         <h1 className="feed__title">
-          Danske klubber
+          Klubber
           <span>
-            Sæson {SEASON} · {DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} klubber i fire rækker
+            Sæson {SEASON} · {DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} fodboldklubber i {DIVISIONS.length} rækker
           </span>
         </h1>
-        {DIVISIONS.map((d) => (
+        {COUNTRIES.map((country) => [
+          <h2 key={country} className="feed__title clubs__subtitle clubs__country">
+            <Flag country={country} /> {country}
+          </h2>,
+          ...DIVISIONS.filter((d) => d.country === country).map((d) => (
           <section key={d.id} className="panel club-index">
             <header className="table-panel__head">
               <h2 className="panel__title">{d.name}</h2>
@@ -51,7 +56,8 @@ export default function ClubsIndex() {
               ))}
             </ul>
           </section>
-        ))}
+          )),
+        ])}
 
         <h2 className="feed__title clubs__subtitle">Andre sportsgrene</h2>
         {[...others.entries()].map(([title, teams]) => (

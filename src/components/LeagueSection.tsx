@@ -5,6 +5,7 @@ import { useState } from 'react'
 import type { LeagueGroup } from '../types'
 import { paths } from '../lib/site'
 import { MatchRow } from './MatchRow'
+import { competitionLabel } from '../data/leagues'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -21,7 +22,7 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
     <section className="league" id={`league-${group.leagueId}`}>
       <header className="league__header">
         <div className="league__toggle">
-          <TeamBadge name={group.league} src={group.leagueBadge} size={28} />
+          <TeamBadge name={group.league} src={group.leagueBadge} size={28} label={competitionLabel(group.league)} />
           <span className="league__titles">
             {group.country && <span className="league__country">{group.country}</span>}
             {group.leagueSlug ? (

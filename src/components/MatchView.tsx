@@ -118,7 +118,7 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
           {homeStats && awayStats ? (
             <ClubComparison home={homeStats} away={awayStats} />
           ) : (
-            <p className="muted small">Sæsonstatistik findes kun for de danske klubber.</p>
+            <p className="muted small">Sæsonstatistik findes kun for klubber i de ligaer, vi dækker fuldt.</p>
           )}
         </section>
 

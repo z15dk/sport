@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { DIVISIONS, SEASON, divisionBySlug } from '../../../data/danishClubs'
+import { DIVISIONS, SEASON, divisionBySlug } from '../../../data/leagues'
 import { standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'

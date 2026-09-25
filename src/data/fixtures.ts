@@ -1,4 +1,4 @@
-import type { Club, Division } from './danishClubs'
+import type { Club, Division } from './leagues'
 
 // Deterministic building blocks for the fictional results.
 
