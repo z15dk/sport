@@ -25,8 +25,8 @@ export function Sidebar({ groups, pinned, selected, onSelect }: Props) {
         return (
           <li key={g.leagueId} className={active ? 'is-active' : undefined}>
             <button type="button" aria-pressed={active} onClick={() => onSelect(active ? undefined : g.leagueId)}>
-              <TeamBadge link={false} name={g.league} src={g.leagueBadge} size={26} label={competitionLabel(g.league)} />
-              <span className="side-list__text">
+              <TeamBadge link={false} name={g.league} src={g.leagueBadge} size={20} label={competitionLabel(g.league)} />
+              <span className="side-list__text" title={g.country ? `${g.league} · ${g.country}` : g.league}>
                 <span className="side-list__name">{g.league}</span>
                 {g.country && <span className="side-list__country">{g.country}</span>}
               </span>

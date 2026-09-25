@@ -5,6 +5,26 @@ import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
 import { SEARCH_NAMES } from './aliases'
 import { isoDate } from '../lib/time'
+import { DIVISIONS, sportOf } from './leagues'
+import { countryKey } from './channels'
+
+/** Our leagues by sport, country and name, so API-Sports' games in them join the same league */
+const OUR_LEAGUES = new Map(
+  DIVISIONS.flatMap((d, i) =>
+    [d.name, d.apiLeague]
+      .filter((n): n is string => !!n)
+      .map((n) => [`${sportOf(d)}|${countryKey(d.country)}|${n.toLowerCase()}`, { d, i }] as const),
+  ),
+)
+
+/** An API-Sports game as a match, placed in our league when it is one of ours */
+function externalMatch(g: ExternalGame): Match {
+  const m = externalToMatch(g)
+  const ours = OUR_LEAGUES.get(`${g.sport}|${countryKey(g.league.country)}|${g.league.name.toLowerCase()}`)
+  if (!ours) return m
+  const { d, i } = ours
+  return { ...m, league: d.name, leagueId: `${d.countryCode.toLowerCase()}-${d.id}`, leagueSlug: d.slug, leagueOrder: i, country: d.country }
+}
 
 // Matches for the front page, match pages and club pages, all from the
 // real season in season.ts.
@@ -52,7 +72,7 @@ export function getMatches(date: string, sport: SportFilter, now: number): Match
       ours[i] = { ...m, state: x.state, statusLabel: x.statusLabel, winner: x.winner, home: { ...m.home, score: g.homeScore }, away: { ...m.away, score: g.awayScore } }
     }
   }
-  return [...ours, ...extra.map(externalToMatch)]
+  return [...ours, ...extra.map(externalMatch)]
 }
 
 
