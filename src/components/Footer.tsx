@@ -1,28 +1,33 @@
 import Link from 'next/link'
-import { leagueGroups } from '../data/leagues'
-import { sportById } from '../sports'
+import { DIVISIONS, sportOf } from '../data/leagues'
 import { INDEXABLE, SITE_NAME, paths } from '../lib/site'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
+import { sportById } from '../sports'
+import { Flag } from './Flag'
 
-/** Site-wide footer; also gives crawlers a path to every league and key page. */
+/** Site-wide footer; one column per sport, and a path for crawlers to every league. */
 export function Footer() {
+  const sports = [...new Set(DIVISIONS.map(sportOf))]
   return (
     <footer className="footer">
       <nav className="footer__cols" aria-label="Sidefod">
-        {leagueGroups().map((g) => (
-          <div key={`${g.sport}-${g.country}`}>
-            <h2>
-              {sportById(g.sport).label} · {g.country}
-            </h2>
-            <ul>
-              {g.divisions.map((d) => (
-                <li key={d.id}>
-                  <Link href={paths.league(d.slug)}>{d.name}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {sports.map((sport) => {
+          const leagues = DIVISIONS.filter((d) => sportOf(d) === sport)
+          return (
+            <div key={sport} className={leagues.length > 6 ? 'footer__col--wide' : undefined}>
+              <h2>{sportById(sport).label}</h2>
+              <ul>
+                {leagues.map((d) => (
+                  <li key={d.id}>
+                    <Link href={paths.league(d.slug)}>
+                      <Flag country={d.country} /> {d.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
         <div>
           <h2>{SITE_NAME}</h2>
           <ul>

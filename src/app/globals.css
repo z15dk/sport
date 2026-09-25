@@ -862,3 +862,9 @@ h2.league__name { margin: 0; }
   .division-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .division-tabs .filter-bar { flex: none; overflow: visible; }
 }
+.footer ul a { display: inline-flex; align-items: center; gap: 8px; }
+.footer .flag { width: 16px; height: 11px; }
+/* Long lists (football) run in two columns */
+.footer__col--wide ul { display: block; columns: 2; column-gap: 32px; }
+.footer__col--wide li { break-inside: avoid; margin-bottom: 6px; }
+@media (max-width: 600px) { .footer__col--wide ul { columns: 1; } }
