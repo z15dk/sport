@@ -15,6 +15,8 @@ import { TeamBadge } from '../../../components/TeamBadge'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
+import { ClubHistory } from '../../../components/ClubHistory'
+import { clubHistory } from '../../../lib/history'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, isoDate } from '../../../lib/time'
@@ -65,6 +67,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
   const recent = season.filter((m) => m.state === 'finished').reverse()
   const upcoming = season.filter((m) => m.state !== 'finished')
   const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
+  const history = clubHistory(club)
   const table = standings(division, now)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
@@ -138,6 +141,8 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
             </section>
           </div>
         </div>
+
+        {history && <ClubHistory name={club.name} history={history} />}
 
         <AdSlot placement="content" />
         <Faq items={faq} />

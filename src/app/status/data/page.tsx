@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { realDataStatus } from '../../../lib/realdata'
+import { historyStatus } from '../../../lib/history'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
@@ -17,6 +18,7 @@ const isKnown = (team: string) => {
 /** Shows what the real-data job has fetched from TheSportsDB */
 export default function DataStatusPage() {
   const s = realDataStatus()
+  const h = historyStatus()
   return (
     <div className="page">
       <div className="clubs prose">
@@ -52,6 +54,28 @@ export default function DataStatusPage() {
             </section>
           )
         })}
+        <section className="panel prose__section">
+          <h2 className="panel__title">Kampdatabase (historik)</h2>
+          <p>
+            Fil: <code>{h.file}</code>
+          </p>
+          {h.error ? (
+            <p className="unverified">{h.error}</p>
+          ) : (
+            <>
+              <p>
+                {h.matches.toLocaleString('da-DK')} spillede kampe fra {h.from} til {h.to}. {h.clubs} af vores klubber er fundet i
+                databasen og får rigtige indbyrdes opgør og historik.
+              </p>
+              <p>Turneringer: {h.tournaments.map(([t, n]) => `${t} (${n})`).join(', ')}</p>
+              {h.unmatched.length > 0 && (
+                <p className="muted small">
+                  Hold i databasen uden klub hos os ({h.unmatched.length}): {h.unmatched.join(', ')}
+                </p>
+              )}
+            </>
+          )}
+        </section>
       </div>
     </div>
   )

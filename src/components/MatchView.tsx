@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { formatShortYear, formatTime } from '../lib/time'
 import { paths } from '../lib/site'
-import { clubStats, findClub, headToHead, matchStats, scoreWords, type ClubStats } from '../data/matchInsights'
+import { clubStats, findClub, headToHead, matchStats, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { sportOf } from '../data/leagues'
 import { findMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
@@ -20,14 +20,16 @@ interface Props {
   slug: string
   date: string
   initialNow: number
+  /** Real meetings from the match database, when both clubs are in it */
+  realH2h?: PastMatch[]
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match} now={now} />
+  return <MatchBody match={match} now={now} realH2h={realH2h} />
 }
 
 function ClubName({ name }: { name: string }) {
@@ -35,13 +37,13 @@ function ClubName({ name }: { name: string }) {
   return team ? <Link href={paths.club(team.slug)}>{name}</Link> : <>{name}</>
 }
 
-function MatchBody({ match, now }: { match: Match; now: number }) {
+function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h?: PastMatch[] }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
   const stats = matchStats(match)
   const homeStats = clubStats(home.name, now)
   const awayStats = clubStats(away.name, now)
-  const h2h = headToHead(home.name, away.name, match.kickoff)
+  const h2h = realH2h ?? headToHead(home.name, away.name, match.kickoff)
   const wins = { home: 0, draw: 0, away: 0 }
   for (const m of h2h) {
     const homeGoals = m.home === home.name ? m.homeScore : m.awayScore
@@ -142,6 +144,7 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
               <span>{away.name}</span>
             </div>
           </div>
+          {h2h.length === 0 && <p className="muted small">Klubberne har ikke mødt hinanden i vores kampdatabase.</p>}
           <ul className="h2h">
             {h2h.map((m, i) => {
               const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
@@ -167,9 +170,11 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
             })}
           </ul>
           <p className="muted small">
-            {match.real
-              ? 'Kampprogram og resultat er rigtige (TheSportsDB). Statistik og indbyrdes opgør er fiktive.'
-              : 'Alle resultater er fiktive.'}
+            {[
+              match.real ? 'Kampprogram og resultat er rigtige (TheSportsDB).' : 'Kampens resultat er fiktivt.',
+              realH2h ? 'Indbyrdes opgør er rigtige kampe fra vores kampdatabase.' : 'Indbyrdes opgør er fiktive.',
+              'Kampstatistikken er fiktiv.',
+            ].join(' ')}
           </p>
         </section>
       </div>

@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findMatch } from '../../../data/matches'
-import { clubStats, headToHead } from '../../../data/matchInsights'
+import { clubStats, findClub, headToHead } from '../../../data/matchInsights'
+import { realHeadToHead } from '../../../lib/history'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
@@ -48,7 +49,11 @@ export default async function MatchPage({ params }: { params: Params }) {
   const clubSlug = (name: string) => teamByName(name)?.slug
   const homeStats = clubStats(match.home.name, now)
   const awayStats = clubStats(match.away.name, now)
-  const faq = matchFaq(match, headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)
+  const homeClub = findClub(match.home.name)?.club
+  const awayClub = findClub(match.away.name)?.club
+  // Real meetings from the match database when both clubs are in it; otherwise fictional ones
+  const realH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
+  const faq = matchFaq(match, realH2h ?? headToHead(match.home.name, match.away.name, match.kickoff), homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 
   return (
@@ -63,7 +68,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

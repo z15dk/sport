@@ -901,3 +901,8 @@ h2.league__name { margin: 0; }
 /* In one column the side banner would land above the matches; the feed banners cover it there */
 @media (max-width: 900px) { .ad--side { display: none; } }
 .banner a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Club history from the match database */
+.history__lead { padding: 0 18px; margin: 0 0 8px; line-height: 1.5; }
+.history__more summary { cursor: pointer; padding: 8px 18px; font-weight: 700; }
+.history__note { padding: 4px 18px 16px; margin: 0; }

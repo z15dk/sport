@@ -12,6 +12,7 @@ Sofascore-alternativ for fodbold (DK, DE, England, SE, NO), ishockey (Metal Liga
 - Alle hold kommer fra ét register (`src/data/teams.ts`). Hvert hold dér får automatisk en side
   på `/klub/<slug>`, links, plads på `/klubber` og i sitemap. Nye datakilder skal tilføje deres hold dér.
 - Rigtige data: Superligaen hentes fra TheSportsDB af et baggrundsjob (`src/lib/realdata.ts`, ligaer i `REAL_LEAGUES` i `src/data/real.ts`) og gemmes i `real-data.json`. Serveren giver samme data til browseren (`RealDataProvider`), og `season.ts` bruger dem i stedet for det fiktive program. Status: `/status/data`.
+- Kampdatabase: `football.db` (SQLite, tabeller `matches` og `incidents`) i `/opt/scoreline/data/` på VPS'en eller `STATS_DB`, læses read-only af `src/lib/history.ts` (via `node:sqlite`). Giver rigtige indbyrdes opgør (kampsider) og historik (klubsider). Hold kobles til klubregistret via navn; status på `/status/data`.
 - Resultaterne er (ellers) fiktive: siden skal forblive `noindex` (styres af `SITE_INDEXABLE`)
   indtil der kommer rigtige data.
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
