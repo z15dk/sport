@@ -30,6 +30,8 @@ const API_COUNTRY: Record<string, string> = {
   Sverige: 'Sweden',
   Norge: 'Norway',
   England: 'England',
+  Spanien: 'Spain',
+  Portugal: 'Portugal',
   USA: 'United States',
   Europa: 'Worldwide',
 }
@@ -48,7 +50,8 @@ interface Wanted {
 }
 
 function wanted(): Wanted[] {
-  const clubs: Wanted[] = allClubs().map(({ club, division }) => ({
+  // Our club lists and clubs playing that are missing from them (e.g. just promoted)
+  const clubs: Wanted[] = everyClub().map(({ club, division }) => ({
     // Keyed by the original name, so a name changed in the admin pages keeps its logo
     key: club.originalName ?? club.name,
     kind: 'club',

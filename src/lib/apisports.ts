@@ -108,6 +108,7 @@ const APIS: Record<Api, ApiDef> = {
           England: /^(Premier League|Championship|FA Cup|League Cup)$/,
           Germany: /^(Bundesliga|2\. Bundesliga|3\. Liga|DFB Pokal)$/,
           Spain: /^(La Liga|Copa del Rey)$/,
+          Portugal: /^(Primeira Liga|Liga Portugal|Taça de Portugal)$/,
           Italy: /^(Serie A|Coppa Italia)$/,
           France: /^(Ligue 1)$/,
           Sweden: /^(Allsvenskan|Superettan|Svenska Cupen)$/,

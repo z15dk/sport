@@ -47,6 +47,8 @@ export interface RealData {
 export const KNOWN_LEAGUE_IDS: Record<string, number> = {
   superliga: 4340,
   premierleague: 4328,
+  laliga: 4335,
+  ligaportugal: 4344,
   championship: 4329,
   bundesliga: 4331,
   bundesliga2: 4399,

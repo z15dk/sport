@@ -1,4 +1,12 @@
-const CODES: Record<string, 'DK' | 'DE' | 'SE' | 'NO' | 'ENG'> = { Danmark: 'DK', Tyskland: 'DE', Sverige: 'SE', Norge: 'NO', England: 'ENG' }
+const CODES: Record<string, 'DK' | 'DE' | 'SE' | 'NO' | 'ENG' | 'ES' | 'PT'> = {
+  Danmark: 'DK',
+  Tyskland: 'DE',
+  Sverige: 'SE',
+  Norge: 'NO',
+  England: 'ENG',
+  Spanien: 'ES',
+  Portugal: 'PT',
+}
 
 /** Small national flag for a country name ("Danmark", "Tyskland"); nothing for others */
 export function Flag({ country }: { country?: string }) {
@@ -47,6 +55,23 @@ export function Flag({ country }: { country?: string }) {
         <rect width="5" height="3" fill="#fff" />
         <rect x="2" width="1" height="3" fill="#ce1124" />
         <rect y="1" width="5" height="1" fill="#ce1124" />
+      </svg>
+    )
+  }
+  if (code === 'ES') {
+    return (
+      <svg className="flag" viewBox="0 0 3 2" aria-hidden>
+        <rect width="3" height="2" fill="#aa151b" />
+        <rect y="0.5" width="3" height="1" fill="#f1bf00" />
+      </svg>
+    )
+  }
+  if (code === 'PT') {
+    return (
+      <svg className="flag" viewBox="0 0 30 20" aria-hidden>
+        <rect width="30" height="20" fill="#da291c" />
+        <rect width="12" height="20" fill="#046a38" />
+        <circle cx="12" cy="10" r="4" fill="#ffe900" />
       </svg>
     )
   }

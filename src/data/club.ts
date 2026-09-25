@@ -26,7 +26,7 @@ export interface Division {
   sport?: SportId
   country: string
   /** ISO 3166 code, for the flag */
-  countryCode: 'DK' | 'DE' | 'SE' | 'NO' | 'GB-ENG'
+  countryCode: 'DK' | 'DE' | 'SE' | 'NO' | 'GB-ENG' | 'ES' | 'PT'
   /** Shown season, e.g. "2026" for leagues played in a calendar year (default 2026/27) */
   seasonLabel?: string
   /** Day the first round starts; later rounds follow `roundStarts` */

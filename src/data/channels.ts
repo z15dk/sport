@@ -44,6 +44,7 @@ const COUNTRY: Record<string, string> = {
   England: 'England',
   Sverige: 'Sweden',
   Norge: 'Norway',
+  Spanien: 'Spain',
   Europa: 'Europe',
   Verden: 'World',
 }

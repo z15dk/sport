@@ -1,6 +1,6 @@
 # Scoreline
 
-Sofascore-alternativ for fodbold (DK, DE, England, SE, NO), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen). Next.js (App Router) + React + TypeScript. UI-tekst er på dansk.
+Sofascore-alternativ for fodbold (DK, DE, England, Spanien, Portugal, SE, NO), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen). Next.js (App Router) + React + TypeScript. UI-tekst er på dansk.
 
 - Alt arbejde skal committes og pushes med det samme. Brugeren kører `npm run live`
   lokalt (http://localhost:5173), som automatisk henter nyeste push og genindlæser siden.
@@ -18,7 +18,7 @@ Sofascore-alternativ for fodbold (DK, DE, England, SE, NO), ishockey (Metal Liga
 - Egen statistik: `src/data/stats.ts` regner liga- og klubstatistik (mål pr. kamp, hjemme/ude, over 2,5, begge scorer, clean sheets, mål pr. kvarter, topscorere, kort, tilskuere, pauseresultater, stimer) ud fra sæsonens rigtige kampe. Vises på turneringssider (`LeagueStats`), klubsider (`ClubSeasonStats`) og kampsider ("Før kampen"). Diagramfarver: blå #2f6fdb / orange #ff4a1f (tjekket for farveblindhed).
 - Siden er under test og skal forblive `noindex` (styres af `SITE_INDEXABLE`), indtil brugeren siger andet.
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
-- Ligaer: `src/data/leagues.ts` (dansk fodbold), `germany.ts`, `england.ts`, `nordic.ts` (Allsvenskan, Eliteserien – kalenderår, `seasonLabel: '2026'`), `icehockey.ts`, `basketball.ts`. Hver `Division` har sport, land, `apiLeague` (TheSportsDB-navn), antal opgør og klubliste (farver, by). En ny liga = en ny `Division`; data, stilling, sider, sitemap og logoer følger automatisk, når TheSportsDB har kampene. Klub-id'er skal være unikke på tværs af alle ligaer (tjekkes ved opstart).
+- Ligaer: `src/data/leagues.ts` (dansk fodbold), `germany.ts`, `england.ts`, `southern.ts` (La Liga, Liga Portugal), `nordic.ts` (Allsvenskan, Eliteserien – kalenderår, `seasonLabel: '2026'`), `icehockey.ts`, `basketball.ts`. Hver `Division` har sport, land, `apiLeague` (TheSportsDB-navn), antal opgør og klubliste (farver, by). En ny liga = en ny `Division`; data, stilling, sider, sitemap og logoer følger automatisk, når TheSportsDB har kampene. Klub-id'er skal være unikke på tværs af alle ligaer (tjekkes ved opstart).
 - Server og browser skal regne det samme: brug aldrig tilfældighed uden seed (`seeded()` i `src/data/fixtures.ts`). "Live-data"-knappen på forsiden henter direkte fra TheSportsDB i browseren (`src/api/thesportsdb.ts`).
 - Odds: bookmaker i `src/data/partners.ts`, logo i `public/logos/bookmakere/` (kanal-logoer: upload i CMS eller `public/logos/kanaler/`). Odds er eksempler (`src/data/odds.ts`) og mærket "Eksempel-odds", indtil der er en bookmaker-aftale. Hvor der vises odds, skal "18+ · Spil ansvarligt · StopSpillet.dk" også være synligt.
 - Reklamer: pladser i `src/data/ads.ts` (top, feed, side, content), vises med `<AdSlot>` og altid mærket "Annonce". Pladsen reserveres på forhånd; uden annonce vises en pladsholder (slå fra med `NEXT_PUBLIC_AD_PLACEHOLDERS=false`). Billeder i `public/ads/`.

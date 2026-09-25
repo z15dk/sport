@@ -2,6 +2,7 @@ import { c, type Division } from './club'
 import { hasRealData } from './real'
 import { GERMANY } from './germany'
 import { ENGLAND } from './england'
+import { SOUTHERN } from './southern'
 import { NORDIC } from './nordic'
 import { ICE_HOCKEY } from './icehockey'
 import { BASKETBALL } from './basketball'
@@ -123,7 +124,7 @@ const DENMARK: Division[] = [
   },
 ]
 
-export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ENGLAND, ...NORDIC, ...ICE_HOCKEY, ...BASKETBALL]
+export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ENGLAND, ...SOUTHERN, ...NORDIC, ...ICE_HOCKEY, ...BASKETBALL]
 
 /** Season shown for a league: "2026" for calendar-year leagues, otherwise 2026/27 */
 export const seasonOf = (d: Division) => d.seasonLabel ?? SEASON

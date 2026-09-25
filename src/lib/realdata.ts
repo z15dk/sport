@@ -199,7 +199,15 @@ async function fullLeague(division: Division, leagueId: number): Promise<RealEve
 }
 
 const API_SPORT: Record<string, string> = { soccer: 'Soccer', ice_hockey: 'Ice Hockey', basketball: 'Basketball' }
-const API_COUNTRY: Record<string, string> = { Danmark: 'Denmark', Tyskland: 'Germany', Sverige: 'Sweden', Norge: 'Norway', England: 'England' }
+const API_COUNTRY: Record<string, string> = {
+  Danmark: 'Denmark',
+  Tyskland: 'Germany',
+  Sverige: 'Sweden',
+  Norge: 'Norway',
+  England: 'England',
+  Spanien: 'Spain',
+  Portugal: 'Portugal',
+}
 const leagueIds = new Map<string, number | null>()
 
 /** Other names TheSportsDB may use for a division */
