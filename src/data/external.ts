@@ -11,7 +11,7 @@ export interface ExternalGame {
   /** "<api>-<id>", e.g. "football-1035037" */
   id: string
   sport: SportId
-  league: { id: string; name: string; country?: string; logo?: string }
+  league: { id: string; name: string; country?: string; logo?: string; season?: string }
   home: { name: string; logo?: string; id?: number }
   away: { name: string; logo?: string; id?: number }
   /** ISO timestamp */
@@ -22,6 +22,12 @@ export interface ExternalGame {
   homeScore?: number
   awayScore?: number
   venue?: string
+  /** Stadium name, when the city is in venue */
+  stadium?: string
+  round?: string
+  referee?: string
+  /** Half-time score */
+  ht?: [number, number]
 }
 
 /** Same date and the same two teams (by normalised name) */

@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { formatShortYear, formatTime } from '../lib/time'
+import { formatDayMonth, formatFull, formatShortYear, formatTime, isoDate } from '../lib/time'
+import { danishCountry } from '../data/countries'
 import { paths } from '../lib/site'
 import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { clubSeasonStats } from '../data/stats'
@@ -16,6 +17,7 @@ import { summary } from '../lib/matchText'
 import { Updated } from './Updated'
 import { MatchExtrasPanel } from './MatchExtras'
 import { TeamBadge } from './TeamBadge'
+import type { FormGame, MatchExtra } from '../data/matchExtra'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -27,14 +29,16 @@ interface Props {
   /** Real meetings from the match database, when both clubs are in it */
   realH2h?: PastMatch[]
   h2hSource?: H2hSource
+  /** Facts, form and table from API-Sports (server) */
+  extra?: MatchExtra
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, h2hSource }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match} now={now} realH2h={realH2h} h2hSource={h2hSource} />
+  return <MatchBody match={match} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -78,11 +82,13 @@ function MatchBody({
   now,
   realH2h,
   h2hSource,
+  extra,
 }: {
   match: Match
   now: number
   realH2h?: PastMatch[]
   h2hSource?: H2hSource
+  extra?: MatchExtra
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -148,6 +154,104 @@ function MatchBody({
       <Updated at={now} />
 
       <div className="match-page__grid">
+        <section className="sheet__section">
+          <h2 className="sheet__title">Kampfakta</h2>
+          <dl className="facts">
+            <div>
+              <dt>Turnering</dt>
+              <dd>{match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : match.league}</dd>
+            </div>
+            {match.country && (
+              <div>
+                <dt>Land</dt>
+                <dd>{danishCountry(match.country)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Dato</dt>
+              <dd>
+                {formatFull(match.kickoff)} kl. {formatTime(match.kickoff)}
+              </dd>
+            </div>
+            {match.venue && !extra?.facts.some((f) => f.label === 'Spillested') && (
+              <div>
+                <dt>Spillested</dt>
+                <dd>{match.venue}</dd>
+              </div>
+            )}
+            {extra?.facts.map((f) => (
+              <div key={f.label}>
+                <dt>{f.label}</dt>
+                <dd>{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {extra?.form && (
+          <section className="sheet__section sheet__section--wide">
+            <h2 className="sheet__title">Seneste kampe</h2>
+            <div className="form-cols">
+              <TeamForm name={home.name} badge={home.badge} games={extra.form.home} />
+              <TeamForm name={away.name} badge={away.badge} games={extra.form.away} />
+            </div>
+          </section>
+        )}
+
+        {extra?.table && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Stilling · {match.league}</h2>
+            <div className="table-wrap table-wrap--flush">
+              <table className="table table--compact">
+                <thead>
+                  <tr>
+                    <th className="num">#</th>
+                    <th>Hold</th>
+                    <th className="num" title="Kampe">K</th>
+                    <th className="num" title="Vundet">V</th>
+                    {extra.table.rows.some((r) => r.drawn !== undefined) && (
+                      <th className="num" title="Uafgjort">U</th>
+                    )}
+                    <th className="num" title="Tabt">T</th>
+                    {extra.table.rows.some((r) => r.for !== undefined) && <th className="num">Score</th>}
+                    {extra.table.rows.some((r) => r.points !== undefined) && (
+                      <th className="num" title="Point">
+                        P
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {extra.table.rows.map((r) => {
+                    const ours = r.teamId !== undefined && (r.teamId === extra.table!.homeId || r.teamId === extra.table!.awayId)
+                    return (
+                      <tr key={`${r.rank}-${r.name}`} className={ours ? 'is-highlight' : undefined}>
+                        <td className="num pos">{r.rank}</td>
+                        <td>
+                          <span className="table__club">
+                            <TeamBadge name={r.name} src={r.logo} size={20} />
+                            {r.name}
+                          </span>
+                        </td>
+                        <td className="num">{r.played}</td>
+                        <td className="num">{r.won}</td>
+                        {extra.table!.rows.some((x) => x.drawn !== undefined) && <td className="num">{r.drawn ?? 0}</td>}
+                        <td className="num">{r.lost}</td>
+                        {extra.table!.rows.some((x) => x.for !== undefined) && (
+                          <td className="num">
+                            {r.for ?? 0}–{r.against ?? 0}
+                          </td>
+                        )}
+                        {extra.table!.rows.some((x) => x.points !== undefined) && <td className="num pts">{r.points ?? 0}</td>}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="muted small">Stilling: API-Sports.</p>
+          </section>
+        )}
         {match.incidents && match.incidents.length > 0 && (
           <section className="sheet__section">
             <h2 className="sheet__title">Kampforløb</h2>
@@ -208,17 +312,16 @@ function MatchBody({
           </section>
         )}
 
-        <section className="sheet__section">
-          <h2 className="sheet__title">Klubberne i sæsonen</h2>
-          {homeStats && awayStats ? (
+        {homeStats && awayStats && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Klubberne i sæsonen</h2>
             <ClubComparison home={homeStats} away={awayStats} />
-          ) : (
-            <p className="muted small">Sæsonstatistik findes kun for klubber i de ligaer, vi dækker fuldt.</p>
-          )}
-        </section>
+          </section>
+        )}
 
         <section className="sheet__section">
           <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
+          {h2h.length > 0 && (
           <div className="h2h-summary">
             <div>
               <strong>{wins.home}</strong>
@@ -233,6 +336,7 @@ function MatchBody({
               <span>{away.name}</span>
             </div>
           </div>
+          )}
           {h2h.length === 0 && (
             <p className="muted small">
               {realH2h ? 'Klubberne har ikke mødt hinanden i vores data.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
@@ -263,7 +367,7 @@ function MatchBody({
             })}
           </ul>
           <p className="muted small">
-            Kampprogram og resultat: TheSportsDB.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : h2hSource === 'both' ? 'vores kampdatabase og API-Sports' : 'vores kampdatabase'}.` : ''}
+            Kampprogram og resultat: {sourceOf(match.id)}.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : h2hSource === 'both' ? 'vores kampdatabase og API-Sports' : 'vores kampdatabase'}.` : ''}
           </p>
         </section>
       </div>
@@ -307,4 +411,45 @@ function ClubComparison({ home, away }: { home: ClubStats; away: ClubStats }) {
       </div>
     </>
   )
+}
+
+/** A team's latest results, newest first */
+function TeamForm({ name, badge, games }: { name: string; badge?: string; games: FormGame[] }) {
+  const result = (g: FormGame) => (g.for > g.against ? 'V' : g.for < g.against ? 'T' : 'U')
+  return (
+    <div className="team-form">
+      <h3 className="team-form__name">
+        <TeamBadge name={name} src={badge} size={22} />
+        {name}
+        <FormChips form={[...games].reverse().map(result)} />
+      </h3>
+      {games.length ? (
+        <ul className="team-form__list">
+          {games.map((g, i) => (
+            <li key={i}>
+              <span className={`form__chip form__chip--${result(g)}`}>{result(g)}</span>
+              <span className="team-form__date">{formatDayMonth(isoDate(new Date(g.date)))}</span>
+              <span className="team-form__opp">
+                {g.home ? 'mod' : 'ude mod'} {g.opponent}
+                <em>{g.competition}</em>
+              </span>
+              <strong>
+                {g.for}–{g.against}
+              </strong>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted small">Ingen kampe fundet.</p>
+      )}
+    </div>
+  )
+}
+
+/** Where a match comes from, by its id ("tsdb-<event id>" for our leagues' season) */
+function sourceOf(id: string) {
+  const inner = id.startsWith('tsdb-') ? id.slice(5) : id
+  if (inner.startsWith('db-')) return 'vores kampdatabase'
+  if (/^[a-z-]+-\d+$/.test(inner) && !/^\d+$/.test(inner)) return 'API-Sports'
+  return 'TheSportsDB'
 }

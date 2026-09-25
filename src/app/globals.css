@@ -1112,3 +1112,24 @@ h2.league__name { margin: 0; }
 .side-list__link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 12px; }
 .side-list li.is-empty .side-list__name, .side-list li.is-empty .side-list__count, .side-list li.is-empty .side-list__page { color: var(--ink-3); }
 .side-list li.is-empty .side-list__name { font-weight: 500; }
+
+/* Match page: facts, latest games, table */
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 18px; margin: 0; }
+.facts div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.facts dt { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+.facts dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.facts dd a { text-decoration: underline; }
+.form-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 700px) { .form-cols { grid-template-columns: 1fr; } }
+.team-form__name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 15px; flex-wrap: wrap; }
+.team-form__name .form { margin-left: auto; }
+.team-form__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.team-form__list li { display: grid; grid-template-columns: auto 60px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); font-size: 13px; }
+.team-form__date { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.team-form__opp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-form__opp em { font-style: normal; color: var(--ink-3); margin-left: 6px; font-size: 12px; }
+.team-form__list strong { font-variant-numeric: tabular-nums; }
+.table-wrap--flush { padding: 0; }
+.table tr.is-highlight td { background: var(--lime); color: #111; }
+.table__club { display: inline-flex; align-items: center; gap: 8px; }
+.sheet__section--wide { grid-column: 1 / -1; }

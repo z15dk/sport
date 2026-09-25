@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
-import { apiHeadToHead } from '../../../lib/apisports'
+import { apiHeadToHead, apiMatchExtra } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -59,8 +59,10 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Topped up with API-Sports' meetings (cached, within a small daily budget) when the database has fewer than 5
   let realH2h = dbH2h
   let h2hSource: H2hSource | undefined = dbH2h ? 'database' : undefined
+  const game = findExternalGame(match)
+  // Facts, form and table from API-Sports; our own season statistics cover our leagues' clubs
+  const extra = game ? await apiMatchExtra(game).catch(() => undefined) : undefined
   if ((dbH2h?.length ?? 0) < 5) {
-    const game = findExternalGame(match)
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
     if (game && games?.length) {
       const nameOf = (id?: number, fallback = '') =>
@@ -99,7 +101,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

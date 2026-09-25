@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'no
 import path from 'node:path'
 import type { MatchState, SportId } from '../types'
 import type { ExternalGame } from '../data/external'
+import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { createHash } from 'node:crypto'
@@ -36,6 +37,10 @@ interface ApiDef {
   keep: (g: ExternalGame) => boolean
   /** Path for the games between two teams */
   h2h: (a: number, b: number) => string
+  /** Path for a team's latest games (the season's where the API needs a season) */
+  teamGames?: (team: number, season?: string) => string | undefined
+  /** Path for a league's table, and how to read it */
+  standings?: (league: string, season?: string) => string | undefined
 }
 
 const TZ = 'timezone=Europe/Copenhagen'
@@ -72,7 +77,9 @@ function v1Game(sport: SportId) {
     return {
       id: `${api}-${r.id}`,
       sport,
-      league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.country?.name, logo: r.league?.logo ?? undefined },
+      league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.country?.name, logo: r.league?.logo ?? undefined, season: r.league?.season != null ? String(r.league.season) : undefined },
+      round: r.week ? String(r.week) : undefined,
+      stadium: r.venue ? String(typeof r.venue === 'string' ? r.venue : (r.venue.name ?? '')) || undefined : undefined,
       home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
       away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
       kickoff: new Date(Number(r.timestamp) * 1000).toISOString(),
@@ -91,6 +98,8 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v3.football.api-sports.io',
     path: (d) => `/fixtures?date=${d}&${TZ}`,
     h2h: (a, b) => `/fixtures/headtohead?h2h=${a}-${b}&last=10&${TZ}`,
+    teamGames: (t) => `/fixtures?team=${t}&last=10&${TZ}`,
+    standings: (l, season) => (season ? `/standings?league=${l}&season=${season}` : undefined),
     toGame: (r, api) => {
       if (!r?.fixture?.id) return undefined
       const short = String(r.fixture.status?.short ?? '')
@@ -99,7 +108,7 @@ const APIS: Record<Api, ApiDef> = {
       return {
         id: `${api}-${r.fixture.id}`,
         sport: 'soccer',
-        league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.league?.country, logo: r.league?.logo ?? undefined },
+        league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.league?.country, logo: r.league?.logo ?? undefined, season: r.league?.season != null ? String(r.league.season) : undefined },
         home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
         away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
         kickoff: new Date(Number(r.fixture.timestamp) * 1000).toISOString(),
@@ -108,6 +117,10 @@ const APIS: Record<Api, ApiDef> = {
         homeScore: num(r.goals?.home),
         awayScore: num(r.goals?.away),
         venue: r.fixture.venue?.city ?? r.fixture.venue?.name ?? undefined,
+        stadium: r.fixture.venue?.name ?? undefined,
+        round: r.league?.round ?? undefined,
+        referee: r.fixture.referee ?? undefined,
+        ht: r.score?.halftime?.home != null && r.score?.halftime?.away != null ? [Number(r.score.halftime.home), Number(r.score.halftime.away)] : undefined,
       }
     },
     keep: (g) =>
@@ -132,6 +145,8 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v1.basketball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
     h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}&${TZ}` : undefined),
+    standings: (l, season) => (season ? `/standings?league=${l}&season=${season}` : undefined),
     toGame: v1Game('basketball'),
     // NBA comes from its own API
     keep: (g) =>
@@ -144,6 +159,7 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v2.nba.api-sports.io',
     path: (d) => `/games?date=${d}`,
     h2h: (a, b) => `/games?h2h=${a}-${b}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}` : undefined),
     toGame: (r, api) => {
       if (!r?.id || !r.teams?.home?.name) return undefined
       const status = Number(r.status?.short)
@@ -170,6 +186,8 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v1.hockey.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
     h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}&${TZ}` : undefined),
+    standings: (l, season) => (season ? `/standings?league=${l}&season=${season}` : undefined),
     toGame: v1Game('ice_hockey'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -190,6 +208,8 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v1.handball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
     h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}&${TZ}` : undefined),
+    standings: (l, season) => (season ? `/standings?league=${l}&season=${season}` : undefined),
     toGame: v1Game('handball'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -210,6 +230,8 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v1.volleyball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
     h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}&${TZ}` : undefined),
+    standings: (l, season) => (season ? `/standings?league=${l}&season=${season}` : undefined),
     toGame: v1Game('volleyball'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -222,6 +244,7 @@ const APIS: Record<Api, ApiDef> = {
     base: 'https://v1.american-football.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
     h2h: (a, b) => `/games?h2h=${a}-${b}&${TZ}`,
+    teamGames: (t, season) => (season ? `/games?team=${t}&season=${season}&${TZ}` : undefined),
     toGame: (r, api) => {
       const game = r?.game
       if (!game?.id || !r.teams?.home?.name) return undefined
@@ -529,68 +552,166 @@ export function apiSportsStatus() {
   })
 }
 
-// ---------------------------------------------------------------- head-to-head
+// ---------------------------------------------------------------- match page extras
+// Head-to-head, the teams' latest games and the league table, fetched when a
+// match page is first viewed and cached (h2h.json). They share a small daily
+// budget per API and are never fetched when the day's quota runs low.
 
-interface H2hStore {
-  entries: Record<string, { fetchedAt: number; games: ExternalGame[] }>
-  /** Requests spent on head-to-heads per API and UTC day */
+interface ExtraStore {
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][] }>
+  /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
-const H2H_TTL_MS = 3 * 86_400_000
-const H2H_PER_DAY = 25
-const H2H_KEEP_REMAINING = 20
-const h2hFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
-const h2hHolder = globalThis as { __scorelineH2h?: H2hStore }
-function h2hStore(): H2hStore {
-  if (!h2hHolder.__scorelineH2h) {
+const EXTRAS_PER_DAY = 30
+const EXTRAS_KEEP_REMAINING = 20
+const extrasFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
+const extrasHolder = globalThis as { __scorelineH2h?: ExtraStore }
+function extrasStore(): ExtraStore {
+  if (!extrasHolder.__scorelineH2h) {
     try {
-      h2hHolder.__scorelineH2h = JSON.parse(readFileSync(h2hFile(), 'utf8')) as H2hStore
+      extrasHolder.__scorelineH2h = JSON.parse(readFileSync(extrasFile(), 'utf8')) as ExtraStore
     } catch {
-      h2hHolder.__scorelineH2h = { entries: {}, spent: {} }
+      extrasHolder.__scorelineH2h = { entries: {}, spent: {} }
     }
   }
-  return h2hHolder.__scorelineH2h
+  return extrasHolder.__scorelineH2h
 }
 
-/**
- * The last meetings of the two teams in an API-Sports game, before its kickoff.
- * From the cache when fetched within three days; otherwise one request, when
- * the day's quota allows it (at most 25 a day, never below 20 requests left).
- */
+const apiOf = (game: ExternalGame) => game.id.split('-').slice(0, -1).join('-') as Api
+
+/** One cached request; the cached answer (also a stale one) when the budget or the request fails */
+async function cached<T extends 'games' | 'table'>(
+  api: Api,
+  key: string,
+  ttlMs: number,
+  pathAndQuery: string | undefined,
+  kind: T,
+  read: (response: Raw[]) => NonNullable<ExtraStore['entries'][string][T]>,
+): Promise<ExtraStore['entries'][string][T] | undefined> {
+  const store = extrasStore()
+  const entry = store.entries[key]
+  if (entry && Date.now() - entry.fetchedAt < ttlMs) return entry[kind]
+  if (!pathAndQuery || !keyFor(api)) return entry?.[kind]
+  load()
+  const s = mem.store[api]
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+  const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= EXTRAS_PER_DAY) return entry?.[kind]
+  store.spent[api] = { day: utcDay(), count: spent + 1 }
+  const { response, error } = await call(api, pathAndQuery, 5_000)
+  if (error) return entry?.[kind]
+  const fresh = { fetchedAt: Date.now(), [kind]: read(response ?? []) }
+  store.entries[key] = fresh
+  // Old entries go after a month
+  for (const [k, e] of Object.entries(store.entries)) if (Date.now() - e.fetchedAt > 30 * 86_400_000) delete store.entries[k]
+  try {
+    mkdirSync(path.dirname(extrasFile()), { recursive: true })
+    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+    renameSync(`${extrasFile()}.tmp`, extrasFile())
+  } catch {
+    // kept in memory
+  }
+  return fresh[kind] as ExtraStore['entries'][string][T]
+}
+
+const toGames = (api: Api) => (response: Raw[]) => response.map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g)
+const finishedBefore = (games: ExternalGame[] | undefined, kickoff: string, count: number) =>
+  (games ?? [])
+    .filter((g) => g.state === 'finished' && g.homeScore !== undefined && g.awayScore !== undefined && g.kickoff < kickoff)
+    .sort((x, y) => y.kickoff.localeCompare(x.kickoff))
+    .slice(0, count)
+
+/** The last meetings of the two teams in an API-Sports game, before its kickoff (cached for three days) */
 export async function apiHeadToHead(game: ExternalGame, count = 5): Promise<ExternalGame[] | undefined> {
-  const api = game.id.split('-').slice(0, -1).join('-') as Api
+  const api = apiOf(game)
   const def = APIS[api]
   const a = game.home.id
   const b = game.away.id
-  if (!def || !a || !b || !keyFor(api)) return undefined
-  const store = h2hStore()
-  const key = `${api}|${Math.min(a, b)}-${Math.max(a, b)}`
-  let entry = store.entries[key]
-  if (!entry || Date.now() - entry.fetchedAt > H2H_TTL_MS) {
-    load()
-    const s = mem.store[api]
-    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
-    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-    if (remaining <= H2H_KEEP_REMAINING || spent >= H2H_PER_DAY) return entry?.games.length ? pick(entry.games) : undefined
-    store.spent[api] = { day: utcDay(), count: spent + 1 }
-    const { response, error } = await call(api, def.h2h(a, b), 5_000)
-    if (error) return entry?.games.length ? pick(entry.games) : undefined
-    entry = { fetchedAt: Date.now(), games: (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g) }
-    store.entries[key] = entry
-    try {
-      mkdirSync(path.dirname(h2hFile()), { recursive: true })
-      writeFileSync(`${h2hFile()}.tmp`, JSON.stringify(store))
-      renameSync(`${h2hFile()}.tmp`, h2hFile())
-    } catch {
-      // kept in memory
-    }
-  }
-  return pick(entry.games)
+  if (!def || !a || !b) return undefined
+  const games = await cached(api, `${api}|${Math.min(a, b)}-${Math.max(a, b)}`, 3 * 86_400_000, def.h2h(a, b), 'games', toGames(api))
+  return games ? finishedBefore(games, game.kickoff, count) : undefined
+}
 
-  function pick(games: ExternalGame[]) {
-    return games
-      .filter((g) => g.state === 'finished' && g.homeScore !== undefined && g.kickoff < game.kickoff)
-      .sort((x, y) => y.kickoff.localeCompare(x.kickoff))
-      .slice(0, count)
-  }
+/** Reads a table: football's one list per group, or the v1 APIs' */
+function readTable(response: Raw[]): TableRow[][] {
+  const groups: Raw[][] = response[0]?.league?.standings ?? (Array.isArray(response[0]) ? response : [response])
+  return groups.map((rows) =>
+    (rows ?? []).map((r: Raw): TableRow => {
+      const games = r.all ?? r.games ?? {}
+      const count = (v: unknown) => (typeof v === 'number' ? v : Number((v as { total?: number } | null)?.total ?? 0))
+      const goals = r.all?.goals ?? r.goals ?? (typeof r.points === 'object' ? r.points : undefined)
+      return {
+        rank: Number(r.rank ?? r.position ?? 0),
+        teamId: num(r.team?.id),
+        name: String(r.team?.name ?? ''),
+        logo: r.team?.logo ?? undefined,
+        played: count(games.played),
+        won: count(games.win),
+        drawn: games.draw !== undefined ? count(games.draw) : undefined,
+        lost: count(games.lose),
+        for: num(goals?.for),
+        against: num(goals?.against),
+        points: typeof r.points === 'number' ? r.points : undefined,
+      }
+    }),
+  )
+}
+
+/** API-Sports' round names in Danish ("Regular Season - 7" -> "7. runde") */
+function roundLabel(round: string) {
+  const m = /^(.*?)\s*-\s*(\d+)$/.exec(round)
+  const stage: Record<string, string> = { 'Regular Season': '', 'League Stage': 'Ligafase, ', 'Group Stage': 'Gruppespil, ', Qualifying: 'Kvalifikation, ' }
+  if (/^\d+$/.test(round)) return `${round}. runde`
+  if (m && m[1] in stage) return `${stage[m[1]]}${m[2]}. runde`
+  const words: Record<string, string> = { 'Round of 16': 'Ottendedelsfinale', 'Quarter-finals': 'Kvartfinale', 'Semi-finals': 'Semifinale', Final: 'Finale' }
+  return words[round] ?? round
+}
+
+/**
+ * The match page's extras for an API-Sports game: facts from the game itself,
+ * and (fetched, cached) the teams' latest results and the league table.
+ */
+export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
+  const api = apiOf(game)
+  const def = APIS[api]
+  const facts: MatchExtra['facts'] = []
+  if (game.round) facts.push({ label: 'Runde', value: roundLabel(game.round) })
+  if (game.stadium || game.venue) facts.push({ label: 'Spillested', value: [game.stadium, game.venue].filter((x, i, a) => x && a.indexOf(x) === i).join(', ') })
+  if (game.referee) facts.push({ label: 'Dommer', value: game.referee.replace(/,.*$/, '') })
+  if (game.ht) facts.push({ label: 'Pausestilling', value: `${game.ht[0]}–${game.ht[1]}` })
+  if (!def) return { facts }
+
+  const form = async (team?: number) =>
+    team
+      ? cached(api, `${api}|team|${team}|${game.league.season ?? ''}`, 12 * 3_600_000, def.teamGames?.(team, game.league.season), 'games', toGames(api))
+      : undefined
+  const [homeGames, awayGames, table] = await Promise.all([
+    form(game.home.id).catch(() => undefined),
+    form(game.away.id).catch(() => undefined),
+    game.league.id
+      ? cached(api, `${api}|table|${game.league.id}|${game.league.season ?? ''}`, 6 * 3_600_000, def.standings?.(game.league.id, game.league.season), 'table', readTable).catch(
+          () => undefined,
+        )
+      : undefined,
+  ])
+  const toForm = (games: ExternalGame[] | undefined, team?: number): FormGame[] =>
+    finishedBefore(games, game.kickoff, 5).map((g) => {
+      const home = g.home.id === team
+      return {
+        date: g.kickoff,
+        opponent: home ? g.away.name : g.home.name,
+        home,
+        for: (home ? g.homeScore : g.awayScore) ?? 0,
+        against: (home ? g.awayScore : g.homeScore) ?? 0,
+        competition: g.league.name,
+      }
+    })
+  const extra: MatchExtra = { facts }
+  const homeForm = toForm(homeGames, game.home.id)
+  const awayForm = toForm(awayGames, game.away.id)
+  if (homeForm.length || awayForm.length) extra.form = { home: homeForm, away: awayForm }
+  // The group with either team in it
+  const group = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
+  if (group && group.length > 1) extra.table = { rows: group, homeId: game.home.id, awayId: game.away.id }
+  return extra
 }
