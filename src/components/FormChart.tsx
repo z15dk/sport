@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { clubMatches } from '../data/matches'
+import { getRealData } from '../data/real'
 import { useNow } from '../hooks/useNow'
 import { OUTCOME_LABEL, outcomeFor } from '../lib/result'
 import { paths } from '../lib/site'
@@ -18,9 +19,10 @@ const MAX = 4 // performance value that fills half the chart height
  */
 export function FormChart({ clubName, initialNow }: { clubName: string; initialNow: number }) {
   const now = useNow(60_000, initialNow)
+  const dataVersion = getRealData()?.version
   const recent = useMemo(
     () => clubMatches(clubName, now).filter((m) => m.state === 'finished').slice(-COUNT),
-    [clubName, now],
+    [clubName, now, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const [hover, setHover] = useState<number | null>(null)
 

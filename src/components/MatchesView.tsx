@@ -16,6 +16,7 @@ import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches } from '../data/matches'
+import { getRealData } from '../data/real'
 import { nearestMatchDay, realLeagues, upcomingMatches } from '../data/season'
 import Link from 'next/link'
 import { paths } from '../lib/site'
@@ -80,7 +81,9 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const [tick, setTick] = useState(0)
   const now = useNow(REFRESH_MS, initialNow)
 
-  const fictional = useMemo(() => getMatches(date, sport, now), [date, sport, now])
+  // Recomputed when new data arrives (the version changes) as well as when time passes
+  const dataVersion = getRealData()?.version
+  const fictional = useMemo(() => getMatches(date, sport, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live data from TheSportsDB, only when chosen; falls back to fictional data
   const apiKey = `${date}|${sport}|${tick}`
@@ -105,7 +108,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const DAYS_AHEAD = 10
   const range = useMemo(
     () => (order === 'time' && !usingApi ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
-    [order, usingApi, date, sport, now, matches],
+    [order, usingApi, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const pinned = useMemo(() => new Set(pinnedList), [pinnedList])
@@ -150,7 +153,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const upcoming = useMemo(() => {
     if (!usingApi) return upcomingMatches(sport, now)
     return matches.filter((m) => m.state === 'upcoming').sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, 8)
-  }, [usingApi, matches, sport, now])
+  }, [usingApi, matches, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const nextDay = nearestMatchDay(date, sport, 1)
   const prevDay = nearestMatchDay(date, sport, -1)
   // Next real match from the chosen day on (or from now when that is later)

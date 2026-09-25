@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { clubMatches } from '../data/matches'
+import { getRealData } from '../data/real'
 import { competitionLabel } from '../data/leagues'
 import { useNow } from '../hooks/useNow'
 import { OUTCOME_LABEL, outcomeFor } from '../lib/result'
@@ -18,7 +19,8 @@ type Tab = 'finished' | 'upcoming'
 /** Club fixtures and results, as a paged list or a month calendar */
 export function ClubMatches({ clubName, initialNow }: { clubName: string; initialNow: number }) {
   const now = useNow(30_000, initialNow)
-  const all = useMemo(() => clubMatches(clubName, now), [clubName, now])
+  const dataVersion = getRealData()?.version
+  const all = useMemo(() => clubMatches(clubName, now), [clubName, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const competitions = useMemo(() => [...new Set(all.map((m) => m.league))], [all])
   const [competition, setCompetition] = useState('all')
   const [view, setView] = useState<'list' | 'calendar'>('list')
