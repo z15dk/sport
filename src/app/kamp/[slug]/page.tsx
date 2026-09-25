@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { findMatch } from '../../../data/matches'
+import { findExternalGame, findMatch } from '../../../data/matches'
+import { apiHeadToHead } from '../../../lib/apisports'
+import type { PastMatch } from '../../../data/matchInsights'
 import { clubStats, findClub } from '../../../data/matchInsights'
 import { realHeadToHead } from '../../../lib/history'
 import { teamByName } from '../../../data/teams'
@@ -52,7 +54,29 @@ export default async function MatchPage({ params }: { params: Params }) {
   const homeClub = findClub(match.home.name)?.club
   const awayClub = findClub(match.away.name)?.club
   // Real meetings from the match database when both clubs are in it
-  const realH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
+  const dbH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
+  // Otherwise the last meetings from API-Sports (cached, within a small daily budget)
+  let realH2h = dbH2h
+  let h2hSource: 'database' | 'api-sports' | undefined = dbH2h ? 'database' : undefined
+  if ((dbH2h?.length ?? 0) < 5) {
+    const game = findExternalGame(match)
+    const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
+    if (game && games && games.length > (dbH2h?.length ?? 0)) {
+      const nameOf = (id?: number, fallback = '') =>
+        id === game.home.id ? match.home.name : id === game.away.id ? match.away.name : fallback
+      realH2h = games.map(
+        (g): PastMatch => ({
+          date: new Date(g.kickoff),
+          competition: g.league.name,
+          home: nameOf(g.home.id, g.home.name),
+          away: nameOf(g.away.id, g.away.name),
+          homeScore: g.homeScore ?? 0,
+          awayScore: g.awayScore ?? 0,
+        }),
+      )
+      h2hSource = 'api-sports'
+    }
+  }
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 
@@ -68,7 +92,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

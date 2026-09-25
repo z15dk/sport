@@ -51,10 +51,11 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
   const groups = [...map.values()]
   for (const g of groups) g.matches.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 
-  // Favourites first, then the league's own order (Superliga before 1. division),
-  // then leagues with live matches, then alphabetically
+  // Favourites first, then leagues being played right now, then the league's own
+  // order (Superliga before 1. division), then alphabetically
   const rank = (g: LeagueGroup) =>
-    (pinned.has(g.leagueId) ? 0 : 1000) +
+    (pinned.has(g.leagueId) ? 0 : 100_000) +
+    (g.matches.some((m) => m.state === 'live') ? 0 : 10_000) +
     (g.matches[0].leagueOrder ?? 99) * 10 +
     Math.min(...g.matches.map((m) => STATE_ORDER[m.state]))
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
@@ -141,9 +142,12 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
-  // Every match by kick-off, then by league order, one section per day
+  // One section per day: matches being played right now first, then the rest by kick-off and league order
   const days = useMemo(() => {
-    const sorted = [...visible].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99))
+    const liveFirst = (m: Match) => (m.state === 'live' ? 0 : 1)
+    const sorted = [...visible].sort(
+      (a, b) => liveFirst(a) - liveFirst(b) || a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99),
+    )
     const byDay = new Map<string, Match[]>()
     for (const m of sorted) {
       const d = isoDate(m.kickoff)

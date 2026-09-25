@@ -12,8 +12,8 @@ export interface ExternalGame {
   id: string
   sport: SportId
   league: { id: string; name: string; country?: string; logo?: string }
-  home: { name: string; logo?: string }
-  away: { name: string; logo?: string }
+  home: { name: string; logo?: string; id?: number }
+  away: { name: string; logo?: string; id?: number }
   /** ISO timestamp */
   kickoff: string
   state: MatchState

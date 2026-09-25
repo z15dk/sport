@@ -122,3 +122,12 @@ export function nearestMatchDay(date: string, sport: SportFilter, direction: 1 |
   }
   return undefined
 }
+
+/** API-Sports' own record of a match (ours or theirs), for lookups such as head-to-head */
+export function findExternalGame(match: Match): ExternalGame | undefined {
+  const external = getRealData()?.external ?? []
+  const direct = external.find((g) => g.id === match.id)
+  if (direct) return direct
+  const keys = new Set(namesOf(match.home.name).flatMap((h) => namesOf(match.away.name).map((a) => gameKey(match.kickoff, h, a))))
+  return external.find((g) => g.sport === match.sport && keys.has(gameKey(g.kickoff, g.home.name, g.away.name)))
+}

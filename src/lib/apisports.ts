@@ -29,6 +29,8 @@ interface ApiDef {
   toGame: (r: Raw, api: Api) => ExternalGame | undefined
   /** Which leagues we show */
   keep: (g: ExternalGame) => boolean
+  /** Path for the games between two teams */
+  h2h: (a: number, b: number) => string
 }
 
 const TZ = 'timezone=Europe/Copenhagen'
@@ -66,8 +68,8 @@ function v1Game(sport: SportId) {
       id: `${api}-${r.id}`,
       sport,
       league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.country?.name, logo: r.league?.logo ?? undefined },
-      home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined },
-      away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined },
+      home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
+      away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
       kickoff: new Date(Number(r.timestamp) * 1000).toISOString(),
       state,
       label: state === 'live' ? (r.status?.timer ? `${r.status.timer}'` : (PERIOD_LABEL[short] ?? short)) : undefined,
@@ -83,6 +85,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'Fodbold',
     base: 'https://v3.football.api-sports.io',
     path: (d) => `/fixtures?date=${d}&${TZ}`,
+    h2h: (a, b) => `/fixtures/headtohead?h2h=${a}-${b}&last=10&${TZ}`,
     toGame: (r, api) => {
       if (!r?.fixture?.id) return undefined
       const short = String(r.fixture.status?.short ?? '')
@@ -92,8 +95,8 @@ const APIS: Record<Api, ApiDef> = {
         id: `${api}-${r.fixture.id}`,
         sport: 'soccer',
         league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.league?.country, logo: r.league?.logo ?? undefined },
-        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined },
-        away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined },
+        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
+        away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
         kickoff: new Date(Number(r.fixture.timestamp) * 1000).toISOString(),
         state,
         label: state === 'live' ? (PERIOD_LABEL[short] ?? (elapsed ? `${elapsed}'` : short)) : undefined,
@@ -123,6 +126,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'Basketball',
     base: 'https://v1.basketball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
+    h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
     toGame: v1Game('basketball'),
     // NBA comes from its own API
     keep: (g) =>
@@ -134,6 +138,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'NBA',
     base: 'https://v2.nba.api-sports.io',
     path: (d) => `/games?date=${d}`,
+    h2h: (a, b) => `/games?h2h=${a}-${b}`,
     toGame: (r, api) => {
       if (!r?.id || !r.teams?.home?.name) return undefined
       const status = Number(r.status?.short)
@@ -142,8 +147,8 @@ const APIS: Record<Api, ApiDef> = {
         id: `${api}-${r.id}`,
         sport: 'basketball',
         league: { id: 'standard', name: 'NBA', country: 'USA' },
-        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined },
-        away: { name: r.teams.visitors.name, logo: r.teams.visitors.logo ?? undefined },
+        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
+        away: { name: r.teams.visitors.name, logo: r.teams.visitors.logo ?? undefined, id: num(r.teams.visitors.id) },
         kickoff: new Date(String(r.date?.start)).toISOString(),
         state,
         label: state === 'live' ? (r.status?.halftime ? 'Pause' : `${r.periods?.current ?? ''}. kvt.`) : undefined,
@@ -159,6 +164,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'Ishockey',
     base: 'https://v1.hockey.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
+    h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
     toGame: v1Game('ice_hockey'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -178,6 +184,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'Håndbold',
     base: 'https://v1.handball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
+    h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
     toGame: v1Game('handball'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -197,6 +204,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'Volleyball',
     base: 'https://v1.volleyball.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
+    h2h: (a, b) => `/games/h2h?h2h=${a}-${b}&${TZ}`,
     toGame: v1Game('volleyball'),
     keep: (g) =>
       g.league.country === 'Denmark'
@@ -208,6 +216,7 @@ const APIS: Record<Api, ApiDef> = {
     label: 'NFL',
     base: 'https://v1.american-football.api-sports.io',
     path: (d) => `/games?date=${d}&${TZ}`,
+    h2h: (a, b) => `/games?h2h=${a}-${b}&${TZ}`,
     toGame: (r, api) => {
       const game = r?.game
       if (!game?.id || !r.teams?.home?.name) return undefined
@@ -217,8 +226,8 @@ const APIS: Record<Api, ApiDef> = {
         id: `${api}-${game.id}`,
         sport: 'american_football',
         league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.league?.country?.name, logo: r.league?.logo ?? undefined },
-        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined },
-        away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined },
+        home: { name: r.teams.home.name, logo: r.teams.home.logo ?? undefined, id: num(r.teams.home.id) },
+        away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
         kickoff: new Date(Number(game.date?.timestamp) * 1000).toISOString(),
         state,
         label: state === 'live' ? (PERIOD_LABEL[short] ?? short) : undefined,
@@ -320,17 +329,17 @@ const msUntilReset = () => {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - d.getTime()
 }
 
-async function fetchDay(api: Api, date: string) {
-  const def = APIS[api]
+/** One request to an API; keeps the quota from the response headers */
+async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise<{ response?: Raw[]; error?: string }> {
   const s = (mem.store[api] ??= { days: {} })
   s.requests = (s.requests ?? 0) + 1
   try {
     // API_SPORTS_BASE points every API elsewhere (for tests)
-    const base = process.env.API_SPORTS_BASE ? `${process.env.API_SPORTS_BASE}/${api}` : def.base
-    const res = await fetch(base + def.path(date), {
+    const base = process.env.API_SPORTS_BASE ? `${process.env.API_SPORTS_BASE}/${api}` : APIS[api].base
+    const res = await fetch(base + pathAndQuery, {
       headers: { 'x-apisports-key': keyFor(api)! },
       cache: 'no-store',
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     const remaining = num(res.headers.get('x-ratelimit-requests-remaining'))
     const limit = num(res.headers.get('x-ratelimit-requests-limit'))
@@ -341,21 +350,28 @@ async function fetchDay(api: Api, date: string) {
     if (limit !== undefined) s.limit = limit
     const body = (await res.json()) as { response?: Raw[]; errors?: unknown }
     const errors: string[] = !body.errors ? [] : (Array.isArray(body.errors) ? body.errors : Object.values(body.errors as object)).map(String)
-    if (!res.ok || errors.length) {
-      s.lastError = `${res.status} ${errors.join('; ') || res.statusText}`
-      s.lastErrorAt = Date.now()
-      s.keyFingerprint = fingerprint(keyFor(api))
-      // Do not ask for this day again right away
-      s.days[date] = { fetchedAt: Date.now(), games: s.days[date]?.games ?? [] }
-      return
-    }
-    const games = (body.response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
-    s.days[date] = { fetchedAt: Date.now(), games }
-    s.lastError = undefined
+    if (!res.ok || errors.length) return { error: `${res.status} ${errors.join('; ') || res.statusText}` }
+    return { response: body.response ?? [] }
   } catch (err) {
-    s.lastError = (err as Error).message
-    s.lastErrorAt = Date.now()
+    return { error: (err as Error).message }
   }
+}
+
+async function fetchDay(api: Api, date: string) {
+  const def = APIS[api]
+  const s = (mem.store[api] ??= { days: {} })
+  const { response, error } = await call(api, def.path(date))
+  if (error) {
+    s.lastError = error
+    s.lastErrorAt = Date.now()
+    s.keyFingerprint = fingerprint(keyFor(api))
+    // Do not ask for this day again right away
+    s.days[date] = { fetchedAt: Date.now(), games: s.days[date]?.games ?? [] }
+    return
+  }
+  const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
+  s.days[date] = { fetchedAt: Date.now(), games }
+  s.lastError = undefined
 }
 
 /** The day of this API most in need of a refresh, or nothing when the quota is spent */
@@ -439,4 +455,70 @@ export function apiSportsStatus() {
       lastError: s?.lastError ?? null,
     }
   })
+}
+
+// ---------------------------------------------------------------- head-to-head
+
+interface H2hStore {
+  entries: Record<string, { fetchedAt: number; games: ExternalGame[] }>
+  /** Requests spent on head-to-heads per API and UTC day */
+  spent: Record<string, { day: string; count: number }>
+}
+const H2H_TTL_MS = 3 * 86_400_000
+const H2H_PER_DAY = 25
+const H2H_KEEP_REMAINING = 20
+const h2hFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
+const h2hHolder = globalThis as { __scorelineH2h?: H2hStore }
+function h2hStore(): H2hStore {
+  if (!h2hHolder.__scorelineH2h) {
+    try {
+      h2hHolder.__scorelineH2h = JSON.parse(readFileSync(h2hFile(), 'utf8')) as H2hStore
+    } catch {
+      h2hHolder.__scorelineH2h = { entries: {}, spent: {} }
+    }
+  }
+  return h2hHolder.__scorelineH2h
+}
+
+/**
+ * The last meetings of the two teams in an API-Sports game, before its kickoff.
+ * From the cache when fetched within three days; otherwise one request, when
+ * the day's quota allows it (at most 25 a day, never below 20 requests left).
+ */
+export async function apiHeadToHead(game: ExternalGame, count = 5): Promise<ExternalGame[] | undefined> {
+  const api = game.id.split('-').slice(0, -1).join('-') as Api
+  const def = APIS[api]
+  const a = game.home.id
+  const b = game.away.id
+  if (!def || !a || !b || !keyFor(api)) return undefined
+  const store = h2hStore()
+  const key = `${api}|${Math.min(a, b)}-${Math.max(a, b)}`
+  let entry = store.entries[key]
+  if (!entry || Date.now() - entry.fetchedAt > H2H_TTL_MS) {
+    load()
+    const s = mem.store[api]
+    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+    if (remaining <= H2H_KEEP_REMAINING || spent >= H2H_PER_DAY) return entry?.games.length ? pick(entry.games) : undefined
+    store.spent[api] = { day: utcDay(), count: spent + 1 }
+    const { response, error } = await call(api, def.h2h(a, b), 5_000)
+    if (error) return entry?.games.length ? pick(entry.games) : undefined
+    entry = { fetchedAt: Date.now(), games: (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g) }
+    store.entries[key] = entry
+    try {
+      mkdirSync(path.dirname(h2hFile()), { recursive: true })
+      writeFileSync(`${h2hFile()}.tmp`, JSON.stringify(store))
+      renameSync(`${h2hFile()}.tmp`, h2hFile())
+    } catch {
+      // kept in memory
+    }
+  }
+  return pick(entry.games)
+
+  function pick(games: ExternalGame[]) {
+    return games
+      .filter((g) => g.state === 'finished' && g.homeScore !== undefined && g.kickoff < game.kickoff)
+      .sort((x, y) => y.kickoff.localeCompare(x.kickoff))
+      .slice(0, count)
+  }
 }

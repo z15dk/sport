@@ -23,14 +23,15 @@ interface Props {
   initialNow: number
   /** Real meetings from the match database, when both clubs are in it */
   realH2h?: PastMatch[]
+  h2hSource?: 'database' | 'api-sports'
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, h2hSource }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match} now={now} realH2h={realH2h} />
+  return <MatchBody match={match} now={now} realH2h={realH2h} h2hSource={h2hSource} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -69,7 +70,17 @@ function ClubName({ name }: { name: string }) {
   return team ? <Link href={paths.club(team.slug)}>{name}</Link> : <>{name}</>
 }
 
-function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h?: PastMatch[] }) {
+function MatchBody({
+  match,
+  now,
+  realH2h,
+  h2hSource,
+}: {
+  match: Match
+  now: number
+  realH2h?: PastMatch[]
+  h2hSource?: 'database' | 'api-sports'
+}) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
   const homeStats = clubStats(home.name, now)
@@ -221,7 +232,7 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
           </div>
           {h2h.length === 0 && (
             <p className="muted small">
-              {realH2h ? 'Klubberne har ikke mødt hinanden i vores kampdatabase.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
+              {realH2h ? 'Klubberne har ikke mødt hinanden i vores data.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
             </p>
           )}
           <ul className="h2h">
@@ -249,7 +260,7 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
             })}
           </ul>
           <p className="muted small">
-            Kampprogram og resultat: TheSportsDB.{realH2h ? ' Indbyrdes opgør: vores kampdatabase.' : ''}
+            Kampprogram og resultat: TheSportsDB.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : 'vores kampdatabase'}.` : ''}
           </p>
         </section>
       </div>
