@@ -22,16 +22,19 @@ as_app git -C "$BASE/repo" fetch --quiet origin "$BRANCH"
 SHA=$(as_app git -C "$BASE/repo" rev-parse --short=12 "origin/$BRANCH")
 CURRENT=$(basename "$(readlink -f "$BASE/current" 2>/dev/null || echo none)")
 
-if [ "$SHA" = "$CURRENT" ] && [ "$FORCE" != "--force" ]; then exit 0; fi
+if [ "${CURRENT%%-*}" = "$SHA" ] && [ "$FORCE" != "--force" ]; then exit 0; fi
 
 echo "Bygger $SHA"
 RELEASE="$BASE/releases/$SHA"
+# Never build into the folder the site is running from (a forced rebuild of the
+# current commit): use a new folder and switch over only when the build is done
+if [ "$(readlink -f "$BASE/current" 2>/dev/null)" = "$RELEASE" ]; then RELEASE="$BASE/releases/$SHA-$(date +%s)"; fi
 rm -rf "$RELEASE"
 as_app git -C "$BASE/repo" worktree prune
 as_app git -C "$BASE/repo" worktree add --force --detach "$RELEASE" "origin/$BRANCH" >/dev/null
 
 # Reuse installed packages from the running release when the lockfile is unchanged
-if [ -f "$BASE/current/package-lock.json" ] && cmp -s "$BASE/current/package-lock.json" "$RELEASE/package-lock.json"; then
+if [ -d "$BASE/current/node_modules" ] && [ -f "$BASE/current/package-lock.json" ] && cmp -s "$BASE/current/package-lock.json" "$RELEASE/package-lock.json"; then
   as_app cp -a "$BASE/current/node_modules" "$RELEASE/node_modules"
 else
   (cd "$RELEASE" && as_app npm ci --no-audit --no-fund --loglevel=error)
