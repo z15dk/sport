@@ -32,9 +32,11 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
     items.push({
       q: `Hvad endte ${h.name} – ${a.name}?`,
       a:
-        hs === as
+        hs === as && !match.statusLabel?.includes('e.')
           ? `Kampen endte uafgjort ${hs}-${as}.`
-          : `${hs > as ? h.name : a.name} vandt ${Math.max(hs, as)}-${Math.min(hs, as)}.`,
+          : `${match.winner === 'away' ? a.name : h.name} vandt ${Math.max(hs, as)}-${Math.min(hs, as)}${
+              match.statusLabel === 'Slut e.f.' ? ' efter forlænget spil' : match.statusLabel === 'Slut e.str.' ? ' efter straffeslag' : ''
+            }.`,
     })
   } else if (match.state === 'live') {
     items.push({
@@ -44,7 +46,7 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
   }
   items.push({
     q: `Hvornår spilles ${h.name} – ${a.name}?`,
-    a: `Kampen ${match.state === 'upcoming' ? 'spilles' : 'blev sparket i gang'} ${when(match.kickoff)} i ${match.league}.`,
+    a: `Kampen ${match.state === 'upcoming' ? 'spilles' : match.sport === 'soccer' ? 'blev sparket i gang' : 'startede'} ${when(match.kickoff)} i ${match.league}.`,
   })
   if (match.venue) items.push({ q: 'Hvor spilles kampen?', a: `Kampen spilles i ${match.venue} med ${h.name} på hjemmebane.` })
 
@@ -63,8 +65,8 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
       q: `Hvem har vundet flest af de seneste indbyrdes opgør?`,
       a:
         hw === aw
-          ? `De seneste ${h2h.length} opgør står lige: ${hw} sejre til hver og ${draws} uafgjorte.`
-          : `${hw > aw ? h.name : a.name} har vundet ${Math.max(hw, aw)} af de seneste ${h2h.length} opgør, ${hw > aw ? a.name : h.name} ${Math.min(hw, aw)}, og ${draws} er endt uafgjort.`,
+          ? `De seneste ${h2h.length} opgør står lige: ${hw} sejre til hver${draws ? ` og ${draws} uafgjorte` : ''}.`
+          : `${hw > aw ? h.name : a.name} har vundet ${Math.max(hw, aw)} af de seneste ${h2h.length} opgør og ${hw > aw ? a.name : h.name} ${Math.min(hw, aw)}${draws ? `, mens ${draws} er endt uafgjort` : ''}.`,
     })
     items.push({
       q: `Hvordan endte det seneste opgør mellem ${h.name} og ${a.name}?`,
@@ -124,6 +126,8 @@ export function clubFaq(
 }
 
 
+const TIMES: Record<number, string> = { 2: 'to', 3: 'tre', 4: 'fire', 6: 'seks' }
+
 export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
   const [first] = rows
   const bottom = rows.at(-1)!
@@ -132,7 +136,7 @@ export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
     { q: `Hvem ligger sidst i ${division.name}?`, a: `${bottom.club.name} ligger sidst med ${bottom.points} point.` },
     {
       q: `Hvor mange hold er der i ${division.name}?`,
-      a: `Der er ${division.clubs.length} hold, som møder hinanden to gange ${division.countryCode === 'DK' ? 'i grundspillet' : 'i løbet af sæsonen'}.`,
+      a: `Der er ${division.clubs.length} hold, som møder hinanden ${TIMES[division.meetings ?? 2] ?? division.meetings} gange ${division.countryCode === 'DK' || division.sport ? 'i grundspillet' : 'i løbet af sæsonen'}.`,
     },
     { q: `Hvor mange rykker op og ned i ${division.name}?`, a: division.movement },
   ]

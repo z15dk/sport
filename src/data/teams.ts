@@ -1,6 +1,6 @@
 import type { SportId } from '../types'
 import { slugify } from '../lib/slug'
-import { DIVISIONS, type Club, type Division } from './leagues'
+import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
 import { OTHER } from './matches'
 
 // One register of every team we have data for. Each data source adds its
@@ -24,13 +24,13 @@ export interface TeamEntry {
 function build(): TeamEntry[] {
   const entries: TeamEntry[] = []
 
-  // Football leagues with a full season (Denmark, Germany, ...)
+  // Leagues with a full season (football, ice hockey, basketball)
   for (const division of DIVISIONS) {
     for (const club of division.clubs) {
       entries.push({
         slug: club.slug,
         name: club.name,
-        sport: 'soccer',
+        sport: sportOf(division),
         league: division.name,
         leagueSlug: division.slug,
         country: division.country,

@@ -1,8 +1,8 @@
 # Scoreline
 
-Et Sofascore-alternativ for dansk og tysk fodbold, bygget med Next.js (App Router).
+Et Sofascore-alternativ bygget med Next.js (App Router).
 
-Dækker Superligaen, 1., 2. og 3. division samt Bundesliga, 2. Bundesliga og 3. Liga.
+Dækker fodbold (Superligaen, 1.–3. division, Bundesliga, 2. Bundesliga, 3. Liga), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen).
 
 ## Kom i gang
 

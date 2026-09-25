@@ -12,7 +12,7 @@ import './globals.css'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: `${SITE_NAME} – live resultater og dagens kampe`, template: `%s | ${SITE_NAME}` },
-  description: 'Resultater, kampprogram, stillinger og statistik for dansk og tysk fodbold – Superligaen, Bundesliga og rækkerne under.',
+  description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland og Sverige.',
   applicationName: SITE_NAME,
   // Fictional data must not end up in search results or AI answers
   robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false, nocache: true },

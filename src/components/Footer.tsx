@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { COUNTRIES, DIVISIONS } from '../data/leagues'
+import { leagueGroups } from '../data/leagues'
+import { sportById } from '../sports'
 import { INDEXABLE, SITE_NAME, paths } from '../lib/site'
 
 /** Site-wide footer; also gives crawlers a path to every league and key page. */
@@ -7,11 +8,13 @@ export function Footer() {
   return (
     <footer className="footer">
       <nav className="footer__cols" aria-label="Sidefod">
-        {COUNTRIES.map((country) => (
-          <div key={country}>
-            <h2>{country}</h2>
+        {leagueGroups().map((g) => (
+          <div key={`${g.sport}-${g.country}`}>
+            <h2>
+              {sportById(g.sport).label} · {g.country}
+            </h2>
             <ul>
-              {DIVISIONS.filter((d) => d.country === country).map((d) => (
+              {g.divisions.map((d) => (
                 <li key={d.id}>
                   <Link href={paths.league(d.slug)}>{d.name}</Link>
                 </li>

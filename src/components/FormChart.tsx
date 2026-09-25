@@ -33,11 +33,14 @@ export function FormChart({ clubName, initialNow }: { clubName: string; initialN
     const shots = stats?.find((s) => s.label === 'Skud på mål')
     const shotEdge = shots ? ((isHome ? shots.home - shots.away : shots.away - shots.home) || 0) * 0.15 : 0
     const outcome = outcomeFor(m, clubName)!
-    let value = own - other + shotEdge
+    // A typical winning margin is ~1 goal in football/hockey and ~8 points in basketball
+    const margin = m.sport === 'basketball' ? 8 : 1
+    let value = (own - other) / margin + (m.sport === 'soccer' ? shotEdge : 0)
     // Keep the direction true to the result and give every bar a visible height
     if (outcome === 'V') value = Math.max(0.6, value)
     else if (outcome === 'T') value = Math.min(-0.6, value)
     else value = Math.max(-0.45, Math.min(0.45, shotEdge || 0.25))
+    if (m.sport !== 'soccer' && outcome !== 'U' && m.statusLabel !== 'Slut') value = Math.sign(value) * 0.6 // overtime: narrow result
     return { match: m, outcome, value: Math.max(-MAX, Math.min(MAX, value)), opponent: isHome ? m.away : m.home }
   })
 
@@ -52,7 +55,7 @@ export function FormChart({ clubName, initialNow }: { clubName: string; initialN
         </h2>
         <span
           className="info"
-          title="Søjlens højde viser målforskellen, justeret en smule for skud på mål. Op er sejr, ned er nederlag, og korte grå søjler er uafgjort."
+          title="Søjlens højde viser sejrs- eller nederlagsmarginen. Op er sejr, ned er nederlag, og korte grå søjler er uafgjort. Kampe afgjort i forlænget spil vises som små søjler."
           aria-label="Om grafen"
         >
           i

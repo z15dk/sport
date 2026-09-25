@@ -18,7 +18,8 @@ export function summary(match: Match, home?: ClubStats, away?: ClubStats) {
         : hs > as
           ? `${h.name} vandt ${hs}-${as} over ${a.name}`
           : `${a.name} vandt ${as}-${hs} på udebane mod ${h.name}`
-    return `${result} i ${match.league} ${when}${where}.${table}`
+    const extra = match.statusLabel === 'Slut e.f.' ? ' efter forlænget spil' : match.statusLabel === 'Slut e.str.' ? ' efter straffeslag' : ''
+    return `${result}${extra} i ${match.league} ${when}${where}.${table}`
   }
   if (match.state === 'live') {
     return `${h.name} og ${a.name} spiller lige nu i ${match.league}${where}. Stillingen er ${h.score ?? 0}-${a.score ?? 0} (${match.statusLabel}).${table}`

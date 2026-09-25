@@ -1,4 +1,5 @@
 import { slugify } from '../lib/slug'
+import type { SportId } from '../types'
 
 // Shared types and helpers for the league files.
 
@@ -19,11 +20,17 @@ export interface Division {
   slug: string
   name: string
   short: string
+  /** Defaults to football */
+  sport?: SportId
   country: string
   /** ISO 3166 code, for the flag */
-  countryCode: 'DK' | 'DE'
-  /** Friday of the first round */
+  countryCode: 'DK' | 'DE' | 'SE'
+  /** Day the first round starts; later rounds follow `roundStarts` */
   seasonStart: string
+  /** How many times each pair meets in the regular season (default 2) */
+  meetings?: number
+  /** Days within each week, counted from the season start, on which a round is played (default [0]: weekly) */
+  roundStarts?: number[]
   /** Table zones: how many at the top and bottom get coloured, and what the top means */
   zones: { top: number; topLabel: string; bottom: number }
   /** Plain-language rule for promotion and relegation */

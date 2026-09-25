@@ -67,7 +67,10 @@ interface ApiTeam {
   strTeamBadge?: string | null
 }
 
-async function apiBadge(search: string): Promise<string | undefined> {
+const API_SPORT: Record<string, string> = { soccer: 'Soccer', ice_hockey: 'Ice Hockey', basketball: 'Basketball' }
+const API_COUNTRY: Record<string, string> = { Danmark: 'Denmark', Tyskland: 'Germany', Sverige: 'Sweden' }
+
+async function apiBadge(search: string, sport: string, country: string): Promise<string | undefined> {
   try {
     const res = await fetch(
       `https://www.thesportsdb.com/api/v1/json/${API_KEY}/searchteams.php?t=${encodeURIComponent(search)}`,
@@ -75,7 +78,7 @@ async function apiBadge(search: string): Promise<string | undefined> {
     )
     if (!res.ok) return undefined
     const data: { teams: ApiTeam[] | null } = await res.json()
-    const team = (data.teams ?? []).find((t) => t.strSport === 'Soccer' && t.strCountry === 'Denmark')
+    const team = (data.teams ?? []).find((t) => t.strSport === API_SPORT[sport] && t.strCountry === API_COUNTRY[country])
     const badge = team?.strBadge || team?.strTeamBadge
     return badge ? `${badge}/small` : undefined
   } catch {
@@ -137,12 +140,12 @@ export function getClubBadges(): Promise<Record<string, string>> {
   cached ??= (async () => {
     const teams = await leagueTeams()
     const entries = await Promise.all(
-      allClubs().map(async ({ club }) => {
+      allClubs().map(async ({ club, division }) => {
         const search = club.apiName ?? SEARCH_NAMES[club.id] ?? club.name
         const url =
           localLogo(club.slug) ??
           badgeFromList(teams, [club.name, search]) ??
-          (await apiBadge(search))
+          (await apiBadge(search, division.sport ?? 'soccer', division.country))
         return url ? ([club.name, url] as const) : undefined
       }),
     )

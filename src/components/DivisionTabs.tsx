@@ -1,29 +1,33 @@
 import Link from 'next/link'
-import { COUNTRIES, DIVISIONS } from '../data/leagues'
+import { divisionBySlug, leagueGroups, sportOf } from '../data/leagues'
 import { paths } from '../lib/site'
 import { Flag } from './Flag'
 
-/** League switcher, one row per country */
+/** League switcher for the active league's sport, one row per country */
 export function DivisionTabs({ active }: { active: string }) {
+  const current = divisionBySlug(active)
+  const sport = current ? sportOf(current) : 'soccer'
   return (
     <nav className="division-tabs" aria-label="Række">
-      {COUNTRIES.map((country) => (
-        <div key={country} className="filter-bar">
-          <span className="division-tabs__country" title={country}>
-            <Flag country={country} />
-          </span>
-          {DIVISIONS.filter((d) => d.country === country).map((d) => (
-            <Link
-              key={d.id}
-              href={paths.league(d.slug)}
-              className={`pill${d.slug === active ? ' is-active' : ''}`}
-              aria-current={d.slug === active ? 'page' : undefined}
-            >
-              {d.name}
-            </Link>
-          ))}
-        </div>
-      ))}
+      {leagueGroups()
+        .filter((g) => g.sport === sport)
+        .map((g) => (
+          <div key={g.country} className="filter-bar">
+            <span className="division-tabs__country" title={g.country}>
+              <Flag country={g.country} />
+            </span>
+            {g.divisions.map((d) => (
+              <Link
+                key={d.id}
+                href={paths.league(d.slug)}
+                className={`pill${d.slug === active ? ' is-active' : ''}`}
+                aria-current={d.slug === active ? 'page' : undefined}
+              >
+                {d.name}
+              </Link>
+            ))}
+          </div>
+        ))}
     </nav>
   )
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { COUNTRIES, DIVISIONS, SEASON } from '../../data/leagues'
+import { DIVISIONS, SEASON, leagueGroups } from '../../data/leagues'
 import { Flag } from '../../components/Flag'
 import { TeamBadge } from '../../components/TeamBadge'
 import { paths } from '../../lib/site'
@@ -8,7 +8,7 @@ import { allTeams, type TeamEntry } from '../../data/teams'
 import { sportById } from '../../sports'
 
 export const metadata: Metadata = {
-  title: `Fodboldklubber ${SEASON} – Danmark og Tyskland`,
+  title: `Klubber ${SEASON} – fodbold, ishockey og basketball`,
   description: `Alle ${DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} klubber i ${DIVISIONS.map((d) => d.name).join(', ')} ${SEASON}.`,
   alternates: { canonical: paths.clubs() },
 }
@@ -27,14 +27,14 @@ export default function ClubsIndex() {
         <h1 className="feed__title">
           Klubber
           <span>
-            Sæson {SEASON} · {DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} fodboldklubber i {DIVISIONS.length} rækker
+            Sæson {SEASON} · {DIVISIONS.reduce((n, d) => n + d.clubs.length, 0)} klubber i {DIVISIONS.length} ligaer
           </span>
         </h1>
-        {COUNTRIES.map((country) => [
-          <h2 key={country} className="feed__title clubs__subtitle clubs__country">
-            <Flag country={country} /> {country}
+        {leagueGroups().map((g) => [
+          <h2 key={`${g.sport}-${g.country}`} className="feed__title clubs__subtitle clubs__country">
+            <Flag country={g.country} /> {sportById(g.sport).label} · {g.country}
           </h2>,
-          ...DIVISIONS.filter((d) => d.country === country).map((d) => (
+          ...g.divisions.map((d) => (
           <section key={d.id} className="panel club-index">
             <header className="table-panel__head">
               <h2 className="panel__title">{d.name}</h2>

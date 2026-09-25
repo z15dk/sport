@@ -1,6 +1,8 @@
 import type { Match } from '../types'
 import { clubByName, type Division } from './leagues'
-import { hashString, playMatch, poisson, seeded } from './fixtures'
+import { hashString, poisson, seeded } from './fixtures'
+import { playGame } from './scoring'
+import { sportOf } from './leagues'
 import { standings, type StandingRow } from './season'
 
 // Fictional background data for the match detail view.
@@ -43,12 +45,17 @@ export function headToHead(teamA: string, teamB: string, before: Date, count = 5
   let date = new Date(before)
   for (let i = 0; i < count; i++) {
     date = new Date(date.getTime() - (70 + Math.floor(rand() * 150)) * 86_400_000)
+    // Ice hockey and basketball have no games from May to August
+    const sport = sameDivision ? sportOf(sameDivision) : 'soccer'
+    const month = date.getUTCMonth()
+    if (sport !== 'soccer' && month >= 4 && month <= 7) date = new Date(Date.UTC(date.getUTCFullYear(), 3, 10 + (month - 4) * 4, 17))
     // Alternate venues, starting with the reverse of the upcoming fixture
     const [home, away] = i % 2 === 0 ? [teamB, teamA] : [teamA, teamB]
-    const cup = !sameDivision || rand() < 0.2
+    // Football clubs also meet in the cup now and then
+    const cup = !sameDivision || (sportOf(sameDivision) === 'soccer' && rand() < 0.2)
     let score: [number, number]
     if (sameDivision && !cup) {
-      score = playMatch(sameDivision, findClub(home)!.club, findClub(away)!.club, rand)
+      score = playGame(sportOf(sameDivision), sameDivision, findClub(home)!.club, findClub(away)!.club, rand).score
     } else {
       score = [poisson(1.4, rand), poisson(1.15, rand)]
     }
@@ -79,8 +86,32 @@ export function matchStats(match: Match): MatchStat[] | undefined {
   const hg = match.home.score ?? 0
   const ag = match.away.score ?? 0
 
-  const possession = Math.round(42 + rand() * 16 + (hg - ag) * 1.5)
   const scale = (n: number) => Math.round(n * progress)
+
+  if (match.sport === 'ice_hockey') {
+    const shots = (goals: number) => Math.max(goals + 5, scale(22 + rand() * 16))
+    const faceoffs = Math.round(40 + rand() * 20)
+    return [
+      { label: 'Skud på mål', home: shots(hg), away: shots(ag) },
+      { label: 'Tekniske opspil vundet', home: faceoffs, away: 100 - faceoffs, suffix: '%' },
+      { label: 'Blokerede skud', home: scale(8 + rand() * 12), away: scale(8 + rand() * 12) },
+      { label: 'Tacklinger', home: scale(12 + rand() * 18), away: scale(12 + rand() * 18) },
+      { label: 'Udvisningsminutter', home: scale(Math.floor(rand() * 6) * 2), away: scale(Math.floor(rand() * 6) * 2) },
+    ]
+  }
+  if (match.sport === 'basketball') {
+    const pct = () => Math.round(38 + rand() * 18)
+    return [
+      { label: 'Skudprocent', home: pct(), away: pct(), suffix: '%' },
+      { label: '3-point scoringer', home: scale(6 + rand() * 10), away: scale(6 + rand() * 10) },
+      { label: 'Rebounds', home: scale(30 + rand() * 16), away: scale(30 + rand() * 16) },
+      { label: 'Assists', home: scale(14 + rand() * 12), away: scale(14 + rand() * 12) },
+      { label: 'Turnovers', home: scale(8 + rand() * 10), away: scale(8 + rand() * 10) },
+      { label: 'Steals', home: scale(4 + rand() * 8), away: scale(4 + rand() * 8) },
+    ]
+  }
+
+  const possession = Math.round(42 + rand() * 16 + (hg - ag) * 1.5)
   const onTarget = (goals: number) => Math.max(goals, scale(2 + rand() * 5))
   const homeOn = onTarget(hg)
   const awayOn = onTarget(ag)
@@ -96,7 +127,23 @@ export function matchStats(match: Match): MatchStat[] | undefined {
 }
 
 function liveProgress(match: Match) {
-  const minute = Number.parseInt(match.statusLabel ?? '', 10)
+  const label = match.statusLabel ?? ''
+  if (match.sport === 'ice_hockey') {
+    const minute = Number.parseInt(label.split(' ').at(-1) ?? '', 10)
+    return Number.isFinite(minute) ? Math.min(1, minute / 60) : 0.5
+  }
+  if (match.sport === 'basketball') {
+    const quarter = Number.parseInt(label, 10)
+    return Number.isFinite(quarter) ? quarter / 4 : 0.5
+  }
+  const minute = Number.parseInt(label, 10)
   if (Number.isFinite(minute)) return Math.min(1, minute / 90)
-  return match.statusLabel === 'Pause' ? 0.5 : 0.3
+  return label === 'Pause' ? 0.5 : 0.3
+}
+
+/** Words for scores in each sport, for tables and comparisons */
+export function scoreWords(sport: Match['sport']) {
+  return sport === 'basketball'
+    ? { unit: 'Point', scored: 'Point scoret', conceded: 'Point imod', perGame: 'Point pr. kamp', short: 'Score' }
+    : { unit: 'Mål', scored: 'Mål scoret', conceded: 'Mål imod', perGame: 'Mål pr. kamp', short: 'Mål' }
 }

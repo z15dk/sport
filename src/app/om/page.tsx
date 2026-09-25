@@ -7,7 +7,7 @@ import { INDEXABLE, SITE_NAME, paths } from '../../lib/site'
 export const metadata: Metadata = {
   title: 'Om Scoreline – hvem vi er og hvor tallene kommer fra',
   description:
-    'Scoreline dækker dansk og tysk fodbold fra Superligaen og Bundesliga og ned til 3. division og 3. Liga. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
+    'Scoreline dækker fodbold, ishockey og basketball: Superligaen og Bundesliga med rækkerne under, Metal Ligaen, SHL og Basketligaen. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
   alternates: { canonical: paths.about() },
 }
 
@@ -29,7 +29,7 @@ export default function AboutPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Hvad er Scoreline?</h2>
           <p>
-            Scoreline samler resultater, kampprogram, stillinger og statistik for dansk og tysk herrefodbold. Vi dækker alle{' '}
+            Scoreline samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland og Sverige. Vi dækker alle{' '}
             {clubs} klubber i{' '}
             {DIVISIONS.map((d, i) => (
               <span key={d.id}>

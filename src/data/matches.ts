@@ -12,10 +12,8 @@ import { clubFixtures, fixturesOn, toMatch } from './season'
 export const OTHER: Record<Exclude<SportId, 'soccer'>, { league: string; country: string; teams: string[] }[]> = {
   basketball: [
     { league: 'NBA', country: 'USA', teams: ['Boston Celtics', 'LA Lakers', 'Denver Nuggets', 'Golden State Warriors'] },
-    { league: 'Basketligaen', country: 'Danmark', teams: ['Bakken Bears', 'Svendborg Rabbits', 'Horsens IC', 'Randers Cimbria'] },
   ],
   ice_hockey: [
-    { league: 'Metal Ligaen', country: 'Danmark', teams: ['Herning Blue Fox', 'Aalborg Pirates', 'Rungsted Seier Capital', 'Frederikshavn White Hawks'] },
     { league: 'NHL', country: 'USA', teams: ['Edmonton Oilers', 'Florida Panthers', 'NY Rangers', 'Colorado Avalanche'] },
   ],
   handball: [
@@ -55,8 +53,11 @@ function liveKickoff(now: number, offsetMin: number) {
   return new Date(Math.floor(now / 3_600_000) * 3_600_000 - offsetMin * 60000)
 }
 
-function danishFootball(date: string, now: number): Match[] {
-  return fixturesOn(date).map((f) => toMatch(f, now))
+/** Matches from the full league seasons (football, ice hockey, basketball) */
+function leagueMatches(date: string, sport: SportId, now: number): Match[] {
+  return fixturesOn(date)
+    .filter((f) => f.sport === sport)
+    .map((f) => toMatch(f, now))
 }
 
 function otherSport(date: string, sport: Exclude<SportId, 'soccer'>, now: number): Match[] {
@@ -95,7 +96,7 @@ function otherSport(date: string, sport: Exclude<SportId, 'soccer'>, now: number
 }
 
 export function getMatches(date: string, sport: SportId, now: number): Match[] {
-  return sport === 'soccer' ? danishFootball(date, now) : otherSport(date, sport, now)
+  return [...leagueMatches(date, sport, now), ...(sport === 'soccer' ? [] : otherSport(date, sport, now))]
 }
 
 const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'tennis']
@@ -108,7 +109,7 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
   return undefined
 }
 
-/** Every match of a Danish club this season (league and cup), in date order */
+/** Every match of a league club this season (league and cup), in date order */
 export function clubMatches(clubName: string, now: number): Match[] {
   const club = clubByName(clubName)
   return club ? clubFixtures(club.club.id).map((f) => toMatch(f, now)) : []

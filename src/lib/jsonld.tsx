@@ -16,10 +16,10 @@ export function JsonLd({ data }: { data: object }) {
   )
 }
 
-const teamLd = (name: string, slug?: string) => ({
+const teamLd = (name: string, slug?: string, sport = 'Fodbold') => ({
   '@type': 'SportsTeam',
   name,
-  sport: 'Fodbold',
+  sport,
   ...(slug && { url: `${SITE_URL}${paths.club(slug)}` }),
 })
 
@@ -33,11 +33,14 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     url: `${SITE_URL}${paths.match(match.slug)}`,
     startDate: match.kickoff.toISOString(),
     eventStatus: status,
-    sport: match.sport === 'soccer' ? 'Fodbold' : match.sport,
+    sport: sportById(match.sport).label,
     superEvent: { '@type': 'SportsEvent', name: match.league },
-    homeTeam: teamLd(match.home.name, clubSlug(match.home.name)),
-    awayTeam: teamLd(match.away.name, clubSlug(match.away.name)),
-    competitor: [teamLd(match.home.name, clubSlug(match.home.name)), teamLd(match.away.name, clubSlug(match.away.name))],
+    homeTeam: teamLd(match.home.name, clubSlug(match.home.name), sportById(match.sport).label),
+    awayTeam: teamLd(match.away.name, clubSlug(match.away.name), sportById(match.sport).label),
+    competitor: [
+      teamLd(match.home.name, clubSlug(match.home.name), sportById(match.sport).label),
+      teamLd(match.away.name, clubSlug(match.away.name), sportById(match.sport).label),
+    ],
     ...(match.venue && { location: { '@type': 'Place', name: match.venue, address: match.venue } }),
     organizer: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
   }
@@ -46,8 +49,8 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
 export function clubLd(club: Club, division: Division) {
   return {
     '@context': 'https://schema.org',
-    ...teamLd(club.name, club.slug),
-    location: { '@type': 'Place', name: club.city, address: { '@type': 'PostalAddress', addressLocality: club.city, addressCountry: 'DK' } },
+    ...teamLd(club.name, club.slug, sportById(division.sport ?? 'soccer').label),
+    location: { '@type': 'Place', name: club.city, address: { '@type': 'PostalAddress', addressLocality: club.city, addressCountry: division.countryCode } },
     memberOf: { '@type': 'SportsOrganization', name: division.name, url: `${SITE_URL}${paths.league(division.slug)}` },
   }
 }
@@ -57,9 +60,9 @@ export function leagueLd(division: Division) {
     '@context': 'https://schema.org',
     '@type': 'SportsOrganization',
     name: division.name,
-    sport: 'Fodbold',
+    sport: sportById(division.sport ?? 'soccer').label,
     url: `${SITE_URL}${paths.league(division.slug)}`,
-    member: division.clubs.map((c) => teamLd(c.name, c.slug)),
+    member: division.clubs.map((c) => teamLd(c.name, c.slug, sportById(division.sport ?? 'soccer').label)),
   }
 }
 
@@ -109,8 +112,8 @@ export function organizationLd() {
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/favicon.svg`,
-    description: 'Resultater, kampprogram, stillinger og statistik for dansk og tysk fodbold – Superligaen, Bundesliga og rækkerne under.',
-    areaServed: ['DK', 'DE'],
+    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland og Sverige.',
+    areaServed: ['DK', 'DE', 'SE'],
     knowsLanguage: 'da',
   }
 }

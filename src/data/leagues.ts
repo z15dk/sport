@@ -1,5 +1,8 @@
 import { c, type Division } from './club'
 import { GERMANY } from './germany'
+import { ICE_HOCKEY } from './icehockey'
+import { BASKETBALL } from './basketball'
+import type { SportId } from '../types'
 
 // The football leagues we cover, season 2026/27. Clubs are listed roughly by
 // expected strength (strongest first); the fictional results use the order.
@@ -117,8 +120,20 @@ const DENMARK: Division[] = [
   },
 ]
 
-export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY]
+export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ICE_HOCKEY, ...BASKETBALL]
 export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
+export const sportOf = (d: Division): SportId => d.sport ?? 'soccer'
+
+/** Leagues grouped by sport and country, in the order they are listed */
+export function leagueGroups() {
+  const groups = new Map<string, { sport: SportId; country: string; divisions: Division[] }>()
+  for (const d of DIVISIONS) {
+    const key = `${sportOf(d)}|${d.country}`
+    if (!groups.has(key)) groups.set(key, { sport: sportOf(d), country: d.country, divisions: [] })
+    groups.get(key)!.divisions.push(d)
+  }
+  return [...groups.values()]
+}
 
 // Club ids key fixtures and tables across all leagues, so they must be unique
 {

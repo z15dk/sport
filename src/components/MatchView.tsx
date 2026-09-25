@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { formatShortYear, formatTime } from '../lib/time'
 import { paths } from '../lib/site'
-import { clubStats, findClub, headToHead, matchStats, type ClubStats } from '../data/matchInsights'
+import { clubStats, findClub, headToHead, matchStats, scoreWords, type ClubStats } from '../data/matchInsights'
+import { sportOf } from '../data/leagues'
 import { findMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
 import { useNow } from '../hooks/useNow'
@@ -107,7 +108,7 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
                 away={s.away}
                 homeText={`${s.home}${s.suffix ?? ''}`}
                 awayText={`${s.away}${s.suffix ?? ''}`}
-                lowerIsBetter={s.label === 'Gule kort' || s.label === 'Frispark'}
+                lowerIsBetter={['Gule kort', 'Frispark', 'Turnovers', 'Udvisningsminutter'].includes(s.label)}
               />
             ))}
           </section>
@@ -130,8 +131,8 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
               <span>{home.name}</span>
             </div>
             <div>
-              <strong>{wins.draw}</strong>
-              <span>Uafgjort</span>
+              <strong>{match.sport === 'soccer' ? wins.draw : h2h.length}</strong>
+              <span>{match.sport === 'soccer' ? 'Uafgjort' : 'Kampe'}</span>
             </div>
             <div>
               <strong>{wins.away}</strong>
@@ -174,6 +175,8 @@ function ClubComparison({ home, away }: { home: ClubStats; away: ClubStats }) {
   const a = away.row
   const perGame = (goals: number, played: number) => (played ? goals / played : 0)
   const sameDivision = home.division.id === away.division.id
+  const sport = sportOf(home.division)
+  const words = scoreWords(sport)
 
   return (
     <>
@@ -185,12 +188,12 @@ function ClubComparison({ home, away }: { home: ClubStats; away: ClubStats }) {
       <StatBar label="Placering" home={home.position} away={away.position} lowerIsBetter />
       <StatBar label="Point" home={h.points} away={a.points} />
       <StatBar label="Sejre" home={h.won} away={a.won} />
-      <StatBar label="Uafgjort" home={h.drawn} away={a.drawn} neutral />
+      {sport === 'soccer' && <StatBar label="Uafgjort" home={h.drawn} away={a.drawn} neutral />}
       <StatBar label="Nederlag" home={h.lost} away={a.lost} lowerIsBetter />
-      <StatBar label="Mål scoret" home={h.goalsFor} away={a.goalsFor} />
-      <StatBar label="Mål imod" home={h.goalsAgainst} away={a.goalsAgainst} lowerIsBetter />
+      <StatBar label={words.scored} home={h.goalsFor} away={a.goalsFor} />
+      <StatBar label={words.conceded} home={h.goalsAgainst} away={a.goalsAgainst} lowerIsBetter />
       <StatBar
-        label="Mål pr. kamp"
+        label={words.perGame}
         home={perGame(h.goalsFor, h.played)}
         away={perGame(a.goalsFor, a.played)}
         homeText={perGame(h.goalsFor, h.played).toFixed(1).replace('.', ',')}

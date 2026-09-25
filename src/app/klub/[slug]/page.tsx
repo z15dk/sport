@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SEASON, type Club, type Division } from '../../../data/leagues'
+import { SEASON, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
 import { standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
@@ -59,6 +59,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
   const now = Date.now()
   const stats = clubStats(club.name, now)!
   const r = stats.row
+  const sport = sportOf(division)
   const season = clubMatches(club.name, now)
   const recent = season.filter((m) => m.state === 'finished').reverse()
   const upcoming = season.filter((m) => m.state !== 'finished')
@@ -94,7 +95,9 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
 
         <p className="lead">
           {club.name} ligger nr. {stats.position} i {division.name} med {r.points} point efter {r.played} kampe ({r.won}{' '}
-          sejre, {r.drawn} uafgjorte og {r.lost} nederlag) og en målscore på {r.goalsFor}-{r.goalsAgainst}.
+          sejre{sport === 'soccer' ? `, ${r.drawn} uafgjorte` : ''} og {r.lost} nederlag
+          {sport === 'ice_hockey' && r.otWon + r.otLost > 0 ? `, heraf ${r.otWon + r.otLost} afgjort i forlænget spil` : ''}) og en
+          {sport === 'basketball' ? ' samlet score' : ' målscore'} på {r.goalsFor}-{r.goalsAgainst}.
         </p>
         <Updated at={now} />
 
@@ -108,7 +111,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
             <strong className="tile__value">{r.points}</strong>
           </div>
           <div className="tile tile--blush">
-            <span className="tile__label">Mål</span>
+            <span className="tile__label">{sport === 'basketball' ? 'Score' : 'Mål'}</span>
             <strong className="tile__value">
               {r.goalsFor}-{r.goalsAgainst}
             </strong>

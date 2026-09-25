@@ -1,6 +1,6 @@
 # Scoreline
 
-Sofascore-alternativ for dansk og tysk fodbold. Next.js (App Router) + React + TypeScript. UI-tekst er på dansk.
+Sofascore-alternativ for fodbold (DK, DE), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen). Next.js (App Router) + React + TypeScript. UI-tekst er på dansk.
 
 - Alt arbejde skal committes og pushes med det samme. Brugeren kører `npm run live`
   lokalt (http://localhost:5173), som automatisk henter nyeste push og genindlæser siden.
@@ -14,7 +14,7 @@ Sofascore-alternativ for dansk og tysk fodbold. Next.js (App Router) + React + T
 - Resultaterne er fiktive: siden skal forblive `noindex` (styres af `SITE_INDEXABLE`)
   indtil der kommer rigtige data.
 - Alle tider håndteres i dansk tid (`src/lib/time.ts`), så server og browser er enige.
-- Ligaer: `src/data/leagues.ts` (Danmark) og `src/data/germany.ts` (Bundesliga, 2. Bundesliga, 3. Liga). En ny liga = en ny `Division`; program, stilling, sider, sitemap og logoer følger automatisk. Klub-id'er skal være unikke på tværs af alle ligaer (tjekkes ved opstart).
+- Ligaer: `src/data/leagues.ts` (dansk fodbold), `germany.ts`, `icehockey.ts`, `basketball.ts`. Hver `Division` har sport, land, sæsonstart, antal opgør og rundedage; sportens regler (scoring, point, live-status) ligger i `src/data/scoring.ts`. En ny liga = en ny `Division`; program, stilling, sider, sitemap og logoer følger automatisk. Klub-id'er skal være unikke på tværs af alle ligaer (tjekkes ved opstart).
 - Kampdata: fiktivt sæsonprogram for alle ligaer (`src/data/season.ts`, liga + dansk pokal), andre sportsgrene i `src/data/matches.ts`. Brug altid `shuffle()` med seed – aldrig `sort(() => rand() - 0.5)`, ellers er server og browser uenige; valgfrit live-data fra TheSportsDB (`src/api/thesportsdb.ts`).
 - Klublogoer: `public/logos/<slug>.*`, ellers TheSportsDB, ellers forbogstaver (`src/lib/badges.ts`).
 

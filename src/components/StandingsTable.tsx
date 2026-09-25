@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { Division } from '../data/leagues'
+import { sportOf, type Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
 import { paths } from '../lib/site'
 import { FormChips } from './FormChips'
@@ -18,6 +18,27 @@ interface Props {
 }
 
 export function StandingsTable({ division, rows, highlight, offset = 0, total = rows.length, compact }: Props) {
+  const sport = sportOf(division)
+  // Result columns per sport: football has draws, ice hockey splits overtime results
+  const cols: { key: string; label: string; title: string; value: (r: StandingRow) => number }[] =
+    sport === 'ice_hockey'
+      ? [
+          { key: 'v', label: 'V', title: 'Sejre i ordinær tid', value: (r) => r.won - r.otWon },
+          { key: 'vf', label: 'VF', title: 'Sejre efter forlænget spil eller straffeslag', value: (r) => r.otWon },
+          { key: 'tf', label: 'TF', title: 'Nederlag efter forlænget spil eller straffeslag', value: (r) => r.otLost },
+          { key: 't', label: 'T', title: 'Nederlag i ordinær tid', value: (r) => r.lost - r.otLost },
+        ]
+      : sport === 'basketball'
+        ? [
+            { key: 'v', label: 'V', title: 'Sejre', value: (r) => r.won },
+            { key: 't', label: 'T', title: 'Nederlag', value: (r) => r.lost },
+          ]
+        : [
+            { key: 'v', label: 'V', title: 'Sejre', value: (r) => r.won },
+            { key: 'u', label: 'U', title: 'Uafgjorte', value: (r) => r.drawn },
+            { key: 't', label: 'T', title: 'Nederlag', value: (r) => r.lost },
+          ]
+  const scoreLabel = sport === 'basketball' ? 'Score' : 'Mål'
   return (
     <>
       <div className="table-wrap">
@@ -27,10 +48,12 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
               <th className="num">#</th>
               <th>Klub</th>
               <th className="num">K</th>
-              <th className="num hide-sm">V</th>
-              <th className="num hide-sm">U</th>
-              <th className="num hide-sm">T</th>
-              <th className="num hide-sm">Mål</th>
+              {cols.map((col) => (
+                <th key={col.key} className="num hide-sm" title={col.title}>
+                  {col.label}
+                </th>
+              ))}
+              <th className="num hide-sm">{scoreLabel}</th>
               <th className="num">+/-</th>
               <th className="num">P</th>
               <th className="hide-sm">Form</th>
@@ -57,9 +80,11 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
                     </Link>
                   </td>
                   <td className="num">{r.played}</td>
-                  <td className="num hide-sm">{r.won}</td>
-                  <td className="num hide-sm">{r.drawn}</td>
-                  <td className="num hide-sm">{r.lost}</td>
+                  {cols.map((col) => (
+                    <td key={col.key} className="num hide-sm">
+                      {col.value(r)}
+                    </td>
+                  ))}
                   <td className="num hide-sm">
                     {r.goalsFor}-{r.goalsAgainst}
                   </td>
@@ -78,10 +103,13 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
         <span>
           <i className="zone-dot zone-dot--up" /> {division.zones.topLabel}
         </span>
-        <span>
-          <i className="zone-dot zone-dot--down" /> Nedrykning
-        </span>
-        {division.clubs.some((c) => c.unverified) && <span>“Usikker”: klubbens række er ikke bekræftet.</span>}
+        {division.zones.bottom > 0 && (
+          <span>
+            <i className="zone-dot zone-dot--down" /> Nedrykning
+          </span>
+        )}
+        {sport === 'ice_hockey' && <span>VF/TF: efter forlænget spil eller straffeslag.</span>}
+        {division.clubs.some((c) => c.unverified) && <span>“Usikker”: klubbens række eller navn er ikke bekræftet.</span>}
       </footer>
     </>
   )
