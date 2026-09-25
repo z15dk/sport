@@ -72,18 +72,23 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
         })}
       </div>
       <div className="match__right">
-        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="logo" />}
-        {odds ? (
-          <MatchOdds odds={odds} />
-        ) : (
-          <>
-            <div className="match__scores" aria-label={showScore ? `${home.score ?? 0} – ${away.score ?? 0}` : undefined}>
-              <span className={finished && lost(home, away) ? 'is-lost' : ''}>{showScore ? (home.score ?? '–') : '–'}</span>
-              <span className={finished && lost(away, home) ? 'is-lost' : ''}>{showScore ? (away.score ?? '–') : '–'}</span>
-            </div>
-            {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
-          </>
-        )}
+        {/* Fixed slots, so channel logos and odds line up down the list whatever the sport */}
+        <span className="match__slot">
+          {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="logo" />}
+        </span>
+        <span className="match__result">
+          {odds ? (
+            <MatchOdds odds={odds} />
+          ) : (
+            <>
+              <span className="match__scores" aria-label={showScore ? `${home.score ?? 0} – ${away.score ?? 0}` : undefined}>
+                <span className={finished && lost(home, away) ? 'is-lost' : ''}>{showScore ? (home.score ?? '–') : '–'}</span>
+                <span className={finished && lost(away, home) ? 'is-lost' : ''}>{showScore ? (away.score ?? '–') : '–'}</span>
+              </span>
+              {match.statusLabel ? <span className={`status status--${state}`}>{match.statusLabel}</span> : <span />}
+            </>
+          )}
+        </span>
       </div>
     </li>
   )

@@ -1025,3 +1025,15 @@ h2.league__name { margin: 0; }
 }
 .admin-channel-logo { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; }
 .admin__head .feed__title span a { text-decoration: underline; }
+
+/* Right-hand column in fixed slots: channel logo, then odds or score, aligned down the list */
+.match__right { display: grid; grid-template-columns: 64px 158px; align-items: center; gap: 12px; }
+.match__slot { display: flex; justify-content: center; align-items: center; min-height: 1px; }
+.match__result { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.match__right .match__odds .odds-chip { width: 50px; min-width: 0; }
+.match__scores { display: flex; flex-direction: column; }
+@media (max-width: 600px) {
+  .match__right { grid-template-columns: auto; }
+  .match__slot { display: none; }
+  .match__right .match__odds .odds-chip { width: 40px; }
+}
