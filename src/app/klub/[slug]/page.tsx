@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SEASON, sportOf, type Club, type Division } from '../../../data/leagues'
+import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
 import { standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { club, division } = team.season
   const stats = clubStats(club.name, Date.now())!
   return {
-    title: `${club.name} – resultater, kampprogram og stilling ${SEASON}`,
-    description: `${club.name} fra ${club.city} spiller i ${division.name} ${SEASON} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
+    title: `${club.name} – resultater, kampprogram og stilling ${seasonOf(division)}`,
+    description: `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
     alternates: { canonical: paths.club(club.slug) },
   }
 }
@@ -89,7 +89,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
               <Link href={paths.league(division.slug)}>{division.name}</Link> · {club.city}
             </span>
             <h1>{club.name}</h1>
-            {club.unverified && <span className="unverified">Rækken for {SEASON} er ikke bekræftet</span>}
+            {club.unverified && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
           </div>
         </header>
 

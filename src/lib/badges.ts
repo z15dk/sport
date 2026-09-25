@@ -72,7 +72,15 @@ interface ApiTeam {
 }
 
 const API_SPORT: Record<string, string> = { soccer: 'Soccer', ice_hockey: 'Ice Hockey', basketball: 'Basketball', handball: 'Handball' }
-const API_COUNTRY: Record<string, string> = { Danmark: 'Denmark', Tyskland: 'Germany', Sverige: 'Sweden', USA: 'United States', Europa: 'Worldwide' }
+const API_COUNTRY: Record<string, string> = {
+  Danmark: 'Denmark',
+  Tyskland: 'Germany',
+  Sverige: 'Sweden',
+  Norge: 'Norway',
+  England: 'England',
+  USA: 'United States',
+  Europa: 'Worldwide',
+}
 
 async function apiBadge(search: string, sport: string, country: string): Promise<string | undefined> {
   try {

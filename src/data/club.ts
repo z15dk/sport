@@ -24,13 +24,17 @@ export interface Division {
   sport?: SportId
   country: string
   /** ISO 3166 code, for the flag */
-  countryCode: 'DK' | 'DE' | 'SE'
+  countryCode: 'DK' | 'DE' | 'SE' | 'NO' | 'GB-ENG'
+  /** Shown season, e.g. "2026" for leagues played in a calendar year (default 2026/27) */
+  seasonLabel?: string
   /** Day the first round starts; later rounds follow `roundStarts` */
   seasonStart: string
   /** How many times each pair meets in the regular season (default 2) */
   meetings?: number
-  /** Days within each week, counted from the season start, on which a round is played (default [0]: weekly) */
+  /** Days within each cycle, counted from the season start, on which a round is played (default [0]) */
   roundStarts?: number[]
+  /** Length of the cycle that roundStarts repeats over, in days (default 7) */
+  cycleDays?: number
   /** Table zones: how many at the top and bottom get coloured, and what the top means */
   zones: { top: number; topLabel: string; bottom: number }
   /** Plain-language rule for promotion and relegation */

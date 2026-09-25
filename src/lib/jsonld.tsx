@@ -113,8 +113,8 @@ export function organizationLd() {
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/favicon.svg`,
-    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland og Sverige.',
-    areaServed: ['DK', 'DE', 'SE'],
+    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge.',
+    areaServed: ['DK', 'DE', 'GB', 'SE', 'NO'],
     knowsLanguage: 'da',
   }
 }

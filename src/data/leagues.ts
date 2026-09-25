@@ -1,5 +1,7 @@
 import { c, type Division } from './club'
 import { GERMANY } from './germany'
+import { ENGLAND } from './england'
+import { NORDIC } from './nordic'
 import { ICE_HOCKEY } from './icehockey'
 import { BASKETBALL } from './basketball'
 import type { SportId } from '../types'
@@ -120,7 +122,10 @@ const DENMARK: Division[] = [
   },
 ]
 
-export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ICE_HOCKEY, ...BASKETBALL]
+export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ENGLAND, ...NORDIC, ...ICE_HOCKEY, ...BASKETBALL]
+
+/** Season shown for a league: "2026" for calendar-year leagues, otherwise 2026/27 */
+export const seasonOf = (d: Division) => d.seasonLabel ?? SEASON
 export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
 export const sportOf = (d: Division): SportId => d.sport ?? 'soccer'
 

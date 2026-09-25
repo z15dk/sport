@@ -55,7 +55,7 @@ export const ICE_HOCKEY: Division[] = [
       ca('s-bry', 'Brynäs IF', 'Brynas IF', 'Gävle', '#ffd200', '#e2001a'),
       ca('s-rog', 'Rögle BK', 'Rogle BK', 'Ängelholm', '#008d4f'),
       ca('s-lhc', 'Linköping HC', 'Linkoping HC', 'Linköping', '#003f87', '#e2001a'),
-      ca('s-dif', 'Djurgårdens IF', 'Djurgardens IF', 'Stockholm', '#0a3f86', '#ffd200'),
+      ca('s-dif', 'Djurgårdens IF Hockey', 'Djurgardens IF', 'Stockholm', '#0a3f86', '#ffd200'),
       ca('s-hv7', 'HV71', 'HV71', 'Jönköping', '#003f87', '#ffd200'),
       ca('s-tik', 'Timrå IK', 'Timra IK', 'Timrå', '#e2001a'),
       ca('s-mif', 'Malmö Redhawks', 'Malmo Redhawks', 'Malmö', '#e2001a', '#111111'),

@@ -2,7 +2,7 @@
 
 Et Sofascore-alternativ bygget med Next.js (App Router).
 
-Dækker fodbold (Superligaen, 1.–3. division, Bundesliga, 2. Bundesliga, 3. Liga), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen).
+Dækker fodbold (Superligaen, 1.–3. division, Bundesliga, 2. Bundesliga, 3. Liga, Premier League, Championship, Allsvenskan, Eliteserien), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen).
 
 ## Kom i gang
 

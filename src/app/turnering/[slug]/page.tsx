@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { DIVISIONS, SEASON, divisionBySlug } from '../../../data/leagues'
+import { DIVISIONS, divisionBySlug, seasonOf } from '../../../data/leagues'
 import { standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const leader = table[0]
   const rounds = Math.max(...table.map((r) => r.played))
   return {
-    title: `${division.name} ${SEASON} – stilling, resultater og kampprogram`,
-    description: `Stillingen i ${division.name} ${SEASON} efter ${rounds} runder. ${leader.club.name} fører med ${leader.points} point. Se alle ${division.clubs.length} klubber, resultater og kommende kampe.`,
+    title: `${division.name} ${seasonOf(division)} – stilling, resultater og kampprogram`,
+    description: `Stillingen i ${division.name} ${seasonOf(division)} efter ${rounds} runder. ${leader.club.name} fører med ${leader.points} point. Se alle ${division.clubs.length} klubber, resultater og kommende kampe.`,
     alternates: { canonical: paths.league(division.slug) },
   }
 }
@@ -69,7 +69,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
               {division.name}
             </span>
             <span>
-              Sæson {SEASON} · {division.clubs.length} klubber
+              Sæson {seasonOf(division)} · {division.clubs.length} klubber
             </span>
           </h1>
           <DivisionTabs active={division.slug} />
