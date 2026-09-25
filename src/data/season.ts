@@ -137,6 +137,15 @@ export const seasonClub = (name: string) => current().clubs.find((x) => x.club.n
 
 export const allFixtures = () => current().fixtures
 export const fixturesOn = (date: string) => current().byDate.get(date) ?? []
+/** The next `limit` matches in the sport that have not started, within `days` days from `now` */
+export function upcomingMatches(sport: SportId, now: number, days = 10, limit = 8): Match[] {
+  const until = now + days * 86_400_000
+  return current()
+    .fixtures.filter((f) => f.sport === sport && f.kickoff.getTime() > now && f.kickoff.getTime() <= until && f.real.state === 'upcoming')
+    .slice(0, limit)
+    .map((f) => toMatch(f, now))
+}
+
 /** The nearest day after (or before) `date` with matches in the sport */
 export function nearestMatchDay(date: string, sport: SportId, direction: 1 | -1): string | undefined {
   const days = [...current().byDate.entries()]

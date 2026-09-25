@@ -13,7 +13,7 @@ import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches } from '../data/matches'
-import { nearestMatchDay, realLeagues } from '../data/season'
+import { nearestMatchDay, realLeagues, upcomingMatches } from '../data/season'
 import Link from 'next/link'
 import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
@@ -124,6 +124,11 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
+  // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
+  const upcoming = useMemo(() => {
+    if (!usingApi) return upcomingMatches(sport, now)
+    return matches.filter((m) => m.state === 'upcoming').sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, 8)
+  }, [usingApi, matches, sport, now])
   const nextDay = nearestMatchDay(date, sport, 1)
   const prevDay = nearestMatchDay(date, sport, -1)
   // Next real match from the chosen day on (or from now when that is later)
@@ -153,7 +158,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         </button>
       </div>
 
-      <LiveStrip matches={searched} />
+      <LiveStrip matches={searched} upcoming={upcoming} now={now} />
 
       {!usingApi && (apiError || (sport === 'soccer' && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">

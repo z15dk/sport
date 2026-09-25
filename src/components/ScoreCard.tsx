@@ -1,13 +1,18 @@
 import Link from 'next/link'
-import { formatTime } from '../lib/time'
+import { formatTime, formatWeekday, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 
 /** Compact match card used in the live/results strip. */
-export function ScoreCard({ match }: { match: Match }) {
+export function ScoreCard({ match, now }: { match: Match; now: number }) {
   const showScore = match.state === 'live' || match.state === 'finished'
-  const tag = match.state === 'upcoming' ? formatTime(match.kickoff) : match.statusLabel
+  // Upcoming matches on another day than today show the weekday too
+  const day = isoDate(match.kickoff)
+  const tag =
+    match.state === 'upcoming'
+      ? `${day === isoDate(now) ? '' : `${formatWeekday(day)} `}${formatTime(match.kickoff)}`
+      : match.statusLabel
   const lost = (a?: number, b?: number) => match.state === 'finished' && a !== undefined && b !== undefined && a < b
 
   return (
