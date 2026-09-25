@@ -1012,3 +1012,16 @@ h2.league__name { margin: 0; }
 .name-editor--edit input { font: inherit; font-weight: 700; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--ink); min-width: 0; flex: 1 1 180px; }
 .admin-list__name em a { text-decoration: underline; }
 .match__league { display: inline-flex; align-items: center; gap: 4px; }
+/* A channel with a logo sits next to the score, large enough to read */
+.match__channel--logo:empty { display: none; }
+.match__channel--logo img { height: 32px; width: auto; max-width: 64px; border-radius: 6px; object-fit: contain; display: block; }
+.match__channel--name:empty { display: none; }
+.match__channel--small { display: none; }
+@media (max-width: 600px) {
+  /* On phones the logo goes under the kickoff time, leaving room for the team names */
+  .match__right .match__channel--logo { display: none; }
+  .match__channel--small:not(:empty) { display: inline-flex; }
+  .match__channel--small img { height: 26px; max-width: 44px; }
+}
+.admin-channel-logo { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; }
+.admin__head .feed__title span a { text-decoration: underline; }

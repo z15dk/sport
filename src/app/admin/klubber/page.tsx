@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '../../../lib/admin'
 import { clubLogoOverview, type LogoSource } from '../../../lib/badges'
@@ -41,7 +42,8 @@ export default async function AdminClubs({ searchParams }: { searchParams: Searc
           <h1 className="feed__title">
             Klubber
             <span>
-              {all.length} klubber · {count('upload')} uploadet · {count('forbogstaver')} uden logo
+              {all.length} klubber · {count('upload')} uploadet · {count('forbogstaver')} uden logo ·{' '}
+              <Link href="/admin/kanaler">Kanaler</Link>
             </span>
           </h1>
           <form method="post" action="/api/admin/logout">

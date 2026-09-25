@@ -24,6 +24,12 @@ const STREAM: Partner = { id: 'streaming', name: 'Streaming' }
 /** Streams every Danish ice hockey match and the Danish 2nd and 3rd divisions (logo: public/logos/kanaler/direkte-sport.jpg) */
 const DIREKTE_SPORT: Partner = { id: 'direkte-sport', name: 'Direkte Sport' }
 
+/** Shows every Danish basketball match */
+const EKSTRA_BLADET: Partner = { id: 'ekstra-bladet', name: 'Ekstra Bladet' }
+
+/** Every channel, for the admin pages (logos can be uploaded there) */
+export const CHANNELS: Partner[] = [DIREKTE_SPORT, EKSTRA_BLADET, TV, STREAM]
+
 const isDanish = (country?: string) => country === 'Danmark' || country === 'Denmark'
 
 /** Channel per league (by league slug), falling back to one per sport */
@@ -46,6 +52,7 @@ export function channelsFor(leagueSlug: string | undefined, sport: SportId, matc
   // All Danish ice hockey and the Danish 2nd and 3rd divisions, also games from API-Sports outside our league pages
   if (sport === 'ice_hockey' && isDanish(country)) return [DIREKTE_SPORT]
   if (sport === 'soccer' && isDanish(country) && /^[23]\.\s*div/i.test(league ?? '')) return [DIREKTE_SPORT]
+  if (sport === 'basketball' && isDanish(country)) return [EKSTRA_BLADET]
   const options = (leagueSlug && CHANNELS_BY_LEAGUE[leagueSlug]) || CHANNELS_BY_SPORT[sport]
   if (options.length <= 1) return options
   let h = 0

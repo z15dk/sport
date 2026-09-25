@@ -3,13 +3,16 @@ import { formatOdds, oddsFor, type Odds } from '../data/odds'
 import type { Match } from '../types'
 import { PartnerLogo } from './PartnerLogo'
 
-/** Small channel logo or name under the kickoff time in lists */
-export function MatchChannel({ match }: { match: Match }) {
+/**
+ * The channel in match lists: a channel with a logo file is shown large next to
+ * the score ('logo'); one without is shown by name under the kickoff time ('name').
+ */
+export function MatchChannel({ match, only, small }: { match: Match; only: 'logo' | 'name'; small?: boolean }) {
   const [channel] = channelsFor(match.leagueSlug, match.sport, match.id, match.country, match.league)
   if (!channel) return null
   return (
-    <span className="match__channel" title={`Vises på ${channel.name}`}>
-      <PartnerLogo partner={channel} kind="kanal" height={12} />
+    <span className={`match__channel match__channel--${only}${small ? ' match__channel--small' : ''}`} title={`Vises på ${channel.name}`}>
+      <PartnerLogo partner={channel} kind="kanal" height={only === 'logo' ? (small ? 26 : 32) : 12} only={only} />
     </span>
   )
 }

@@ -4,8 +4,20 @@ import { useBadge } from './BadgeProvider'
 import type { Partner } from '../data/partners'
 
 /** A bookmaker or channel logo from public/logos/<folder>/<id>.*, or its name when there is no file */
-export function PartnerLogo({ partner, kind, height = 20 }: { partner: Partner; kind: 'bookmaker' | 'kanal'; height?: number }) {
+export function PartnerLogo({
+  partner,
+  kind,
+  height = 20,
+  only,
+}: {
+  partner: Partner
+  kind: 'bookmaker' | 'kanal'
+  height?: number
+  /** Render only when there is a logo file ('logo') or only when there is none ('name') */
+  only?: 'logo' | 'name'
+}) {
   const logo = useBadge(`${kind}:${partner.id}`)
+  if ((only === 'logo' && !logo) || (only === 'name' && logo)) return null
   const content = logo ? (
     // eslint-disable-next-line @next/next/no-img-element -- partner logos are local files of any size
     <img src={logo} alt={partner.name} height={height} style={{ height, width: 'auto' }} />

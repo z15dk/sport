@@ -50,7 +50,8 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
           {showDate && <span className="match__date">{formatDayMonth(isoDate(match.kickoff))}</span>}
           {formatTime(match.kickoff)}
         </time>
-        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} />}
+        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="name" />}
+        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="logo" small />}
       </div>
       <div className="match__teams">
         {showLeague && (
@@ -71,6 +72,7 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
         })}
       </div>
       <div className="match__right">
+        {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} only="logo" />}
         {odds ? (
           <MatchOdds odds={odds} />
         ) : (
