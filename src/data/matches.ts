@@ -3,24 +3,14 @@ import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
-import { SEARCH_NAMES, normalize } from './aliases'
+import { SEARCH_NAMES, alike } from './aliases'
+import { divisionOfGame } from './ourLeagues'
 import { isoDate } from '../lib/time'
-import { DIVISIONS, sportOf } from './leagues'
-import { countryKey } from './channels'
-
-/** Our leagues by sport, country and name, so API-Sports' games in them join the same league */
-const OUR_LEAGUES = new Map(
-  DIVISIONS.flatMap((d, i) =>
-    [d.name, d.apiLeague]
-      .filter((n): n is string => !!n)
-      .map((n) => [`${sportOf(d)}|${countryKey(d.country)}|${n.toLowerCase()}`, { d, i }] as const),
-  ),
-)
 
 /** An API-Sports game as a match, placed in our league when it is one of ours */
 function externalMatch(g: ExternalGame): Match {
   const m = externalToMatch(g)
-  const ours = OUR_LEAGUES.get(`${g.sport}|${countryKey(g.league.country)}|${g.league.name.toLowerCase()}`)
+  const ours = divisionOfGame(g)
   if (!ours) return m
   const { d, i } = ours
   return { ...m, league: d.name, leagueId: `${d.countryCode.toLowerCase()}-${d.id}`, leagueSlug: d.slug, leagueOrder: i, country: d.country }
@@ -42,16 +32,6 @@ const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball',
 function namesOf(name: string) {
   const club = seasonClub(name)?.club
   return [name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
-}
-
-/** Words of a name (normalized, 3+ letters), for loose matching across sources */
-const COMMON = new Set(['and', 'the', 'city', 'united', 'real', 'sporting', 'athletic', 'club', 'county', 'town', 'rovers', 'wanderers'])
-const words = (name: string) => normalize(name).split(' ').filter((w) => w.length >= 3 && !COMMON.has(w))
-
-/** Whether one of our club's names shares a word with a name from another source ("HIK" / "Hellerup IK") */
-function alike(names: string[], other: string) {
-  const theirs = new Set(words(other))
-  return names.some((n) => words(n).some((w) => theirs.has(w)))
 }
 
 /**

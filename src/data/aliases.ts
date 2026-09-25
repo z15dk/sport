@@ -49,3 +49,13 @@ export function normalize(name: string) {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+const COMMON = new Set(['and', 'the', 'city', 'united', 'real', 'sporting', 'athletic', 'club', 'county', 'town', 'rovers', 'wanderers'])
+/** Words of a name (normalized, 3+ letters, no generic words), for loose matching across sources */
+export const nameWords = (name: string) => normalize(name).split(' ').filter((w) => w.length >= 3 && !COMMON.has(w))
+
+/** Whether one of a club's names shares a word with a name from another source ("HIK" / "Hellerup IK") */
+export function alike(names: string[], other: string) {
+  const theirs = new Set(nameWords(other))
+  return names.some((n) => nameWords(n).some((w) => theirs.has(w)))
+}

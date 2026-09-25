@@ -6,6 +6,7 @@ import type { ExternalGame } from '../data/external'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { createHash } from 'node:crypto'
+import { divisionOfGame } from '../data/ourLeagues'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -16,6 +17,10 @@ import { createHash } from 'node:crypto'
 // few times a day and spends the rest on today, more often while games are
 // on. The remaining requests come from API-Sports' own response headers.
 // Everything is kept in apisports.json, so a restart costs no requests.
+//
+// Finished games in our own leagues are kept for the season ("past"), so the
+// standings can be filled in where TheSportsDB is missing games. Days before
+// the window are fetched once each ("backfill") with requests left over.
 
 type Api = 'football' | 'basketball' | 'nba' | 'hockey' | 'handball' | 'volleyball' | 'american-football'
 type Raw = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any -- API-Sports' JSON differs per sport
@@ -253,6 +258,10 @@ interface DayData {
 }
 interface ApiState {
   days: Record<string, DayData>
+  /** Finished games in our leagues, by day, kept after the day leaves the window */
+  past?: Record<string, ExternalGame[]>
+  /** Days before the window fetched once for the past games */
+  backfilled?: Record<string, number>
   remaining?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
@@ -318,6 +327,19 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
     mem.games = [...byId.values()].sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   }
   return { version: String(Math.round(mem.mtime)), games: mem.games }
+}
+
+const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && !!divisionOfGame(g)
+
+/** The finished games in our leagues this season (kept days and the current window) */
+export function seasonGames(): ExternalGame[] {
+  load()
+  const byId = new Map<string, ExternalGame>()
+  for (const s of Object.values(mem.store)) {
+    for (const games of Object.values(s.past ?? {})) for (const g of games) byId.set(g.id, g)
+    for (const d of Object.values(s.days)) for (const g of d.games) if (inOurLeague(g)) byId.set(g.id, g)
+  }
+  return [...byId.values()]
 }
 
 // ---------------------------------------------------------------- fetching
@@ -397,6 +419,25 @@ function dueDay(api: Api, now: number): string | undefined {
   return undefined
 }
 
+/** How far back the past games are fetched, and how long they are kept */
+const BACKFILL_DAYS = 60
+const BACKFILL_KEEP_DAYS = 330
+
+/** The newest day before the window not fetched yet, when enough requests are left over */
+function backfillDay(api: Api, now: number): string | undefined {
+  const s = mem.store[api]
+  if (!s) return undefined
+  const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
+  if (remaining <= 40) return undefined
+  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
+  const today = isoDate(now)
+  for (let i = 2; i <= BACKFILL_DAYS; i++) {
+    const d = addDays(today, -i)
+    if (!s.days[d] && !s.backfilled?.[d]) return d
+  }
+  return undefined
+}
+
 let running = false
 async function tick() {
   if (running) return
@@ -414,9 +455,38 @@ async function tick() {
       changed = true
       await sleep(2_000)
     }
-    // Forget days that have left the window
+    // Days before the window, once each, with requests left over (for the standings)
+    for (const api of Object.keys(APIS) as Api[]) {
+      if (!keyFor(api) || dueDay(api, now)) continue
+      const day = backfillDay(api, now)
+      if (!day) continue
+      const { response, error } = await call(api, APIS[api].path(day))
+      const s = mem.store[api]!
+      if (error) {
+        s.lastError = error
+        s.lastErrorAt = Date.now()
+        s.keyFingerprint = fingerprint(keyFor(api))
+      } else {
+        const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g && inOurLeague(g))
+        ;(s.past ??= {})[day] = games
+        ;(s.backfilled ??= {})[day] = Date.now()
+      }
+      changed = true
+      await sleep(2_000)
+    }
+    // Days that leave the window: our leagues' results are kept for the season, the rest is forgotten
     const oldest = addDays(isoDate(now), -3)
-    for (const s of Object.values(mem.store)) for (const d of Object.keys(s.days)) if (d < oldest) delete s.days[d]
+    const keepFrom = addDays(isoDate(now), -BACKFILL_KEEP_DAYS)
+    for (const s of Object.values(mem.store)) {
+      for (const d of Object.keys(s.days)) {
+        if (d >= oldest) continue
+        const kept = s.days[d].games.filter(inOurLeague)
+        if (kept.length) (s.past ??= {})[d] = kept
+        delete s.days[d]
+      }
+      for (const d of Object.keys(s.past ?? {})) if (d < keepFrom) delete s.past![d]
+      for (const d of Object.keys(s.backfilled ?? {})) if (d < keepFrom) delete s.backfilled![d]
+    }
     if (changed) save()
   } finally {
     running = false
@@ -449,6 +519,8 @@ export function apiSportsStatus() {
       limit: s?.limit,
       requestsSinceStart: s?.requests ?? 0,
       days: Object.keys(s?.days ?? {}).length,
+      pastGames: Object.values(s?.past ?? {}).reduce((n, g) => n + g.length, 0),
+      backfilledDays: Object.keys(s?.backfilled ?? {}).length,
       games: new Set(games.map((g) => g.id)).size,
       leagues: [...new Set(games.map((g) => `${g.league.name}${g.league.country ? ` (${g.league.country})` : ''}`))].sort(),
       todayFetchedAt: fetchedToday ? new Date(fetchedToday).toISOString() : null,

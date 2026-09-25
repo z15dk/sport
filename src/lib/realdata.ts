@@ -2,14 +2,16 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
-import { normalize } from '../data/aliases'
+import { alike, normalize } from '../data/aliases'
 import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
 import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
-import { externalGames } from './apisports'
+import { externalGames, seasonGames } from './apisports'
+import { divisionOfGame } from '../data/ourLeagues'
+import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
 import { channelData } from './channels'
 
@@ -70,6 +72,7 @@ function apply() {
       })
     }
   }
+  fillFromApiSports(leagues)
   if (!tsdbData && !db && !external.games.length) return setRealData(undefined)
   setRealData({
     version: hashString(key).toString(36),
@@ -80,6 +83,44 @@ function apply() {
     clubNames: names.names,
     channels: channels.data,
   })
+}
+
+/**
+ * API-Sports' finished games in our leagues fill in what TheSportsDB and our
+ * database lack: a missing result on a known match, or a match we don't have
+ * at all (TheSportsDB's free key only gives the latest games of a league).
+ */
+function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
+  const byDivision = new Map<string, ReturnType<typeof seasonGames>>()
+  for (const g of seasonGames()) {
+    const d = divisionOfGame(g)?.d
+    if (d) byDivision.set(d.id, [...(byDivision.get(d.id) ?? []), g])
+  }
+  for (const [id, games] of byDivision) {
+    const events = [...(leagues[id] ?? [])]
+    // This season only: from the first match after the last break of more than 45 days
+    const days = [...events.map((e) => e.kickoff), ...games.map((g) => g.kickoff)].map((k) => Date.parse(k)).sort((a, b) => a - b)
+    let start = days[0] ?? 0
+    for (let i = 1; i < days.length; i++) if (days[i] - days[i - 1] > 45 * 86_400_000) start = days[i]
+    for (const g of games) {
+      if (Date.parse(g.kickoff) < start) continue
+      const day = isoDate(new Date(g.kickoff))
+      const i = events.findIndex((e) => isoDate(new Date(e.kickoff)) === day && alike([e.home], g.home.name) && alike([e.away], g.away.name))
+      if (i >= 0) {
+        const e = events[i]
+        if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
+        continue
+      }
+      // Team names as the league's other matches write them, so a club doesn't appear twice
+      const known = [...new Set(events.flatMap((e) => [e.home, e.away]))]
+      const nameOf = (name: string) => {
+        const same = known.filter((n) => alike([n], name))
+        return same.length === 1 ? same[0] : name
+      }
+      events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue })
+    }
+    leagues[id] = events.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+  }
 }
 
 function setBase(data: RealData) {
