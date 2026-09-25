@@ -929,3 +929,49 @@ h2.league__name { margin: 0; }
 .timeline__event { display: flex; align-items: center; gap: 8px; }
 .timeline__event--home { justify-content: flex-end; text-align: right; }
 .timeline__event em { color: var(--ink-3); font-style: normal; font-size: 12px; }
+
+/* Our own statistics */
+.stats-panel { padding-bottom: 6px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 0 18px 12px; }
+.stat-grid__item { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.stat-grid__item span { font-size: 12px; color: var(--ink-2); }
+.stat-grid__item strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stats-facts { margin: 0 0 8px; padding: 0 18px 0 36px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.stats-facts a { text-decoration: underline; text-underline-offset: 2px; }
+.stats-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; padding: 0 18px; }
+.stats-sub { font-size: 13px; font-weight: 700; margin: 8px 0; }
+.stats-note { padding: 8px 18px 12px; margin: 0; }
+.rank-list { list-style: none; margin: 0; padding: 0; counter-reset: rank; display: flex; flex-direction: column; gap: 4px; }
+.rank-list li { counter-increment: rank; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+.rank-list li::before { content: counter(rank); width: 16px; text-align: right; font-weight: 800; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rank-list__name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 600; overflow: hidden; }
+.rank-list__name em { font-style: normal; font-size: 11px; font-weight: 500; color: var(--ink-3); }
+.rank-list strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rank-list small { font-weight: 500; color: var(--ink-3); }
+.rank-list__cards { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Goals per quarter-hour: blue up (scored / goals), orange down (conceded) */
+.ichart { margin: 0; --ichart-up: #2f6fdb; --ichart-down: #ff4a1f; }
+.ichart__legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.ichart__key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.ichart__key--up { background: var(--ichart-up); }
+.ichart__key--down { background: var(--ichart-down); }
+.ichart__plot { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.ichart__col { display: flex; flex-direction: column; align-items: stretch; }
+.ichart__half { height: 90px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.ichart__half--down { justify-content: flex-start; height: 70px; border-top: 1px solid var(--line); }
+.ichart__half--up + .ichart__half--down { margin-top: 2px; }
+.ichart__bar { position: relative; width: 70%; min-height: 0; outline: none; }
+.ichart__bar--up { background: var(--ichart-up); border-radius: 4px 4px 0 0; }
+.ichart__bar--down { background: var(--ichart-down); border-radius: 0 0 4px 4px; }
+.ichart__value { font-size: 11px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; min-height: 14px; }
+.ichart__label { text-align: center; font-size: 10px; color: var(--ink-3); margin-top: 4px; }
+.ichart__half--up:only-of-type { border-bottom: 1px solid var(--line); }
+.ichart__tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap;
+  background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; opacity: 0; pointer-events: none;
+  transition: opacity 0.1s;
+}
+.ichart__bar--down .ichart__tip { bottom: auto; top: calc(100% + 6px); }
+.ichart__bar:hover .ichart__tip, .ichart__bar:focus .ichart__tip { opacity: 1; }
+.ichart__caption { margin: 6px 0 0; }

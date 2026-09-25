@@ -346,8 +346,8 @@ type SeasonData = {
   key: string
   leagues: Record<string, RealEvent[]>
   tournaments: string[]
-  /** Incidents by "date|home|away" (club id or normalised name), to add to other sources' matches */
-  incidentsByMatch: Map<string, Incident[]>
+  /** Goals, cards, half-time score and attendance by "date|home|away" (club id or normalised name), for other sources' matches */
+  extrasByMatch: Map<string, Pick<RealEvent, 'incidents' | 'ht' | 'spectators'>>
 }
 let seasonCache: SeasonData | undefined
 
@@ -377,7 +377,8 @@ export function databaseSeason(): SeasonData | undefined {
   try {
     rows = db
       .prepare(
-        `SELECT event_id, tournament_name, round, start_date, home_name, away_name, home_score, away_score, status
+        `SELECT event_id, tournament_name, round, start_date, home_name, away_name, home_score, away_score,
+                home_score_ht, away_score_ht, spectators, status
            FROM matches WHERE substr(season_year, 1, 4) = '${year}' ORDER BY start_date`,
       )
       .all()
@@ -408,7 +409,7 @@ export function databaseSeason(): SeasonData | undefined {
       player: r.player_name ? String(r.player_name) : undefined,
     })
   }
-  const incidentsByMatch = new Map<string, Incident[]>()
+  const extrasByMatch = new Map<string, Pick<RealEvent, 'incidents' | 'ht' | 'spectators'>>()
   const leagues: Record<string, RealEvent[]> = {}
   const tournaments = new Set<string>()
   for (const r of rows) {
@@ -420,7 +421,6 @@ export function databaseSeason(): SeasonData | undefined {
     const score = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
     const incidents = incidentsOf.get(String(r.event_id))
     const kickoff = new Date(String(r.start_date)).toISOString()
-    if (incidents) incidentsByMatch.set(matchKey(kickoff, String(r.home_name), String(r.away_name)), incidents)
     ;(leagues[division] ??= []).push({
       id: `db-${r.event_id}`,
       round: Number(r.round) || 0,
@@ -431,8 +431,18 @@ export function databaseSeason(): SeasonData | undefined {
       awayScore: state === 'upcoming' ? undefined : score(r.away_score),
       state,
       incidents,
+      ht: state === 'finished' && score(r.home_score_ht) !== undefined && score(r.away_score_ht) !== undefined ? [score(r.home_score_ht)!, score(r.away_score_ht)!] : undefined,
+      spectators: score(r.spectators) || undefined,
     })
+    const added = leagues[division].at(-1)!
+    if (state === 'finished') {
+      extrasByMatch.set(matchKey(kickoff, String(r.home_name), String(r.away_name)), {
+        incidents: added.incidents,
+        ht: added.ht,
+        spectators: added.spectators,
+      })
+    }
   }
-  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), incidentsByMatch }
+  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), extrasByMatch }
   return seasonCache
 }

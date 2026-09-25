@@ -16,6 +16,7 @@ import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../.
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
+import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
 import { clubHistory } from '../../../lib/history'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
@@ -143,6 +144,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
           </div>
         </div>
 
+        <ClubSeasonStats club={club} division={division} />
         {history && <ClubHistory name={club.name} history={history} />}
 
         <AdSlot placement="content" />

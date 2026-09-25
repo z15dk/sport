@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { formatShortYear, formatTime } from '../lib/time'
 import { paths } from '../lib/site'
 import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
+import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
 import { findMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
@@ -32,6 +33,37 @@ export function MatchView({ slug, date, initialNow, realH2h }: Props) {
   return <MatchBody match={match} now={now} realH2h={realH2h} />
 }
 
+const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
+
+/** Both clubs' season side by side: the home side at home, the away side away, and their goal habits */
+function seasonCompare(match: Match) {
+  const h = findClub(match.home.name)
+  const a = findClub(match.away.name)
+  if (!h || !a || match.sport !== 'soccer') return undefined
+  const hs = clubSeasonStats(h.club, h.division)
+  const as = clubSeasonStats(a.club, a.division)
+  if (!hs || !as) return undefined
+  const ppg = (points: number, played: number) => (played ? points / played : 0)
+  const homePpg = ppg(hs.home.points, hs.home.played)
+  const awayPpg = ppg(as.away.points, as.away.played)
+  const rows = [
+    { label: 'Point pr. kamp (hjemme / ude)', home: homePpg, away: awayPpg, homeText: one(homePpg), awayText: one(awayPpg) },
+    { label: 'Mål pr. kamp', home: hs.goalsForPerMatch, away: as.goalsForPerMatch, homeText: one(hs.goalsForPerMatch), awayText: one(as.goalsForPerMatch) },
+    {
+      label: 'Mål imod pr. kamp',
+      home: hs.goalsAgainstPerMatch,
+      away: as.goalsAgainstPerMatch,
+      homeText: one(hs.goalsAgainstPerMatch),
+      awayText: one(as.goalsAgainstPerMatch),
+      lowerIsBetter: true,
+    },
+    { label: 'Clean sheets', home: hs.cleanSheets, away: as.cleanSheets, homeText: `${hs.cleanSheets}`, awayText: `${as.cleanSheets}` },
+    { label: 'Begge hold scorer', home: hs.bttsPct, away: as.bttsPct, homeText: `${hs.bttsPct} %`, awayText: `${as.bttsPct} %` },
+    { label: 'Over 2,5 mål', home: hs.over25Pct, away: as.over25Pct, homeText: `${hs.over25Pct} %`, awayText: `${as.over25Pct} %` },
+  ]
+  return rows.map((r) => ({ lowerIsBetter: false, ...r }))
+}
+
 function ClubName({ name }: { name: string }) {
   const team = teamByName(name)
   return team ? <Link href={paths.club(team.slug)}>{name}</Link> : <>{name}</>
@@ -52,6 +84,7 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
     else wins.draw++
   }
   const colorsOf = (name: string) => findClub(name)?.club.colors
+  const compare = seasonCompare(match)
 
   return (
     <article className="match-page">
@@ -140,6 +173,24 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
                 )
               })}
             </ol>
+          </section>
+        )}
+
+        {compare && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
+            {compare.map((c) => (
+              <StatBar
+                key={c.label}
+                label={c.label}
+                home={c.home}
+                away={c.away}
+                homeText={c.homeText}
+                awayText={c.awayText}
+                lowerIsBetter={c.lowerIsBetter}
+              />
+            ))}
+            <p className="muted small">Beregnet af Scoreline ud fra sæsonens spillede kampe.</p>
           </section>
         )}
 

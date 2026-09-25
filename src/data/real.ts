@@ -20,6 +20,9 @@ export interface RealEvent {
   venue?: string
   /** Goals and cards, when the source has them */
   incidents?: Incident[]
+  /** Half-time score */
+  ht?: [number, number]
+  spectators?: number
 }
 
 export interface RealData {

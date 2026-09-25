@@ -32,6 +32,8 @@ export interface Fixture {
   /** TheSportsDB's state for the fixture */
   real: { state: MatchState; progress?: string; hasScore: boolean }
   incidents?: Incident[]
+  ht?: [number, number]
+  spectators?: number
 }
 
 // ---------------------------------------------------------------- real fixtures
@@ -94,6 +96,8 @@ function buildReal(real: RealData): Fixture[] {
         score: [e.homeScore ?? 0, e.awayScore ?? 0],
         real: { state: e.state, progress: e.progress, hasScore },
         incidents: e.incidents,
+        ht: e.ht,
+        spectators: e.spectators,
       })
     }
   }

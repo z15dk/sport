@@ -12,6 +12,7 @@ import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/j
 import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
+import { LeagueStats } from '../../../components/LeagueStats'
 import { Updated } from '../../../components/Updated'
 import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
@@ -94,6 +95,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>
+
+        <LeagueStats division={division} />
 
         <AdSlot placement="feed" />
 

@@ -53,12 +53,14 @@ function apply() {
   const leagues = { ...(tsdbData?.leagues ?? {}) }
   // The source with more of the season wins (our database has the Danish divisions in full)
   for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (leagues[id]?.length ?? 0)) leagues[id] = events
-  // Goals and cards from our database for TheSportsDB's matches that have none of their own
-  if (db?.incidentsByMatch.size) {
+  // Goals, cards, half-time score and attendance from our database for TheSportsDB's matches
+  if (db?.extrasByMatch.size) {
     for (const [id, events] of Object.entries(leagues)) {
-      leagues[id] = events.map((e) =>
-        e.incidents ? e : { ...e, incidents: db.incidentsByMatch.get(matchKey(e.kickoff, e.home, e.away)) },
-      )
+      leagues[id] = events.map((e) => {
+        if (e.id.startsWith('db-')) return e
+        const x = db.extrasByMatch.get(matchKey(e.kickoff, e.home, e.away))
+        return x ? { ...e, incidents: e.incidents ?? x.incidents, ht: e.ht ?? x.ht, spectators: e.spectators ?? x.spectators } : e
+      })
     }
   }
   if (!tsdbData && !db) return setRealData(undefined)
