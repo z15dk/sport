@@ -11,7 +11,7 @@ export const paths = {
   about: () => '/om',
   home: (params?: { sport?: string; dato?: string }) => {
     const q = new URLSearchParams()
-    if (params?.sport && params.sport !== 'fodbold') q.set('sport', params.sport)
+    if (params?.sport && params.sport !== 'alle') q.set('sport', params.sport)
     if (params?.dato) q.set('dato', params.dato)
     const s = q.toString()
     return s ? `/?${s}` : '/'

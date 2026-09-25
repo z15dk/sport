@@ -1,5 +1,8 @@
 export type SportId = 'soccer' | 'basketball' | 'ice_hockey' | 'handball' | 'volleyball' | 'american_football' | 'tennis'
 
+/** A sport, or every sport at once (the front page's default) */
+export type SportFilter = SportId | 'all'
+
 export type MatchState = 'upcoming' | 'live' | 'finished' | 'postponed'
 
 export interface Team {

@@ -1,4 +1,4 @@
-import type { SportId } from './types'
+import type { SportFilter, SportId } from './types'
 
 export interface SportDef {
   id: SportId
@@ -18,5 +18,10 @@ export const SPORTS: SportDef[] = [
   { id: 'american_football', slug: 'amerikansk-fodbold', label: 'Am. fodbold', apiName: 'American Football' },
 ]
 
-export const sportBySlug = (slug?: string) => SPORTS.find((s) => s.slug === slug) ?? SPORTS[0]
+/** Every sport at once: the front page's default */
+export const ALL_SPORTS = { id: 'all' as const, slug: 'alle', label: 'Alle sportsgrene' }
+
+/** The sport in the URL (?sport=...), or every sport when there is none */
+export const sportFilterBySlug = (slug?: string): { id: SportFilter; slug: string; label: string } =>
+  SPORTS.find((s) => s.slug === slug) ?? ALL_SPORTS
 export const sportById = (id: SportId) => SPORTS.find((s) => s.id === id)!

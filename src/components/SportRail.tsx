@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { SPORTS } from '../sports'
+import { ALL_SPORTS, SPORTS } from '../sports'
 import { paths } from '../lib/site'
 import { SportIcon } from './SportIcon'
 
 export function SportRail() {
   const pathname = usePathname()
   const params = useSearchParams()
-  const active = pathname === '/' ? (params.get('sport') ?? 'fodbold') : undefined
+  const active = pathname === '/' ? (params.get('sport') ?? ALL_SPORTS.slug) : undefined
 
   return (
     <nav className="rail" aria-label="Sportsgrene">
@@ -17,7 +17,7 @@ export function SportRail() {
         S<span>.</span>
       </Link>
       <div className="rail__items">
-        {SPORTS.map((s) => (
+        {[ALL_SPORTS, ...SPORTS].map((s) => (
           <Link
             key={s.id}
             href={paths.home({ sport: s.slug })}

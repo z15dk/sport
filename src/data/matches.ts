@@ -1,4 +1,5 @@
-import type { Match, SportId } from '../types'
+import type { Match, SportFilter, SportId } from '../types'
+import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
@@ -15,6 +16,8 @@ function leagueMatches(date: string, sport: SportId, now: number): Match[] {
     .map((f) => toMatch(f, now))
 }
 
+const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football']
+
 /** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
 function namesOf(name: string) {
   const club = seasonClub(name)?.club
@@ -25,7 +28,8 @@ function namesOf(name: string) {
  * The day's matches: our leagues' season, updated with API-Sports' live score
  * where API-Sports has the same match, plus API-Sports' games in other leagues.
  */
-export function getMatches(date: string, sport: SportId, now: number): Match[] {
+export function getMatches(date: string, sport: SportFilter, now: number): Match[] {
+  if (sport === 'all') return ALL_SPORTS.flatMap((s) => getMatches(date, s, now))
   const ours = leagueMatches(date, sport, now)
   const external = (getRealData()?.external ?? []).filter((g) => g.sport === sport && isoDate(new Date(g.kickoff)) === date)
   if (!external.length) return ours
@@ -51,7 +55,6 @@ export function getMatches(date: string, sport: SportId, now: number): Match[] {
   return [...ours, ...extra.map(externalToMatch)]
 }
 
-const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football']
 
 export function findMatch(slug: string, date: string, now: number): Match | undefined {
   for (const sport of ALL_SPORTS) {
@@ -79,4 +82,23 @@ export function teamMatches(teamName: string, sport: SportId, fromDate: string, 
     }
   }
   return out
+}
+
+/** The next `limit` matches that have not started, within `days` days from `now` (all sources) */
+export function upcomingMatches(sport: SportFilter, today: string, now: number, days = 10, limit = 8): Match[] {
+  const until = now + days * 86_400_000
+  return Array.from({ length: days + 1 }, (_, i) => getMatches(addDays(today, i), sport, now))
+    .flat()
+    .filter((m) => m.state === 'upcoming' && m.kickoff.getTime() > now && m.kickoff.getTime() <= until)
+    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    .slice(0, limit)
+}
+
+/** The nearest day after (or before) `date` with matches, looking up to 60 days away */
+export function nearestMatchDay(date: string, sport: SportFilter, direction: 1 | -1, now: number): string | undefined {
+  for (let i = 1; i <= 60; i++) {
+    const d = addDays(date, i * direction)
+    if (getMatches(d, sport, now).length) return d
+  }
+  return undefined
 }

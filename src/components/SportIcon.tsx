@@ -1,6 +1,6 @@
-import type { SportId } from '../types'
+import type { SportFilter } from '../types'
 
-export function SportIcon({ sport, size = 22 }: { sport: SportId; size?: number }) {
+export function SportIcon({ sport, size = 22 }: { sport: SportFilter; size?: number }) {
   const common = {
     width: size,
     height: size,
@@ -13,6 +13,15 @@ export function SportIcon({ sport, size = 22 }: { sport: SportId; size?: number 
     'aria-hidden': true,
   }
   switch (sport) {
+    case 'all':
+      return (
+        <svg {...common}>
+          <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+          <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+          <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+          <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+        </svg>
+      )
     case 'soccer':
       return (
         <svg {...common}>

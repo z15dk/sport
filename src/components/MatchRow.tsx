@@ -3,6 +3,7 @@ import { formatDayMonth, formatTime, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
 import type { Incident, Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
+import { SportIcon } from './SportIcon'
 import { MatchChannel, MatchOdds } from './MatchExtras'
 import { oddsFor } from '../data/odds'
 
@@ -33,7 +34,7 @@ function TeamEvents({ incidents, side }: { incidents?: Incident[]; side: Inciden
   )
 }
 
-export function MatchRow({ match, showDate, showLeague }: { match: Match; showDate?: boolean; showLeague?: boolean }) {
+export function MatchRow({ match, showDate, showLeague, showSport }: { match: Match; showDate?: boolean; showLeague?: boolean; showSport?: boolean }) {
   const { home, away, state } = match
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
@@ -52,7 +53,12 @@ export function MatchRow({ match, showDate, showLeague }: { match: Match; showDa
         {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} />}
       </div>
       <div className="match__teams">
-        {showLeague && <span className="match__league">{match.league}</span>}
+        {showLeague && (
+          <span className="match__league">
+            {showSport && <SportIcon sport={match.sport} size={11} />}
+            {match.league}
+          </span>
+        )}
         {[home, away].map((team, i) => {
           const other = i === 0 ? away : home
           return (

@@ -15,15 +15,15 @@ import { AdSlot } from './AdSlot'
 import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { getMatches } from '../data/matches'
+import { getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { getRealData } from '../data/real'
-import { nearestMatchDay, realLeagues, upcomingMatches } from '../data/season'
+import { realLeagues } from '../data/season'
 import Link from 'next/link'
 import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
 import { addDays, danishTime, formatDayMonth, formatLong, formatTime, isoDate } from '../lib/time'
-import { sportById } from '../sports'
-import type { LeagueGroup, Match, SportId, StateFilter } from '../types'
+import { ALL_SPORTS, sportById } from '../sports'
+import type { LeagueGroup, Match, SportFilter, StateFilter } from '../types'
 
 export type DataSource = 'fictional' | 'api'
 
@@ -66,7 +66,7 @@ function isFeedAdSpot(i: number, total: number): boolean {
 }
 
 interface Props {
-  sport: SportId
+  sport: SportFilter
   date: string
   today: string
   initialNow: number
@@ -89,7 +89,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const apiKey = `${date}|${sport}|${tick}`
   const [api, setApi] = useState<{ key: string; matches?: Match[]; error?: string }>()
   useEffect(() => {
-    if (source !== 'api') return
+    if (source !== 'api' || sport === 'all') return
     const controller = new AbortController()
     fetchEventsByDay(date, sport, sportById(sport).apiName, controller.signal)
       .then((matches) => setApi({ key: apiKey, matches }))
@@ -99,7 +99,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
     return () => controller.abort()
   }, [source, date, sport, apiKey])
 
-  const apiReady = source === 'api' && api?.key === apiKey
+  const apiReady = source === 'api' && sport !== 'all' && api?.key === apiKey
   const usingApi = apiReady && !!api?.matches
   const matches = usingApi ? api!.matches! : fictional
   const apiError = apiReady ? api?.error : undefined
@@ -148,23 +148,24 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   }, [visible])
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
-  const sportDef = sportById(sport)
+  const sportDef = sport === 'all' ? ALL_SPORTS : sportById(sport)
   // Match in focus: kick-off 12-24 hours ahead, counted from the start of the hour so the pick stays put for the hour
   const hour = Math.floor(now / 3_600_000)
   const featured = useMemo(() => {
     if (usingApi) return []
     const from = hour * 3_600_000 + 12 * 3_600_000
-    return upcomingMatches(sport, hour * 3_600_000, 1, 10_000).filter((m) => m.kickoff.getTime() >= from)
+    const start = hour * 3_600_000
+    return upcomingMatches(sport, isoDate(start), start, 2, 10_000).filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
   }, [usingApi, sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
   const upcoming = useMemo(() => {
-    if (!usingApi) return upcomingMatches(sport, now)
+    if (!usingApi) return upcomingMatches(sport, today, now)
     return matches.filter((m) => m.state === 'upcoming').sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, 8)
-  }, [usingApi, matches, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
-  const nextDay = nearestMatchDay(date, sport, 1)
-  const prevDay = nearestMatchDay(date, sport, -1)
+  }, [usingApi, matches, sport, today, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const nextDay = useMemo(() => nearestMatchDay(date, sport, 1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prevDay = useMemo(() => nearestMatchDay(date, sport, -1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
-  const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => l.division.sport === undefined ? sport === 'soccer' : l.division.sport === sport)
+  const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
   // Only the top leagues are named when they have no matches, to keep the note short
   const noMatchLeagues = real.filter((l) => l.division.id === 'superliga' && !matches.some((m) => m.leagueSlug === l.division.slug))
 
@@ -192,7 +193,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
       <LiveStrip matches={searched} upcoming={upcoming} now={now} />
 
-      {!usingApi && (apiError || (sport === 'soccer' && real.length === 0) || noMatchLeagues.length > 0) && (
+      {!usingApi && (apiError || ((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">
           {apiError ? (
             'Live-data kunne ikke hentes, så du ser vores egne data.'
@@ -269,7 +270,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
                     </header>
                     <ul className="league__matches">
                       {list.map((m) => (
-                        <MatchRow key={m.id} match={m} showLeague />
+                        <MatchRow key={m.id} match={m} showLeague showSport={sport === 'all'} />
                       ))}
                     </ul>
                     {list.some((m) => m.state === 'upcoming') && (
