@@ -10,7 +10,7 @@ function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
 }
 
-export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean }) {
+export function MatchRow({ match, showDate, showLeague }: { match: Match; showDate?: boolean; showLeague?: boolean }) {
   const { home, away, state } = match
   const finished = state === 'finished'
   const showScore = state === 'live' || finished
@@ -29,6 +29,7 @@ export function MatchRow({ match, showDate }: { match: Match; showDate?: boolean
         {state !== 'finished' && state !== 'postponed' && <MatchChannel match={match} />}
       </div>
       <div className="match__teams">
+        {showLeague && <span className="match__league">{match.league}</span>}
         {[home, away].map((team, i) => {
           const other = i === 0 ? away : home
           return (

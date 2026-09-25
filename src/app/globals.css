@@ -907,3 +907,13 @@ h2.league__name { margin: 0; }
 .history__more summary { cursor: pointer; padding: 8px 18px; font-weight: 700; }
 .history__note { padding: 4px 18px 16px; margin: 0; }
 .empty__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+
+/* Date strip: yesterday to ten days ahead, scrolls sideways when it does not fit */
+.date-strip__days { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.date-strip__days::-webkit-scrollbar { display: none; }
+.date-strip__days { position: relative; }
+.date-strip__days .date-chip { flex: 1 0 76px; white-space: nowrap; }
+
+/* Chronological list: the league above the teams */
+.match__league { font-size: 11px; font-weight: 600; color: var(--ink-3); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switch--order { align-self: center; }

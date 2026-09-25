@@ -5,6 +5,9 @@ import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
 import { FilterBar } from './FilterBar'
 import { LeagueSection } from './LeagueSection'
+import { MatchRow } from './MatchRow'
+import { OddsBy } from './MatchExtras'
+import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { Sidebar } from './Sidebar'
 import { FeaturedMatch } from './FeaturedMatch'
 import { StatTiles } from './StatTiles'
@@ -72,6 +75,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const [source, setSource] = usePersistentState<DataSource>('dataSource', 'fictional')
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>('all')
+  const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
   const [tick, setTick] = useState(0)
   const now = useNow(REFRESH_MS, initialNow)
@@ -121,6 +125,11 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
+  // Every match of the day by kick-off, then by league order
+  const sorted = useMemo(
+    () => [...visible].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99)),
+    [visible],
+  )
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
@@ -192,6 +201,14 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
               <span>{formatLong(date)}</span>
             </h1>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
+            <div className="switch switch--order" role="group" aria-label="Sortering">
+              <button className={order === 'time' ? 'is-active' : ''} aria-pressed={order === 'time'} onClick={() => setOrder('time')}>
+                Tid
+              </button>
+              <button className={order === 'league' ? 'is-active' : ''} aria-pressed={order === 'league'} onClick={() => setOrder('league')}>
+                Turnering
+              </button>
+            </div>
           </div>
           <DateStrip selected={date} today={today} sport={sportDef.slug} />
 
@@ -213,6 +230,31 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
                 </p>
               )}
             </div>
+          ) : order === 'time' ? (
+            <>
+              <section className="league">
+                <header className="league__header">
+                  <div className="league__toggle">
+                    <span className="league__titles">
+                      <span className="league__country">{formatLong(date)}</span>
+                      <h2 className="league__name">{sorted.length === 1 ? '1 kamp' : `${sorted.length} kampe`}</h2>
+                    </span>
+                    {sorted.some((m) => m.state === 'upcoming') && <OddsBy />}
+                  </div>
+                </header>
+                <ul className="league__matches">
+                  {sorted.map((m) => (
+                    <MatchRow key={m.id} match={m} showLeague />
+                  ))}
+                </ul>
+                {sorted.some((m) => m.state === 'upcoming') && (
+                  <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
+                    {RESPONSIBLE_GAMBLING.text}
+                  </a>
+                )}
+              </section>
+              <AdSlot placement="feed" index={1} />
+            </>
           ) : (
             <div className="league-list">
               {groups.map((g, i) => (
