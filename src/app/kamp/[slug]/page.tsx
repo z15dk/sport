@@ -4,6 +4,7 @@ import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
 import { apiHeadToHead } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
+import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
 import { realHeadToHead } from '../../../lib/history'
 import { teamByName } from '../../../data/teams'
@@ -12,7 +13,7 @@ import { AdSlot } from '../../../components/AdSlot'
 import { matchFaq } from '../../../lib/faq'
 import { dateFromMatchSlug } from '../../../lib/slug'
 import { summary } from '../../../lib/matchText'
-import { formatFull } from '../../../lib/time'
+import { formatFull, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { JsonLd, breadcrumbLd, faqLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
@@ -55,16 +56,16 @@ export default async function MatchPage({ params }: { params: Params }) {
   const awayClub = findClub(match.away.name)?.club
   // Real meetings from the match database when both clubs are in it
   const dbH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
-  // Otherwise the last meetings from API-Sports (cached, within a small daily budget)
+  // Topped up with API-Sports' meetings (cached, within a small daily budget) when the database has fewer than 5
   let realH2h = dbH2h
-  let h2hSource: 'database' | 'api-sports' | undefined = dbH2h ? 'database' : undefined
+  let h2hSource: H2hSource | undefined = dbH2h ? 'database' : undefined
   if ((dbH2h?.length ?? 0) < 5) {
     const game = findExternalGame(match)
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
-    if (game && games && games.length > (dbH2h?.length ?? 0)) {
+    if (game && games?.length) {
       const nameOf = (id?: number, fallback = '') =>
         id === game.home.id ? match.home.name : id === game.away.id ? match.away.name : fallback
-      realH2h = games.map(
+      const fromApi = games.map(
         (g): PastMatch => ({
           date: new Date(g.kickoff),
           competition: g.league.name,
@@ -74,7 +75,13 @@ export default async function MatchPage({ params }: { params: Params }) {
           awayScore: g.awayScore ?? 0,
         }),
       )
-      h2hSource = 'api-sports'
+      // The same meeting in both sources counts once (same day)
+      const days = new Set((dbH2h ?? []).map((m) => isoDate(m.date)))
+      const added = fromApi.filter((m) => !days.has(isoDate(m.date)))
+      if (added.length) {
+        realH2h = [...(dbH2h ?? []), ...added].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5)
+        h2hSource = dbH2h?.length ? 'both' : 'api-sports'
+      }
     }
   }
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)

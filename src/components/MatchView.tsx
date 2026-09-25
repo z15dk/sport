@@ -17,13 +17,16 @@ import { Updated } from './Updated'
 import { MatchExtrasPanel } from './MatchExtras'
 import { TeamBadge } from './TeamBadge'
 
+/** Where the head-to-head meetings come from */
+export type H2hSource = 'database' | 'api-sports' | 'both'
+
 interface Props {
   slug: string
   date: string
   initialNow: number
   /** Real meetings from the match database, when both clubs are in it */
   realH2h?: PastMatch[]
-  h2hSource?: 'database' | 'api-sports'
+  h2hSource?: H2hSource
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
@@ -79,7 +82,7 @@ function MatchBody({
   match: Match
   now: number
   realH2h?: PastMatch[]
-  h2hSource?: 'database' | 'api-sports'
+  h2hSource?: H2hSource
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -260,7 +263,7 @@ function MatchBody({
             })}
           </ul>
           <p className="muted small">
-            Kampprogram og resultat: TheSportsDB.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : 'vores kampdatabase'}.` : ''}
+            Kampprogram og resultat: TheSportsDB.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : h2hSource === 'both' ? 'vores kampdatabase og API-Sports' : 'vores kampdatabase'}.` : ''}
           </p>
         </section>
       </div>

@@ -32,6 +32,7 @@ export const SEARCH_NAMES: Record<string, string> = {
   sik: 'Skive',
   frem: 'BK Frem',
   fch: 'Helsingor',
+  hikh: 'Hellerup IK',
 }
 
 /** Lowercase, no accents or Danish letters, no punctuation or common club prefixes */

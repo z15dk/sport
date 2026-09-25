@@ -3,7 +3,7 @@ import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
-import { SEARCH_NAMES } from './aliases'
+import { SEARCH_NAMES, normalize } from './aliases'
 import { isoDate } from '../lib/time'
 import { DIVISIONS, sportOf } from './leagues'
 import { countryKey } from './channels'
@@ -129,5 +129,19 @@ export function findExternalGame(match: Match): ExternalGame | undefined {
   const direct = external.find((g) => g.id === match.id)
   if (direct) return direct
   const keys = new Set(namesOf(match.home.name).flatMap((h) => namesOf(match.away.name).map((a) => gameKey(match.kickoff, h, a))))
-  return external.find((g) => g.sport === match.sport && keys.has(gameKey(g.kickoff, g.home.name, g.away.name)))
+  const exact = external.find((g) => g.sport === match.sport && keys.has(gameKey(g.kickoff, g.home.name, g.away.name)))
+  if (exact) return exact
+  // Looser: same day and sport, and each side shares a word with one of the club's names ("HIK" / "Hellerup IK")
+  const day = isoDate(match.kickoff)
+  const words = (name: string) => normalize(name).split(' ').filter((w) => w.length >= 3)
+  const like = (names: string[], other: string) => {
+    const theirs = new Set(words(other))
+    return names.some((n) => words(n).some((w) => theirs.has(w)))
+  }
+  const home = namesOf(match.home.name)
+  const away = namesOf(match.away.name)
+  const candidates = external.filter(
+    (g) => g.sport === match.sport && isoDate(new Date(g.kickoff)) === day && like(home, g.home.name) && like(away, g.away.name),
+  )
+  return candidates.length === 1 ? candidates[0] : undefined
 }
