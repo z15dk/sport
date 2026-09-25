@@ -1,4 +1,4 @@
-import type { Match, MatchState } from '../types'
+import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
 import { SEARCH_NAMES, normalize } from './aliases'
@@ -31,6 +31,7 @@ export interface Fixture {
   extra?: Extra
   /** TheSportsDB's state for the fixture */
   real: { state: MatchState; progress?: string; hasScore: boolean }
+  incidents?: Incident[]
 }
 
 // ---------------------------------------------------------------- real fixtures
@@ -92,6 +93,7 @@ function buildReal(real: RealData): Fixture[] {
         kickoff,
         score: [e.homeScore ?? 0, e.awayScore ?? 0],
         real: { state: e.state, progress: e.progress, hasScore },
+        incidents: e.incidents,
       })
     }
   }
@@ -190,6 +192,7 @@ export function toMatch(f: Fixture, now: number): Match {
   return {
     ...baseMatch(f),
     real: true,
+    incidents: state === 'upcoming' ? undefined : f.incidents,
     state,
     statusLabel,
     winner: state !== 'finished' ? undefined : f.score[0] > f.score[1] ? 'home' : f.score[0] < f.score[1] ? 'away' : 'draw',

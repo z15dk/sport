@@ -1,13 +1,36 @@
 import Link from 'next/link'
 import { formatDayMonth, formatTime, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
-import type { Match, Team } from '../types'
+import type { Incident, Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
 import { MatchChannel, MatchOdds } from './MatchExtras'
 import { oddsFor } from '../data/odds'
 
 function lost(team: Team, other: Team) {
   return team.score !== undefined && other.score !== undefined && team.score < other.score
+}
+
+/** Goals and red cards for one side, e.g. "⚽ 23' 67' 🟥 55'" */
+function TeamEvents({ incidents, side }: { incidents?: Incident[]; side: Incident['side'] }) {
+  // An own goal counts for the other side
+  const goals = (incidents ?? []).filter((i) => (i.kind === 'own-goal' ? i.side !== side : i.side === side) && i.kind !== 'yellow' && i.kind !== 'red')
+  const reds = (incidents ?? []).filter((i) => i.side === side && i.kind === 'red')
+  if (!goals.length && !reds.length) return null
+  const minute = (i: Incident) => `${i.minute}'${i.kind === 'penalty' ? ' (str.)' : i.kind === 'own-goal' ? ' (selvm.)' : ''}`
+  return (
+    <span className="team__events">
+      {goals.length > 0 && (
+        <span title={goals.map((g) => `${minute(g)} ${g.player ?? ''}`.trim()).join(', ')}>
+          <span aria-hidden>⚽</span> {goals.map(minute).join(' ')}
+        </span>
+      )}
+      {reds.length > 0 && (
+        <span className="team__red" title={reds.map((r) => `${r.minute}' ${r.player ?? ''}`.trim()).join(', ')}>
+          <span className="red-card" aria-label="Rødt kort" /> {reds.map((r) => `${r.minute}'`).join(' ')}
+        </span>
+      )}
+    </span>
+  )
 }
 
 export function MatchRow({ match, showDate, showLeague }: { match: Match; showDate?: boolean; showLeague?: boolean }) {
@@ -36,6 +59,7 @@ export function MatchRow({ match, showDate, showLeague }: { match: Match; showDa
             <div key={i} className={`team${finished && lost(team, other) ? ' team--lost' : ''}`}>
               <TeamBadge name={team.name} src={team.badge} colors={team.colors} />
               <span className="team__name">{team.name}</span>
+              {showScore && <TeamEvents incidents={match.incidents} side={i === 0 ? 'home' : 'away'} />}
             </div>
           )
         })}

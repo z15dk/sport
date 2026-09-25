@@ -101,6 +101,48 @@ function MatchBody({ match, now, realH2h }: { match: Match; now: number; realH2h
       <Updated at={now} />
 
       <div className="match-page__grid">
+        {match.incidents && match.incidents.length > 0 && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Kampforløb</h2>
+            <ol className="timeline">
+              {match.incidents.map((e, n) => {
+                const label =
+                  e.kind === 'goal' ? 'Mål' : e.kind === 'penalty' ? 'Mål (straffespark)' : e.kind === 'own-goal' ? 'Selvmål' : e.kind === 'red' ? 'Rødt kort' : 'Gult kort'
+                const icon =
+                  e.kind === 'red' ? <span className="red-card" aria-hidden /> : e.kind === 'yellow' ? <span className="yellow-card" aria-hidden /> : <span aria-hidden>⚽</span>
+                const body = (
+                  <span className={`timeline__event timeline__event--${e.side}`}>
+                    {e.side === 'home' ? (
+                      <>
+                        <span>
+                          {e.player ?? label}
+                          {e.player && <em> · {label}</em>}
+                        </span>
+                        {icon}
+                      </>
+                    ) : (
+                      <>
+                        {icon}
+                        <span>
+                          {e.player ?? label}
+                          {e.player && <em> · {label}</em>}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                )
+                return (
+                  <li key={n} className="timeline__row">
+                    {e.side === 'home' ? body : <span />}
+                    <span className="timeline__minute">{e.minute}&apos;</span>
+                    {e.side === 'away' ? body : <span />}
+                  </li>
+                )
+              })}
+            </ol>
+          </section>
+        )}
+
         <section className="sheet__section">
           <h2 className="sheet__title">Klubberne i sæsonen</h2>
           {homeStats && awayStats ? (

@@ -3,7 +3,7 @@
 // the same data to the browser (RealDataProvider), so both build the same
 // season from it. Leagues TheSportsDB has no fixtures for are not shown.
 
-import type { MatchState } from '../types'
+import type { Incident, MatchState } from '../types'
 
 export interface RealEvent {
   id: string
@@ -18,6 +18,8 @@ export interface RealEvent {
   /** Minute or phase while live, e.g. "67" or "HT" */
   progress?: string
   venue?: string
+  /** Goals and cards, when the source has them */
+  incidents?: Incident[]
 }
 
 export interface RealData {

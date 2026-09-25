@@ -4,10 +4,10 @@ import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
 import { normalize } from '../data/aliases'
 import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
-import { toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
+import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
-import { databaseSeason } from './history'
+import { databaseSeason, matchKey } from './history'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -53,6 +53,14 @@ function apply() {
   const leagues = { ...(tsdbData?.leagues ?? {}) }
   // The source with more of the season wins (our database has the Danish divisions in full)
   for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (leagues[id]?.length ?? 0)) leagues[id] = events
+  // Goals and cards from our database for TheSportsDB's matches that have none of their own
+  if (db?.incidentsByMatch.size) {
+    for (const [id, events] of Object.entries(leagues)) {
+      leagues[id] = events.map((e) =>
+        e.incidents ? e : { ...e, incidents: db.incidentsByMatch.get(matchKey(e.kickoff, e.home, e.away)) },
+      )
+    }
+  }
   if (!tsdbData && !db) return setRealData(undefined)
   setRealData({
     version: hashString(key).toString(36),
@@ -134,6 +142,7 @@ function toReal(e: ApiEvent & { intRound?: string | null }): RealEvent {
     state: toState(e),
     progress: e.strProgress || e.strStatus || undefined,
     venue: e.strVenue ?? undefined,
+    incidents: incidentsOf(e),
   }
 }
 

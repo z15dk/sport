@@ -1,4 +1,4 @@
-import type { Match, MatchState, SportId } from '../types'
+import type { Incident, Match, MatchState, SportId } from '../types'
 import { matchSlug } from '../lib/slug'
 import { isoDate } from '../lib/time'
 
@@ -27,6 +27,34 @@ export interface ApiEvent {
   strProgress?: string | null
   strPostponed?: string | null
   strVenue?: string | null
+  /** "12':Name;45':Name;" – only filled for some leagues */
+  strHomeGoalDetails?: string | null
+  strAwayGoalDetails?: string | null
+  strHomeRedCards?: string | null
+  strAwayRedCards?: string | null
+  strHomeYellowCards?: string | null
+  strAwayYellowCards?: string | null
+}
+
+/** Goals and cards from TheSportsDB's detail fields, when they are filled */
+export function incidentsOf(e: ApiEvent): Incident[] | undefined {
+  const out: Incident[] = []
+  const add = (value: string | null | undefined, side: Incident['side'], kind: Incident['kind']) => {
+    for (const part of (value ?? '').split(';')) {
+      const m = /^\s*(\d+)(?:\+\d+)?'?\s*:?\s*(.*)$/.exec(part)
+      if (!m) continue
+      const player = m[2].replace(/\s*\((pen|og)\.?\)\s*$/i, '').trim()
+      const k = kind === 'goal' && /\(og\.?\)/i.test(m[2]) ? 'own-goal' : kind === 'goal' && /\(pen\.?\)/i.test(m[2]) ? 'penalty' : kind
+      out.push({ minute: Number(m[1]), side, kind: k, player: player || undefined })
+    }
+  }
+  add(e.strHomeGoalDetails, 'home', 'goal')
+  add(e.strAwayGoalDetails, 'away', 'goal')
+  add(e.strHomeRedCards, 'home', 'red')
+  add(e.strAwayRedCards, 'away', 'red')
+  add(e.strHomeYellowCards, 'home', 'yellow')
+  add(e.strAwayYellowCards, 'away', 'yellow')
+  return out.length ? out.sort((a, b) => a.minute - b.minute) : undefined
 }
 
 const FINISHED = new Set(['FT', 'AET', 'PEN', 'AP', 'Match Finished', 'Finished'])

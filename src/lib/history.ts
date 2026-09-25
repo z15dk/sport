@@ -3,7 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
-import type { MatchState } from '../types'
+import type { Incident, MatchState } from '../types'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import { cacheDir } from './tsdb'
@@ -328,13 +328,43 @@ const STATE: Record<string, MatchState> = {
   abandoned: 'postponed',
 }
 
-let seasonCache: { mtime: number; key: string; leagues: Record<string, RealEvent[]>; tournaments: string[] } | undefined
+/** Goals and cards from the database's incident text ("Regular goal", "Yellow card", …) */
+function incidentKind(type: string, subtype: string): Incident['kind'] | undefined {
+  const t = `${type} ${subtype}`.toLowerCase()
+  if (/miss|saved|disallow|cancel|var/.test(t)) return undefined
+  if (/own/.test(t)) return 'own-goal'
+  if (/penalty/.test(t) && /goal/.test(t)) return 'penalty'
+  if (/goal/.test(t)) return 'goal'
+  if (/yellow.?red|second yellow|2nd yellow/.test(t)) return 'red'
+  if (/red/.test(t)) return 'red'
+  if (/yellow/.test(t)) return 'yellow'
+  return undefined
+}
+
+type SeasonData = {
+  mtime: number
+  key: string
+  leagues: Record<string, RealEvent[]>
+  tournaments: string[]
+  /** Incidents by "date|home|away" (club id or normalised name), to add to other sources' matches */
+  incidentsByMatch: Map<string, Incident[]>
+}
+let seasonCache: SeasonData | undefined
+
+/** Key for finding the same match across sources */
+export function matchKey(kickoff: string, home: string, away: string) {
+  const find = clubFinder()
+  const id = (n: string) => find(n)?.id ?? normalize(n)
+  return `${kickoff.slice(0, 10)}|${id(home)}|${id(away)}`
+}
+let finder: ReturnType<typeof resolver> | undefined
+const clubFinder = () => (finder ??= resolver())
 
 /**
  * Every match of the current season (played and coming) in the Danish divisions,
  * from the database. Used for leagues TheSportsDB has no fixtures for.
  */
-export function databaseSeason(): { key: string; leagues: Record<string, RealEvent[]>; tournaments: string[] } | undefined {
+export function databaseSeason(): SeasonData | undefined {
   const d = data()
   if (!d) return undefined
   if (seasonCache?.mtime === d.mtime) return seasonCache
@@ -343,6 +373,7 @@ export function databaseSeason(): { key: string; leagues: Record<string, RealEve
   const year = SEASON.slice(0, 4)
   const db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
   let rows: Row[]
+  let incidentRows: Row[] = []
   try {
     rows = db
       .prepare(
@@ -350,9 +381,34 @@ export function databaseSeason(): { key: string; leagues: Record<string, RealEve
            FROM matches WHERE substr(season_year, 1, 4) = '${year}' ORDER BY start_date`,
       )
       .all()
+    try {
+      incidentRows = db
+        .prepare(
+          `SELECT i.event_id, i.type, i.subtype, i.minute, i.player_name, i.is_home
+             FROM incidents i JOIN matches m ON m.event_id = i.event_id
+            WHERE substr(m.season_year, 1, 4) = '${year}' ORDER BY i.minute`,
+        )
+        .all()
+    } catch {
+      // No incidents table: matches only
+    }
   } finally {
     db.close()
   }
+  const incidentsOf = new Map<string, Incident[]>()
+  for (const r of incidentRows) {
+    const kind = incidentKind(String(r.type ?? ''), String(r.subtype ?? ''))
+    if (!kind || r.minute == null) continue
+    const id = String(r.event_id)
+    if (!incidentsOf.has(id)) incidentsOf.set(id, [])
+    incidentsOf.get(id)!.push({
+      minute: Number(r.minute),
+      side: Number(r.is_home) ? 'home' : 'away',
+      kind,
+      player: r.player_name ? String(r.player_name) : undefined,
+    })
+  }
+  const incidentsByMatch = new Map<string, Incident[]>()
   const leagues: Record<string, RealEvent[]> = {}
   const tournaments = new Set<string>()
   for (const r of rows) {
@@ -362,17 +418,21 @@ export function databaseSeason(): { key: string; leagues: Record<string, RealEve
     if (!division) continue
     const state = STATE[String(r.status ?? '').toLowerCase()] ?? 'upcoming'
     const score = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
+    const incidents = incidentsOf.get(String(r.event_id))
+    const kickoff = new Date(String(r.start_date)).toISOString()
+    if (incidents) incidentsByMatch.set(matchKey(kickoff, String(r.home_name), String(r.away_name)), incidents)
     ;(leagues[division] ??= []).push({
       id: `db-${r.event_id}`,
       round: Number(r.round) || 0,
       home: String(r.home_name),
       away: String(r.away_name),
-      kickoff: new Date(String(r.start_date)).toISOString(),
+      kickoff,
       homeScore: state === 'upcoming' ? undefined : score(r.home_score),
       awayScore: state === 'upcoming' ? undefined : score(r.away_score),
       state,
+      incidents,
     })
   }
-  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort() }
+  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), incidentsByMatch }
   return seasonCache
 }

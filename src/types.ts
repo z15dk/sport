@@ -10,6 +10,14 @@ export interface Team {
   colors?: [string, string]
 }
 
+/** Something that happened in a match: a goal or a card */
+export interface Incident {
+  minute: number
+  side: 'home' | 'away'
+  kind: 'goal' | 'penalty' | 'own-goal' | 'yellow' | 'red'
+  player?: string
+}
+
 export interface Match {
   id: string
   /** URL slug for the match page, e.g. fc-koebenhavn-broendby-if-2026-09-24 */
@@ -36,6 +44,8 @@ export interface Match {
   winner?: 'home' | 'away' | 'draw'
   /** Real fixture and result (TheSportsDB) rather than a fictional one */
   real?: boolean
+  /** Goals and cards, in match order, when a source has them */
+  incidents?: Incident[]
 }
 
 export interface LeagueGroup {
