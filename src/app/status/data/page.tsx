@@ -41,8 +41,8 @@ export default function DataStatusPage() {
               <h2 className="panel__title">{l.name}</h2>
               <p>
                 {l.events > 0
-                  ? `${l.events} kampe, heraf ${l.finished} spillet. Vises med rigtige resultater.`
-                  : 'Ingen kampe hos TheSportsDB (eller ikke hentet endnu) – ligaen vises ikke på siden.'}
+                  ? `${l.events} kampe, heraf ${l.finished} spillet (fra ${l.source}).`
+                  : 'Ingen kampe hos TheSportsDB eller i kampdatabasen (eller ikke hentet endnu) – ligaen vises ikke på siden.'}
               </p>
               {l.teams.length > 0 && <p>Hold: {l.teams.join(', ')}</p>}
               {unknown.length > 0 && (
@@ -68,6 +68,12 @@ export default function DataStatusPage() {
                 databasen og får rigtige indbyrdes opgør og historik.
               </p>
               <p>Turneringer: {h.tournaments.map(([t, n]) => `${t} (${n})`).join(', ')}</p>
+              <p>
+                Denne sæson i databasen:{' '}
+                {h.season.length
+                  ? h.season.map((x) => `${x.id} ${x.events} kampe (${x.finished} spillet)`).join(', ')
+                  : `ingen kampe fra de danske rækker (turneringer denne sæson: ${h.seasonTournaments.join(', ') || 'ingen'})`}
+              </p>
               {h.unmatched.length > 0 && (
                 <p className="muted small">
                   Hold i databasen uden klub hos os ({h.unmatched.length}): {h.unmatched.join(', ')}

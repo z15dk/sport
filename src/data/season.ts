@@ -137,6 +137,14 @@ export const seasonClub = (name: string) => current().clubs.find((x) => x.club.n
 
 export const allFixtures = () => current().fixtures
 export const fixturesOn = (date: string) => current().byDate.get(date) ?? []
+/** The nearest day after (or before) `date` with matches in the sport */
+export function nearestMatchDay(date: string, sport: SportId, direction: 1 | -1): string | undefined {
+  const days = [...current().byDate.entries()]
+    .filter(([d, fs]) => (direction > 0 ? d > date : d < date) && fs.some((f) => f.sport === sport))
+    .map(([d]) => d)
+    .sort()
+  return direction > 0 ? days[0] : days.at(-1)
+}
 export const clubFixtures = (clubId: string) => current().fixtures.filter((f) => f.home.id === clubId || f.away.id === clubId)
 /** Leagues shown with real data, with their next match after `now` (for the front page) */
 export function realLeagues(now: number): { division: Division; next?: Fixture }[] {

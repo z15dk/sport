@@ -1,16 +1,18 @@
 import 'server-only'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { DIVISIONS, sportOf, type Club } from '../data/leagues'
+import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
+import type { RealEvent } from '../data/real'
+import type { MatchState } from '../types'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import { cacheDir } from './tsdb'
 
-// Real match history from the downloaded database (SQLite, read-only):
-// /opt/scoreline/data/football.db on the VPS, or STATS_DB. It has the
-// tables `matches` (one row per match) and `incidents` (goals etc.). Its
-// teams are matched to our clubs by name; head-to-head records and club
-// history come from here instead of the fictional generator.
+// Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
+// the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
+// `incidents` (goals etc.). Its teams are matched to our clubs by name. It
+// gives head-to-heads, club history and this season's fixtures for Danish
+// divisions TheSportsDB does not cover.
 
 export const historyFile = (): string =>
   process.env.STATS_DB ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'football.db')
@@ -299,6 +301,78 @@ export function historyStatus() {
     to: d?.matches[0]?.date.toISOString().slice(0, 10) ?? null,
     tournaments: [...tournaments.entries()].sort((a, b) => b[1] - a[1]),
     clubs: d ? new Set([...d.clubOf.values()].map((c) => c.id)).size : 0,
+    season: Object.entries(databaseSeason()?.leagues ?? {}).map(([id, ev]) => ({ id, events: ev.length, finished: ev.filter((e) => e.state === 'finished').length })),
+    seasonTournaments: databaseSeason()?.tournaments ?? [],
     unmatched: d?.unmatched ?? [],
   }
+}
+
+// ---------------------------------------------------------------- this season from the database
+
+/** Our Danish divisions and the tournament names they have in the database */
+const DIVISION_TOURNAMENTS: [string, RegExp][] = [
+  ['superliga', /superliga/i],
+  ['1div', /^(1\.?\s*div|nordicbet liga|betinia liga)/i],
+  ['2div', /^2\.?\s*div/i],
+  ['3div', /^3\.?\s*div/i],
+]
+
+const STATE: Record<string, MatchState> = {
+  finished: 'finished',
+  notstarted: 'upcoming',
+  inprogress: 'live',
+  postponed: 'postponed',
+  canceled: 'postponed',
+  cancelled: 'postponed',
+  interrupted: 'postponed',
+  abandoned: 'postponed',
+}
+
+let seasonCache: { mtime: number; key: string; leagues: Record<string, RealEvent[]>; tournaments: string[] } | undefined
+
+/**
+ * Every match of the current season (played and coming) in the Danish divisions,
+ * from the database. Used for leagues TheSportsDB has no fixtures for.
+ */
+export function databaseSeason(): { key: string; leagues: Record<string, RealEvent[]>; tournaments: string[] } | undefined {
+  const d = data()
+  if (!d) return undefined
+  if (seasonCache?.mtime === d.mtime) return seasonCache
+  const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => Db } | undefined
+  if (!sqlite) return undefined
+  const year = SEASON.slice(0, 4)
+  const db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
+  let rows: Row[]
+  try {
+    rows = db
+      .prepare(
+        `SELECT event_id, tournament_name, round, start_date, home_name, away_name, home_score, away_score, status
+           FROM matches WHERE substr(season_year, 1, 4) = '${year}' ORDER BY start_date`,
+      )
+      .all()
+  } finally {
+    db.close()
+  }
+  const leagues: Record<string, RealEvent[]> = {}
+  const tournaments = new Set<string>()
+  for (const r of rows) {
+    const tournament = String(r.tournament_name ?? '')
+    tournaments.add(tournament)
+    const division = DIVISION_TOURNAMENTS.find(([, re]) => re.test(tournament))?.[0]
+    if (!division) continue
+    const state = STATE[String(r.status ?? '').toLowerCase()] ?? 'upcoming'
+    const score = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
+    ;(leagues[division] ??= []).push({
+      id: `db-${r.event_id}`,
+      round: Number(r.round) || 0,
+      home: String(r.home_name),
+      away: String(r.away_name),
+      kickoff: new Date(String(r.start_date)).toISOString(),
+      homeScore: state === 'upcoming' ? undefined : score(r.home_score),
+      awayScore: state === 'upcoming' ? undefined : score(r.away_score),
+      state,
+    })
+  }
+  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort() }
+  return seasonCache
 }

@@ -906,3 +906,4 @@ h2.league__name { margin: 0; }
 .history__lead { padding: 0 18px; margin: 0 0 8px; line-height: 1.5; }
 .history__more summary { cursor: pointer; padding: 8px 18px; font-weight: 700; }
 .history__note { padding: 4px 18px 16px; margin: 0; }
+.empty__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }

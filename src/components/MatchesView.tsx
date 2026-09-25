@@ -13,7 +13,7 @@ import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches } from '../data/matches'
-import { realLeagues } from '../data/season'
+import { nearestMatchDay, realLeagues } from '../data/season'
 import Link from 'next/link'
 import { paths } from '../lib/site'
 import { fetchEventsByDay } from '../api/thesportsdb'
@@ -124,6 +124,8 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   const allGroups = useMemo(() => groupByLeague(matches, pinned), [matches, pinned])
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sportById(sport)
+  const nextDay = nearestMatchDay(date, sport, 1)
+  const prevDay = nearestMatchDay(date, sport, -1)
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => l.division.sport === undefined ? sport === 'soccer' : l.division.sport === sport)
   // Only the top leagues are named when they have no matches, to keep the note short
@@ -191,6 +193,20 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           {groups.length === 0 ? (
             <div className="panel empty">
               <p>{query ? `Ingen kampe matcher “${query}”.` : 'Ingen kampe for den valgte dag og filter.'}</p>
+              {!query && (nextDay || prevDay) && (
+                <p className="empty__links">
+                  {nextDay && (
+                    <Link className="pill is-active" href={paths.home({ sport: sportDef.slug, dato: nextDay })}>
+                      Næste kampdag: {formatLong(nextDay)} →
+                    </Link>
+                  )}
+                  {prevDay && (
+                    <Link className="pill" href={paths.home({ sport: sportDef.slug, dato: prevDay })}>
+                      ← Seneste resultater: {formatLong(prevDay)}
+                    </Link>
+                  )}
+                </p>
+              )}
             </div>
           ) : (
             <div className="league-list">

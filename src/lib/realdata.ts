@@ -7,6 +7,7 @@ import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type Rea
 import { toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
+import { databaseSeason } from './history'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -21,27 +22,64 @@ const MAX_ROUNDS = 40
 const file = (): string => process.env.REAL_DATA_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'real-data.json')
 
 type JobState = { running: boolean; lastFull?: number; lastHot?: number; lastError?: string; requests: number; missing?: string[] }
-// On globalThis: the job (started from instrumentation) and the status page load separate copies of this module
-const holder = globalThis as { __scorelineRealJob?: JobState }
+// On globalThis: the job (started from instrumentation) and the pages load separate copies of this module
+const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData; __scorelineMergedKey?: string }
 const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
+
+// ---------------------------------------------------------------- the two sources
+
+/** What TheSportsDB gave us (as saved in real-data.json) */
+const base = () => holder.__scorelineTsdb
+
+/**
+ * The data pages use: TheSportsDB's leagues, plus this season from our match
+ * database for the Danish divisions TheSportsDB has no fixtures for.
+ */
+function apply() {
+  const tsdbData = base()
+  const db = databaseSeason()
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}`
+  if (holder.__scorelineMergedKey === key) return
+  holder.__scorelineMergedKey = key
+  const leagues = { ...(tsdbData?.leagues ?? {}) }
+  for (const [id, events] of Object.entries(db?.leagues ?? {})) if (!leagues[id]?.length && events.length) leagues[id] = events
+  if (!tsdbData && !db) return setRealData(undefined)
+  setRealData({
+    version: hashString(key).toString(36),
+    fetchedAt: tsdbData?.fetchedAt ?? Date.now(),
+    leagues,
+    checked: tsdbData?.checked,
+  })
+}
+
+function setBase(data: RealData) {
+  holder.__scorelineTsdb = data
+  apply()
+}
 
 // ---------------------------------------------------------------- the cache file
 
 let readAt = 0
 let fileMtime = 0
 
-/** Reads the cache file when it has changed; checked at most every 15 seconds */
+/** Reads the cache file (and the match database) when they have changed; checked at most every 15 seconds */
 function loadFromDisk() {
   const now = Date.now()
   if (now - readAt < 15_000) return
   readAt = now
   try {
     const mtime = statSync(file()).mtimeMs
-    if (mtime === fileMtime) return
-    fileMtime = mtime
-    setRealData(JSON.parse(readFileSync(file(), 'utf8')) as RealData)
+    if (mtime !== fileMtime) {
+      fileMtime = mtime
+      holder.__scorelineTsdb = JSON.parse(readFileSync(file(), 'utf8')) as RealData
+    }
   } catch {
-    // No file yet: leagues stay fictional
+    // No file yet
+  }
+  try {
+    apply()
+  } catch (err) {
+    state.lastError = `Kampdatabasen kunne ikke læses: ${(err as Error).message}`
   }
 }
 
@@ -55,10 +93,10 @@ function save(data: RealData) {
   }
 }
 
-function publish(leagues: Record<string, RealEvent[]>, checked = getRealData()?.checked ?? {}) {
+function publish(leagues: Record<string, RealEvent[]>, checked = base()?.checked ?? {}) {
   const version = hashString(JSON.stringify(leagues)).toString(36)
   const data: RealData = { version, fetchedAt: Date.now(), leagues, checked }
-  setRealData(data)
+  setBase(data)
   save(data)
 }
 
@@ -154,14 +192,14 @@ async function leagueIdFor(division: Division): Promise<number | undefined> {
   return league ? Number(league.idLeague) : undefined
 }
 
-const isDue = (divisionId: string, now = Date.now()) => now - (getRealData()?.checked?.[divisionId] ?? 0) > FULL_EVERY_MS - 60_000
+const isDue = (divisionId: string, now = Date.now()) => now - (base()?.checked?.[divisionId] ?? 0) > FULL_EVERY_MS - 60_000
 
 /** Fetches every division not looked up within the last six hours */
 async function runFull() {
   const missing: string[] = []
   for (const division of DIVISIONS) {
     if (!isDue(division.id)) {
-      if (!getRealData()?.leagues[division.id]?.length) missing.push(division.name)
+      if (!base()?.leagues[division.id]?.length) missing.push(division.name)
       continue
     }
     const leagueId = await leagueIdFor(division)
@@ -169,9 +207,9 @@ async function runFull() {
     if (!events) continue // a request failed: try again next run
     if (events.length === 0) missing.push(division.name)
     // Publish league by league, so leagues show up while the rest are fetched
-    const leagues = { ...(getRealData()?.leagues ?? {}) }
+    const leagues = { ...(base()?.leagues ?? {}) }
     if (events.length > 0) leagues[division.id] = events
-    publish(leagues, { ...(getRealData()?.checked ?? {}), [division.id]: Date.now() })
+    publish(leagues, { ...(base()?.checked ?? {}), [division.id]: Date.now() })
   }
   state.missing = missing
   state.lastFull = Date.now()
@@ -179,7 +217,7 @@ async function runFull() {
 
 /** Refetches the rounds with matches from six hours ago to three hours ahead */
 async function runHot() {
-  const current = getRealData()
+  const current = base()
   if (!current) return
   const now = Date.now()
   const leagues = { ...current.leagues }
@@ -257,6 +295,7 @@ export function realDataStatus() {
       return {
         id,
         name,
+        source: base()?.leagues[id]?.length ? 'TheSportsDB' : events.length ? 'kampdatabasen' : undefined,
         events: events.length,
         finished: events.filter((e) => e.state === 'finished').length,
         teams: [...new Set(events.flatMap((e) => [e.home, e.away]))].sort(),
