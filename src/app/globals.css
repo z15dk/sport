@@ -1092,3 +1092,20 @@ h2.league__name { margin: 0; }
 .side-list__count { font-size: 11px; min-width: 20px; height: 20px; padding: 0 6px; }
 .side-list .live-dot { width: 7px; height: 7px; }
 .side-list__page { width: 22px; height: 22px; }
+
+/* Sidebar tournaments by country, each a drop-down */
+.side-countries { list-style: none; margin: 0; padding: 0 6px 8px; }
+.side-country__head {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 10px; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.side-country__head:hover { background: var(--surface-2); }
+.side-country__flag { flex: none; width: 20px; display: grid; place-items: center; }
+.side-country__flag .flag { width: 18px; height: auto; border-radius: 2px; }
+.side-country__name { flex: 1; min-width: 0; font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-country__head .live-dot { width: 7px; height: 7px; }
+.side-country__chevron { flex: none; width: 22px; text-align: center; color: var(--ink-3); font-size: 12px; transition: transform 0.15s; transform: rotate(-90deg); }
+.side-country.is-open .side-country__chevron { transform: none; }
+.side-country .side-list { padding: 0 0 4px 14px; }
+.side-country__flag { font-size: 14px; line-height: 1; }
+.side-country__code { font-size: 8px; font-weight: 800; letter-spacing: 0.02em; padding: 2px 3px; border-radius: 3px; background: var(--surface-2); color: var(--ink-2); }

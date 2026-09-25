@@ -8,6 +8,9 @@ const CODES: Record<string, 'DK' | 'DE' | 'SE' | 'NO' | 'ENG' | 'ES' | 'PT'> = {
   Portugal: 'PT',
 }
 
+/** Whether we have a flag for the country */
+export const hasFlag = (country?: string) => !!country && country in CODES
+
 /** Small national flag for a country name ("Danmark", "Tyskland"); nothing for others */
 export function Flag({ country }: { country?: string }) {
   const code = country ? CODES[country] : undefined
