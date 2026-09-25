@@ -4,6 +4,8 @@ import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
 import { CUP_NAME } from '../data/season'
 import { slugify } from './slug'
+import { API_KEY, cacheDir, requestCount, tsdb } from './tsdb'
+import { SEARCH_NAMES, normalize } from '../data/aliases'
 
 // Club and league logos.
 //
@@ -15,12 +17,7 @@ import { slugify } from './slug'
 //    and deploys. Pages never wait for TheSportsDB.
 // 3. Otherwise TeamBadge draws the initials in the club's colours.
 
-// "3" was TheSportsDB's old free key; the free key is now "123"
-const configuredKey = process.env.THESPORTSDB_KEY || process.env.VITE_THESPORTSDB_KEY || '123'
-const API_KEY = configuredKey === '3' ? '123' : configuredKey
-const API = `${process.env.THESPORTSDB_BASE ?? 'https://www.thesportsdb.com/api/v1/json'}/${API_KEY}`
 const EXTENSIONS = ['svg', 'png', 'webp', 'jpg']
-const REQUEST_GAP_MS = Number(process.env.LOGO_REQUEST_GAP_MS ?? 2_200) // stay under 30 requests a minute
 const FOUND_TTL_MS = 7 * 86_400_000
 const MISSING_TTL_MS = 86_400_000
 
@@ -33,41 +30,6 @@ const API_COUNTRY: Record<string, string> = {
   England: 'England',
   USA: 'United States',
   Europa: 'Worldwide',
-}
-
-// Names TheSportsDB uses for Danish clubs where they differ from the Danish name
-const SEARCH_NAMES: Record<string, string> = {
-  fck: 'FC Copenhagen',
-  bif: 'Brondby',
-  agf: 'Aarhus',
-  fcn: 'Nordsjaelland',
-  rfc: 'Randers',
-  ob: 'Odense',
-  sif: 'Silkeborg',
-  vff: 'Viborg',
-  sje: 'Sonderjyske',
-  lbk: 'Lyngby',
-  ach: 'Horsens',
-  vb: 'Vejle',
-  aab: 'Aalborg',
-  fcf: 'Fredericia',
-  efb: 'Esbjerg',
-  hif: 'Hvidovre',
-  kif: 'Kolding IF',
-  hbk: 'HB Koge',
-  'hik-ob': 'Hobro',
-  hil: 'Hillerod',
-  vff2: 'Vendsyssel',
-  ab: 'Akademisk Boldklub',
-  afr: 'Aarhus Fremad',
-  b93: 'B93',
-  mbk: 'Middelfart',
-  fcr: 'FC Roskilde',
-  nbk: 'Naestved',
-  fam: 'Fremad Amager',
-  sik: 'Skive',
-  frem: 'BK Frem',
-  fch: 'Helsingor',
 }
 
 // ---------------------------------------------------------------- what to look up
@@ -107,21 +69,6 @@ function wanted(): Wanted[] {
   return [...leagues, ...clubs]
 }
 
-/** Lowercase, no accents or Danish letters, no punctuation or common club prefixes */
-function normalize(name: string) {
-  return ` ${name
-    .toLowerCase()
-    .replace(/æ/g, 'ae')
-    .replace(/ø/g, 'o')
-    .replace(/å/g, 'aa')
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')} `
-    .replace(/ (fc|bk|if|ik|ff|fb|afc|boldklub|fodbold|football club) /g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 // ---------------------------------------------------------------- the cache file
 
 interface CacheEntry {
@@ -134,11 +81,7 @@ interface CacheFile {
 
 function cacheFile() {
   if (process.env.LOGO_CACHE_FILE) return process.env.LOGO_CACHE_FILE
-  const cwd = process.cwd()
-  // On the VPS each deploy runs from /opt/scoreline/releases/<sha>; keep the cache beside them
-  const releases = `${path.sep}releases${path.sep}`
-  const base = cwd.includes(releases) ? cwd.slice(0, cwd.indexOf(releases)) : path.join(cwd, '.cache')
-  return path.join(base, 'logo-cache.json')
+  return path.join(/*turbopackIgnore: true*/ cacheDir(), 'logo-cache.json')
 }
 
 const state: {
@@ -147,10 +90,9 @@ const state: {
   running: boolean
   lastRun?: number
   lastError?: string
-  requests: number
   /** Set when a request in the current lookup failed (network, rate limit, server error) */
   failed: boolean
-} = { cache: { entries: {} }, loaded: false, running: false, requests: 0, failed: false }
+} = { cache: { entries: {} }, loaded: false, running: false, failed: false }
 
 function load() {
   if (state.loaded) return
@@ -175,31 +117,13 @@ function save() {
 
 // ---------------------------------------------------------------- TheSportsDB
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 async function api<T>(query: string): Promise<T | undefined> {
-  await sleep(REQUEST_GAP_MS)
-  state.requests++
-  try {
-    const res = await fetch(`${API}/${query}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
-    if (res.status === 429) {
-      // Rate limited: wait a minute and let the next run pick it up
-      state.lastError = 'TheSportsDB: for mange forespørgsler (429) – venter'
-      state.failed = true
-      await sleep(60_000)
-      return undefined
-    }
-    if (!res.ok) {
-      state.lastError = `TheSportsDB svarede ${res.status}`
-      state.failed = true
-      return undefined
-    }
-    return (await res.json()) as T
-  } catch (err) {
-    state.lastError = `TheSportsDB kunne ikke nås: ${(err as Error).message}`
+  const { data, error } = await tsdb<T>(query)
+  if (error) {
+    state.lastError = error
     state.failed = true
-    return undefined
   }
+  return data
 }
 
 interface ApiTeam {
@@ -357,7 +281,7 @@ export function logoStatus() {
     running: state.running,
     lastRun: state.lastRun ? new Date(state.lastRun).toISOString() : null,
     lastError: state.lastError ?? null,
-    requestsSinceStart: state.requests,
+    requestsSinceStart: requestCount,
     clubs: { found: clubs.filter(has).length, total: clubs.length },
     leagues: { found: leagues.filter(has).length, total: leagues.length },
     notChecked: all.filter((w) => !state.cache.entries[w.key] && !localLogos()[w.key]).length,

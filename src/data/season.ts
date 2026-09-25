@@ -1,5 +1,7 @@
 import type { Match, MatchState } from '../types'
 import type { SportId } from '../types'
+import { getRealData, type RealData } from './real'
+import { SEARCH_NAMES, normalize } from './aliases'
 import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
 import { hashString, poisson, roundRobin, seeded, shuffle } from './fixtures'
 import { GAME_LENGTH_MIN, liveLabel, playGame, type Extra } from './scoring'
@@ -55,6 +57,8 @@ export interface Fixture {
   penaltyWinner?: 'home' | 'away'
   /** Ice hockey / basketball games decided in overtime or a shootout */
   extra?: Extra
+  /** Set for real fixtures from TheSportsDB: their own state instead of the simulated clock */
+  real?: { state: MatchState; progress?: string; hasScore: boolean }
 }
 
 // Placeholder that sits out a round in leagues with an odd number of clubs
@@ -140,20 +144,136 @@ function buildCup(): Fixture[] {
   return out
 }
 
-const FIXTURES = [...buildLeague(), ...buildCup()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
-const BY_DATE = new Map<string, Fixture[]>()
-for (const f of FIXTURES) {
-  const d = isoDate(f.kickoff)
-  BY_DATE.set(d, [...(BY_DATE.get(d) ?? []), f])
+// ---------------------------------------------------------------- real fixtures
+
+/** Finds our club for a TheSportsDB team name; clubs we do not know get a stand-in */
+function clubResolver(div: Division) {
+  const byName = new Map<string, Club>()
+  const candidates = DIVISIONS.filter((d) => d.countryCode === div.countryCode && sportOf(d) === sportOf(div)).flatMap((d) => d.clubs)
+  // The division's own clubs first, so they win a shared name
+  for (const club of [...div.clubs, ...candidates]) {
+    for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) {
+      const key = n && normalize(n)
+      if (key && !byName.has(key)) byName.set(key, club)
+    }
+  }
+  const unknown = new Map<string, Club>()
+  return (name: string): Club => {
+    const key = normalize(name)
+    const found =
+      byName.get(key) ??
+      [...byName.entries()].find(([n]) => ` ${key} `.includes(` ${n} `) || ` ${n} `.includes(` ${key} `))?.[1]
+    if (found) return found
+    if (!unknown.has(name)) {
+      unknown.set(name, { id: `x-${hashString(name).toString(36)}`, slug: '', name, city: '', colors: ['#5c6157', '#ffffff'] })
+    }
+    return unknown.get(name)!
+  }
 }
 
-export const allFixtures = () => FIXTURES
-export const fixturesOn = (date: string) => BY_DATE.get(date) ?? []
-export const clubFixtures = (clubId: string) => FIXTURES.filter((f) => f.home.id === clubId || f.away.id === clubId)
-export const isFinished = (f: Fixture, now: number) => f.kickoff.getTime() + GAME_LENGTH_MIN[f.sport] * 60000 <= now
+function buildReal(real: RealData): Fixture[] {
+  const out: Fixture[] = []
+  for (const [divisionId, events] of Object.entries(real.leagues)) {
+    const di = DIVISIONS.findIndex((d) => d.id === divisionId)
+    if (di < 0 || events.length === 0) continue
+    const div = DIVISIONS[di]
+    const club = clubResolver(div)
+    for (const e of events) {
+      const home = club(e.home)
+      const away = club(e.away)
+      const kickoff = new Date(e.kickoff)
+      const hasScore = e.homeScore !== undefined && e.awayScore !== undefined
+      out.push({
+        id: `tsdb-${e.id}`,
+        slug: matchSlug(home.name, away.name, isoDate(kickoff)),
+        competition: div.name,
+        leagueId: `${div.countryCode.toLowerCase()}-${div.id}`,
+        leagueSlug: div.slug,
+        leagueOrder: di,
+        round: e.round,
+        sport: sportOf(div),
+        division: div,
+        home,
+        away,
+        kickoff,
+        score: [e.homeScore ?? 0, e.awayScore ?? 0],
+        real: { state: e.state, progress: e.progress, hasScore },
+      })
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------- the season
+
+const FICTIONAL = buildLeague()
+const CUP = buildCup()
+
+interface Season {
+  version?: string
+  fixtures: Fixture[]
+  byDate: Map<string, Fixture[]>
+  realDivisions: Set<string>
+}
+let season: Season | undefined
+
+/** The season with real fixtures in place of the fictional ones where we have them; rebuilt when the real data changes */
+function current(): Season {
+  const real = getRealData()
+  if (season && season.version === real?.version) return season
+  const realDivisions = new Set(Object.entries(real?.leagues ?? {}).filter(([, e]) => e.length > 0).map(([id]) => id))
+  const fixtures = [
+    ...FICTIONAL.filter((f) => !f.division || !realDivisions.has(f.division.id)),
+    ...(real ? buildReal(real) : []),
+    ...CUP,
+  ].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+  const byDate = new Map<string, Fixture[]>()
+  for (const f of fixtures) {
+    const d = isoDate(f.kickoff)
+    byDate.set(d, [...(byDate.get(d) ?? []), f])
+  }
+  season = { version: real?.version, fixtures, byDate, realDivisions }
+  return season
+}
+
+export const allFixtures = () => current().fixtures
+export const fixturesOn = (date: string) => current().byDate.get(date) ?? []
+export const clubFixtures = (clubId: string) => current().fixtures.filter((f) => f.home.id === clubId || f.away.id === clubId)
+/** True when the division shows real fixtures and results */
+export const isRealDivision = (div: Division) => current().realDivisions.has(div.id)
+export const isFinished = (f: Fixture, now: number) =>
+  f.real ? f.real.state === 'finished' && f.real.hasScore : f.kickoff.getTime() + GAME_LENGTH_MIN[f.sport] * 60000 <= now
+
+/** Status and score of a real fixture: TheSportsDB's own state, but live once kick-off has passed */
+function realState(f: Fixture, now: number): { state: MatchState; statusLabel?: string; hasScore: boolean } {
+  const r = f.real!
+  if (r.state === 'finished') return { state: 'finished', statusLabel: 'Slut', hasScore: r.hasScore }
+  if (r.state === 'postponed') return { state: 'postponed', statusLabel: 'Udsat', hasScore: false }
+  if (r.state === 'live') {
+    const p = r.progress ?? ''
+    return { state: 'live', statusLabel: p === 'HT' ? 'Pause' : /^\d+$/.test(p) ? `${p}'` : 'Live', hasScore: r.hasScore }
+  }
+  if (now >= f.kickoff.getTime()) {
+    const over = now > f.kickoff.getTime() + (GAME_LENGTH_MIN[f.sport] + 15) * 60000
+    return { state: 'live', statusLabel: over ? 'Afventer' : 'I gang', hasScore: r.hasScore }
+  }
+  return { state: 'upcoming', hasScore: false }
+}
 
 /** Turns a fixture into a match as it looks at `now` (upcoming, live with a partial score, or finished) */
 export function toMatch(f: Fixture, now: number): Match {
+  if (f.real) {
+    const { state, statusLabel, hasScore } = realState(f, now)
+    return {
+      ...baseMatch(f),
+      real: true,
+      state,
+      statusLabel,
+      winner: state !== 'finished' ? undefined : f.score[0] > f.score[1] ? 'home' : f.score[0] < f.score[1] ? 'away' : 'draw',
+      home: { name: f.home.name, colors: f.home.colors, score: hasScore ? f.score[0] : undefined },
+      away: { name: f.away.name, colors: f.away.colors, score: hasScore ? f.score[1] : undefined },
+    }
+  }
   const elapsed = (now - f.kickoff.getTime()) / 60000
   let state: MatchState = 'upcoming'
   let statusLabel: string | undefined
@@ -171,19 +291,9 @@ export function toMatch(f: Fixture, now: number): Match {
   const hasScore = state !== 'upcoming'
   const partial = (g: number) => (state === 'finished' ? g : Math.floor(g * progress))
   return {
-    id: f.id,
-    slug: f.slug,
-    sport: f.sport,
-    league: f.competition,
-    leagueId: f.leagueId,
-    leagueSlug: f.leagueSlug,
-    leagueOrder: f.leagueOrder,
-    country: f.division?.country ?? 'Danmark',
-    kickoff: f.kickoff,
+    ...baseMatch(f),
     state,
     statusLabel,
-    venue: f.home.city,
-    round: f.round,
     winner:
       state !== 'finished'
         ? undefined
@@ -194,6 +304,22 @@ export function toMatch(f: Fixture, now: number): Match {
             : 'draw',
     home: { name: f.home.name, colors: f.home.colors, score: hasScore ? partial(f.score[0]) : undefined },
     away: { name: f.away.name, colors: f.away.colors, score: hasScore ? partial(f.score[1]) : undefined },
+  }
+}
+
+function baseMatch(f: Fixture) {
+  return {
+    id: f.id,
+    slug: f.slug,
+    sport: f.sport,
+    league: f.competition,
+    leagueId: f.leagueId,
+    leagueSlug: f.leagueSlug,
+    leagueOrder: f.leagueOrder,
+    country: f.division?.country ?? 'Danmark',
+    kickoff: f.kickoff,
+    venue: f.home.city || undefined,
+    round: f.round,
   }
 }
 
@@ -215,8 +341,13 @@ export interface StandingRow {
 
 /** Table for a division from every league match finished by `now` */
 export function standings(div: Division, now: number): StandingRow[] {
+  const { fixtures, realDivisions } = current()
+  // With real data the table also has any club playing that is missing from our register
+  const clubs = realDivisions.has(div.id)
+    ? [...new Map([...div.clubs, ...fixtures.filter((f) => f.division === div).flatMap((f) => [f.home, f.away])].map((c) => [c.id, c])).values()]
+    : div.clubs
   const rows = new Map<string, StandingRow>(
-    div.clubs.map((club) => [
+    clubs.map((club) => [
       club.id,
       { club, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, otWon: 0, otLost: 0, form: [] },
     ]),
@@ -247,7 +378,7 @@ export function standings(div: Division, now: number): StandingRow[] {
       row.form.push('U')
     }
   }
-  for (const f of FIXTURES) {
+  for (const f of fixtures) {
     if (f.division !== div || !isFinished(f, now)) continue
     result(rows.get(f.home.id)!, f.score[0], f.score[1], f.extra)
     result(rows.get(f.away.id)!, f.score[1], f.score[0], f.extra)

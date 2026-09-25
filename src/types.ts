@@ -34,6 +34,8 @@ export interface Match {
   round?: number
   /** Set once finished; cup ties level after full time are decided on penalties */
   winner?: 'home' | 'away' | 'draw'
+  /** Real fixture and result (TheSportsDB) rather than a fictional one */
+  real?: boolean
 }
 
 export interface LeagueGroup {

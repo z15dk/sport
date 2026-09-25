@@ -166,7 +166,11 @@ function MatchBody({ match, now }: { match: Match; now: number }) {
               )
             })}
           </ul>
-          <p className="muted small">Alle resultater er fiktive.</p>
+          <p className="muted small">
+            {match.real
+              ? 'Kampprogram og resultat er rigtige (TheSportsDB). Statistik og indbyrdes opgør er fiktive.'
+              : 'Alle resultater er fiktive.'}
+          </p>
         </section>
       </div>
     </article>

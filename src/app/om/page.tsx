@@ -22,7 +22,7 @@ export default function AboutPage() {
 
         {!INDEXABLE && (
           <p className="banner">
-            Scoreline er under udvikling. Alle kampe, resultater og tal på siden er fiktive og kun til test.
+            Scoreline er under udvikling. Superligaens kampe og resultater er rigtige (TheSportsDB); alle andre kampe, resultater og tal på siden er fiktive og kun til test.
           </p>
         )}
 

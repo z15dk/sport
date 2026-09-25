@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf } from '../../../data/leagues'
-import { standings } from '../../../data/season'
+import { isRealDivision, standings } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
@@ -70,7 +70,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
               {division.name}
             </span>
             <span>
-              Sæson {seasonOf(division)} · {division.clubs.length} klubber
+              Sæson {seasonOf(division)} · {rows.length} klubber
             </span>
           </h1>
           <DivisionTabs active={division.slug} />
@@ -86,7 +86,9 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
-            <span className="tag">Fiktiv · efter {rounds} runder</span>
+            <span className="tag">
+              {isRealDivision(division) ? 'Rigtige resultater' : 'Fiktiv'} · efter {rounds} runder
+            </span>
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>

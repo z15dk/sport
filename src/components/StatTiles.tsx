@@ -36,7 +36,7 @@ export function StatTiles({ matches, updatedAt, source, onSourceChange, onRefres
       <div className="tiles__source">
         <div className="switch" role="group" aria-label="Datakilde">
           <button className={source === 'fictional' ? 'is-active' : ''} aria-pressed={source === 'fictional'} onClick={() => onSourceChange('fictional')}>
-            Fiktive
+            Scoreline
           </button>
           <button className={source === 'api' ? 'is-active' : ''} aria-pressed={source === 'api'} onClick={() => onSourceChange('api')}>
             Live-data

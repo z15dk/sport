@@ -7,6 +7,8 @@ import { Footer } from '../components/Footer'
 import { AdSlot } from '../components/AdSlot'
 import { JsonLd, organizationLd } from '../lib/jsonld'
 import { getBadges } from '../lib/badges'
+import { loadRealData } from '../lib/realdata'
+import { RealDataProvider } from '../components/RealDataProvider'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -31,6 +33,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const badges = await getBadges()
+  const real = loadRealData()
   return (
     <html lang="da">
       <head>
@@ -44,19 +47,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <JsonLd data={organizationLd()} />
-        <BadgeProvider badges={badges}>
-          <div className="app">
-            <Suspense fallback={<nav className="rail" aria-label="Sportsgrene" />}>
-              <SportRail />
-            </Suspense>
-            <div className="app__main">
-              <Header />
-              <AdSlot placement="top" />
-              {children}
-              <Footer />
+        <RealDataProvider data={real}>
+          <BadgeProvider badges={badges}>
+            <div className="app">
+              <Suspense fallback={<nav className="rail" aria-label="Sportsgrene" />}>
+                <SportRail />
+              </Suspense>
+              <div className="app__main">
+                <Header />
+                <AdSlot placement="top" />
+                {children}
+                <Footer />
+              </div>
             </div>
-          </div>
-        </BadgeProvider>
+          </BadgeProvider>
+        </RealDataProvider>
       </body>
     </html>
   )

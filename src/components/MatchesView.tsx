@@ -150,7 +150,9 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         <div className="banner" role="status">
           {apiError
             ? 'Live-data kunne ikke hentes, så du ser fiktive resultater.'
-            : 'Fiktive resultater – kampene og scoringerne er opdigtede.'}
+            : matches.some((m) => m.real)
+              ? `Rigtige kampe og resultater: ${[...new Set(matches.filter((m) => m.real).map((m) => m.league))].join(', ')}. Øvrige resultater er fiktive.`
+              : 'Fiktive resultater – kampene og scoringerne er opdigtede.'}
         </div>
       )}
 

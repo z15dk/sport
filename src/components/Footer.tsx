@@ -43,7 +43,7 @@ export function Footer() {
           </ul>
         </div>
       </nav>
-      {!INDEXABLE && <p className="footer__note">Under udvikling – alle resultater er fiktive.</p>}
+      {!INDEXABLE && <p className="footer__note">Under udvikling – resultaterne er fiktive, undtagen Superligaen.</p>}
       <p className="footer__note">
         Odds vises for spillere over 18 år.{' '}
         <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">

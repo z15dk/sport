@@ -69,6 +69,23 @@ resultaterne er fiktive. IndexNow er også slået fra.
 3. Byg igen: `sudo scoreline-update --force` (indstillingerne bages ind ved bygget).
 4. Tilmeld domænet i Google Search Console og Bing Webmaster Tools og indsend `/sitemap.xml`.
 
+## Rigtige resultater (Superliga)
+
+Superligaens kampprogram og resultater er rigtige. Et baggrundsjob (`src/lib/realdata.ts`) henter
+hele sæsonen runde for runde fra TheSportsDB hver 6. time, og runder med kampe omkring nu hvert
+10. minut. Data gemmes i `real-data.json` (på VPS'en i `/opt/scoreline/`), så en genstart starter med
+dem. Indtil de er hentet, vises Superligaen med fiktive resultater. Stilling, klubsider, forside og
+kampsider bygges af de rigtige kampe; pokal, statistik og indbyrdes opgør er stadig fiktive.
+
+Flere ligaer: tilføj division-id → TheSportsDB-liga-id i `REAL_LEAGUES` (`src/data/real.ts`).
+Status og hold der ikke kan kobles til klubregistret: **`/status/data`**.
+
+## Reklamer
+
+Faste pladser i `src/data/ads.ts`, vist med `<AdSlot>` og mærket "Annonce": topbanner (970×90),
+banner mellem ligaerne på forsiden (728×90), sidebanner (300×600) og banner på kamp-, klub- og
+turneringssider (300×250). Se `public/ads/README.md`.
+
 ## Klub- og ligalogoer
 
 1. Egne filer vinder: `public/logos/<klub-slug>.*`, `public/logos/ligaer/<liga-slug>.*`

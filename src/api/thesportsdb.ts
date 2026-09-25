@@ -8,7 +8,7 @@ const configuredKey = process.env.NEXT_PUBLIC_THESPORTSDB_KEY || '123'
 const API_KEY = configuredKey === '3' ? '123' : configuredKey
 const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
 
-interface ApiEvent {
+export interface ApiEvent {
   idEvent: string
   idLeague: string
   strLeague: string
@@ -33,7 +33,7 @@ const FINISHED = new Set(['FT', 'AET', 'PEN', 'AP', 'Match Finished', 'Finished'
 const UPCOMING = new Set(['', 'NS', 'Not Started', 'TBD', 'Time to be defined'])
 const POSTPONED = new Set(['PST', 'CANC', 'ABD', 'Postponed', 'Cancelled', 'Abandoned'])
 
-function toState(e: ApiEvent): MatchState {
+export function toState(e: ApiEvent): MatchState {
   const status = (e.strStatus ?? '').trim()
   if (e.strPostponed === 'yes' || POSTPONED.has(status)) return 'postponed'
   if (FINISHED.has(status)) return 'finished'
@@ -41,13 +41,13 @@ function toState(e: ApiEvent): MatchState {
   return 'live'
 }
 
-function toScore(v?: string | null): number | undefined {
+export function toScore(v?: string | null): number | undefined {
   if (v === null || v === undefined || v === '') return undefined
   const n = Number(v)
   return Number.isFinite(n) ? n : undefined
 }
 
-function toKickoff(e: ApiEvent): Date {
+export function toKickoff(e: ApiEvent): Date {
   if (e.strTimestamp) {
     // Timestamps are UTC but come without a zone suffix
     const ts = /[zZ]|[+-]\d\d:?\d\d$/.test(e.strTimestamp) ? e.strTimestamp : `${e.strTimestamp}Z`
