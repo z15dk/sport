@@ -7,6 +7,8 @@ import type { Incident, MatchState } from '../types'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import { cacheDir } from './tsdb'
+import { archiveFile, readArchive } from './archive'
+import { hashString } from '../data/fixtures'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
 // the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
@@ -55,8 +57,9 @@ let lastError: string | undefined
 
 function resolver() {
   const byName = new Map<string, Club>()
-  for (const d of DIVISIONS) {
-    if (d.countryCode !== 'DK' || sportOf(d) !== 'soccer') continue
+  // Danish football first (football.db is Danish football), then every other league (the archive has them all)
+  const ordered = [...DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer'), ...DIVISIONS.filter((d) => d.countryCode !== 'DK' || sportOf(d) !== 'soccer')]
+  for (const d of ordered) {
     for (const club of d.clubs) {
       for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) {
         const key = n && normalize(n)
@@ -67,12 +70,12 @@ function resolver() {
   return (name: string) => byName.get(normalize(name))
 }
 
-function read(file: string, mtime: number): Loaded {
+function read(file: string | undefined, mtime: number): Loaded {
   const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => Db } | undefined
   if (!sqlite) throw new Error(`Node ${process.version} kan ikke læse SQLite – kræver Node 22.13 eller nyere`)
-  const db = new sqlite.DatabaseSync(file, { readOnly: true })
-  let rows: Row[]
-  try {
+  let rows: Row[] = []
+  const db = file ? new sqlite.DatabaseSync(file, { readOnly: true }) : undefined
+  if (db) try {
     rows = db
       .prepare(
         `SELECT event_id, tournament_id, tournament_name, season_id, season_year, start_date, home_id, home_name,
@@ -85,7 +88,7 @@ function read(file: string, mtime: number): Loaded {
   } finally {
     db.close()
   }
-  const matches: DbMatch[] = rows.map((r) => ({
+  const fromDb: DbMatch[] = rows.map((r) => ({
     id: Number(r.event_id),
     tournamentId: Number(r.tournament_id),
     tournament: String(r.tournament_name ?? ''),
@@ -100,6 +103,28 @@ function read(file: string, mtime: number): Loaded {
     awayScore: Number(r.away_score),
     spectators: r.spectators == null ? undefined : Number(r.spectators),
   }))
+
+  // Our own statistics bank: every other league, and anything football.db no longer has
+  const seen = new Set(fromDb.map((m) => matchKey(m.date.toISOString(), m.homeName, m.awayName)))
+  const teamId = (name: string) => -hashString(normalize(name))
+  const fromArchive: DbMatch[] = readArchive()
+    .filter((a) => !seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName)))
+    .map((a) => ({
+      id: -hashString(a.id),
+      tournamentId: -hashString(a.divisionId),
+      tournament: a.tournament,
+      seasonId: -hashString(a.season),
+      season: a.season,
+      date: a.date,
+      homeId: teamId(a.homeName),
+      homeName: a.homeName,
+      awayId: teamId(a.awayName),
+      awayName: a.awayName,
+      homeScore: a.homeScore,
+      awayScore: a.awayScore,
+      spectators: a.spectators,
+    }))
+  const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
 
   // Newest name per team id (clubs get renamed), then matched to our register
   const names = new Map<number, string>()
@@ -134,14 +159,17 @@ function data(): Loaded | undefined {
   checkedAt = now
   const file = historyFile()
   try {
-    if (!existsSync(file)) {
+    const hasDb = existsSync(file)
+    const hasArchive = existsSync(archiveFile())
+    if (!hasDb && !hasArchive) {
       lastError = `Filen ${file} findes ikke`
       loaded = undefined
       return undefined
     }
-    const mtime = statSync(file).mtimeMs
-    if (!loaded || loaded.mtime !== mtime) loaded = read(file, mtime)
-    lastError = undefined
+    // Re-read when either football.db or the archive has changed
+    const mtime = (hasDb ? statSync(file).mtimeMs : 0) + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
+    if (!loaded || loaded.mtime !== mtime) loaded = read(hasDb ? file : undefined, mtime)
+    lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
     lastError = (err as Error).message
   }
@@ -369,7 +397,7 @@ export function databaseSeason(): SeasonData | undefined {
   if (!d) return undefined
   if (seasonCache?.mtime === d.mtime) return seasonCache
   const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => Db } | undefined
-  if (!sqlite) return undefined
+  if (!sqlite || !existsSync(historyFile())) return undefined
   const year = SEASON.slice(0, 4)
   const db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
   let rows: Row[]

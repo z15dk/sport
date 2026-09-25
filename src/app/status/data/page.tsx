@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { realDataStatus } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
+import { archiveStatus } from '../../../lib/archive'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
@@ -19,6 +20,7 @@ const isKnown = (team: string) => {
 export default function DataStatusPage() {
   const s = realDataStatus()
   const h = historyStatus()
+  const a = archiveStatus()
   return (
     <div className="page">
       <div className="clubs prose">
@@ -82,6 +84,18 @@ export default function DataStatusPage() {
               )}
             </>
           )}
+        </section>
+        <section className="panel prose__section">
+          <h2 className="panel__title">Scorelines statistikbank</h2>
+          <p>
+            Fil: <code>{a.file}</code> · Senest gemt: {a.lastRun ?? 'ikke endnu'}
+          </p>
+          {a.lastError && <p className="unverified">Seneste fejl: {a.lastError}</p>}
+          <p>
+            {a.total.toLocaleString('da-DK')} færdigspillede kampe gemt
+            {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
+          </p>
+          <p className="muted small">Hver færdigspillet kamp fra alle kilder gemmes her hvert 5. minut, med resultat, pauseresultat, tilskuere, mål og kort.</p>
         </section>
       </div>
     </div>

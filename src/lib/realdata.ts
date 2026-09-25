@@ -8,6 +8,7 @@ import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/
 import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
+import { archiveFinished } from './archive'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -314,6 +315,14 @@ export function startRealDataSync() {
   if (DIVISIONS.some((d) => isDue(d.id))) void guarded(runFull)
   setInterval(() => void guarded(runFull), 30 * 60_000).unref()
   setInterval(() => void guarded(runHot), HOT_EVERY_MS).unref()
+  // Save finished matches to our own statistics bank every five minutes (and once at start)
+  const archive = () => {
+    readAt = 0 // pick up a changed football.db or real-data.json right away
+    loadFromDisk()
+    archiveFinished()
+  }
+  archive()
+  setInterval(archive, 5 * 60_000).unref()
 }
 
 /** Makes sure the latest data is loaded before a page renders */
