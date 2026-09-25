@@ -4,6 +4,8 @@ import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
 import { slugify } from './slug'
 import { API_KEY, cacheDir, requestCount, tsdb } from './tsdb'
+import { customLogoUrl } from './customLogos'
+import { seasonClubs } from '../data/season'
 import { SEARCH_NAMES, normalize } from '../data/aliases'
 
 // Club and league logos.
@@ -255,12 +257,47 @@ function localLogos() {
   return map
 }
 
+/** Every club we know: our club lists and clubs playing that are missing from them */
+function everyClub() {
+  const byId = new Map(allClubs().map((x) => [x.club.id, x]))
+  for (const x of seasonClubs()) if (!byId.has(x.club.id)) byId.set(x.club.id, x)
+  return [...byId.values()]
+}
+
+/** Logos uploaded in the admin pages, by club name */
+function uploadedLogos() {
+  const map: Record<string, string> = {}
+  for (const { club } of everyClub()) {
+    const url = club.slug && customLogoUrl(club.slug)
+    if (url) map[club.name] = url
+  }
+  return map
+}
+
 /** Map of club/league/partner name -> logo URL for everything that has one. Never waits on the network. */
 export async function getBadges(): Promise<Record<string, string>> {
   load()
   const map: Record<string, string> = {}
   for (const [key, e] of Object.entries(state.cache.entries)) if (e.url) map[key] = e.url
-  return { ...map, ...localLogos() }
+  // Uploads in the admin pages win, then files in public/logos, then TheSportsDB
+  return { ...map, ...localLogos(), ...uploadedLogos() }
+}
+
+export type LogoSource = 'upload' | 'fil' | 'thesportsdb' | 'forbogstaver'
+
+/** Every club with its logo and where the logo comes from, for the admin pages */
+export function clubLogoOverview() {
+  load()
+  const local = localLogos()
+  return everyClub()
+    .map(({ club, division }) => {
+      const upload = club.slug ? customLogoUrl(club.slug) : undefined
+      const file = local[club.name]
+      const api = state.cache.entries[club.name]?.url
+      const source: LogoSource = upload ? 'upload' : file ? 'fil' : api ? 'thesportsdb' : 'forbogstaver'
+      return { club, division, url: upload ?? file ?? api, source }
+    })
+    .sort((a, b) => a.club.name.localeCompare(b.club.name, 'da'))
 }
 
 /** Numbers for the status page */

@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic'
 export default function robots(): MetadataRoute.Robots {
   // Block all crawlers while the site shows fictional results
   if (!INDEXABLE) return { rules: { userAgent: '*', disallow: '/' } }
-  return { rules: { userAgent: '*', allow: '/' }, sitemap: `${SITE_URL}/sitemap.xml` }
+  return { rules: { userAgent: '*', allow: '/', disallow: ['/admin', '/api/', '/status/'] }, sitemap: `${SITE_URL}/sitemap.xml` }
 }

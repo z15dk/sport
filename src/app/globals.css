@@ -975,3 +975,30 @@ h2.league__name { margin: 0; }
 .ichart__bar--down .ichart__tip { bottom: auto; top: calc(100% + 6px); }
 .ichart__bar:hover .ichart__tip, .ichart__bar:focus .ichart__tip { opacity: 1; }
 .ichart__caption { margin: 6px 0 0; }
+
+/* Admin */
+.admin-login { max-width: 420px; }
+.admin-form { display: flex; flex-direction: column; gap: 12px; }
+.admin-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.admin-form input, .admin-filter input, .admin-filter select {
+  font: inherit; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.admin__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.admin-filter { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; align-items: center; }
+.admin-filter input { flex: 1 1 200px; }
+.admin-list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.admin-list__row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+.admin-list__name { display: flex; flex-direction: column; font-weight: 700; min-width: 0; }
+.admin-list__name a:hover { text-decoration: underline; }
+.admin-list__name em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--ink-3); }
+.admin-source { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--ink-2); white-space: nowrap; }
+.admin-source--upload { background: var(--lime); color: var(--ink); }
+.admin-source--forbogstaver { background: var(--live-soft); color: #a3290c; }
+.logo-editor { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.logo-editor label { cursor: pointer; }
+.logo-editor .is-busy { opacity: 0.6; }
+.logo-editor__error { color: #a3290c; font-size: 12px; font-weight: 600; }
+@media (max-width: 700px) {
+  .admin-list__row { grid-template-columns: 36px minmax(0, 1fr); }
+  .admin-source, .logo-editor { grid-column: 2; justify-self: start; }
+}
