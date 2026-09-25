@@ -10,6 +10,7 @@ import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
+import { AdSlot } from '../../../components/AdSlot'
 import { Updated } from '../../../components/Updated'
 import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
@@ -90,6 +91,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <StandingsTable division={division} rows={rows} />
         </section>
 
+        <AdSlot placement="feed" />
+
         {todays.length > 0 && (
           <section className="league">
             <header className="league__header">
@@ -108,6 +111,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </section>
         )}
 
+        <AdSlot placement="content" />
         <Faq items={faq} />
       </div>
     </div>

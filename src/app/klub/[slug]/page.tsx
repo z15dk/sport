@@ -14,6 +14,7 @@ import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
+import { AdSlot } from '../../../components/AdSlot'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, isoDate } from '../../../lib/time'
@@ -138,6 +139,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
           </div>
         </div>
 
+        <AdSlot placement="content" />
         <Faq items={faq} />
         <p className="muted small">Alle resultater og tal er fiktive.</p>
       </div>
@@ -217,6 +219,7 @@ function TeamPage({ team }: { team: TeamEntry }) {
           </section>
         </div>
 
+        <AdSlot placement="content" />
         <Faq items={faq} />
         <p className="muted small">Alle resultater er fiktive.</p>
       </div>

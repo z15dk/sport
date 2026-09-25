@@ -5,6 +5,7 @@ import { findMatch } from '../../../data/matches'
 import { clubStats, headToHead } from '../../../data/matchInsights'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
+import { AdSlot } from '../../../components/AdSlot'
 import { matchFaq } from '../../../lib/faq'
 import { dateFromMatchSlug } from '../../../lib/slug'
 import { summary } from '../../../lib/matchText'
@@ -64,6 +65,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       <JsonLd data={faqLd(faq)} />
       <MatchView slug={slug} date={date} initialNow={now} />
       <div className="match-page match-page--after">
+        <AdSlot placement="content" />
         <Faq items={faq} />
       </div>
     </div>

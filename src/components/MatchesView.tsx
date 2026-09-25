@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
 import { FilterBar } from './FilterBar'
@@ -8,6 +8,8 @@ import { LeagueSection } from './LeagueSection'
 import { Sidebar } from './Sidebar'
 import { FeaturedMatch } from './FeaturedMatch'
 import { StatTiles } from './StatTiles'
+import { AdSlot } from './AdSlot'
+import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { getMatches } from '../data/matches'
@@ -48,6 +50,12 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
     (g.matches[0].leagueOrder ?? 99) * 10 +
     Math.min(...g.matches.map((m) => STATE_ORDER[m.state]))
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
+}
+
+/** Feed ads after the FEED_AD_FIRST-th league, then every FEED_AD_EVERY; never as the very last item */
+function isFeedAdSpot(i: number, total: number): boolean {
+  const n = i + 1
+  return n < total && n >= FEED_AD_FIRST && (n - FEED_AD_FIRST) % FEED_AD_EVERY === 0
 }
 
 interface Props {
@@ -165,13 +173,17 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
             </div>
           ) : (
             <div className="league-list">
-              {groups.map((g) => (
-                <LeagueSection
-                  key={g.leagueId}
-                  group={g}
-                  pinned={pinned.has(g.leagueId)}
-                  onTogglePin={() => togglePin(g.leagueId)}
-                />
+              {groups.map((g, i) => (
+                <Fragment key={g.leagueId}>
+                  <LeagueSection
+                    group={g}
+                    pinned={pinned.has(g.leagueId)}
+                    onTogglePin={() => togglePin(g.leagueId)}
+                  />
+                  {isFeedAdSpot(i, groups.length) && (
+                    <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
+                  )}
+                </Fragment>
               ))}
             </div>
           )}
@@ -186,6 +198,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
             onSourceChange={setSource}
             onRefresh={() => setTick((t) => t + 1)}
           />
+          <AdSlot placement="side" />
         </aside>
       </div>
     </div>

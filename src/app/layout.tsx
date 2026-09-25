@@ -4,6 +4,7 @@ import { Header } from '../components/Header'
 import { SportRail } from '../components/SportRail'
 import { BadgeProvider } from '../components/BadgeProvider'
 import { Footer } from '../components/Footer'
+import { AdSlot } from '../components/AdSlot'
 import { JsonLd, organizationLd } from '../lib/jsonld'
 import { getBadges } from '../lib/badges'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Suspense>
             <div className="app__main">
               <Header />
+              <AdSlot placement="top" />
               {children}
               <Footer />
             </div>
