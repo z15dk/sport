@@ -159,6 +159,13 @@ export function sourceQuality(now = Date.now()): { name: string; level: Level; c
     const fetched = a.todayFetchedAt ? now - Date.parse(a.todayFetchedAt) : Infinity
     c.push(fetched < 3 * HOUR ? { level: 'ok', text: `Dagens kampe hentet for ${Math.round(fetched / 60_000)} min. siden` } : { level: 'error', text: 'Dagens kampe er ikke hentet de seneste 3 timer' })
     if (a.lastError) c.push({ level: 'error', text: `Fejl: ${a.lastError}` })
+    if (a.allowedDays) {
+      const day = (n: number) => (n === 0 ? 'i dag' : n === -1 ? 'i går' : n === 1 ? 'i morgen' : `${n > 0 ? '+' : ''}${n} dage`)
+      c.push({
+        level: 'warn',
+        text: `Planen giver kun kampe fra ${day(a.allowedDays.from)} til ${day(a.allowedDays.to)}. Resten af programmet kommer fra TheSportsDB; ældre resultater kan ikke hentes bagud (en betalt plan giver hele sæsonen).`,
+      })
+    }
     if (a.remaining !== undefined) c.push({ level: a.remaining < 10 ? 'warn' : 'ok', text: `${a.remaining} af ${a.limit ?? '?'} kald tilbage i dag` })
     out.push({ name: `API-Sports ${a.label}`, level: worst(c), checks: c })
   }

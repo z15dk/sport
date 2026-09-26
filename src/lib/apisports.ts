@@ -286,6 +286,8 @@ interface ApiState {
   past?: Record<string, ExternalGame[]>
   /** Days before the window fetched once for the past games */
   backfilled?: Record<string, number>
+  /** Days the plan gives access to, relative to today (the free plan: yesterday to tomorrow) */
+  allowedDays?: { from: number; to: number }
   remaining?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
@@ -403,10 +405,35 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
   }
 }
 
+/**
+ * A plan limit on dates ("Free plans do not have access to this date, try from
+ * 2026-09-25 to 2026-09-27"): kept as days relative to today, so the job only
+ * asks for days it can get instead of pausing on the error.
+ */
+function planLimit(s: ApiState, error: string): boolean {
+  const m = /try from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/.exec(error)
+  if (!m) return false
+  const today = Date.parse(isoDate(Date.now()))
+  const days = (d: string) => Math.round((Date.parse(d) - today) / 86_400_000)
+  s.allowedDays = { from: days(m[1]), to: days(m[2]) }
+  return true
+}
+
+/** Whether the plan gives access to a day */
+function allowed(s: ApiState | undefined, date: string, today: string) {
+  const a = s?.allowedDays
+  return !a || (date >= addDays(today, a.from) && date <= addDays(today, a.to))
+}
+
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
   const s = (mem.store[api] ??= { days: {} })
   const { response, error } = await call(api, def.path(date))
+  if (error && planLimit(s, error)) {
+    // Not an error to wait out: the job just stays within the plan's days
+    s.days[date] = { fetchedAt: Date.now(), games: s.days[date]?.games ?? [] }
+    return
+  }
   if (error) {
     s.lastError = error
     s.lastErrorAt = Date.now()
@@ -425,6 +452,13 @@ function dueDay(api: Api, now: number): string | undefined {
   const s = mem.store[api] ?? { days: {} }
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (remaining <= 2) return undefined
+  // An earlier plan-limit error is not one to wait out
+  if (s.lastError && /try from \d{4}-\d{2}-\d{2} to/.test(s.lastError)) {
+    // The days are relative to when the error came, so only trust one from today
+    if (s.lastErrorAt && isoDate(s.lastErrorAt) === isoDate(now)) planLimit(s, s.lastError)
+    s.lastError = undefined
+    s.lastErrorAt = undefined
+  }
   // Wait an hour after an error (a plan restriction or a wrong key would repeat), unless the key has changed since
   if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
   const today = isoDate(now)
@@ -438,8 +472,8 @@ function dueDay(api: Api, now: number): string | undefined {
   const todayEvery = busy ? Math.max(5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : 60 * 60_000
   if (age(today) > todayEvery) return today
   const yesterday = addDays(today, -1)
-  if (age(yesterday) > 6 * 3_600_000) return yesterday
-  for (const d of window(today).slice(2)) if (age(d) > (d === addDays(today, 1) ? 3 : 12) * 3_600_000) return d
+  if (allowed(s, yesterday, today) && age(yesterday) > 6 * 3_600_000) return yesterday
+  for (const d of window(today).slice(2)) if (allowed(s, d, today) && age(d) > (d === addDays(today, 1) ? 3 : 12) * 3_600_000) return d
   return undefined
 }
 
@@ -457,6 +491,7 @@ function backfillDay(api: Api, now: number): string | undefined {
   const today = isoDate(now)
   for (let i = 2; i <= BACKFILL_DAYS; i++) {
     const d = addDays(today, -i)
+    if (!allowed(s, d, today)) continue
     if (!s.days[d] && !s.backfilled?.[d]) return d
   }
   return undefined
@@ -486,7 +521,9 @@ async function tick() {
       if (!day) continue
       const { response, error } = await call(api, APIS[api].path(day))
       const s = mem.store[api]!
-      if (error) {
+      if (error && planLimit(s, error)) {
+        // outside the plan's days: nothing more to fetch back in time
+      } else if (error) {
         s.lastError = error
         s.lastErrorAt = Date.now()
         s.keyFingerprint = fingerprint(keyFor(api))
@@ -549,6 +586,7 @@ export function apiSportsStatus() {
       leagues: [...new Set(games.map((g) => `${g.league.name}${g.league.country ? ` (${g.league.country})` : ''}`))].sort(),
       todayFetchedAt: fetchedToday ? new Date(fetchedToday).toISOString() : null,
       lastError: s?.lastError ?? null,
+      allowedDays: s?.allowedDays ?? null,
     }
   })
 }
