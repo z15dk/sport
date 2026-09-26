@@ -9,6 +9,7 @@ import { getBadges } from '../../../lib/badges'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { loadRealData } from '../../../lib/realdata'
 import { apiLeagueCatalog } from '../../../lib/apisports'
+import { LeagueFollowToggle } from '../../../components/admin/LeagueFollowToggle'
 import { DIVISIONS, externalLeagueKey, competitionLabel } from '../../../data/leagues'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { danishCountry } from '../../../data/countries'
@@ -111,8 +112,8 @@ export default async function AdminLeagues() {
           <h2 className="panel__title">Alle fodboldligaer hos API-Sports</h2>
           <p className="muted small pad">
             {catalog.leagues.length} ligaer og pokaler med en aktuel sæson
-            {catalog.fetchedAt ? `, hentet ${new Date(catalog.fetchedAt).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })}` : ''}. &quot;Hentes&quot; betyder, at
-            vores job gemmer ligaens kampe. Mærkerne viser, hvad API-Sports har i denne sæson: mål og kort, opstillinger, kampstatistik, spillerstatistik,
+            {catalog.fetchedAt ? `, hentet ${new Date(catalog.fetchedAt).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })}` : ''}. Slå en liga til, så henter vores job dens kampe (på forsiden og med egen side, stilling og
+            topscorere); &quot;standard&quot; er den faste liste, og &quot;nulstil&quot; går tilbage til den. Mærkerne viser, hvad API-Sports har i denne sæson: mål og kort, opstillinger, kampstatistik, spillerstatistik,
             stilling, topscorere og odds.
             {catalog.error && ` Fejl: ${catalog.error}`}
           </p>
@@ -166,7 +167,13 @@ export default async function AdminLeagues() {
                         </span>
                       ))}
                     </span>
-                    <span className={`admin-source admin-source--${l.followed ? 'upload' : 'forbogstaver'}`}>{l.followed ? 'Hentes' : 'Hentes ikke'}</span>
+                    {l.fixed ? (
+                      <span className="admin-source admin-source--upload" title="Vores egen liga eller pokal – hentes altid">
+                        Hentes altid
+                      </span>
+                    ) : (
+                      <LeagueFollowToggle api="football" id={l.id} followed={l.followed} choice={l.choice} />
+                    )}
                   </li>
                 ))}
               </ul>

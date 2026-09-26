@@ -9,6 +9,7 @@ import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { cupOfGame } from '../data/cups'
+import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
@@ -465,6 +466,16 @@ function allowed(s: ApiState | undefined, date: string, today: string) {
   return !a || (date >= addDays(today, a.from) && date <= addDays(today, a.to))
 }
 
+/**
+ * Whether the job keeps a game's league: always our own leagues and cups;
+ * otherwise the admin's choice (/admin/ligaer), else the built-in list (`keep`).
+ */
+function keeps(api: Api, g: ExternalGame): boolean {
+  if (divisionOfGame(g) || cupOfGame(g)) return true
+  const choice = followChoice(api, g.league.id)
+  return choice ? choice === 'on' : APIS[api].keep(g)
+}
+
 /** A paid plan: more than the free plan's 100 requests a day */
 const isPaid = (s: ApiState | undefined) => (s?.limit ?? 100) > 100
 
@@ -505,7 +516,7 @@ async function fetchDay(api: Api, date: string) {
     s.days[date] = { fetchedAt: Date.now(), games: s.days[date]?.games ?? [] }
     return
   }
-  const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
+  const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && keeps(api, g))
   logGoals(s, s.days[date]?.games ?? [], games)
   s.days[date] = { fetchedAt: Date.now(), games: keepEvents(s.days[date]?.games ?? [], games) }
   s.lastError = undefined
@@ -731,10 +742,11 @@ async function tick() {
     const now = Date.now()
     let changed = false
     // New leagues: the days fetched with the old filter are due again
+    const keepVersion = `${KEEP_VERSION}|${leagueFollowChoices().version}`
     for (const s of Object.values(mem.store)) {
-      if (s.keepVersion === KEEP_VERSION) continue
+      if (s.keepVersion === keepVersion) continue
       for (const d of Object.values(s.days)) d.fetchedAt = 0
-      s.keepVersion = KEEP_VERSION
+      s.keepVersion = keepVersion
       changed = true
     }
     for (const api of Object.keys(APIS) as Api[]) {
@@ -1288,8 +1300,14 @@ export interface CatalogLeague {
   season?: number
   /** What API-Sports has for the current season */
   coverage: { events: boolean; lineups: boolean; statistics: boolean; players: boolean; standings: boolean; topScorers: boolean; odds: boolean }
-  /** Whether our job keeps its games (ours, a cup we follow, or let through by `keep`) */
+  /** Whether our job keeps its games (ours, a cup we follow, the admin's choice, or the built-in list) */
   followed: boolean
+  /** Ours or a cup we follow: always kept */
+  fixed?: boolean
+  /** Kept by the built-in list */
+  standard?: boolean
+  /** The admin's choice, when made */
+  choice?: 'on' | 'off'
   /** Our league, when it is one */
   ours?: string
 }
@@ -1298,12 +1316,13 @@ export interface CatalogLeague {
 export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fetchedAt?: number; error?: string }> {
   const api: Api = 'football'
   const store = extrasStore()
-  const key = `${api}|catalog`
+  // v2: with the built-in list and our own leagues stored apart, so the admin's choices apply on top
+  const key = `${api}|catalog2`
   const entry = store.entries[key]
-  if (entry?.catalog && Date.now() - entry.fetchedAt < 24 * 3_600_000) return { leagues: entry.catalog, fetchedAt: entry.fetchedAt }
-  if (!keyFor(api)) return { leagues: entry?.catalog ?? [], fetchedAt: entry?.fetchedAt, error: 'Ingen API-Sports-nøgle på serveren' }
+  if (entry?.catalog && Date.now() - entry.fetchedAt < 24 * 3_600_000) return { leagues: withChoices(entry.catalog), fetchedAt: entry.fetchedAt }
+  if (!keyFor(api)) return { leagues: withChoices(entry?.catalog ?? []), fetchedAt: entry?.fetchedAt, error: 'Ingen API-Sports-nøgle på serveren' }
   const { response, error } = await call(api, '/leagues?current=true')
-  if (error) return { leagues: entry?.catalog ?? [], fetchedAt: entry?.fetchedAt, error }
+  if (error) return { leagues: withChoices(entry?.catalog ?? []), fetchedAt: entry?.fetchedAt, error }
   const leagues: CatalogLeague[] = (response ?? []).map((r) => {
     const season = (r.seasons ?? []).find((x: Raw) => x.current) ?? r.seasons?.[0]
     const c = season?.coverage ?? {}
@@ -1333,7 +1352,9 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
         topScorers: !!c.top_scorers,
         odds: !!c.odds,
       },
-      followed: !!ours || !!cupOfGame(probe) || APIS[api].keep(probe),
+      followed: false,
+      fixed: !!ours || !!cupOfGame(probe),
+      standard: APIS[api].keep(probe),
       ours: ours?.name,
     }
   })
@@ -1345,7 +1366,15 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
   } catch {
     // kept in memory
   }
-  return { leagues, fetchedAt: Date.now() }
+  return { leagues: withChoices(leagues), fetchedAt: Date.now() }
+}
+
+/** The catalog with the admin's choices applied (they change without fetching the catalog again) */
+function withChoices(leagues: CatalogLeague[]): CatalogLeague[] {
+  return leagues.map((l) => {
+    const choice = l.fixed ? undefined : followChoice('football', l.id)
+    return { ...l, choice, followed: !!l.fixed || (choice ? choice === 'on' : !!l.standard) }
+  })
 }
 
 // ---------------------------------------------------------------- match statistics and expected goals

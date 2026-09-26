@@ -1356,3 +1356,7 @@ h2.league__name { margin: 0; }
 .catalog__countries a { display: inline-flex; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
 .catalog__countries a.is-on { background: #eefbc4; }
 .catalog__countries em { font-style: normal; color: var(--ink-3); }
+
+.follow-toggle { display: inline-flex; align-items: center; gap: 8px; }
+.follow-toggle__text { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; line-height: 1.2; min-width: 72px; }
+.follow-toggle__text em, .follow-toggle__text .text-btn { font-style: normal; font-weight: 500; font-size: 11px; color: var(--ink-3); padding: 0; text-align: left; }
