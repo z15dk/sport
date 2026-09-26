@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
+import { cupOfGame } from '../../../data/cups'
 import { apiHeadToHead, apiMatchEvents, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
@@ -76,10 +77,12 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Our own table has API-Sports' team names but no logos: from the games they have sent
   const logos = teamLogos()
   const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
+  // A cup has rounds, not a table
+  const cup = !!(external && cupOfGame(external))
   const extra = fromApi && {
     ...fromApi,
     form: fromApi.form ?? saved?.form,
-    table: fromApi.table ?? savedTable,
+    table: cup ? undefined : (fromApi.table ?? savedTable),
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
@@ -126,7 +129,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

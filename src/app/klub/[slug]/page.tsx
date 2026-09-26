@@ -25,6 +25,7 @@ import { normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
 import { BASELINES } from '../../../data/baselines'
+import { cupOfGame } from '../../../data/cups'
 import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
@@ -212,8 +213,10 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const divisionId = league ? `ext-${api}-${league.id}` : undefined
   // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games
   const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
-  const fromApi = league ? await apiLeagueTable(league) : undefined
-  const table = fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : [])
+  // A cup has rounds, not a table
+  const cup = !!cupOfGame({ sport: team.sport, league: { name: team.league, country: team.country } })
+  const fromApi = league && !cup ? await apiLeagueTable(league) : undefined
+  const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : []))
   const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
   const row =
     table.find((r) => own(r.name)) ??

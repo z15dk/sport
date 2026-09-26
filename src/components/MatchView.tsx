@@ -39,14 +39,16 @@ interface Props {
   events?: Incident[]
   /** Shots, possession and expected goals (server) */
   stats?: MatchStats
+  /** A cup match: no table */
+  cup?: boolean
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events, stats }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events, stats, cup }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} stats={stats} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} stats={stats} cup={cup} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -92,6 +94,7 @@ function MatchBody({
   h2hSource,
   extra,
   stats,
+  cup,
 }: {
   match: Match
   now: number
@@ -99,6 +102,7 @@ function MatchBody({
   h2hSource?: H2hSource
   extra?: MatchExtra
   stats?: MatchStats
+  cup?: boolean
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -119,7 +123,8 @@ function MatchBody({
   // Latest results and the table: from API-Sports for their games, otherwise from our own season
   const form = extra?.form ?? seasonForm(match)
   // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
-  const table = (extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table
+  // A cup has rounds, not a table
+  const table = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
 
   return (
     <article className="match-page">
