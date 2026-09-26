@@ -21,7 +21,8 @@ import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
 import { MatchTimeline } from './MatchTimeline'
-import type { FormGame, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
+import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
+import { LineupPitch } from './LineupPitch'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -41,14 +42,16 @@ interface Props {
   stats?: MatchStats
   /** A cup match: no table */
   cup?: boolean
+  /** Line-ups, home team first (server) */
+  lineups?: Lineup[]
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -94,6 +97,7 @@ function MatchBody({
   extra,
   stats,
   cup,
+  lineups,
 }: {
   match: Match
   now: number
@@ -101,6 +105,7 @@ function MatchBody({
   extra?: MatchExtra
   stats?: MatchStats
   cup?: boolean
+  lineups?: Lineup[]
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -239,6 +244,13 @@ function MatchBody({
                   Det er ikke rigtig xG, som vurderer hvert skud for sig.
                 </p>
               )}
+            </section>
+          )}
+
+          {lineups?.length === 2 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Opstillinger</h2>
+              <LineupPitch lineups={[lineups[0], lineups[1]]} />
             </section>
           )}
 

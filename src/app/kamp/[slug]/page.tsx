@@ -5,7 +5,7 @@ import { findExternalGame, findMatch } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
-import { apiHeadToHead, apiMatchEvents, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
+import { apiHeadToHead, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -73,6 +73,8 @@ export default async function MatchPage({ params }: { params: Params }) {
   const fromEvents = game && !match.incidents?.length ? await apiMatchEvents(game).catch(() => undefined) : undefined
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
   const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // Line-ups (API-Sports; about an hour before kick-off)
+  const lineups = game ? await apiMatchLineups(game).catch(() => undefined) : undefined
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents).catch(() => undefined) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent
@@ -132,7 +134,7 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

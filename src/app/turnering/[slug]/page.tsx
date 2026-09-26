@@ -13,6 +13,7 @@ import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { LeagueStats } from '../../../components/LeagueStats'
+import { LeagueLeaders } from '../../../components/LeagueLeaders'
 import { LeagueHistory } from '../../../components/LeagueHistory'
 import { leagueHistory } from '../../../lib/history'
 import { Updated } from '../../../components/Updated'
@@ -21,7 +22,7 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
-import { apiLeagueTable, externalLeague, teamLogos, type ExternalLeague } from '../../../lib/apisports'
+import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos, type ExternalLeague } from '../../../lib/apisports'
 import { archiveLeagueTable } from '../../../lib/history'
 import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
@@ -119,11 +120,13 @@ async function externalLeaguePage(slug: string) {
     const round = rounds.find((r) => r.name === name) ?? (rounds.push({ name, matches: [] }), rounds.at(-1)!)
     round.matches.push(externalMatch(g))
   }
+  const leaders = found.api.startsWith('football') && found.id && found.id !== 'db' ? await apiLeagueLeaders(found.id).catch(() => undefined) : undefined
   const firstKept = played.at(-1) ? Date.parse(played.at(-1)!.kickoff) - 86_400_000 : Infinity
   return (
     <ExternalLeaguePage
       league={league}
       rounds={cup ? rounds : undefined}
+      leaders={leaders}
       groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))]}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
@@ -150,6 +153,9 @@ export default async function LeaguePage({ params }: { params: Params }) {
   const todays = getMatches(today, sportOf(division), now)
     .filter((m) => m.leagueSlug === division.slug)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+  // Top scorers, assists and cards (API-Sports, football)
+  const leagueId = sportOf(division) === 'soccer' ? apiLeagueIdOf(division.id) : undefined
+  const leaders = leagueId ? await apiLeagueLeaders(leagueId).catch(() => undefined) : undefined
   // The league's ten latest results, newest first
   const results = allFixtures()
     .filter((f) => f.division?.id === division.id && isFinished(f) && f.kickoff.getTime() <= now)
@@ -202,6 +208,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <StandingsTable division={division} rows={rows} />
         </section>
 
+        {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         <LeagueStats division={division} />
         {(() => {
           const history = leagueHistory(division.id)

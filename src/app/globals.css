@@ -1311,3 +1311,41 @@ h2.league__name { margin: 0; }
 }
 .my-teams__list { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
 @media (max-width: 600px) { .my-teams__list { grid-template-columns: 1fr; } }
+/* ---- Line-ups ---- */
+.lineups { display: flex; flex-direction: column; gap: 14px; }
+.pitch { position: relative; display: flex; flex-direction: column; border-radius: 14px; padding: 28px 8px; background: repeating-linear-gradient(0deg, #2f8f46 0 40px, #2a8340 40px 80px); color: #fff; overflow: hidden; }
+.pitch::before { content: ''; position: absolute; left: 8px; right: 8px; top: 50%; border-top: 2px solid rgba(255, 255, 255, 0.55); }
+.pitch::after { content: ''; position: absolute; left: 50%; top: 50%; width: 90px; height: 90px; margin: -45px 0 0 -45px; border: 2px solid rgba(255, 255, 255, 0.55); border-radius: 50%; }
+.pitch__half { display: flex; flex-direction: column; justify-content: space-around; gap: 14px; padding: 10px 0; position: relative; z-index: 1; min-height: 260px; }
+.pitch__line { display: flex; justify-content: space-around; }
+.pitch__player { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 70px; text-align: center; }
+.pitch__shirt { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-weight: 800; font-size: 13px; background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+.pitch__half--away .pitch__shirt { background: var(--ink); color: #fff; }
+.pitch__name { font-size: 11px; font-weight: 600; line-height: 1.15; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70px; }
+.pitch__formation { position: absolute; left: 12px; font-size: 12px; font-weight: 700; opacity: 0.9; z-index: 1; }
+.pitch__formation--away { top: 8px; }
+.pitch__formation--home { bottom: 8px; }
+.lineups__lists { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lineups__team h3 { margin: 0 0 6px; font-size: 14px; }
+.lineups__team h3 em { font-style: normal; color: var(--ink-3); font-weight: 600; }
+.lineups__team h4 { margin: 8px 0 4px; font-size: 12px; text-transform: uppercase; color: var(--ink-3); }
+.lineups__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.lineups__no { display: inline-block; width: 22px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lineups__coach { margin: 8px 0 0; font-size: 13px; }
+.lineups__coach span { font-size: 12px; text-transform: uppercase; color: var(--ink-3); margin-right: 6px; }
+@media (max-width: 600px) {
+  .pitch__player { width: 54px; }
+  .pitch__name { max-width: 54px; font-size: 10px; }
+  .pitch__half { min-height: 220px; }
+}
+/* ---- League leaders ---- */
+.leaders__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 4px 16px 16px; }
+.leaders__list h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; color: var(--ink-3); }
+.leaders__list ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.leaders__list li { display: grid; grid-template-columns: 18px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: var(--surface-2); }
+.leaders__rank { font-size: 12px; font-weight: 700; color: var(--ink-3); text-align: right; }
+.leaders__photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface); }
+.leaders__who { display: flex; flex-direction: column; min-width: 0; }
+.leaders__who strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leaders__who em { font-style: normal; font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; }
+.leaders__value { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; }

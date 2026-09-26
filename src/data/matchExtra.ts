@@ -47,3 +47,29 @@ export interface MatchStats {
 export function estimateXg(insideBox: number, outsideBox: number, penalties: number): number {
   return Math.max(0, insideBox - penalties) * 0.12 + outsideBox * 0.03 + penalties * 0.76
 }
+
+/** A team's line-up for a match (API-Sports) */
+export interface Lineup {
+  team: string
+  formation?: string
+  coach?: string
+  /** "row:column" on the pitch, from the goal (1:1 is the goalkeeper) */
+  startXI: { name: string; number?: number; pos?: string; grid?: string }[]
+  substitutes: { name: string; number?: number; pos?: string }[]
+}
+
+/** A league's best players this season (API-Sports) */
+export interface LeaderRow {
+  name: string
+  photo?: string
+  team: string
+  teamLogo?: string
+  games?: number
+  value: number
+}
+export interface Leaders {
+  scorers: LeaderRow[]
+  assists: LeaderRow[]
+  yellow: LeaderRow[]
+  red: LeaderRow[]
+}

@@ -7,6 +7,8 @@ import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
 import { Updated } from './Updated'
 import { CalendarButton } from './CalendarButton'
+import { LeagueLeaders } from './LeagueLeaders'
+import type { Leaders } from '../data/matchExtra'
 import { AdSlot } from './AdSlot'
 import { danishCountry } from '../data/countries'
 import { sportById } from '../sports'
@@ -32,10 +34,12 @@ interface Props {
   baseline?: Baseline
   /** A cup: its played rounds, newest first (shown instead of a table) */
   rounds?: { name: string; matches: Match[] }[]
+  /** Top scorers, assists and cards */
+  leaders?: Leaders
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -176,6 +180,8 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           </>
         )}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
+
+        {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
 
         <AdSlot placement="feed" />
 

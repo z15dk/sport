@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'no
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
 import { danishRound, externalLeagueKey, type ExternalGame } from '../data/external'
-import { estimateXg, type FormGame, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
+import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -879,7 +879,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[] }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1146,6 +1146,10 @@ async function fetchEvents(api: Api, ids: string[]) {
         const g = list[i]
         if (g.id !== id) continue
         list[i] = { ...g, incidents: toIncidents(r.events ?? [], g), eventsFor: eventsKey(g) }
+        // The line-ups come with them: saved for the match page
+        const lineups = toLineups(r.lineups ?? [])
+        if (lineups.length === 2) store.entries[`${api}|lineups|${id}`] = { fetchedAt: Date.now(), lineups, final: true }
+        if (lineups.length === 2) statsChanged = true
         // The match statistics come with them: saved for the match page
         if (Array.isArray(r.statistics) && r.statistics.length) {
           const stats: Record<'home' | 'away', Record<string, string | number | null>> = { home: {}, away: {} }
@@ -1405,4 +1409,127 @@ export async function apiMatchStats(game: ExternalGame, incidents?: Incident[]):
     }
   }
   return rows.length || xg ? { rows, xg } : undefined
+}
+
+// ---------------------------------------------------------------- line-ups and the league's best players
+
+function toLineups(response: Raw[]): Lineup[] {
+  return response.map((t) => ({
+    team: String(t.team?.name ?? ''),
+    formation: t.formation ?? undefined,
+    coach: t.coach?.name ?? undefined,
+    startXI: (t.startXI ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, grid: x.player?.grid ?? undefined })),
+    substitutes: (t.substitutes ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined })),
+  }))
+}
+
+function saveExtras() {
+  try {
+    mkdirSync(path.dirname(extrasFile()), { recursive: true })
+    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(extrasStore()))
+    renameSync(`${extrasFile()}.tmp`, extrasFile())
+  } catch {
+    // kept in memory
+  }
+}
+
+/**
+ * A football match's line-ups, home team first: saved with the goals and
+ * cards, else looked up (they come about an hour before kick-off; asked again
+ * every 10 minutes until then).
+ */
+export async function apiMatchLineups(game: ExternalGame): Promise<Lineup[] | undefined> {
+  const api = apiOf(game)
+  if (api !== 'football' || game.state === 'postponed') return undefined
+  const store = extrasStore()
+  const key = `${api}|lineups|${game.id}`
+  let entry = store.entries[key]
+  const soon = Date.parse(game.kickoff) - Date.now() < 90 * 60_000
+  const due = !entry?.lineups?.length && soon && !(entry && Date.now() - entry.fetchedAt < 10 * 60_000)
+  if (due && keyFor(api)) {
+    load()
+    const s = mem.store[api]
+    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+    if (remaining > EXTRAS_KEEP_REMAINING && spent < extrasPerDay(s)) {
+      store.spent[api] = { day: utcDay(), count: spent + 1 }
+      const { response, error } = await call(api, `/fixtures/lineups?fixture=${game.id.split('-').pop()}`, 5_000)
+      if (!error) {
+        entry = store.entries[key] = { fetchedAt: Date.now(), lineups: toLineups(response ?? []) }
+        saveExtras()
+      }
+    }
+  }
+  const lineups = entry?.lineups
+  if (!lineups || lineups.length !== 2) return undefined
+  // Home team first
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  return same(lineups[1].team, game.home.name) && !same(lineups[0].team, game.home.name) ? [lineups[1], lineups[0]] : lineups
+}
+
+/** API-Sports' id for one of our leagues (known, or learned from its games) */
+export function apiLeagueIdOf(divisionId: string): string | undefined {
+  load()
+  return FOOTBALL_IDS[divisionId] ?? mem.store.football?.leagueIds?.[divisionId]
+}
+
+/** A league's top scorers, assists and cards this season (four requests, kept 6 hours; paid plans) */
+export async function apiLeagueLeaders(leagueId: string, season = SEASON.slice(0, 4)): Promise<Leaders | undefined> {
+  const entry = extrasStore().entries[`football|leaders|${leagueId}|${season}`]
+  if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000) return entry.leaders
+  // Stale: shown while new lists are fetched in the background; nothing yet: fetched now
+  const fresh = fetchLeaders(leagueId, season).catch(() => undefined)
+  return entry?.leaders ?? (await fresh)
+}
+
+const leadersRunning = new Set<string>()
+async function fetchLeaders(leagueId: string, season: string): Promise<Leaders | undefined> {
+  const api: Api = 'football'
+  const store = extrasStore()
+  const key = `${api}|leaders|${leagueId}|${season}`
+  const entry = store.entries[key]
+  if (leadersRunning.has(key)) return entry?.leaders
+  leadersRunning.add(key)
+  try {
+    return await fetchLeadersNow(api, key, leagueId, season)
+  } finally {
+    leadersRunning.delete(key)
+  }
+}
+
+async function fetchLeadersNow(api: Api, key: string, leagueId: string, season: string): Promise<Leaders | undefined> {
+  const store = extrasStore()
+  const entry = store.entries[key]
+  load()
+  const s = mem.store[api]
+  if (!keyFor(api) || !isPaid(s)) return entry?.leaders
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+  if (remaining <= PAID_RESERVE) return entry?.leaders
+  const read = (response: Raw[], value: (st: Raw) => number): LeaderRow[] =>
+    response
+      .map((r) => {
+        const st = r.statistics?.[0] ?? {}
+        return {
+          name: String(r.player?.name ?? ''),
+          photo: r.player?.photo ?? undefined,
+          team: String(st.team?.name ?? ''),
+          teamLogo: realLogo(st.team?.logo ?? undefined),
+          games: num(st.games?.appearences),
+          value: value(st),
+        }
+      })
+      .filter((r) => r.name && r.value > 0)
+      .slice(0, 10)
+  const get = async (path: string) => (await call(api, `/players/${path}?league=${leagueId}&season=${season}`, 8_000)).response
+  const [scorers, assists, yellow, red] = await Promise.all([get('topscorers'), get('topassists'), get('topyellowcards'), get('topredcards')])
+  if (!scorers && !assists) return entry?.leaders
+  const leaders: Leaders = {
+    scorers: read(scorers ?? [], (st) => Number(st.goals?.total ?? 0)),
+    assists: read(assists ?? [], (st) => Number(st.goals?.assists ?? 0)),
+    yellow: read(yellow ?? [], (st) => Number(st.cards?.yellow ?? 0)),
+    red: read(red ?? [], (st) => Number(st.cards?.red ?? 0) + Number(st.cards?.yellowred ?? 0)),
+  }
+  store.entries[key] = { fetchedAt: Date.now(), leaders }
+  saveExtras()
+  return leaders
 }
