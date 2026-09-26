@@ -7,7 +7,8 @@ import { paths } from '../lib/site'
 import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
-import { findMatch } from '../data/matches'
+import { clubMatches, findMatch } from '../data/matches'
+import { matchPreview, matchReport } from '../data/matchStory'
 import { teamByName } from '../data/teams'
 import { useNow } from '../hooks/useNow'
 import type { Incident, Match } from '../types'
@@ -129,6 +130,28 @@ function MatchBody({
   // A cup has rounds, not a table
   const table = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
 
+  // The written report (after the match) or preview (before it), from the data above
+  // A team's match right after this one: when it isn't played yet, this is the team's latest (so today's table and its next match fit)
+  const afterThis = (name: string) => clubMatches(name, now).find((x) => x.kickoff.getTime() > match.kickoff.getTime() && x.id !== match.id)
+  const nextOf = (name: string) => {
+    const x = afterThis(name)
+    return x && x.state !== 'finished' ? x : undefined
+  }
+  const latest = { home: afterThis(home.name)?.state !== 'finished', away: afterThis(away.name)?.state !== 'finished' }
+  const storyInput = {
+    match,
+    now,
+    table: table?.rows,
+    form,
+    h2h,
+    stats,
+    channels: channels.map((c) => c.name),
+    lineups,
+    next: match.state === 'finished' ? { home: nextOf(home.name), away: nextOf(away.name) } : undefined,
+    latest,
+  }
+  const story = match.state === 'finished' ? matchReport(storyInput) : match.state === 'upcoming' ? matchPreview(storyInput) : undefined
+
   // The goals and cards, beside the line-ups when there are statistics or line-ups, else in the facts column
   const timeline = match.incidents && match.incidents.length > 0 ? (
             <section className="sheet__section">
@@ -220,6 +243,17 @@ function MatchBody({
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
       <Updated at={now} />
+      {story && (
+        <section className="story" aria-labelledby="story-title">
+          <h2 id="story-title" className="story__title">
+            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
+          </h2>
+          {story.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
+        </section>
+      )}
 
       {pairRow && (
         <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
