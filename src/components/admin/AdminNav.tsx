@@ -8,6 +8,7 @@ const PAGES = [
   { href: '/admin/data', label: 'Data & API' },
   { href: '/admin/kvalitet', label: 'Datakvalitet' },
   { href: '/admin/logoer', label: 'Logo-job' },
+  { href: '/admin/sociale', label: 'Sociale medier (test)' },
 ]
 
 /** The admin pages' shared menu, with the current page marked */
