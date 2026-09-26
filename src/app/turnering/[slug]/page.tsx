@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
-import { standings } from '../../../data/season'
+import { allFixtures, isFinished, standings, toMatch } from '../../../data/season'
 import { getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
@@ -110,6 +110,12 @@ export default async function LeaguePage({ params }: { params: Params }) {
   const todays = getMatches(today, sportOf(division), now)
     .filter((m) => m.leagueSlug === division.slug)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+  // The league's ten latest results, newest first
+  const results = allFixtures()
+    .filter((f) => f.division?.id === division.id && isFinished(f) && f.kickoff.getTime() <= now)
+    .slice(-10)
+    .reverse()
+    .map((f) => toMatch(f, now))
   const [first, second] = rows
   const faq = leagueFaq(division, rows)
 
@@ -176,6 +182,23 @@ export default async function LeaguePage({ params }: { params: Params }) {
             <ul className="league__matches">
               {todays.map((m) => (
                 <MatchRow key={m.id} match={m} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {results.length > 0 && (
+          <section className="league">
+            <header className="league__header">
+              <div className="league__toggle">
+                <span className="league__titles">
+                  <h2 className="league__name">Seneste resultater</h2>
+                </span>
+              </div>
+            </header>
+            <ul className="league__matches">
+              {results.map((m) => (
+                <MatchRow key={m.id} match={m} showDate />
               ))}
             </ul>
           </section>
