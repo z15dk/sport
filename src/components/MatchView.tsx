@@ -21,7 +21,7 @@ import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
 import { MatchTimeline } from './MatchTimeline'
-import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
+import type { FormGame, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -37,14 +37,16 @@ interface Props {
   extra?: MatchExtra
   /** Goals and cards from API-Sports when our sources have none (server) */
   events?: Incident[]
+  /** Shots, possession and expected goals (server) */
+  stats?: MatchStats
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events, stats }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} stats={stats} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -89,12 +91,14 @@ function MatchBody({
   realH2h,
   h2hSource,
   extra,
+  stats,
 }: {
   match: Match
   now: number
   realH2h?: PastMatch[]
   h2hSource?: H2hSource
   extra?: MatchExtra
+  stats?: MatchStats
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -210,6 +214,30 @@ function MatchBody({
               ))}
             </dl>
           </section>
+
+          {stats && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Kampstatistik</h2>
+              {stats.xg && (
+                <StatBar
+                  label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
+                  home={stats.xg.home}
+                  away={stats.xg.away}
+                  homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                />
+              )}
+              {stats.rows.map((r) => (
+                <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
+              ))}
+              <p className="muted small">
+                {stats.xg?.source === 'scoreline'
+                  ? 'Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark. Det er ikke rigtig xG, som vurderer hvert skud for sig. '
+                  : ''}
+                Statistik: API-Sports.
+              </p>
+            </section>
+          )}
 
           {match.incidents && match.incidents.length > 0 && (
             <section className="sheet__section">

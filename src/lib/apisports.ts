@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'no
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
 import { externalLeagueKey, type ExternalGame } from '../data/external'
-import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
+import { estimateXg, type FormGame, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -747,7 +747,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>> }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1043,4 +1043,87 @@ export function apiSportsLogoUrls(): string[] {
     for (const l of Object.values(s.leagues ?? {})) if (l.logo) urls.add(l.logo)
   }
   return [...urls]
+}
+
+// ---------------------------------------------------------------- match statistics and expected goals
+
+const STAT_ROWS: [string, string][] = [
+  ['Ball Possession', 'Boldbesiddelse'],
+  ['Total Shots', 'Skud'],
+  ['Shots on Goal', 'Skud på mål'],
+  ['Shots insidebox', 'Skud i feltet'],
+  ['Corner Kicks', 'Hjørnespark'],
+  ['Fouls', 'Frispark begået'],
+  ['Offsides', 'Offside'],
+  ['Goalkeeper Saves', 'Redninger'],
+  ['Passes %', 'Afleveringer (præcision)'],
+]
+
+/**
+ * A football match's statistics (shots, possession, corners …) with expected
+ * goals: API-Sports' own xG where they have it (the big leagues), else our
+ * estimate from the shots. Fetched every 5 minutes while live and once when
+ * final, within the same daily budget as the other extras. The free plan
+ * doesn't give statistics, so this is empty until a paid plan.
+ */
+export async function apiMatchStats(game: ExternalGame, incidents?: Incident[]): Promise<MatchStats | undefined> {
+  const api = apiOf(game)
+  if (api !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return undefined
+  const store = extrasStore()
+  const key = `${api}|stats|${game.id}`
+  let entry = store.entries[key]
+  const fresh = entry && (entry.final || (game.state !== 'finished' && Date.now() - entry.fetchedAt < 5 * 60_000))
+  if (!fresh && keyFor(api) && !(entry && Date.now() - entry.fetchedAt < 60_000)) {
+    load()
+    const s = mem.store[api]
+    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+    if (remaining > EXTRAS_KEEP_REMAINING && spent < EXTRAS_PER_DAY) {
+      store.spent[api] = { day: utcDay(), count: spent + 1 }
+      const { response, error } = await call(api, `/fixtures/statistics?fixture=${game.id.split('-').pop()}`, 5_000)
+      if (!error) {
+        const stats: NonNullable<typeof entry>['stats'] = { home: {}, away: {} }
+        for (const r of response ?? []) {
+          const side = num(r.team?.id) === game.home.id ? 'home' : num(r.team?.id) === game.away.id ? 'away' : undefined
+          if (side) for (const x of r.statistics ?? []) stats[side][String(x.type)] = x.value ?? null
+        }
+        entry = store.entries[key] = { fetchedAt: Date.now(), stats, final: game.state === 'finished' }
+        try {
+          mkdirSync(path.dirname(extrasFile()), { recursive: true })
+          writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+          renameSync(`${extrasFile()}.tmp`, extrasFile())
+        } catch {
+          // kept in memory
+        }
+      }
+    }
+  }
+  const stats = entry?.stats
+  if (!stats || !Object.keys(stats.home).length || !Object.keys(stats.away).length) return undefined
+  const value = (side: 'home' | 'away', type: string) => {
+    const v = stats[side][type]
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number.parseFloat(v) : NaN
+    return Number.isFinite(n) ? n : undefined
+  }
+  const rows: MatchStats['rows'] = []
+  for (const [type, label] of STAT_ROWS) {
+    const home = value('home', type)
+    const away = value('away', type)
+    if (home === undefined || away === undefined) continue
+    const pct = type === 'Ball Possession' || type === 'Passes %'
+    rows.push({ label, home, away, ...(pct && { homeText: `${home} %`, awayText: `${away} %` }) })
+  }
+  let xg: MatchStats['xg']
+  const theirs = [value('home', 'expected_goals'), value('away', 'expected_goals')]
+  if (theirs[0] !== undefined && theirs[1] !== undefined) xg = { home: theirs[0], away: theirs[1], source: 'api-sports' }
+  else {
+    const inside = [value('home', 'Shots insidebox'), value('away', 'Shots insidebox')]
+    const outside = [value('home', 'Shots outsidebox'), value('away', 'Shots outsidebox')]
+    if (inside.every((v) => v !== undefined) && outside.every((v) => v !== undefined)) {
+      // Penalties scored are known from the goals; missed ones aren't, and count as shots in the box
+      const pens = (side: 'home' | 'away') => (incidents ?? []).filter((i) => i.kind === 'penalty' && i.side === side).length
+      xg = { home: estimateXg(inside[0]!, outside[0]!, pens('home')), away: estimateXg(inside[1]!, outside[1]!, pens('away')), source: 'scoreline' }
+    }
+  }
+  return rows.length || xg ? { rows, xg } : undefined
 }
