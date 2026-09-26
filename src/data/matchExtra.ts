@@ -23,6 +23,8 @@ export interface TableRow {
   for?: number
   against?: number
   points?: number
+  /** The group the row belongs to ("Group A"), in tournaments with groups */
+  group?: string
 }
 
 export interface MatchExtra {

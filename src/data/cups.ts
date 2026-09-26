@@ -63,3 +63,16 @@ export function ourClubInCup(name: string, cup: Cup) {
   memo.map.set(key, club)
   return club
 }
+
+/**
+ * Other tournaments we keep in full for the season (every round, result, goal
+ * and card), not just the days around today: the men's and women's Champions League.
+ */
+const WHOLE_SEASON: { country: string; match: RegExp }[] = [{ country: 'World', match: /^UEFA Champions League( Women)?$/i }]
+
+/** Whether a game's tournament is kept for the whole season: our cups and the tournaments above */
+export function wholeSeason(g: Pick<ExternalGame, 'sport' | 'league'>): boolean {
+  if (cupOfGame(g)) return true
+  const name = g.league.originalName ?? g.league.name
+  return g.sport === 'soccer' && WHOLE_SEASON.some((w) => w.country === g.league.country && w.match.test(name))
+}

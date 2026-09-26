@@ -8,7 +8,7 @@ import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, t
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
-import { cupOfGame } from '../data/cups'
+import { cupOfGame, wholeSeason } from '../data/cups'
 import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
@@ -395,7 +395,7 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
   return { version: String(Math.round(mem.mtime)), games: mem.games }
 }
 
-const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || !!cupOfGame(g))
+const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || wholeSeason(g))
 
 /** The finished games in our leagues this season (kept days and the current window) */
 export function seasonGames(): ExternalGame[] {
@@ -704,7 +704,10 @@ function seasonDue(api: Api, now: number): { league: string } | undefined {
   }
   // The cups, by the league id their games have
   const seen = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
-  for (const g of seen) if (cupOfGame(g) && g.league.id) wanted.add(g.league.id)
+  // The Champions League (men 2, women 525 at API-Sports) also between match days; games from another league are left out by name
+  for (const id of ['2', '525']) wanted.add(id)
+  // The cups and the tournaments kept for the whole season (the Champions League), by the league id their games have
+  for (const g of seen) if (wholeSeason(g) && g.league.id) wanted.add(g.league.id)
   const league = [...wanted]
     .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > 3_600_000)
     .sort((a, b) => (s.seasonSynced?.[a] ?? 0) - (s.seasonSynced?.[b] ?? 0))[0]
@@ -1029,6 +1032,7 @@ function readTable(response: Raw[]): TableRow[][] {
       return {
         rank: Number(r.rank ?? r.position ?? 0),
         teamId: num(r.team?.id),
+        group: r.group ?? undefined,
         name: String(r.team?.name ?? ''),
         logo: r.team?.logo ?? undefined,
         played: count(games.played),
@@ -1189,7 +1193,7 @@ function eventsDue(s: ApiState): string[] {
   const due = new Set<string>()
   // Live games first, then the newest finished ones
   const wanted = games
-    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || cupOfGame(g)) && g.eventsFor !== eventsKey(g))
+    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
     .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)

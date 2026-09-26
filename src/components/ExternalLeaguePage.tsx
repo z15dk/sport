@@ -107,7 +107,8 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             </ul>
           </section>
         ))}
-        {!rounds && (
+        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
+        {(!rounds || rows.length > 1) && (
           <>
           <section className="panel table-panel">
             <header className="table-panel__head">
@@ -121,6 +122,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             {rows.length > 1 ? (
               groups.map((group, gi) => (
                 <div key={gi} className="table-wrap">
+                  {groups.length > 1 && group[0]?.group && <h3 className="table-group">{group[0].group.replace(/^Group\s+/i, 'Gruppe ')}</h3>}
                   <table className="table table--compact">
                     <thead>
                       <tr>

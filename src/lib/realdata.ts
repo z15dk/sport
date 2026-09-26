@@ -16,7 +16,7 @@ import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
 import { sameLeagueKeys } from '../data/baselines'
-import { CUPS, asCupGame, cupOfGame, ourClubInCup } from '../data/cups'
+import { CUPS, asCupGame, cupOfGame, ourClubInCup, wholeSeason } from '../data/cups'
 import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { externalLeagueKey } from '../data/leagues'
@@ -72,7 +72,8 @@ const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
  */
 function withCups(games: ExternalGame[], fromDb: ExternalGame[]): ExternalGame[] {
   const ids = new Set(games.map((g) => g.id))
-  const api = [...games, ...seasonGames().filter((g) => cupOfGame(g) && !ids.has(g.id))].map(asCupGame)
+  // The cups' and the whole-season tournaments' (Champions League) games from the whole season
+  const api = [...games, ...seasonGames().filter((g) => wholeSeason(g) && !ids.has(g.id))].map(asCupGame)
   if (!fromDb.length) return api
   const team = (name: string) => {
     const cup = CUPS[0]
