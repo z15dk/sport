@@ -334,6 +334,8 @@ interface ApiState {
   paidSince?: number
   /** Whole seasons fetched for our leagues and cups (paid plans): league id -> when */
   seasonSynced?: Record<string, number>
+  /** The league filter (`keep`) the stored days were fetched with */
+  keepVersion?: string
 }
 type Store = Record<string, ApiState>
 
@@ -717,6 +719,9 @@ async function fetchSeason(api: Api, due: { league: string }) {
   }
 }
 
+/** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
+const KEEP_VERSION = '2026-09-26-more-leagues'
+
 let running = false
 async function tick() {
   if (running) return
@@ -725,6 +730,13 @@ async function tick() {
     load()
     const now = Date.now()
     let changed = false
+    // New leagues: the days fetched with the old filter are due again
+    for (const s of Object.values(mem.store)) {
+      if (s.keepVersion === KEEP_VERSION) continue
+      for (const d of Object.values(s.days)) d.fetchedAt = 0
+      s.keepVersion = KEEP_VERSION
+      changed = true
+    }
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api)) continue
       // A paid plan catches up several days a run
