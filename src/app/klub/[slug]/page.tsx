@@ -29,6 +29,7 @@ import { cupOfGame } from '../../../data/cups'
 import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
+import { FollowButton } from '../../../components/FollowButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, formatLong, formatShortYear, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
@@ -108,6 +109,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
             <h1>{club.name}</h1>
             {isUnconfirmed(club, division.id) && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
           </div>
+          <FollowButton slug={club.slug} name={club.name} />
         </header>
 
         <p className="lead">
@@ -278,6 +280,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
             </span>
             <h1>{team.name}</h1>
           </div>
+          <FollowButton slug={team.slug} name={team.name} />
         </header>
 
         <p className="lead">

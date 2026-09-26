@@ -18,6 +18,7 @@ import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
+import { MyTeams } from './MyTeams'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
@@ -234,6 +235,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
         <Sidebar groups={allGroups} pinned={pinned} selected={league} onSelect={setLeague} />
 
         <main className="feed" id="kampe">
+          <MyTeams now={now} />
           <SportTabs active={sport} className="sport-tabs--desktop" />
           <div className="feed__head">
             <h1 className="feed__title">
