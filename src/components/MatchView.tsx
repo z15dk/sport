@@ -177,6 +177,41 @@ function MatchBody({
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
       <Updated at={now} />
 
+      {(stats || lineups?.length === 2) && (
+        <div className={`match-page__cols${stats && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
+            {stats && (
+              <section className="sheet__section">
+                <h2 className="sheet__title">Kampstatistik</h2>
+                {stats.xg && (
+                  <StatBar
+                    label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
+                    home={stats.xg.home}
+                    away={stats.xg.away}
+                    homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  />
+                )}
+                {stats.rows.map((r) => (
+                  <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
+                ))}
+                {stats.xg?.source === 'scoreline' && (
+                  <p className="muted small">
+                    Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
+                    Det er ikke rigtig xG, som vurderer hvert skud for sig.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {lineups?.length === 2 && (
+              <section className="sheet__section">
+                <h2 className="sheet__title">Opstillinger</h2>
+                <LineupPitch lineups={[lineups[0], lineups[1]]} />
+              </section>
+            )}
+        </div>
+      )}
+
       <div className="match-page__cols">
         <div className="match-page__col">
           <section className="sheet__section">
@@ -222,37 +257,6 @@ function MatchBody({
               ))}
             </dl>
           </section>
-
-          {stats && (
-            <section className="sheet__section">
-              <h2 className="sheet__title">Kampstatistik</h2>
-              {stats.xg && (
-                <StatBar
-                  label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
-                  home={stats.xg.home}
-                  away={stats.xg.away}
-                  homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                />
-              )}
-              {stats.rows.map((r) => (
-                <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
-              ))}
-              {stats.xg?.source === 'scoreline' && (
-                <p className="muted small">
-                  Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
-                  Det er ikke rigtig xG, som vurderer hvert skud for sig.
-                </p>
-              )}
-            </section>
-          )}
-
-          {lineups?.length === 2 && (
-            <section className="sheet__section">
-              <h2 className="sheet__title">Opstillinger</h2>
-              <LineupPitch lineups={[lineups[0], lineups[1]]} />
-            </section>
-          )}
 
           {match.incidents && match.incidents.length > 0 && (
             <section className="sheet__section">

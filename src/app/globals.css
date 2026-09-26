@@ -1349,3 +1349,5 @@ h2.league__name { margin: 0; }
 .leaders__who strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leaders__who em { font-style: normal; font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; }
 .leaders__value { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; }
+.match-page__cols--one { grid-template-columns: 1fr; }
+.match-page__cols > .sheet__section { min-width: 0; }
