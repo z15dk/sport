@@ -28,8 +28,10 @@ export interface ExternalGame {
   referee?: string
   /** Half-time score */
   ht?: [number, number]
-  /** Goals and cards, when the source has them (our match database) */
+  /** Goals and cards, when the source has them */
   incidents?: Incident[]
+  /** What the goals and cards were fetched for ("state|score"), so they are fetched again when it changes */
+  eventsFor?: string
 }
 
 /**

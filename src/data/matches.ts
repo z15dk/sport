@@ -77,6 +77,8 @@ export function getMatches(date: string, sport: SportFilter, now: number): Match
     }
     // Same match: API-Sports' live state and score win until our source has the final result
     const m = ours[i]
+    // Goals and cards from API-Sports where our source has none
+    if (!m.incidents?.length && g.incidents?.length) ours[i] = { ...m, incidents: g.incidents }
     const oursFinal = m.state === 'finished' && m.home.score !== undefined
     if (!oursFinal && (g.state === 'live' || g.state === 'finished') && g.homeScore !== undefined && g.awayScore !== undefined) {
       const x = externalToMatch(g)

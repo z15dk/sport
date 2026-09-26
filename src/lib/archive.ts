@@ -48,6 +48,10 @@ const SCHEMA = `
     status TEXT,
     saved_at TEXT
   );
+  CREATE TABLE IF NOT EXISTS events_checked (
+    event_id TEXT PRIMARY KEY,
+    checked_at TEXT
+  );
   CREATE TABLE IF NOT EXISTS incidents (
     event_id TEXT,
     minute INTEGER,
@@ -142,11 +146,16 @@ export function archiveFinished() {
           g.away.name,
           g.homeScore,
           g.awayScore,
-          null,
-          null,
+          g.ht?.[0] ?? null,
+          g.ht?.[1] ?? null,
           null,
           now,
         )
+        const incidents = g.incidents ?? []
+        if (incidents.length && Number(incidentCount.get(g.id)?.n ?? 0) !== incidents.length) {
+          clearIncidents.run(g.id)
+          for (const i of incidents) addIncident.run(g.id, i.minute, i.side, i.kind, i.player ?? null)
+        }
       }
       db.exec('COMMIT')
       state.saved = Number(db.prepare('SELECT COUNT(*) AS n FROM matches').get()?.n ?? 0)
@@ -248,6 +257,63 @@ export function archiveStatus() {
  * statistics bank, so club pages get history for leagues football.db does
  * not cover. Returns how many finished matches were saved.
  */
+/**
+ * Saved API-Sports football matches from past seasons whose goals and cards
+ * have not been fetched yet, newest first (for the paid plan's backfill).
+ */
+export function archiveMissingEvents(limit: number): string[] {
+  const lib = sqlite()
+  if (!lib) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile())
+  } catch {
+    return []
+  }
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec(SCHEMA)
+    return db
+      .prepare(
+        `SELECT m.event_id FROM matches m
+          WHERE m.event_id LIKE 'football-%' AND m.status = 'finished'
+            AND NOT EXISTS (SELECT 1 FROM incidents i WHERE i.event_id = m.event_id)
+            AND NOT EXISTS (SELECT 1 FROM events_checked c WHERE c.event_id = m.event_id)
+          ORDER BY m.start_date DESC LIMIT ?`,
+      )
+      .all(limit)
+      .map((r) => String(r.event_id))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+/** Goals and cards for saved matches (and the ones checked that had none) */
+export function archiveEvents(found: { id: string; incidents: import('../types').Incident[] }[], checked: string[]) {
+  const lib = sqlite()
+  if (!lib || (!found.length && !checked.length)) return
+  const db = new lib.DatabaseSync(archiveFile())
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec(SCHEMA)
+    const clear = db.prepare('DELETE FROM incidents WHERE event_id = ?')
+    const add = db.prepare('INSERT INTO incidents (event_id, minute, side, kind, player) VALUES (?, ?, ?, ?, ?)')
+    const mark = db.prepare('INSERT OR REPLACE INTO events_checked (event_id, checked_at) VALUES (?, ?)')
+    const now = new Date().toISOString()
+    db.exec('BEGIN')
+    for (const f of found) {
+      clear.run(f.id)
+      for (const i of f.incidents) add.run(f.id, i.minute, i.side, i.kind, i.player ?? null)
+    }
+    for (const id of checked) mark.run(id, now)
+    db.exec('COMMIT')
+  } finally {
+    db.close()
+  }
+}
+
 export function archiveSeason(divisionId: string, tournament: string, season: string, games: import('../data/external').ExternalGame[]): number {
   const lib = sqlite()
   if (!lib) return 0

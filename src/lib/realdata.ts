@@ -183,6 +183,8 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
       if (i >= 0) {
         const e = events[i]
         if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
+        // Goals and cards from API-Sports where our source has none
+        if (!events[i].incidents?.length && g.incidents?.length) events[i] = { ...events[i], incidents: g.incidents, ht: events[i].ht ?? g.ht }
         continue
       }
       // Team names as the league's other matches write them, so a club doesn't appear twice
@@ -191,7 +193,7 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
         const same = known.filter((n) => alike([n], name))
         return same.length === 1 ? same[0] : name
       }
-      events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue })
+      events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue, incidents: g.incidents?.length ? g.incidents : undefined, ht: g.ht })
     }
     leagues[id] = events.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   }

@@ -10,8 +10,8 @@ import { logoCheckVersion, realLogo } from './logoCheck'
 import { cupOfGame } from '../data/cups'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
-import { DIVISIONS, sportOf, type Division } from '../data/leagues'
-import { archiveSeason } from './archive'
+import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
+import { archiveEvents, archiveMissingEvents, archiveSeason } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -322,6 +322,10 @@ interface ApiState {
   requests?: number
   /** Fingerprint of the key the error came with; a new key is tried right away */
   keyFingerprint?: string
+  /** When a paid plan was first seen (the free plan's limits were then cleared) */
+  paidSince?: number
+  /** Whole seasons fetched for our leagues and cups (paid plans): league id -> when */
+  seasonSynced?: Record<string, number>
 }
 type Store = Record<string, ApiState>
 
@@ -421,6 +425,7 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
       s.quotaDay = utcDay()
     }
     if (limit !== undefined) s.limit = limit
+    onPaidPlan(s)
     const body = (await res.json()) as { response?: Raw[]; errors?: unknown }
     const errors: string[] = !body.errors ? [] : (Array.isArray(body.errors) ? body.errors : Object.values(body.errors as object)).map(String)
     if (!res.ok || errors.length) return { error: `${res.status} ${errors.join('; ') || res.statusText}` }
@@ -450,6 +455,27 @@ function allowed(s: ApiState | undefined, date: string, today: string) {
   return !a || (date >= addDays(today, a.from) && date <= addDays(today, a.to))
 }
 
+/** A paid plan: more than the free plan's 100 requests a day */
+const isPaid = (s: ApiState | undefined) => (s?.limit ?? 100) > 100
+
+/**
+ * The first time a paid plan answers, the free plan's limits are forgotten:
+ * the days it gave, and the past seasons it refused (asked for again).
+ */
+function onPaidPlan(s: ApiState) {
+  if (!isPaid(s) || s.paidSince) return
+  s.paidSince = Date.now()
+  s.allowedDays = undefined
+  if (s.lastError && /plan|access|try from/i.test(s.lastError)) {
+    s.lastError = undefined
+    s.lastErrorAt = undefined
+  }
+  for (const [k, v] of Object.entries(s.history ?? {})) if (v === 0) delete s.history![k]
+}
+
+/** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
+const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, Math.floor((s!.limit ?? 100) * 0.3)) : 30)
+
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
   const s = (mem.store[api] ??= { days: {} })
@@ -469,7 +495,7 @@ async function fetchDay(api: Api, date: string) {
   }
   const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
   logGoals(s, s.days[date]?.games ?? [], games)
-  s.days[date] = { fetchedAt: Date.now(), games }
+  s.days[date] = { fetchedAt: Date.now(), games: keepEvents(s.days[date]?.games ?? [], games) }
   s.lastError = undefined
   // The other leagues, remembered for their league pages
   for (const g of games) {
@@ -534,7 +560,7 @@ function dueDay(api: Api, now: number): string | undefined {
     return g.state === 'live' || (g.state === 'upcoming' && t < now + 20 * 60_000 && t > now - 4 * 3_600_000)
   })
   // While games are on, today gets the requests left over after the other days
-  const todayEvery = busy ? Math.max(5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : 60 * 60_000
+  const todayEvery = busy ? Math.max(isPaid(s) ? 60_000 : 5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
   if (age(today) > todayEvery) return today
   const yesterday = addDays(today, -1)
   if (allowed(s, yesterday, today) && age(yesterday) > 6 * 3_600_000) return yesterday
@@ -571,8 +597,13 @@ const FOOTBALL_IDS: Record<string, string> = {
   superliga: '119', '1div': '120', premierleague: '39', championship: '40', laliga: '140', ligaportugal: '94',
   bundesliga: '78', bundesliga2: '79', liga3: '80', allsvenskan: '113', eliteserien: '103',
 }
-/** Seasons the free plan gives access to */
+/** Past seasons for the club pages: the free plan gives 2021–2023, a paid plan the 15 before this one (newest first) */
 const HISTORY_YEARS = [2023, 2022, 2021]
+const PAID_HISTORY_SEASONS = 15
+const historyYears = (s: ApiState) => {
+  const current = Number(SEASON.slice(0, 4))
+  return isPaid(s) ? Array.from({ length: PAID_HISTORY_SEASONS }, (_, i) => current - 1 - i) : HISTORY_YEARS
+}
 
 /** Learns our divisions' league ids from the games an API has returned */
 function learnLeagueIds(api: Api) {
@@ -596,7 +627,7 @@ function historyDue(api: Api): { division: Division; league: string; year: numbe
     if (API_FOR_SPORT[sportOf(division)] !== api) continue
     const league = (api === 'football' ? FOOTBALL_IDS[division.id] : undefined) ?? s.leagueIds?.[division.id]
     if (!league) continue
-    for (const year of HISTORY_YEARS) if (s.history?.[`${division.id}|${year}`] === undefined) return { division, league, year }
+    for (const year of historyYears(s)) if (s.history?.[`${division.id}|${year}`] === undefined) return { division, league, year }
   }
   return undefined
 }
@@ -631,6 +662,51 @@ async function fetchHistory(api: Api, due: { division: Division; league: string;
   ;(s.history ??= {})[key] = saved
 }
 
+/**
+ * This season's league (or cup) due for a full fetch of its games, on a paid
+ * plan: one request gives the whole season, so our leagues' tables and the
+ * cup's rounds are complete, not just the days the job has seen. Every hour.
+ */
+function seasonDue(api: Api, now: number): { league: string } | undefined {
+  const s = mem.store[api]
+  if (!s || !isPaid(s) || api !== 'football') return undefined
+  const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
+  if (remaining <= 200) return undefined
+  learnLeagueIds(api)
+  const wanted = new Set<string>()
+  for (const d of DIVISIONS) {
+    if (API_FOR_SPORT[sportOf(d)] !== api) continue
+    const league = FOOTBALL_IDS[d.id] ?? s.leagueIds?.[d.id]
+    if (league) wanted.add(league)
+  }
+  // The cups, by the league id their games have
+  const seen = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
+  for (const g of seen) if (cupOfGame(g) && g.league.id) wanted.add(g.league.id)
+  const league = [...wanted]
+    .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > 3_600_000)
+    .sort((a, b) => (s.seasonSynced?.[a] ?? 0) - (s.seasonSynced?.[b] ?? 0))[0]
+  return league ? { league } : undefined
+}
+
+async function fetchSeason(api: Api, due: { league: string }) {
+  const s = mem.store[api]!
+  ;(s.seasonSynced ??= {})[due.league] = Date.now()
+  const { response, error } = await call(api, `/fixtures?league=${due.league}&season=${SEASON.slice(0, 4)}&${TZ}`)
+  if (error) return
+  const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g && inOurLeague(g))
+  const byDay = new Map<string, ExternalGame[]>()
+  for (const g of games) {
+    const day = isoDate(new Date(g.kickoff))
+    if (!byDay.has(day)) byDay.set(day, [])
+    byDay.get(day)!.push(g)
+  }
+  for (const [day, list] of byDay) {
+    const kept = new Map((s.past?.[day] ?? []).map((g) => [g.id, g]))
+    for (const g of keepEvents(s.past?.[day] ?? [], list)) kept.set(g.id, g)
+    ;(s.past ??= {})[day] = [...kept.values()]
+  }
+}
+
 let running = false
 async function tick() {
   if (running) return
@@ -641,12 +717,15 @@ async function tick() {
     let changed = false
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api)) continue
-      const day = dueDay(api, now)
-      if (!day) continue
-      // NBA dates are UTC: Danish evenings in the US fall on the next UTC day
-      await fetchDay(api, day)
-      changed = true
-      await sleep(2_000)
+      // A paid plan catches up several days a run
+      for (let n = isPaid(mem.store[api]) ? 6 : 1; n > 0; n--) {
+        const day = dueDay(api, Date.now())
+        if (!day) break
+        // NBA dates are UTC: Danish evenings in the US fall on the next UTC day
+        await fetchDay(api, day)
+        changed = true
+        await sleep(isPaid(mem.store[api]) ? 500 : 2_000)
+      }
     }
     // Days before the window, once each, with requests left over (for the standings)
     for (const api of Object.keys(APIS) as Api[]) {
@@ -669,19 +748,70 @@ async function tick() {
       changed = true
       await sleep(2_000)
     }
+    // This season in full for our leagues and cups (paid plans), one league per API per run
+    for (const api of Object.keys(APIS) as Api[]) {
+      if (!keyFor(api) || dueDay(api, now)) continue
+      for (let n = 3; n > 0; n--) {
+        const due = seasonDue(api, Date.now())
+        if (!due) break
+        await fetchSeason(api, due)
+        changed = true
+        await sleep(1_000)
+      }
+    }
+    // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
+    {
+      const s = mem.store.football
+      for (let n = 3; s && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+        const ids = eventsDue(s)
+        if (!ids.length) break
+        await fetchEvents('football', ids)
+        changed = true
+        await sleep(1_000)
+      }
+    }
+    // Goals and cards for the past seasons in the statistics bank (paid plans), 20 matches a request, while plenty is left
+    {
+      const s = mem.store.football
+      for (let n = 5; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+        const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
+        if (remaining < (s.limit ?? 0) * 0.4) break
+        const ids = archiveMissingEvents(20)
+        if (!ids.length) break
+        const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
+        if (error) break
+        const found = (response ?? []).map((r) => ({
+          id: `football-${r.fixture?.id}`,
+          incidents: toIncidents(r.events ?? [], { home: { name: '', id: num(r.teams?.home?.id) }, away: { name: '', id: num(r.teams?.away?.id) } }),
+        }))
+        try {
+          archiveEvents(
+            found.filter((f) => f.incidents.length),
+            ids,
+          )
+        } catch {
+          break
+        }
+        changed = true
+        await sleep(1_000)
+      }
+    }
     // Past seasons of our leagues for the club pages' history, with requests left over, one per API per run
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api) || dueDay(api, now)) continue
-      const due = historyDue(api)
-      if (!due) continue
-      try {
-        await fetchHistory(api, due)
-      } catch {
-        // an unexpected answer: marked so the job doesn't ask again and again
-        ;(mem.store[api]!.history ??= {})[`${due.division.id}|${due.year}`] = 0
+      // A paid plan fetches several seasons a run
+      for (let n = isPaid(mem.store[api]) ? 5 : 1; n > 0; n--) {
+        const due = historyDue(api)
+        if (!due) break
+        try {
+          await fetchHistory(api, due)
+        } catch {
+          // an unexpected answer: marked so the job doesn't ask again and again
+          ;(mem.store[api]!.history ??= {})[`${due.division.id}|${due.year}`] = 0
+        }
+        changed = true
+        await sleep(1_000)
       }
-      changed = true
-      await sleep(2_000)
     }
     // Days that leave the window: our leagues' results are kept for the season, the rest is forgotten
     const oldest = addDays(isoDate(now), -3)
@@ -751,7 +881,6 @@ interface ExtraStore {
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
-const EXTRAS_PER_DAY = 30
 const EXTRAS_KEEP_REMAINING = 20
 const extrasFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
 const extrasHolder = globalThis as { __scorelineH2h?: ExtraStore }
@@ -785,7 +914,7 @@ async function cached<T extends 'games' | 'table'>(
   const s = mem.store[api]
   const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
   const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= EXTRAS_PER_DAY) return entry?.[kind]
+  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= extrasPerDay(s)) return entry?.[kind]
   store.spent[api] = { day: utcDay(), count: spent + 1 }
   const { response, error } = await call(api, pathAndQuery, 5_000)
   if (error) return entry?.[kind]
@@ -928,13 +1057,27 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
   const s = mem.store[api]
   const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
   const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= EXTRAS_PER_DAY) return entry?.incidents
+  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= extrasPerDay(s)) return entry?.incidents
   store.spent[api] = { day: utcDay(), count: spent + 1 }
   const id = game.id.split('-').pop()
   const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
   if (error) return entry?.incidents
+  const incidents = toIncidents(response ?? [], game)
+  store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
+  try {
+    mkdirSync(path.dirname(extrasFile()), { recursive: true })
+    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+    renameSync(`${extrasFile()}.tmp`, extrasFile())
+  } catch {
+    // kept in memory
+  }
+  return incidents
+}
+
+/** API-Sports' events (goals, cards) as our incidents */
+function toIncidents(events: Raw[], game: Pick<ExternalGame, 'home' | 'away'>): Incident[] {
   const incidents: Incident[] = []
-  for (const r of response ?? []) {
+  for (const r of events) {
     const type = String(r.type ?? '').toLowerCase()
     const detail = String(r.detail ?? '').toLowerCase()
     const side = num(r.team?.id) === game.home.id ? 'home' : num(r.team?.id) === game.away.id ? 'away' : undefined
@@ -957,16 +1100,86 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
     // An own goal is registered to the player's team; our incidents count it for the other side the same way
     if (kind) incidents.push({ minute, side, kind, player: r.player?.name ?? undefined })
   }
-  incidents.sort((a, b) => a.minute - b.minute)
-  store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
-  try {
-    mkdirSync(path.dirname(extrasFile()), { recursive: true })
-    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-    renameSync(`${extrasFile()}.tmp`, extrasFile())
-  } catch {
-    // kept in memory
+  return incidents.sort((a, b) => a.minute - b.minute)
+}
+
+/** A refetched day keeps the goals and cards already fetched for its games (until the score changes) */
+function keepEvents(before: ExternalGame[], after: ExternalGame[]): ExternalGame[] {
+  const prev = new Map(before.map((g) => [g.id, g]))
+  return after.map((g) => {
+    const p = prev.get(g.id)
+    return p?.incidents && !g.incidents ? { ...g, incidents: p.incidents, eventsFor: p.eventsFor } : g
+  })
+}
+
+// ---------------------------------------------------------------- goals and cards for every game (paid plans)
+
+/** What a game's goals and cards were fetched for: they are fetched again when this changes (live: also every 5 minutes, for the cards) */
+const eventsKey = (g: ExternalGame) => `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' ? `|${Math.floor(Date.now() / 300_000)}` : ''}`
+
+/**
+ * Football games in our leagues and cups whose goals and cards are missing or
+ * out of date (a finished game once, a live one when the score changes), up to
+ * 20: API-Sports gives 20 games with their events in one request.
+ */
+function eventsDue(s: ApiState): string[] {
+  const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
+  if (!isPaid(s) || remaining <= 200) return []
+  const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
+  const due = new Set<string>()
+  // Live games first, then the newest finished ones
+  const wanted = games
+    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || cupOfGame(g)) && g.eventsFor !== eventsKey(g))
+    .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
+  for (const g of wanted) {
+    due.add(g.id.split('-').pop()!)
+    if (due.size >= 20) break
   }
-  return incidents
+  return [...due]
+}
+
+async function fetchEvents(api: Api, ids: string[]) {
+  const s = mem.store[api]!
+  const { response, error } = await call(api, `/fixtures?ids=${ids.join('-')}&${TZ}`)
+  if (error) return
+  const store = extrasStore()
+  let statsChanged = false
+  for (const r of response ?? []) {
+    const id = `${api}-${r.fixture?.id}`
+    const lists = [...Object.values(s.days).map((d) => d.games), ...Object.values(s.past ?? {})]
+    for (const list of lists) {
+      for (let i = 0; i < list.length; i++) {
+        const g = list[i]
+        if (g.id !== id) continue
+        list[i] = { ...g, incidents: toIncidents(r.events ?? [], g), eventsFor: eventsKey(g) }
+        // The match statistics come with them: saved for the match page
+        if (Array.isArray(r.statistics) && r.statistics.length) {
+          const stats: Record<'home' | 'away', Record<string, string | number | null>> = { home: {}, away: {} }
+          for (const t of r.statistics) {
+            const side = num(t.team?.id) === g.home.id ? 'home' : num(t.team?.id) === g.away.id ? 'away' : undefined
+            if (side) for (const x of t.statistics ?? []) stats[side][String(x.type)] = x.value ?? null
+          }
+          store.entries[`${api}|stats|${id}`] = { fetchedAt: Date.now(), stats, final: g.state === 'finished' }
+          statsChanged = true
+        }
+      }
+    }
+  }
+  // Games the answer left out are not asked for again and again
+  for (const x of ids) {
+    const id = `${api}-${x}`
+    for (const list of [...Object.values(s.days).map((d) => d.games), ...Object.values(s.past ?? {})])
+      for (let i = 0; i < list.length; i++) if (list[i].id === id && list[i].eventsFor !== eventsKey(list[i])) list[i] = { ...list[i], incidents: list[i].incidents ?? [], eventsFor: eventsKey(list[i]) }
+  }
+  if (statsChanged) {
+    try {
+      mkdirSync(path.dirname(extrasFile()), { recursive: true })
+      writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+      renameSync(`${extrasFile()}.tmp`, extrasFile())
+    } catch {
+      // kept in memory
+    }
+  }
 }
 
 // ---------------------------------------------------------------- goals seen from the score
@@ -1078,7 +1291,7 @@ export async function apiMatchStats(game: ExternalGame, incidents?: Incident[]):
     const s = mem.store[api]
     const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
     const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-    if (remaining > EXTRAS_KEEP_REMAINING && spent < EXTRAS_PER_DAY) {
+    if (remaining > EXTRAS_KEEP_REMAINING && spent < extrasPerDay(s)) {
       store.spent[api] = { day: utcDay(), count: spent + 1 }
       const { response, error } = await call(api, `/fixtures/statistics?fixture=${game.id.split('-').pop()}`, 5_000)
       if (!error) {
