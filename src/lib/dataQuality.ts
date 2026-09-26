@@ -10,6 +10,13 @@ import { divisionOfGame } from '../data/ourLeagues'
 import { historyStatus } from './history'
 import { archiveStatus } from './archive'
 import { realDataStatus } from './realdata'
+import { allTeams, teamInLeague, type TeamEntry } from '../data/teams'
+import { getRealData } from '../data/real'
+import { NOT_FIRST_TEAM, cupOfGame, ourClubInCup } from '../data/cups'
+import { BASELINES, sameLeagueKeys } from '../data/baselines'
+import { normalize } from '../data/aliases'
+import { paths } from './site'
+import { countryKey } from '../data/channels'
 
 // Checks that the data we show is right and keeps updating: per league the
 // sources, gaps, duplicates, stuck matches, unknown teams and results the
@@ -224,5 +231,70 @@ export function sourceQuality(now = Date.now()): { name: string; level: Level; c
   arch.push(ran < HOUR ? { level: 'ok', text: `Gemmer løbende (senest for ${Math.round(ran / 60_000)} min. siden)` } : { level: 'warn', text: 'Har ikke gemt den seneste time' })
   if (a.lastError) arch.push({ level: 'error', text: `Fejl: ${a.lastError}` })
   out.push({ name: 'Statistikbank', level: worst(arch), checks: arch })
+  out.push({ name: 'Klubregister', ...registryQuality() })
   return out
+}
+
+const teamLabel = (t: TeamEntry) => `${t.name} (${t.league}${t.country ? `, ${t.country}` : ''}) ${paths.club(t.slug)}`
+
+/**
+ * The club register: the same team with two pages (like "Real Madrid" once for
+ * La Liga and once for the Champions League), table rows without a team page,
+ * and cup teams we can't tell apart.
+ */
+export function registryQuality(): { level: Level; checks: Check[] } {
+  const checks: Check[] = []
+  const teams = allTeams()
+  checks.push({ level: 'ok', text: `${teams.length} hold med egen side` })
+
+  // Men's first teams by sport and plain name; more than one page is the same team twice
+  const byName = new Map<string, TeamEntry[]>()
+  for (const t of teams) {
+    // The starting tables are women's leagues (A-Liga, B-Liga)
+    if (NOT_FIRST_TEAM.test(`${t.name} ${t.league}`) || (t.leagueSlug && sameLeagueKeys(t.leagueSlug).some((k) => BASELINES[k]))) continue
+    const key = `${t.sport}|${normalize(t.name)}`
+    if (!normalize(t.name)) continue
+    byName.set(key, [...(byName.get(key) ?? []), t])
+  }
+  const twice = [...byName.values()].filter((list) => list.length > 1)
+  checks.push(
+    twice.length
+      ? { level: 'warn', text: `${twice.length} hold har mere end én side (samme navn og sport – tjek om det er samme klub)`, items: twice.slice(0, 30).map((l) => l.map(teamLabel).join('  ·  ')) }
+      : { level: 'ok', text: 'Ingen hold med to sider' },
+  )
+
+  // The same name twice in one league (the search lists both)
+  const inLeague = new Map<string, TeamEntry[]>()
+  for (const t of teams) {
+    const key = `${sameLeagueKeys(t.leagueSlug ?? '')[0]}|${normalize(t.name)}`
+    inLeague.set(key, [...(inLeague.get(key) ?? []), t])
+  }
+  const sameLeague = [...inLeague.values()].filter((l) => l.length > 1)
+  if (sameLeague.length) checks.push({ level: 'warn', text: `${sameLeague.length} hold står to gange i samme liga`, items: sameLeague.slice(0, 30).map((l) => l.map(teamLabel).join('  ·  ')) })
+
+  // Table rows without a page
+  const unlinked: string[] = []
+  for (const [key, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
+    for (const row of l.teams) if (!teamInLeague(key, row.name, l.sport)) unlinked.push(`${row.name} (${l.league})`)
+  }
+  checks.push(
+    unlinked.length
+      ? { level: 'warn', text: `${unlinked.length} hold i stillingerne har ingen side`, items: unlinked.slice(0, 30) }
+      : { level: 'ok', text: 'Alle hold i de hentede stillinger har en side' },
+  )
+
+  // Cup teams from our country that look like one of our clubs but aren't recognised as one
+  const unsure = new Set<string>()
+  for (const g of getRealData()?.external ?? []) {
+    const cup = cupOfGame(g)
+    if (!cup) continue
+    for (const side of [g.home.name, g.away.name]) {
+      if (NOT_FIRST_TEAM.test(side) || ourClubInCup(side, cup)) continue
+      const alikeOurs = teams.filter((t) => t.season && t.sport === cup.sport && countryKey(t.country) === countryKey(cup.country) && normalize(t.name).split(' ').some((w) => w.length > 3 && normalize(side).split(' ').includes(w)))
+      if (alikeOurs.length) unsure.add(`${side} (${cup.name}) – ligner ${alikeOurs.map((t) => t.name).join(', ')}`)
+    }
+  }
+  if (unsure.size) checks.push({ level: 'warn', text: `${unsure.size} pokalhold ligner en af vores klubber uden at være koblet til den – tjek at det er et andet hold`, items: [...unsure].slice(0, 30) })
+
+  return { level: worst(checks), checks }
 }

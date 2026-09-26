@@ -4,7 +4,7 @@ import { seasonClubs } from './season'
 import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
 import { externalLeagueKey, type ExternalGame } from './external'
-import { ourClubByName, ourClubIn } from './cups'
+import { ourClubByName, ourClubInGame } from './cups'
 import { BASELINES, sameLeagueKeys } from './baselines'
 import { alike, nameWords, normalize } from './aliases'
 import { slugify } from '../lib/slug'
@@ -32,8 +32,6 @@ export interface TeamEntry {
 
 /** "Brondby W", "HB Køge Women" -> the club part, for matching a women's team across sources */
 const clubPart = (name: string) => name.replace(/\b(w|women|kvinder|dame|damer|q)\b\.?/gi, '').trim()
-
-const WOMEN = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q)\b/i
 
 /** Every word of our clubs' names, once (the check below runs for every team API-Sports sends) */
 let ourWords: Set<string> | undefined
@@ -82,8 +80,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   // A team from API-Sports (a game or a table): our club, a team we have in that league, or a new one
   const place = (name: string, logo: string | undefined, e: { sport: SportId; league: string; leagueSlug: string; country?: string }, g?: ExternalGame) => {
     // Our own clubs in a cup or the Champions League keep their own page, as does a team with exactly one of our clubs' names
-    if (g && ourClubIn(g, name)) return
-    if (!WOMEN.test(`${e.league} ${name}`) && !sameLeagueKeys(e.leagueSlug).some((k) => BASELINES[k]) && ourClubByName(name, e.sport)) return
+    if (ourClubInGame(g ?? { sport: e.sport, league: { id: '', name: e.league, country: e.country } }, name)) return
     // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
     // The same name first ("FC Copenhagen W" is the table's "F.C. København", also known as "FC Copenhagen"), then a looser likeness
     const inLeague = byLeague(e.leagueSlug)

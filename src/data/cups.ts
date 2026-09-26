@@ -5,6 +5,7 @@ import { SEARCH_NAMES, alike, nameWords, normalize } from './aliases'
 import { seasonClubs } from './season'
 import { sportOf } from './leagues'
 import { countryKey } from './channels'
+import { BASELINES, sameLeagueKeys } from './baselines'
 
 // Cups we follow in full from API-Sports: the whole season's games are kept
 // (not just the days around today), the cup gets a page with its rounds, and
@@ -81,6 +82,9 @@ export function wholeSeason(g: Pick<ExternalGame, 'sport' | 'league'>): boolean 
   return g.sport === 'soccer' && WHOLE_SEASON.some((w) => w.country === g.league.country && w.match.test(name))
 }
 
+/** A women's, reserve or youth team: not the club itself, even with the club's name */
+export const NOT_FIRST_TEAM = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q|ii|iii|u\s?\d{2}|youth|junior|reserves?)\b|\s2$/i
+
 /** Our club with exactly this name (ours, TheSportsDB's or API-Sports'), in any country: "Real Madrid" in the Champions League is La Liga's Real Madrid */
 let exactMemo: { clubs: ReturnType<typeof seasonClubs>; map: Map<string, ReturnType<typeof seasonClubs>[number] | undefined> } | undefined
 export function ourClubByName(name: string, sport: SportId) {
@@ -101,4 +105,12 @@ export function ourClubByName(name: string, sport: SportId) {
 export function ourClubIn(g: Pick<ExternalGame, 'sport' | 'league'>, name: string) {
   const cup = cupOfGame(g)
   return (cup && ourClubInCup(name, cup)) || (wholeSeason(g) ? ourClubByName(name, g.sport) : undefined)
+}
+
+/** Our club a team in any other tournament stands for: as above, else by its exact name, unless it is a women's or youth team or league */
+export function ourClubInGame(g: Pick<ExternalGame, 'sport' | 'league'>, name: string) {
+  const found = ourClubIn(g, name)
+  if (found) return found
+  if (NOT_FIRST_TEAM.test(`${g.league.name} ${name}`) || sameLeagueKeys(externalLeagueKey(g.league)).some((k) => BASELINES[k])) return undefined
+  return ourClubByName(name, g.sport)
 }
