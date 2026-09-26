@@ -16,8 +16,11 @@ import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
 import { Updated } from './Updated'
 import { MatchExtrasPanel } from './MatchExtras'
+import { PartnerLogo } from './PartnerLogo'
+import { channelsFor } from '../data/channels'
+import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
-import type { FormGame, MatchExtra } from '../data/matchExtra'
+import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -105,6 +108,10 @@ function MatchBody({
   }
   const colorsOf = (name: string) => findClub(name)?.club.colors
   const compare = seasonCompare(match)
+  const channels = channelsFor(match)
+  // Latest results and the table: from API-Sports for their games, otherwise from our own season
+  const form = extra?.form ?? seasonForm(match)
+  const table = extra?.table ?? seasonTable(match)
 
   return (
     <article className="match-page">
@@ -145,7 +152,7 @@ function MatchBody({
         </div>
       </header>
 
-      <MatchExtrasPanel match={match} />
+      <MatchExtrasPanel match={match} withChannels={false} />
 
       <h1 className="match-page__title">
         {home.name} – {away.name}
@@ -153,169 +160,185 @@ function MatchBody({
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
       <Updated at={now} />
 
-      <div className="match-page__grid">
-        <section className="sheet__section">
-          <h2 className="sheet__title">Kampfakta</h2>
-          <dl className="facts">
-            <div>
-              <dt>Turnering</dt>
-              <dd>{match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : match.league}</dd>
-            </div>
-            {match.country && (
+      <div className="match-page__cols">
+        <div className="match-page__col">
+          <section className="sheet__section">
+            <h2 className="sheet__title">Kampfakta</h2>
+            <dl className="facts">
               <div>
-                <dt>Land</dt>
-                <dd>{danishCountry(match.country)}</dd>
+                <dt>Turnering</dt>
+                <dd>{match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : match.league}</dd>
               </div>
-            )}
-            <div>
-              <dt>Dato</dt>
-              <dd>
-                {formatFull(match.kickoff)} kl. {formatTime(match.kickoff)}
-              </dd>
-            </div>
-            {match.venue && !extra?.facts.some((f) => f.label === 'Spillested') && (
+              {match.country && (
+                <div>
+                  <dt>Land</dt>
+                  <dd>{danishCountry(match.country)}</dd>
+                </div>
+              )}
               <div>
-                <dt>Spillested</dt>
-                <dd>{match.venue}</dd>
+                <dt>Dato</dt>
+                <dd>
+                  {formatFull(match.kickoff)} kl. {formatTime(match.kickoff)}
+                </dd>
               </div>
-            )}
-            {extra?.facts.map((f) => (
-              <div key={f.label}>
-                <dt>{f.label}</dt>
-                <dd>{f.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+              {match.venue && !extra?.facts.some((f) => f.label === 'Spillested') && (
+                <div>
+                  <dt>Spillested</dt>
+                  <dd>{match.venue}</dd>
+                </div>
+              )}
+              {channels.length > 0 && (
+                <div className="facts__wide">
+                  <dt>{match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'}</dt>
+                  <dd className="facts__channels">
+                    {channels.map((c) => (
+                      <PartnerLogo key={c.id} partner={c} kind="kanal" height={36} />
+                    ))}
+                  </dd>
+                </div>
+              )}
+              {extra?.facts.map((f) => (
+                <div key={f.label}>
+                  <dt>{f.label}</dt>
+                  <dd>{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
 
-        {extra?.form && (
-          <section className="sheet__section sheet__section--wide">
+          {match.incidents && match.incidents.length > 0 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Kampforløb</h2>
+              <ol className="timeline">
+                {match.incidents.map((e, n) => {
+                  const label =
+                    e.kind === 'goal' ? 'Mål' : e.kind === 'penalty' ? 'Mål (straffespark)' : e.kind === 'own-goal' ? 'Selvmål' : e.kind === 'red' ? 'Rødt kort' : 'Gult kort'
+                  const icon =
+                    e.kind === 'red' ? <span className="red-card" aria-hidden /> : e.kind === 'yellow' ? <span className="yellow-card" aria-hidden /> : <span aria-hidden>⚽</span>
+                  const body = (
+                    <span className={`timeline__event timeline__event--${e.side}`}>
+                      {e.side === 'home' ? (
+                        <>
+                          <span>
+                            {e.player ?? label}
+                            {e.player && <em> · {label}</em>}
+                          </span>
+                          {icon}
+                        </>
+                      ) : (
+                        <>
+                          {icon}
+                          <span>
+                            {e.player ?? label}
+                            {e.player && <em> · {label}</em>}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  )
+                  return (
+                    <li key={n} className="timeline__row">
+                      {e.side === 'home' ? body : <span />}
+                      <span className="timeline__minute">{e.minute}&apos;</span>
+                      {e.side === 'away' ? body : <span />}
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          )}
+
+          {table && table.rows.length > 1 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Stilling · {match.league}</h2>
+              <div className="table-wrap table-wrap--flush">
+                <table className="table table--compact">
+                  <thead>
+                    <tr>
+                      <th className="num">#</th>
+                      <th>Hold</th>
+                      <th className="num" title="Kampe">K</th>
+                      <th className="num" title="Vundet">V</th>
+                      {table.rows.some((r) => r.drawn !== undefined) && (
+                        <th className="num" title="Uafgjort">U</th>
+                      )}
+                      <th className="num" title="Tabt">T</th>
+                      {table.rows.some((r) => r.for !== undefined) && <th className="num">Score</th>}
+                      {table.rows.some((r) => r.points !== undefined) && (
+                        <th className="num" title="Point">
+                          P
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {table.rows.map((r) => {
+                      const ours = (r.teamId !== undefined && (r.teamId === table.homeId || r.teamId === table.awayId)) || r.name === home.name || r.name === away.name
+                      return (
+                        <tr key={`${r.rank}-${r.name}`} className={ours ? 'is-highlight' : undefined}>
+                          <td className="num pos">{r.rank}</td>
+                          <td>
+                            <span className="table__club">
+                              <TeamBadge name={r.name} src={r.logo} size={20} />
+                              {r.name}
+                            </span>
+                          </td>
+                          <td className="num">{r.played}</td>
+                          <td className="num">{r.won}</td>
+                          {table.rows.some((x) => x.drawn !== undefined) && <td className="num">{r.drawn ?? 0}</td>}
+                          <td className="num">{r.lost}</td>
+                          {table.rows.some((x) => x.for !== undefined) && (
+                            <td className="num">
+                              {r.for ?? 0}–{r.against ?? 0}
+                            </td>
+                          )}
+                          {table.rows.some((x) => x.points !== undefined) && <td className="num pts">{r.points ?? 0}</td>}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="muted small">Stilling: {extra?.table ? 'API-Sports' : 'beregnet af Scoreline ud fra sæsonens kampe'}.</p>
+            </section>
+          )}
+        </div>
+        <div className="match-page__col">
+          {compare && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
+              {compare.map((c) => (
+                <StatBar
+                  key={c.label}
+                  label={c.label}
+                  home={c.home}
+                  away={c.away}
+                  homeText={c.homeText}
+                  awayText={c.awayText}
+                  lowerIsBetter={c.lowerIsBetter}
+                />
+              ))}
+              <p className="muted small">Beregnet af Scoreline ud fra sæsonens spillede kampe.</p>
+            </section>
+          )}
+
+          {homeStats && awayStats && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Klubberne i sæsonen</h2>
+              <ClubComparison home={homeStats} away={awayStats} />
+            </section>
+          )}
+
+        </div>
+      </div>
+      <div className="match-page__grid match-page__grid--wide">
+        {form && (form.home.length > 0 || form.away.length > 0) && (
+          <section className="sheet__section">
             <h2 className="sheet__title">Seneste kampe</h2>
             <div className="form-cols">
-              <TeamForm name={home.name} badge={home.badge} games={extra.form.home} />
-              <TeamForm name={away.name} badge={away.badge} games={extra.form.away} />
+              <TeamForm name={home.name} badge={home.badge} games={form.home} />
+              <TeamForm name={away.name} badge={away.badge} games={form.away} />
             </div>
-          </section>
-        )}
-
-        {extra?.table && (
-          <section className="sheet__section">
-            <h2 className="sheet__title">Stilling · {match.league}</h2>
-            <div className="table-wrap table-wrap--flush">
-              <table className="table table--compact">
-                <thead>
-                  <tr>
-                    <th className="num">#</th>
-                    <th>Hold</th>
-                    <th className="num" title="Kampe">K</th>
-                    <th className="num" title="Vundet">V</th>
-                    {extra.table.rows.some((r) => r.drawn !== undefined) && (
-                      <th className="num" title="Uafgjort">U</th>
-                    )}
-                    <th className="num" title="Tabt">T</th>
-                    {extra.table.rows.some((r) => r.for !== undefined) && <th className="num">Score</th>}
-                    {extra.table.rows.some((r) => r.points !== undefined) && (
-                      <th className="num" title="Point">
-                        P
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {extra.table.rows.map((r) => {
-                    const ours = r.teamId !== undefined && (r.teamId === extra.table!.homeId || r.teamId === extra.table!.awayId)
-                    return (
-                      <tr key={`${r.rank}-${r.name}`} className={ours ? 'is-highlight' : undefined}>
-                        <td className="num pos">{r.rank}</td>
-                        <td>
-                          <span className="table__club">
-                            <TeamBadge name={r.name} src={r.logo} size={20} />
-                            {r.name}
-                          </span>
-                        </td>
-                        <td className="num">{r.played}</td>
-                        <td className="num">{r.won}</td>
-                        {extra.table!.rows.some((x) => x.drawn !== undefined) && <td className="num">{r.drawn ?? 0}</td>}
-                        <td className="num">{r.lost}</td>
-                        {extra.table!.rows.some((x) => x.for !== undefined) && (
-                          <td className="num">
-                            {r.for ?? 0}–{r.against ?? 0}
-                          </td>
-                        )}
-                        {extra.table!.rows.some((x) => x.points !== undefined) && <td className="num pts">{r.points ?? 0}</td>}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="muted small">Stilling: API-Sports.</p>
-          </section>
-        )}
-        {match.incidents && match.incidents.length > 0 && (
-          <section className="sheet__section">
-            <h2 className="sheet__title">Kampforløb</h2>
-            <ol className="timeline">
-              {match.incidents.map((e, n) => {
-                const label =
-                  e.kind === 'goal' ? 'Mål' : e.kind === 'penalty' ? 'Mål (straffespark)' : e.kind === 'own-goal' ? 'Selvmål' : e.kind === 'red' ? 'Rødt kort' : 'Gult kort'
-                const icon =
-                  e.kind === 'red' ? <span className="red-card" aria-hidden /> : e.kind === 'yellow' ? <span className="yellow-card" aria-hidden /> : <span aria-hidden>⚽</span>
-                const body = (
-                  <span className={`timeline__event timeline__event--${e.side}`}>
-                    {e.side === 'home' ? (
-                      <>
-                        <span>
-                          {e.player ?? label}
-                          {e.player && <em> · {label}</em>}
-                        </span>
-                        {icon}
-                      </>
-                    ) : (
-                      <>
-                        {icon}
-                        <span>
-                          {e.player ?? label}
-                          {e.player && <em> · {label}</em>}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                )
-                return (
-                  <li key={n} className="timeline__row">
-                    {e.side === 'home' ? body : <span />}
-                    <span className="timeline__minute">{e.minute}&apos;</span>
-                    {e.side === 'away' ? body : <span />}
-                  </li>
-                )
-              })}
-            </ol>
-          </section>
-        )}
-
-        {compare && (
-          <section className="sheet__section">
-            <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
-            {compare.map((c) => (
-              <StatBar
-                key={c.label}
-                label={c.label}
-                home={c.home}
-                away={c.away}
-                homeText={c.homeText}
-                awayText={c.awayText}
-                lowerIsBetter={c.lowerIsBetter}
-              />
-            ))}
-            <p className="muted small">Beregnet af Scoreline ud fra sæsonens spillede kampe.</p>
-          </section>
-        )}
-
-        {homeStats && awayStats && (
-          <section className="sheet__section">
-            <h2 className="sheet__title">Klubberne i sæsonen</h2>
-            <ClubComparison home={homeStats} away={awayStats} />
           </section>
         )}
 
@@ -452,4 +475,41 @@ function sourceOf(id: string) {
   if (inner.startsWith('db-')) return 'vores kampdatabase'
   if (/^[a-z-]+-\d+$/.test(inner) && !/^\d+$/.test(inner)) return 'API-Sports'
   return 'TheSportsDB'
+}
+
+/** Both clubs' latest results in our season, before this match */
+function seasonForm(match: Match): MatchExtra['form'] {
+  const of = (name: string): FormGame[] => {
+    const club = findClub(name)?.club
+    if (!club) return []
+    return clubFixtures(club.id)
+      .filter((f) => isFinished(f) && f.kickoff.getTime() < match.kickoff.getTime())
+      .slice(-5)
+      .reverse()
+      .map((f) => {
+        const home = f.home.id === club.id
+        return { date: f.kickoff.toISOString(), opponent: home ? f.away.name : f.home.name, home, for: home ? f.score[0] : f.score[1], against: home ? f.score[1] : f.score[0], competition: f.competition }
+      })
+  }
+  const form = { home: of(match.home.name), away: of(match.away.name) }
+  return form.home.length || form.away.length ? form : undefined
+}
+
+/** The table of the league both clubs play in, from our season */
+function seasonTable(match: Match): MatchExtra['table'] {
+  const home = findClub(match.home.name)
+  const away = findClub(match.away.name)
+  if (!home || !away || home.division.id !== away.division.id) return undefined
+  const rows: TableRow[] = standings(home.division).map((r, i) => ({
+    rank: i + 1,
+    name: r.club.name,
+    played: r.played,
+    won: r.won,
+    drawn: sportOf(home.division) === 'basketball' ? undefined : r.drawn,
+    lost: r.lost,
+    for: r.goalsFor,
+    against: r.goalsAgainst,
+    points: r.points,
+  }))
+  return { rows }
 }

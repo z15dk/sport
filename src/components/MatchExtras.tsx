@@ -57,8 +57,8 @@ function TvIcon() {
 }
 
 /** Odds and TV box on the match page */
-export function MatchExtrasPanel({ match }: { match: Match }) {
-  const channels = channelsFor(match)
+export function MatchExtrasPanel({ match, withChannels = true }: { match: Match; withChannels?: boolean }) {
+  const channels = withChannels ? channelsFor(match) : []
   const odds = oddsFor(match)
   const tvLabel = match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'
   if (!channels.length && !odds) return null

@@ -1218,3 +1218,14 @@ h2.league__name { margin: 0; }
 .history__missing td { color: var(--ink-3); font-style: italic; }
 .history__partial { font-family: var(--body, inherit); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); }
 .history__missing-cell { color: var(--ink-3); font-style: italic; }
+
+/* Match page: two columns that fill evenly, wide sections below */
+.match-page__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.match-page__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.match-page__grid--wide { grid-template-columns: 1fr; }
+.match-page__col:empty { display: none; }
+@media (max-width: 900px) { .match-page__cols { grid-template-columns: 1fr; } }
+.facts__wide { grid-column: 1 / -1; }
+.facts__channels { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.facts__channels .partner-logo { position: relative; z-index: 1; }
+@media (max-width: 600px) { .hide-sm { display: none; } }
