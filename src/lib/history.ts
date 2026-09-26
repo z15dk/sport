@@ -6,6 +6,8 @@ import type { RealEvent } from '../data/real'
 import type { Incident, MatchState } from '../types'
 import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
+import type { ExternalGame } from '../data/external'
+import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { cacheDir } from './tsdb'
 import { archiveFile, readArchive } from './archive'
 import { hashString } from '../data/fixtures'
@@ -613,4 +615,67 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
   }
   leagueHistoryCache.set(divisionId, { mtime: d.mtime, history })
   return history
+}
+
+// ---------------------------------------------------------------- API-Sports games from our statistics bank
+
+/**
+ * Latest results, the table and past meetings for an API-Sports game, from
+ * the games our statistics bank has saved in the same league (the free plan
+ * can't look these up). Thin at first, it grows with every match day.
+ */
+export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form']; table?: MatchExtra['table']; h2h: PastMatch[] } {
+  const api = game.id.split('-')[0]
+  const league = `ext-${api}-${game.league.id}`
+  const before = Date.parse(game.kickoff)
+  const all = readArchive().filter((a) => a.date.getTime() < before)
+  const same = (a: string, b: string) => normalize(a) === normalize(b)
+  // This season: the league's games after the last break of more than 45 days
+  const inLeague = all.filter((a) => a.divisionId === league).sort((x, y) => x.date.getTime() - y.date.getTime())
+  let start = 0
+  for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
+  const season = inLeague.slice(start)
+
+  const formOf = (team: string): FormGame[] =>
+    all
+      .filter((a) => a.id.startsWith(`${api}-`) && (same(a.homeName, team) || same(a.awayName, team)))
+      .slice(0, 5)
+      .map((a) => {
+        const home = same(a.homeName, team)
+        return { date: a.date.toISOString(), opponent: home ? a.awayName : a.homeName, home, for: home ? a.homeScore : a.awayScore, against: home ? a.awayScore : a.homeScore, competition: a.tournament }
+      })
+  const form = { home: formOf(game.home.name), away: formOf(game.away.name) }
+
+  const rows = new Map<string, TableRow>()
+  const add = (name: string, f: number, a: number) => {
+    const r = rows.get(normalize(name)) ?? rows.set(normalize(name), { rank: 0, name, played: 0, won: 0, drawn: 0, lost: 0, for: 0, against: 0, points: 0 }).get(normalize(name))!
+    r.played++
+    r.for = (r.for ?? 0) + f
+    r.against = (r.against ?? 0) + a
+    if (f > a) r.won++
+    else if (f < a) r.lost++
+    else r.drawn = (r.drawn ?? 0) + 1
+    r.points = (r.points ?? 0) + (f > a ? 3 : f === a ? 1 : 0)
+  }
+  for (const a of season) {
+    add(a.homeName, a.homeScore, a.awayScore)
+    add(a.awayName, a.awayScore, a.homeScore)
+  }
+  const table = [...rows.values()]
+    .sort((x, y) => (y.points ?? 0) - (x.points ?? 0) || (y.for ?? 0) - (y.against ?? 0) - ((x.for ?? 0) - (x.against ?? 0)) || (y.for ?? 0) - (x.for ?? 0))
+    .map((r, i) => ({ ...r, rank: i + 1 }))
+  // Points only mean something where draws exist; basketball tables rank on wins
+  const noDraws = table.every((r) => !r.drawn)
+  const shownTable = noDraws ? table.map(({ drawn: _drawn, points: _points, ...r }) => r) : table
+
+  const h2h = all
+    .filter((a) => (same(a.homeName, game.home.name) && same(a.awayName, game.away.name)) || (same(a.homeName, game.away.name) && same(a.awayName, game.home.name)))
+    .slice(0, 5)
+    .map((a) => ({ date: a.date, competition: a.tournament, home: a.homeName, away: a.awayName, homeScore: a.homeScore, awayScore: a.awayScore }))
+
+  return {
+    form: form.home.length || form.away.length ? form : undefined,
+    table: table.length >= 4 ? { rows: shownTable } : undefined,
+    h2h,
+  }
 }

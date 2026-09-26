@@ -751,6 +751,6 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   if (homeForm.length || awayForm.length) extra.form = { home: homeForm, away: awayForm }
   // The group with either team in it
   const group = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
-  if (group && group.length > 1) extra.table = { rows: group, homeId: game.home.id, awayId: game.away.id }
+  if (group && group.length > 1) extra.table = { rows: group, homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
 }

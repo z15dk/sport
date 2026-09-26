@@ -29,5 +29,5 @@ export interface MatchExtra {
   /** Round, stadium, referee, half-time score and the like, ready to show */
   facts: { label: string; value: string }[]
   form?: { home: FormGame[]; away: FormGame[] }
-  table?: { name?: string; rows: TableRow[]; homeId?: number; awayId?: number }
+  table?: { name?: string; rows: TableRow[]; homeId?: number; awayId?: number; /** Where the table comes from */ source?: 'api-sports' | 'scoreline' }
 }

@@ -299,7 +299,7 @@ function MatchBody({
                   </tbody>
                 </table>
               </div>
-              <p className="muted small">Stilling: {extra?.table ? 'API-Sports' : 'beregnet af Scoreline ud fra sæsonens kampe'}.</p>
+              <p className="muted small">Stilling: {table.source === 'api-sports' ? 'API-Sports' : 'beregnet af Scoreline ud fra sæsonens kampe'}.</p>
             </section>
           )}
         </div>

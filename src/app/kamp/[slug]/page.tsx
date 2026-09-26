@@ -6,7 +6,7 @@ import { apiHeadToHead, apiMatchExtra } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { realHeadToHead } from '../../../lib/history'
+import { archiveGameExtras, realHeadToHead } from '../../../lib/history'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
@@ -61,7 +61,14 @@ export default async function MatchPage({ params }: { params: Params }) {
   let h2hSource: H2hSource | undefined = dbH2h ? 'database' : undefined
   const game = findExternalGame(match)
   // Facts, form and table from API-Sports; our own season statistics cover our leagues' clubs
-  const extra = game ? await apiMatchExtra(game).catch(() => undefined) : undefined
+  const fromApi = game ? await apiMatchExtra(game).catch(() => undefined) : undefined
+  // What API-Sports can't give (the free plan), from the games our statistics bank has saved
+  const saved = game ? archiveGameExtras(game) : undefined
+  const extra = fromApi && {
+    ...fromApi,
+    form: fromApi.form ?? saved?.form,
+    table: fromApi.table ?? saved?.table,
+  }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
     if (game && games?.length) {
@@ -87,6 +94,10 @@ export default async function MatchPage({ params }: { params: Params }) {
         h2hSource = dbH2h?.length ? 'both' : 'api-sports'
       }
     }
+  }
+  if (!realH2h?.length && saved?.h2h.length) {
+    realH2h = saved.h2h
+    h2hSource = 'database'
   }
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
