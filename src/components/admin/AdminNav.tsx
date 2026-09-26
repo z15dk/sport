@@ -5,6 +5,9 @@ const PAGES = [
   { href: '/admin/klubber', label: 'Klubber' },
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
+  { href: '/admin/data', label: 'Data & API' },
+  { href: '/admin/kvalitet', label: 'Datakvalitet' },
+  { href: '/admin/logoer', label: 'Logo-job' },
 ]
 
 /** The admin pages' shared menu, with the current page marked */
