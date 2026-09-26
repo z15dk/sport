@@ -159,7 +159,6 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
 
         <AdSlot placement="content" />
         <Faq items={faq} />
-        <p className="muted small">Kampe og resultater: TheSportsDB.</p>
       </div>
     </div>
   )
@@ -443,7 +442,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                 ))}
               </tbody>
             </table>
-            <p className="muted small history__note">{fromApi ? 'Stilling: API-Sports.' : 'Stilling beregnet af Scoreline (se hele stillingen for grundlaget).'}</p>
+            {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Scoreline (se hele stillingen for grundlaget).</p>}
           </section>
         )}
 
@@ -490,7 +489,6 @@ async function TeamPage({ team }: { team: TeamEntry }) {
 
         <AdSlot placement="content" />
         <Faq items={faq} />
-        <p className="muted small">Kampe og resultater: API-Sports og Scorelines statistikbank.</p>
       </div>
     </div>
   )

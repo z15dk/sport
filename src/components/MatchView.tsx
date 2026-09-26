@@ -44,11 +44,11 @@ interface Props {
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events, stats, cup }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} stats={stats} cup={cup} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -91,7 +91,6 @@ function MatchBody({
   match,
   now,
   realH2h,
-  h2hSource,
   extra,
   stats,
   cup,
@@ -99,7 +98,6 @@ function MatchBody({
   match: Match
   now: number
   realH2h?: PastMatch[]
-  h2hSource?: H2hSource
   extra?: MatchExtra
   stats?: MatchStats
   cup?: boolean
@@ -235,12 +233,12 @@ function MatchBody({
               {stats.rows.map((r) => (
                 <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
               ))}
-              <p className="muted small">
-                {stats.xg?.source === 'scoreline'
-                  ? 'Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark. Det er ikke rigtig xG, som vurderer hvert skud for sig. '
-                  : ''}
-                Statistik: API-Sports.
-              </p>
+              {stats.xg?.source === 'scoreline' && (
+                <p className="muted small">
+                  Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
+                  Det er ikke rigtig xG, som vurderer hvert skud for sig.
+                </p>
+              )}
             </section>
           )}
 
@@ -337,7 +335,7 @@ function MatchBody({
                   </tbody>
                 </table>
               </div>
-              <p className="muted small">Stilling: {table.source === 'api-sports' ? 'API-Sports' : 'beregnet af Scoreline ud fra sæsonens kampe'}.</p>
+              {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Scoreline ud fra sæsonens kampe.</p>}
             </section>
           )}
         </div>
@@ -429,9 +427,6 @@ function MatchBody({
               )
             })}
           </ul>
-          <p className="muted small">
-            Kampprogram og resultat: {sourceOf(match.id)}.{realH2h ? ` Indbyrdes opgør: ${h2hSource === 'api-sports' ? 'API-Sports' : h2hSource === 'both' ? 'vores kampdatabase og API-Sports' : 'vores kampdatabase'}.` : ''}
-          </p>
         </section>
       </div>
     </article>
@@ -507,14 +502,6 @@ function TeamForm({ name, badge, games }: { name: string; badge?: string; games:
       )}
     </div>
   )
-}
-
-/** Where a match comes from, by its id ("tsdb-<event id>" for our leagues' season) */
-function sourceOf(id: string) {
-  const inner = id.startsWith('tsdb-') ? id.slice(5) : id
-  if (inner.startsWith('db-')) return 'vores kampdatabase'
-  if (/^[a-z-]+-\d+$/.test(inner) && !/^\d+$/.test(inner)) return 'API-Sports'
-  return 'TheSportsDB'
 }
 
 /** Both clubs' latest results in our season, before this match */

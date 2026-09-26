@@ -10,13 +10,13 @@ function SeasonRows({ seasons }: { seasons: SeasonRecord[] }) {
         s.missing ? (
           <tr key={`${s.season}-missing`} className="history__missing">
             <td>{s.season}</td>
-            <td colSpan={8}>Ingen kampe i vores kampdatabase</td>
+            <td colSpan={8}>Ingen kampe registreret</td>
           </tr>
         ) : (
         <tr key={`${s.season}-${s.tournament}`}>
           <td>{s.season}</td>
           <td>{s.tournament}</td>
-          <td className="num pos">{s.position ? `${s.position}.` : s.incomplete ? <span className="history__partial" title="Vores kampdatabase mangler nogle af sæsonens kampe">ufuldst.</span> : '–'}</td>
+          <td className="num pos">{s.position ? `${s.position}.` : s.incomplete ? <span className="history__partial" title="Vi mangler nogle af sæsonens kampe">ufuldst.</span> : '–'}</td>
           <td className="num">{s.played}</td>
           <td className="num">{s.won}</td>
           <td className="num">{s.drawn}</td>
@@ -62,7 +62,7 @@ export function ClubHistory({ name, history }: { name: string; history: History 
         </span>
       </header>
       <p className="history__lead">
-        {name} har spillet {total.played.toLocaleString('da-DK')} kampe i vores kampdatabase: {total.won} sejre ({pct(total.won)} %),{' '}
+        {name} har spillet {total.played.toLocaleString('da-DK')} registrerede kampe: {total.won} sejre ({pct(total.won)} %),{' '}
         {total.drawn} uafgjorte og {total.lost} nederlag med en målscore på {total.goalsFor}-{total.goalsAgainst}.
         {biggestWin &&
           ` Største sejr: ${biggestWin.home} – ${biggestWin.away} ${biggestWin.homeScore}-${biggestWin.awayScore} (${biggestWin.competition}, ${formatShortYear(biggestWin.date)}).`}
@@ -89,8 +89,8 @@ export function ClubHistory({ name, history }: { name: string; history: History 
         </details>
       )}
       <p className="muted small history__note">
-        Rigtige resultater fra vores kampdatabase. Placering er beregnet ud fra kampene og vises kun, når databasen har hele sæsonen (&quot;ufuldst.&quot;:
-        der mangler kampe). Sæsoner uden kampe i databasen står som huller – klubben kan godt have spillet i en række, vi ikke har data for.
+        Rigtige resultater. Placering er beregnet ud fra kampene og vises kun, når vi har hele sæsonen (&quot;ufuldst.&quot;: der mangler kampe).
+        Sæsoner uden kampe står som huller – klubben kan godt have spillet i en række, vi ikke har data for.
       </p>
     </section>
   )

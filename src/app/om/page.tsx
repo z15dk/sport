@@ -23,7 +23,7 @@ export default function AboutPage() {
 
         {!INDEXABLE && (
           <p className="banner">
-            Scoreline er under udvikling. Kampe og resultater kommer fra TheSportsDB, historik fra vores egen kampdatabase. Odds er eksempler.
+            Scoreline er under udvikling. Odds er eksempler.
           </p>
         )}
 

@@ -23,7 +23,7 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
       <td>{s.season}</td>
       {s.incomplete ? (
         <td colSpan={3} className="history__missing-cell">
-          Ufuldstændig i vores kampdatabase ({s.matches} af {s.teams * (s.teams - 1)} kampe)
+          Ufuldstændig ({s.matches} af {s.teams * (s.teams - 1)} kampe)
         </td>
       ) : [0, 1, 2].map((i) => (
         <td key={i}>
@@ -61,7 +61,7 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
         </span>
       </header>
       <p className="history__lead">
-        {name} i vores kampdatabase: {seasons.length} afsluttede sæsoner fra {seasons.at(-1)?.season} til {seasons[0]?.season}.
+        {name}: {seasons.length} afsluttede sæsoner fra {seasons.at(-1)?.season} til {seasons[0]?.season}.
         {biggestWin && ` Største sejr: ${biggestWin.home} – ${biggestWin.away} ${biggestWin.homeScore}-${biggestWin.awayScore} (${formatShortYear(biggestWin.date)}).`}
         {bestCrowd &&
           ` Flest tilskuere: ${bestCrowd.spectators.toLocaleString('da-DK')} til ${bestCrowd.home} – ${bestCrowd.away} (${formatShortYear(bestCrowd.date)}).`}
@@ -119,8 +119,8 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
         </>
       )}
       <p className="muted small history__note">
-        Beregnet af Scoreline ud fra alle kampe i vores kampdatabase (3 point for sejr). Nr. 1-3 er efter point i sæsonens kampe og tager ikke højde for
-        pointhalvering, fratrukne point eller slutspil, der ligger uden for databasen.
+        Beregnet af Scoreline ud fra sæsonernes kampe (3 point for sejr). Nr. 1-3 er efter point i sæsonens kampe og tager ikke højde for
+        pointhalvering, fratrukne point eller slutspil.
       </p>
     </section>
   )

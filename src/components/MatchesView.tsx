@@ -213,7 +213,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
       {(((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">
           {real.length === 0 ? (
-            'Kampene hentes fra TheSportsDB – kom tilbage om lidt.'
+            'Kampene hentes – kom tilbage om lidt.'
           ) : (
             <>
               Ingen kampe denne dag i{' '}

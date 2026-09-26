@@ -165,10 +165,10 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             )}
             <p className="muted small history__note">
               {source === 'api-sports'
-                ? 'Stilling: API-Sports.'
+                ? ''
                 : baseline
-                  ? `Udgangspunkt: stillingen efter ${baseline.round}. runde fra ${baseline.source} (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen under nr. ${baseline.splitAfter} er som i stillingen på ${baseline.source}.`) : ''}`
-                  : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr). API-Sports' gratisplan giver ikke sæsonens tidligere kampe, så stillingen er kun komplet fra da.`}
+                  ? `Udgangspunkt: stillingen efter ${baseline.round}. runde (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen står under nr. ${baseline.splitAfter}.`) : ''}`
+                  : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
           </>
@@ -206,7 +206,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           </section>
         )}
         <p className="muted small">
-          Kampe og resultater: {rounds ? 'API-Sports og vores kampdatabase' : 'API-Sports'}. <Link href="/">Se alle dagens kampe</Link>.
+          <Link href="/">Se alle dagens kampe</Link>.
         </p>
       </div>
     </div>
