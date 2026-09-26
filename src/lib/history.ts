@@ -256,7 +256,9 @@ const historyCache = new Map<string, { mtime: number; history?: ClubHistory }>()
 /** A club's real record, season by season, from the database */
 export function clubHistory(club: Club): ClubHistory | undefined {
   const d = data()
-  const own = d?.byClub.get(club.id)
+  // Finished seasons only: the season being played has its own statistics
+  const current = SEASON.slice(0, 4)
+  const own = d?.byClub.get(club.id)?.filter((m) => !m.season.startsWith(current))
   if (!d || !own?.length) return undefined
   const hit = historyCache.get(club.id)
   if (hit && hit.mtime === d.mtime) return hit.history
