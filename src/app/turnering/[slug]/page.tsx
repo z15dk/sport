@@ -204,9 +204,6 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
-            <span className="tag">
-              Efter {rounds} runder
-            </span>
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>

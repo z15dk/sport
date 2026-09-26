@@ -113,11 +113,6 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Stilling</h2>
-              {source === 'scoreline' && baseline ? (
-                <span className="tag">Efter {baseline.round + Math.max(0, ...groups.flat().map((r) => r.played - baseline.rows[0].played))}. runde</span>
-              ) : (
-                source === 'scoreline' && matches !== undefined && <span className="tag">{matches} kampe</span>
-              )}
             </header>
             {rows.length > 1 ? (
               groups.map((group, gi) => (

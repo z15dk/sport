@@ -9,7 +9,7 @@ import { apiSportsStatus, seasonGames } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { historyStatus } from './history'
 import { archiveStatus } from './archive'
-import { realDataStatus } from './realdata'
+import { apiMergeStatus, realDataStatus } from './realdata'
 import { allTeams, teamInLeague, type TeamEntry } from '../data/teams'
 import { getRealData } from '../data/real'
 import { NOT_FIRST_TEAM, cupOfGame, ourClubInCup } from '../data/cups'
@@ -142,6 +142,16 @@ export function leagueQuality(now = Date.now()): LeagueQuality[] {
           ? { level: 'ok', text: `API-Sports: ${theirs.length} spillede kampe denne sæson, ${withEvents} med målscorere/kort` }
           : { level: 'warn', text: 'API-Sports har ingen af ligaens kampe denne sæson endnu – tjek ligaens id under Ligaer' },
       )
+      // How they joined our matches in the last merge
+      const m = apiMergeStatus(d.id)
+      if (m) {
+        const lost = m.withIncidents - m.usedIncidents - m.keptOwn
+        checks.push({
+          level: lost > 0 || m.skipped.length ? 'warn' : 'ok',
+          text: `Sammenfletning: ${m.games} kampe fra API-Sports (${m.withIncidents} med målscorere/kort), ${m.matched} koblet til vores kampe, ${m.added} tilføjet; ${m.usedIncidents} fik målscorere/kort derfra, ${m.keptOwn} beholdt vores egne`,
+          items: m.skipped.length ? m.skipped.slice(0, 10).map((x) => `Beholdt ufuldstændige: ${x}`) : undefined,
+        })
+      }
     }
     // Goals and cards: how many played matches have them
     if (finished.length && (d.sport ?? 'soccer') === 'soccer') {
