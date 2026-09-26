@@ -84,6 +84,8 @@ function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
       // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
       <img
         className={light ? 'badge badge--light' : 'badge'}
+        // The plate's inner space in pixels (a percentage would follow the surrounding box, not the logo)
+        style={light ? { padding: Math.max(2, Math.round(size * 0.12)), borderRadius: Math.round(size * 0.22) } : undefined}
         src={url}
         alt=""
         width={size}
