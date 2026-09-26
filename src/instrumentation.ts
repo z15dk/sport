@@ -12,6 +12,9 @@ export async function register() {
   ])
   const { startApiSportsSync } = await import('./lib/apisports')
   startApiSportsSync()
+  // API-Sports' "image not available" logos, found by downloading each logo once
+  const [{ startLogoCheck }, { apiSportsLogoUrls }] = [await import('./lib/logoCheck'), await import('./lib/apisports')]
+  startLogoCheck(apiSportsLogoUrls)
   const { startTvSync } = await import('./lib/channels')
   startTvSync()
   startIndexNow()

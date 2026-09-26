@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
+import { realLogo } from '../../../lib/logoCheck'
 import { apiHeadToHead, apiMatchEvents, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
@@ -89,8 +90,8 @@ export default async function MatchPage({ params }: { params: Params }) {
           away: nameOf(g.away.id, g.away.name),
           homeScore: g.homeScore ?? 0,
           awayScore: g.awayScore ?? 0,
-          homeLogo: g.home.logo,
-          awayLogo: g.away.logo,
+          homeLogo: realLogo(g.home.logo),
+          awayLogo: realLogo(g.away.logo),
         }),
       )
       // The same meeting in both sources counts once (same day)

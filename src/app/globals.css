@@ -1261,3 +1261,5 @@ h2.league__name { margin: 0; }
 .timeline-graphic__event--home { bottom: calc(50% + 8px); }
 .timeline-graphic__event--away { top: calc(50% + 24px); flex-direction: column-reverse; }
 .timeline-graphic__event--yellow, .timeline-graphic__event--red { font-size: 12px; }
+.h2h__link { display: contents; color: inherit; }
+.h2h__row:has(.h2h__link):hover { background: var(--surface-3, #e9e9e2); }

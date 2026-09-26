@@ -33,6 +33,8 @@ export interface PastMatch {
   /** Team logos, when the source has them */
   homeLogo?: string
   awayLogo?: string
+  /** Our page for the match, when we have one */
+  slug?: string
 }
 
 /** Words for scores in each sport, for tables and comparisons */

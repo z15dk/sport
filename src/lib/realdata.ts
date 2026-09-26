@@ -16,6 +16,7 @@ import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
 import { sameLeagueKeys } from '../data/baselines'
+import { logoCheckVersion, realLogo } from './logoCheck'
 import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
@@ -61,6 +62,13 @@ const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
 
 // ---------------------------------------------------------------- the two sources
 
+/** API-Sports' "image not available" pictures left out, so the teams get our neutral badge */
+function withoutPlaceholders<G extends { home: { logo?: string }; away: { logo?: string }; league: { logo?: string } }>(g: G): G {
+  const [home, away, league] = [realLogo(g.home.logo), realLogo(g.away.logo), realLogo(g.league.logo)]
+  if (home === g.home.logo && away === g.away.logo && league === g.league.logo) return g
+  return { ...g, home: { ...g.home, logo: home }, away: { ...g.away, logo: away }, league: { ...g.league, logo: league } }
+}
+
 /** What TheSportsDB gave us (as saved in real-data.json) */
 const base = () => holder.__scorelineTsdb
 
@@ -77,7 +85,7 @@ function apply() {
   const settings = siteSettings()
   const leagueNames = leagueNameOverrides()
   const logos = Object.keys(customLogos()).length
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}`
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
   if (mergedKey === key) return
   mergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -101,7 +109,7 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: external.games.map((g) => {
+    external: external.games.map(withoutPlaceholders).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       const keys = sameLeagueKeys(key)

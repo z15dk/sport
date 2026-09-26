@@ -6,6 +6,7 @@ import { externalLeagueKey, type ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
+import { logoCheckVersion, realLogo } from './logoCheck'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, sportOf, type Division } from '../data/leagues'
@@ -480,12 +481,12 @@ async function fetchDay(api: Api, date: string) {
 /** An API-Sports league (not ours) by its key, if we have seen its games */
 export function externalLeague(key: string): ExternalLeague | undefined {
   load()
-  for (const s of Object.values(mem.store)) if (s.leagues?.[key]) return s.leagues[key]
+  for (const s of Object.values(mem.store)) if (s.leagues?.[key]) return { ...s.leagues[key], logo: realLogo(s.leagues[key].logo) }
   // Not remembered yet: from the games we have
   for (const [api, s] of Object.entries(mem.store)) {
     for (const d of Object.values(s.days)) {
       const g = d.games.find((x) => !divisionOfGame(x) && x.league.id && externalLeagueKey(x.league) === key)
-      if (g) return { key, api, id: g.league.id, name: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, season: g.league.season, lastSeen: d.fetchedAt }
+      if (g) return { key, api, id: g.league.id, name: g.league.name, country: g.league.country, sport: g.sport, logo: realLogo(g.league.logo), season: g.league.season, lastSeen: d.fetchedAt }
     }
   }
   return undefined
@@ -494,7 +495,7 @@ export function externalLeague(key: string): ExternalLeague | undefined {
 /** Every API-Sports league (not ours) we have seen */
 export function externalLeagues(): ExternalLeague[] {
   load()
-  return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}))
+  return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}).map((l) => ({ ...l, logo: realLogo(l.logo) })))
 }
 
 /** API-Sports' own table for a league (cached six hours); undefined when the plan or the budget doesn't allow it */
@@ -505,7 +506,8 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
   const groups = await cached(api, `${api}|table|${league.id}|${league.season ?? ''}`, 6 * 3_600_000, def.standings(league.id, league.season), 'table', readTable).catch(
     () => undefined,
   )
-  return groups?.filter((g) => g.length > 1).length ? groups.filter((g) => g.length > 1) : undefined
+  const shown = groups?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, logo: realLogo(r.logo) })))
+  return shown?.length ? shown : undefined
 }
 
 /** The day of this API most in need of a refresh, or nothing when the quota is spent */
@@ -897,7 +899,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   if (homeForm.length || awayForm.length) extra.form = { home: homeForm, away: awayForm }
   // The group with either team in it
   const group = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
-  if (group && group.length > 1) extra.table = { rows: group, homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
+  if (group && group.length > 1) extra.table = { rows: group.map((r) => ({ ...r, logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
 }
 
@@ -1014,13 +1016,29 @@ export function observedGoals(game: ExternalGame): Incident[] | undefined {
 /** Team logos by team name, from every game API-Sports has sent (for tables we compute ourselves) */
 export function teamLogos(): Map<string, string> {
   load()
-  const holder = mem as typeof mem & { logos?: { mtime: number; map: Map<string, string> } }
-  if (holder.logos?.mtime === mem.mtime) return holder.logos.map
+  const holder = mem as typeof mem & { logos?: { version: string; map: Map<string, string> } }
+  const version = `${mem.mtime}|${logoCheckVersion()}`
+  if (holder.logos?.version === version) return holder.logos.map
   const map = new Map<string, string>()
   for (const s of Object.values(mem.store)) {
     const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
-    for (const g of games) for (const t of [g.home, g.away]) if (t.logo && !map.has(t.name)) map.set(t.name, t.logo)
+    for (const g of games) for (const t of [g.home, g.away]) if (realLogo(t.logo) && !map.has(t.name)) map.set(t.name, t.logo!)
   }
-  holder.logos = { mtime: mem.mtime, map }
+  holder.logos = { version, map }
   return map
+}
+
+/** Every logo address API-Sports has given, today's games first (for the placeholder check) */
+export function apiSportsLogoUrls(): string[] {
+  load()
+  const today = new Date().toISOString().slice(0, 10)
+  const urls = new Set<string>()
+  const add = (g: ExternalGame) => [g.home.logo, g.away.logo, g.league.logo].forEach((u) => u && urls.add(u))
+  for (const s of Object.values(mem.store)) s.days[today]?.games.forEach(add)
+  for (const s of Object.values(mem.store)) {
+    for (const d of Object.values(s.days)) d.games.forEach(add)
+    for (const games of Object.values(s.past ?? {})) games.forEach(add)
+    for (const l of Object.values(s.leagues ?? {})) if (l.logo) urls.add(l.logo)
+  }
+  return [...urls]
 }

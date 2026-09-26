@@ -20,11 +20,15 @@ import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
 import { archiveLeagueTable, clubHistory } from '../../../lib/history'
+import { readArchive } from '../../../lib/archive'
+import { normalize } from '../../../data/aliases'
+import type { PastMatch } from '../../../data/matchInsights'
+import type { Match } from '../../../types'
 import { BASELINES } from '../../../data/baselines'
-import { externalLeague } from '../../../lib/apisports'
+import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
-import { addDays, isoDate } from '../../../lib/time'
+import { addDays, formatLong, formatShortYear, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 
@@ -160,26 +164,92 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
   )
 }
 
-/** Page for any other team: built from its matches alone */
-function TeamPage({ team }: { team: TeamEntry }) {
+/** A team's finished games: its matches around today and those our statistics bank has saved, newest first */
+function teamResults(names: string[], around: Match[], divisionId: string | undefined, leagueName: string): PastMatch[] {
+  const keys = new Set(names.map(normalize))
+  const logos = teamLogos()
+  const fromMatches: PastMatch[] = around
+    .filter((m) => m.state === 'finished')
+    .map((m) => ({
+      date: m.kickoff,
+      competition: m.league,
+      home: m.home.name,
+      away: m.away.name,
+      homeScore: m.home.score ?? 0,
+      awayScore: m.away.score ?? 0,
+      homeLogo: m.home.badge,
+      awayLogo: m.away.badge,
+      slug: m.slug,
+    }))
+  const seen = new Set(fromMatches.map((m) => `${isoDate(m.date)}|${normalize(m.home)}`))
+  const saved: PastMatch[] = readArchive()
+    // In its own league when it has one (a women's team can share its name with the men's club)
+    .filter((a) => (divisionId ? a.divisionId === divisionId : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
+    .filter((a) => keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))
+    .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(a.homeName)}`))
+    .map((a) => ({
+      date: a.date,
+      competition: a.tournament,
+      home: a.homeName,
+      away: a.awayName,
+      homeScore: a.homeScore,
+      awayScore: a.awayScore,
+      homeLogo: logos.get(a.homeName),
+      awayLogo: logos.get(a.awayName),
+    }))
+  return [...fromMatches, ...saved].sort((a, b) => b.date.getTime() - a.date.getTime())
+}
+
+/** Page for any other team: built from its matches, the games we have saved and its league's table */
+async function TeamPage({ team }: { team: TeamEntry }) {
   const now = Date.now()
   const today = isoDate(now)
   const names = team.names ?? [team.name]
-  // Its place in its league's table, for API-Sports' leagues with a starting table
-  const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
+  const keys = new Set(names.map(normalize))
+  const own = (name: string) => keys.has(normalize(name))
   const league = team.leagueSlug ? externalLeague(team.leagueSlug) : undefined
-  const table = baseline ? archiveLeagueTable(league ? `ext-${league.api.split('-')[0]}-${league.id}` : '', baseline).rows : []
-  const row = table.find((r) => r.name === team.name || names.includes(r.name))
-  const around = teamMatches(names, team.sport, addDays(today, -7), 15, now, team.names ? team.leagueSlug : undefined)
-  const recent = around.filter((m) => m.state === 'finished').slice(-5).reverse()
-  const upcoming = around.filter((m) => m.state !== 'finished').slice(0, 5)
-  const faq = teamFaq(team, upcoming[0], recent[0])
+  const api = league?.api.split('-')[0]
+  const divisionId = league ? `ext-${api}-${league.id}` : undefined
+  // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games
+  const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
+  const fromApi = league ? await apiLeagueTable(league) : undefined
+  const table = fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : [])
+  const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
+  const row =
+    table.find((r) => own(r.name)) ??
+    table.find((r) => [r.name, ...(baseline?.rows.find((b) => b.name === r.name)?.aliases ?? [])].some((n) => names.some((x) => normalize(women(x)) === normalize(women(n)))))
+  const at = row ? table.indexOf(row) : -1
+  const start = Math.max(0, Math.min(at - 2, table.length - 5))
+  const nearby = at >= 0 && table.length > 1 ? table.slice(start, start + 5) : []
+  const hasDraws = table.some((r) => r.drawn !== undefined)
+  const hasPoints = table.some((r) => r.points !== undefined)
+
+  const around = teamMatches(names, team.sport, addDays(today, -10), 30, now, team.names ? team.leagueSlug : undefined)
+  const live = around.filter((m) => m.state === 'live')
+  const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
+  const results = teamResults(names, around, divisionId, team.league)
+  const recent = results.slice(0, 10)
+  const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
+  const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)
-  const last = recent[0]
+  const goalWord = team.sport === 'soccer' || team.sport === 'ice_hockey' ? 'Mål' : 'Score'
+
+  // The team's side of each result
+  const mine = results.map((m) => {
+    const home = own(m.home) || (!own(m.away) && normalize(women(m.home)) !== normalize(women(m.away)) && names.some((n) => normalize(women(n)) === normalize(women(m.home))))
+    const f = home ? m.homeScore : m.awayScore
+    const a = home ? m.awayScore : m.homeScore
+    return { m, home, f, a, outcome: (f > a ? 'V' : f < a ? 'T' : 'U') as 'V' | 'U' | 'T', opponent: home ? m.away : m.home }
+  })
+  const form = mine.slice(0, 5).map((x) => x.outcome).reverse()
+  const n = mine.length
+  const wins = mine.filter((x) => x.outcome === 'V').length
+  const draws = mine.filter((x) => x.outcome === 'U').length
+  const scored = mine.reduce((t, x) => t + x.f, 0)
+  const conceded = mine.reduce((t, x) => t + x.a, 0)
+  const per = (v: number) => (n ? (v / n).toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : '–')
+  const last = mine[0]
   const next = upcoming[0]
-  const isHome = (m: typeof last) => names.includes(m.home.name)
-  const opponent = (m: typeof last) => (isHome(m) ? m.away.name : m.home.name)
-  const score = (m: typeof last) => (isHome(m) ? `${m.home.score ?? 0}-${m.away.score ?? 0}` : `${m.away.score ?? 0}-${m.home.score ?? 0}`)
 
   return (
     <div className="page">
@@ -208,24 +278,108 @@ function TeamPage({ team }: { team: TeamEntry }) {
 
         <p className="lead">
           {team.name} spiller i {team.league}
-          {row ? ` og ligger nr. ${row.rank} med ${row.points ?? 0} point efter ${row.played} kampe (${row.won} sejre, ${row.drawn ?? 0} uafgjorte, ${row.lost} nederlag, målscore ${row.for ?? 0}-${row.against ?? 0})` : ''}.
-          {last && ` Seneste kamp: ${score(last)} mod ${opponent(last)}.`}
-          {next && ` Næste kamp er mod ${opponent(next)}.`}
+          {row
+            ? ` og ligger nr. ${row.rank}${row.points !== undefined ? ` med ${row.points} point` : ''} efter ${row.played} kampe (${row.won} sejre${row.drawn !== undefined ? `, ${row.drawn} uafgjorte` : ''}, ${row.lost} nederlag${row.for !== undefined ? `, ${goalWord.toLowerCase()} ${row.for}-${row.against ?? 0}` : ''})`
+            : ''}
+          .{last && ` Seneste kamp: ${last.f}-${last.a} mod ${last.opponent}.`}
+          {live[0] && ` Spiller lige nu mod ${own(live[0].home.name) ? live[0].away.name : live[0].home.name}.`}
+          {!live[0] && next && ` Næste kamp er mod ${own(next.home.name) ? next.away.name : next.home.name} ${formatLong(next.kickoff)}.`}
         </p>
         <Updated at={now} />
 
-        <div className="club-grid">
+        {(row || n > 0) && (
+          <section className="tiles tiles--club" aria-label="Nøgletal">
+            {row ? (
+              <div className="tile tile--lime">
+                <span className="tile__label">Placering</span>
+                <strong className="tile__value">{row.rank}.</strong>
+              </div>
+            ) : (
+              <div className="tile tile--lime">
+                <span className="tile__label">Kampe</span>
+                <strong className="tile__value">{n}</strong>
+              </div>
+            )}
+            <div className="tile tile--ink">
+              <span className="tile__label">{row?.points !== undefined ? 'Point' : 'Sejre'}</span>
+              <strong className="tile__value">{row?.points ?? (row ? row.won : wins)}</strong>
+            </div>
+            <div className="tile tile--blush">
+              <span className="tile__label">{goalWord}</span>
+              <strong className="tile__value">{row?.for !== undefined ? `${row.for}-${row.against ?? 0}` : `${scored}-${conceded}`}</strong>
+            </div>
+            {form.length > 0 && (
+              <div className="tile tile--form">
+                <span className="tile__label">Form</span>
+                <FormChips form={form} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {live.length > 0 && (
           <section className="league">
             <header className="league__header">
               <div className="league__toggle">
-                <h2 className="league__name">Seneste resultater</h2>
+                <h2 className="league__name">Live nu</h2>
               </div>
             </header>
             <ul className="league__matches">
-              {recent.map((m) => (
+              {live.map((m) => (
                 <MatchRow key={m.id} match={m} showDate />
               ))}
             </ul>
+          </section>
+        )}
+
+        <div className="club-grid">
+          <section className="panel table-panel">
+            <header className="table-panel__head">
+              <h2 className="panel__title">Seneste resultater</h2>
+            </header>
+            {recent.length ? (
+              <ul className="h2h h2h--pad">
+                {mine.slice(0, 10).map(({ m, outcome }, i) => {
+                  const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
+                  const body = (
+                    <>
+                      <span className="h2h__meta">
+                        <em>
+                          {formatShortYear(m.date)} · {m.competition}
+                        </em>
+                        <span className={`outcome outcome--${outcome}`} title={outcome === 'V' ? 'Sejr' : outcome === 'T' ? 'Nederlag' : 'Uafgjort'}>
+                          {outcome}
+                        </span>
+                      </span>
+                      <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
+                        {m.home}
+                        <TeamBadge link={false} name={m.home} src={m.homeLogo} size={22} />
+                      </span>
+                      <span className="h2h__score">
+                        {m.homeScore}–{m.awayScore}
+                      </span>
+                      <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
+                        <TeamBadge link={false} name={m.away} src={m.awayLogo} size={22} />
+                        {m.away}
+                      </span>
+                    </>
+                  )
+                  return (
+                    <li key={i} className="h2h__row">
+                      {m.slug ? (
+                        <Link className="h2h__link" href={paths.match(m.slug)}>
+                          {body}
+                        </Link>
+                      ) : (
+                        body
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="muted small pad">Vi har ikke gemt nogen af holdets kampe endnu. De kommer med, efterhånden som de bliver spillet.</p>
+            )}
           </section>
           <section className="league">
             <header className="league__header">
@@ -233,16 +387,107 @@ function TeamPage({ team }: { team: TeamEntry }) {
                 <h2 className="league__name">Kommende kampe</h2>
               </div>
             </header>
-            <ul className="league__matches">
-              {upcoming.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
+            {upcoming.length ? (
+              <ul className="league__matches">
+                {upcoming.map((m) => (
+                  <MatchRow key={m.id} match={m} showDate />
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small pad">Ingen kampe i vores kampprogram de næste 20 dage.</p>
+            )}
           </section>
         </div>
 
+        {nearby.length > 0 && (
+          <section className="panel table-panel">
+            <header className="table-panel__head">
+              <h2 className="panel__title">Stilling · {team.league}</h2>
+              {team.leagueSlug && (
+                <Link className="text-btn" href={paths.league(team.leagueSlug)}>
+                  Hele stillingen
+                </Link>
+              )}
+            </header>
+            <table className="table table--compact">
+              <thead>
+                <tr>
+                  <th className="num">#</th>
+                  <th>Hold</th>
+                  <th className="num">K</th>
+                  <th className="num">V</th>
+                  {hasDraws && <th className="num">U</th>}
+                  <th className="num">T</th>
+                  {hasPoints && <th className="num">P</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {nearby.map((r) => (
+                  <tr key={`${r.rank}-${r.name}`} className={r === row ? 'is-highlight' : undefined}>
+                    <td className="num pos">{r.rank}</td>
+                    <td>
+                      <span className="table__club">
+                        <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
+                        {r.name}
+                      </span>
+                    </td>
+                    <td className="num">{r.played}</td>
+                    <td className="num">{r.won}</td>
+                    {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
+                    <td className="num">{r.lost}</td>
+                    {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted small history__note">{fromApi ? 'Stilling: API-Sports.' : 'Stilling beregnet af Scoreline (se hele stillingen for grundlaget).'}</p>
+          </section>
+        )}
+
+        {n >= 3 && (
+          <section className="panel table-panel">
+            <header className="table-panel__head">
+              <h2 className="panel__title">I tal</h2>
+            </header>
+            <dl className="facts pad">
+              <div>
+                <dt>Kampe</dt>
+                <dd>{n}</dd>
+              </div>
+              <div>
+                <dt>Sejre / uafgjorte / nederlag</dt>
+                <dd>
+                  {wins} / {draws} / {n - wins - draws}
+                </dd>
+              </div>
+              <div>
+                <dt>{goalWord} scoret pr. kamp</dt>
+                <dd>{per(scored)}</dd>
+              </div>
+              <div>
+                <dt>{goalWord} imod pr. kamp</dt>
+                <dd>{per(conceded)}</dd>
+              </div>
+              <div>
+                <dt>Hjemme / ude</dt>
+                <dd>
+                  {mine.filter((x) => x.home && x.outcome === 'V').length} / {mine.filter((x) => !x.home && x.outcome === 'V').length} sejre
+                </dd>
+              </div>
+              <div>
+                <dt>Periode</dt>
+                <dd>
+                  {formatShortYear(mine.at(-1)!.m.date)} – {formatShortYear(mine[0].m.date)}
+                </dd>
+              </div>
+            </dl>
+            <p className="muted small history__note">Beregnet af Scoreline ud fra de {n} kampe, vi har gemt for holdet.</p>
+          </section>
+        )}
+
         <AdSlot placement="content" />
         <Faq items={faq} />
+        <p className="muted small">Kampe og resultater: API-Sports og Scorelines statistikbank.</p>
       </div>
     </div>
   )
