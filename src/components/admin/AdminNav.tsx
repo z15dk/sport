@@ -8,6 +8,7 @@ const SETTINGS = [
   { href: '/admin/data', label: 'Data & API' },
   { href: '/admin/kvalitet', label: 'Datakvalitet' },
   { href: '/admin/logoer', label: 'Logo-job' },
+  { href: '/admin/sociale', label: 'Sociale medier (test)' },
 ]
 const PAGES = [
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
