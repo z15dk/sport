@@ -75,6 +75,8 @@ export default async function MatchPage({ params }: { params: Params }) {
           away: nameOf(g.away.id, g.away.name),
           homeScore: g.homeScore ?? 0,
           awayScore: g.awayScore ?? 0,
+          homeLogo: g.home.logo,
+          awayLogo: g.away.logo,
         }),
       )
       // The same meeting in both sources counts once (same day)

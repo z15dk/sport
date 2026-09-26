@@ -328,8 +328,8 @@ function MatchBody({
               <span>{home.name}</span>
             </div>
             <div>
-              <strong>{match.sport === 'soccer' ? wins.draw : h2h.length}</strong>
-              <span>{match.sport === 'soccer' ? 'Uafgjort' : 'Kampe'}</span>
+              <strong>{match.sport === 'soccer' || wins.draw > 0 ? wins.draw : h2h.length}</strong>
+              <span>{match.sport === 'soccer' || wins.draw > 0 ? 'Uafgjort' : 'Kampe'}</span>
             </div>
             <div>
               <strong>{wins.away}</strong>
@@ -353,13 +353,13 @@ function MatchBody({
                   </span>
                   <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
                     {m.home}
-                    <TeamBadge name={m.home} colors={colorsOf(m.home)} size={22} />
+                    <TeamBadge name={m.home} src={m.homeLogo ?? (m.home === home.name ? home.badge : m.home === away.name ? away.badge : undefined)} colors={colorsOf(m.home)} size={22} />
                   </span>
                   <span className="h2h__score">
                     {m.homeScore}–{m.awayScore}
                   </span>
                   <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
-                    <TeamBadge name={m.away} colors={colorsOf(m.away)} size={22} />
+                    <TeamBadge name={m.away} src={m.awayLogo ?? (m.away === home.name ? home.badge : m.away === away.name ? away.badge : undefined)} colors={colorsOf(m.away)} size={22} />
                     {m.away}
                   </span>
                 </li>

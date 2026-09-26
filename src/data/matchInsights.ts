@@ -30,6 +30,9 @@ export interface PastMatch {
   away: string
   homeScore: number
   awayScore: number
+  /** Team logos, when the source has them */
+  homeLogo?: string
+  awayLogo?: string
 }
 
 /** Words for scores in each sport, for tables and comparisons */
