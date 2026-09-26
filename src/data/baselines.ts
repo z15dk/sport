@@ -44,7 +44,7 @@ const row = (name: string, played: number, [won, drawn, lost]: [number, number, 
 })
 
 /** By the league's key (externalLeagueKey) */
-export const BASELINES: Record<string, Baseline> = {
+const TABLES: Record<string, Baseline> = {
   // A-Liga (women's football), regular season 2026/27, after round 8 (a-liga.dk, 26 September 2026)
   'x-denmark-a-liga': {
     league: { name: 'A-Liga', country: 'Denmark', sport: 'soccer' },
@@ -84,4 +84,15 @@ export const BASELINES: Record<string, Baseline> = {
       row('Esbjerg fB', 6, [0, 1, 5], [8, 18], 1, ['Esbjerg']),
     ],
   },
+}
+
+/** API-Sports lists some leagues under more than one name (the A-Liga is also "Kvindeliga") */
+const SAME_LEAGUE: Record<string, string> = {
+  'x-denmark-kvindeliga': 'x-denmark-a-liga',
+}
+
+/** The starting table for a league's page, by its key */
+export const BASELINES: Record<string, Baseline> = {
+  ...TABLES,
+  ...Object.fromEntries(Object.entries(SAME_LEAGUE).map(([key, same]) => [key, TABLES[same]])),
 }
