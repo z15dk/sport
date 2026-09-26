@@ -149,6 +149,11 @@ export const seasonClub = (name: string) => current().clubs.find((x) => x.club.n
 export const allFixtures = () => current().fixtures
 export const fixturesOn = (date: string) => current().byDate.get(date) ?? []
 export const clubFixtures = (clubId: string) => current().fixtures.filter((f) => f.home.id === clubId || f.away.id === clubId)
+/** Whether a club has real matches in a division this season (then its division is confirmed) */
+export const playsIn = (clubId: string, divisionId: string) =>
+  current().fixtures.some((f) => f.division?.id === divisionId && (f.home.id === clubId || f.away.id === clubId))
+/** Our register's "unverified" mark, only while the real matches don't confirm the division */
+export const isUnconfirmed = (club: { id: string; unverified?: boolean }, divisionId: string) => !!club.unverified && !playsIn(club.id, divisionId)
 /** Leagues shown with real data, with their next match after `now` (for the front page) */
 export function realLeagues(now: number): { division: Division; next?: Fixture }[] {
   const { fixtures, realDivisions } = current()

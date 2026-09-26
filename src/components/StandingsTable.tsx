@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { sportOf, type Division } from '../data/leagues'
-import type { StandingRow } from '../data/season'
+import { isUnconfirmed, type StandingRow } from '../data/season'
 import { paths } from '../lib/site'
 import { FormChips } from './FormChips'
 import { TeamBadge } from './TeamBadge'
@@ -74,7 +74,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
                         <strong>{r.club.name}</strong>
                         <span>
                           {r.club.city}
-                          {r.club.unverified && <em className="unverified"> · usikker</em>}
+                          {isUnconfirmed(r.club, division.id) && <em className="unverified"> · usikker</em>}
                         </span>
                       </span>
                     </Link>
@@ -109,7 +109,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
           </span>
         )}
         {sport === 'ice_hockey' && <span>VF/TF: efter forlænget spil eller straffeslag.</span>}
-        {division.clubs.some((c) => c.unverified) && <span>“Usikker”: klubbens række eller navn er ikke bekræftet.</span>}
+        {rows.some((r) => isUnconfirmed(r.club, division.id)) && <span>“Usikker”: klubbens række eller navn er ikke bekræftet.</span>}
       </footer>
     </>
   )

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
-import { standings } from '../../../data/season'
+import { isUnconfirmed, standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
@@ -95,7 +95,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
               {club.city && ` · ${club.city}`}
             </span>
             <h1>{club.name}</h1>
-            {club.unverified && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
+            {isUnconfirmed(club, division.id) && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
           </div>
         </header>
 
