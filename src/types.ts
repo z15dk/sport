@@ -19,6 +19,8 @@ export interface Incident {
   side: 'home' | 'away'
   kind: 'goal' | 'penalty' | 'own-goal' | 'yellow' | 'red'
   player?: string
+  /** Seen from the score changing between two checks, so the minute is approximate */
+  approx?: boolean
 }
 
 export interface Match {

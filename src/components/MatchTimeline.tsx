@@ -55,10 +55,13 @@ export function MatchTimeline({ match }: { match: Match }) {
             key={n}
             className={`timeline-graphic__event timeline-graphic__event--${sideOf(i)} timeline-graphic__event--${i.kind}`}
             style={{ left: at(i.minute) }}
-            title={`${i.minute}' ${WORD[i.kind]}${i.player ? ` – ${i.player}` : ''}`}
+            title={`${i.approx ? 'ca. ' : ''}${i.minute}' ${WORD[i.kind]}${i.player ? ` – ${i.player}` : ''}`}
           >
             {i.kind === 'yellow' || i.kind === 'red' ? <span className={i.kind === 'red' ? 'red-card' : 'yellow-card'} aria-hidden /> : <span aria-hidden>{ICON[i.kind]}</span>}
-            <em>{i.minute}&apos;</em>
+            <em>
+              {i.approx ? 'ca. ' : ''}
+              {i.minute}&apos;
+            </em>
             <span className="visually-hidden">
               {WORD[i.kind]} {i.side === 'home' ? match.home.name : match.away.name}
               {i.player ? `, ${i.player}` : ''}
@@ -66,7 +69,16 @@ export function MatchTimeline({ match }: { match: Match }) {
           </span>
         ))}
       </div>
-      {incidents.length === 0 && <p className="muted small">Ingen mål eller kort registreret endnu.</p>}
+      {incidents.length === 0 && (
+        <p className="muted small">
+          {(match.home.score ?? 0) + (match.away.score ?? 0) > 0 ? 'Vi har ikke målminutterne for denne kamp.' : 'Ingen mål eller kort registreret endnu.'}
+        </p>
+      )}
+      {incidents.some((i) => i.approx) && (
+        <p className="muted small">
+          &quot;ca.&quot;: målet er set ud fra, at stillingen ændrede sig mellem to opdateringer, så minuttet er omtrentligt, og målscoreren kendes ikke.
+        </p>
+      )}
     </section>
   )
 }

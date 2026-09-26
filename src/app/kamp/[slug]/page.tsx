@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
-import { apiHeadToHead, apiMatchEvents, apiMatchExtra } from '../../../lib/apisports'
+import { apiHeadToHead, apiMatchEvents, apiMatchExtra, observedGoals } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -65,7 +65,9 @@ export default async function MatchPage({ params }: { params: Params }) {
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved
   const saved = game ? archiveGameExtras(game) : undefined
   // Goals and cards for the timeline, when our own sources don't have them
-  const events = game && !match.incidents?.length ? await apiMatchEvents(game).catch(() => undefined) : undefined
+  const fromEvents = game && !match.incidents?.length ? await apiMatchEvents(game).catch(() => undefined) : undefined
+  // No source gives the goals: the ones seen from the score changing (approximate minutes)
+  const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
   const extra = fromApi && {
     ...fromApi,
     form: fromApi.form ?? saved?.form,

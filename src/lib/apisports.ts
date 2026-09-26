@@ -309,6 +309,8 @@ interface ApiState {
   history?: Record<string, number>
   /** API-Sports' leagues that are not ours, by externalLeagueKey, for their league pages */
   leagues?: Record<string, ExternalLeague>
+  /** Goals seen from the score changing between two fetches, by game id (the minute is approximate) */
+  goalLog?: Record<string, { at: number; goals: Incident[] }>
   remaining?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
@@ -464,6 +466,7 @@ async function fetchDay(api: Api, date: string) {
     return
   }
   const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
+  logGoals(s, s.days[date]?.games ?? [], games)
   s.days[date] = { fetchedAt: Date.now(), games }
   s.lastError = undefined
   // The other leagues, remembered for their league pages
@@ -959,4 +962,50 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
     // kept in memory
   }
   return incidents
+}
+
+// ---------------------------------------------------------------- goals seen from the score
+
+/** The minute a live game has reached: from its label ("78'"), else estimated from the kick-off */
+function minuteNow(g: ExternalGame, now: number): number {
+  const m = /^(\d+)(?:\+(\d+))?'/.exec(g.label ?? '')
+  if (m) return Number(m[1]) + Number(m[2] ?? 0)
+  const played = Math.round((now - Date.parse(g.kickoff)) / 60_000)
+  // Past the first half, the 15-minute break is taken off
+  return Math.max(1, Math.min(90, played > 47 ? played - 15 : played))
+}
+
+/**
+ * When a football game's score has gone up since the last fetch, the goal is
+ * logged for the side that scored, at the minute the game has reached now.
+ * The goal came somewhere since the last check, so the minute is marked as
+ * approximate. Used on the match page when no source gives the goals.
+ */
+function logGoals(s: ApiState, before: ExternalGame[], after: ExternalGame[]) {
+  const prev = new Map(before.map((g) => [g.id, g]))
+  const now = Date.now()
+  for (const g of after) {
+    const p = prev.get(g.id)
+    if (g.sport !== 'soccer' || !p || g.homeScore === undefined || g.awayScore === undefined) continue
+    const add = (side: Incident['side'], n: number) => {
+      if (n <= 0) return
+      const log = ((s.goalLog ??= {})[g.id] ??= { at: now, goals: [] })
+      log.at = now
+      for (let i = 0; i < n; i++) log.goals.push({ minute: minuteNow(g, now), side, kind: 'goal', approx: true })
+    }
+    add('home', g.homeScore - (p.homeScore ?? 0))
+    add('away', g.awayScore - (p.awayScore ?? 0))
+  }
+  // Forgotten after a month
+  for (const [id, log] of Object.entries(s.goalLog ?? {})) if (now - log.at > 30 * 86_400_000) delete s.goalLog![id]
+}
+
+/** Goals seen from the score changing, for a game (approximate minutes); undefined when none were seen */
+export function observedGoals(game: ExternalGame): Incident[] | undefined {
+  load()
+  const log = mem.store[apiOf(game)]?.goalLog?.[game.id]
+  if (!log?.goals.length) return undefined
+  // Only while they add up to the score (a goal ruled out afterwards would leave one too many)
+  const goals = (game.homeScore ?? 0) + (game.awayScore ?? 0)
+  return log.goals.length <= goals ? log.goals : undefined
 }
