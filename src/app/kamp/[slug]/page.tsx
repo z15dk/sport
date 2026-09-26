@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { findExternalGame, findMatch } from '../../../data/matches'
+import { findExternalGame, findMatch, namesOf } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
-import { apiHeadToHead, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
+import { apiGameFor, apiHeadToHead, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -63,7 +63,8 @@ export default async function MatchPage({ params }: { params: Params }) {
   let realH2h = dbH2h
   let h2hSource: H2hSource | undefined = dbH2h ? 'database' : undefined
   // API-Sports' game (not one from our match database, which API-Sports can't look up)
-  const external = findExternalGame(match)
+  // Also older matches: API-Sports' whole season as the job has kept it
+  const external = findExternalGame(match) ?? apiGameFor(match, { home: namesOf(match.home.name), away: namesOf(match.away.name) })
   const game = external && !external.id.startsWith('db-') ? external : undefined
   // Facts, form and table from API-Sports; our own season statistics cover our leagues' clubs
   const fromApi = game ? await apiMatchExtra(game).catch(() => undefined) : undefined

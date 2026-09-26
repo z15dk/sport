@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'no
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
 import { danishRound, externalLeagueKey, type ExternalGame } from '../data/external'
+import { alike } from '../data/aliases'
 import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -1332,14 +1333,21 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
 
 const STAT_ROWS: [string, string][] = [
   ['Ball Possession', 'Boldbesiddelse'],
-  ['Total Shots', 'Skud'],
+  ['Total Shots', 'Skud i alt'],
   ['Shots on Goal', 'Skud på mål'],
+  ['Shots off Goal', 'Skud forbi mål'],
+  ['Blocked Shots', 'Blokerede skud'],
   ['Shots insidebox', 'Skud i feltet'],
+  ['Shots outsidebox', 'Skud uden for feltet'],
   ['Corner Kicks', 'Hjørnespark'],
-  ['Fouls', 'Frispark begået'],
   ['Offsides', 'Offside'],
   ['Goalkeeper Saves', 'Redninger'],
-  ['Passes %', 'Afleveringer (præcision)'],
+  ['Total passes', 'Afleveringer'],
+  ['Passes accurate', 'Præcise afleveringer'],
+  ['Passes %', 'Afleveringspræcision'],
+  ['Fouls', 'Frispark begået'],
+  ['Yellow Cards', 'Gule kort'],
+  ['Red Cards', 'Røde kort'],
 ]
 
 /**
@@ -1532,4 +1540,28 @@ async function fetchLeadersNow(api: Api, key: string, leagueId: string, season: 
   store.entries[key] = { fetchedAt: Date.now(), leaders }
   saveExtras()
   return leaders
+}
+
+/**
+ * API-Sports' game for a match on our pages, from every game the job has kept
+ * (the whole season, not only the days around today): the same id, else the
+ * same day with both teams alike, else one team alike and only one such game.
+ */
+export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; home: { name: string }; away: { name: string } }, names?: { home: string[]; away: string[] }): ExternalGame | undefined {
+  load()
+  const day = isoDate(match.kickoff)
+  const games: ExternalGame[] = []
+  for (const s of Object.values(mem.store)) {
+    for (const d of Object.values(s.days)) for (const g of d.games) games.push(g)
+    for (const list of Object.values(s.past ?? {})) for (const g of list) games.push(g)
+  }
+  const direct = games.find((g) => g.id === match.id)
+  if (direct) return direct
+  const same = games.filter((g) => g.sport === match.sport && isoDate(new Date(g.kickoff)) === day)
+  const home = names?.home ?? [match.home.name]
+  const away = names?.away ?? [match.away.name]
+  const both = same.find((g) => alike(home, g.home.name) && alike(away, g.away.name))
+  if (both) return both
+  const either = [...new Map(same.filter((g) => alike(home, g.home.name) || alike(away, g.away.name)).map((g) => [g.id, g])).values()]
+  return either.length === 1 ? either[0] : undefined
 }

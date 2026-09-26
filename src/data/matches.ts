@@ -46,7 +46,7 @@ function leagueMatches(date: string, sport: SportId, now: number): Match[] {
 const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football']
 
 /** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
-function namesOf(name: string) {
+export function namesOf(name: string) {
   const club = seasonClub(name)?.club
   return [name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
 }
