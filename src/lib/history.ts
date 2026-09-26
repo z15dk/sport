@@ -4,7 +4,7 @@ import path from 'node:path'
 import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
 import type { Incident, MatchState } from '../types'
-import { SEARCH_NAMES, normalize } from '../data/aliases'
+import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import { cacheDir } from './tsdb'
 import { archiveFile, readArchive } from './archive'
@@ -67,7 +67,15 @@ function resolver() {
       }
     }
   }
-  return (name: string) => byName.get(normalize(name))
+  const danish = DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer').flatMap((d) => d.clubs)
+  return (name: string) => {
+    const exact = byName.get(normalize(name))
+    if (exact) return exact
+    // Written differently ("AGF Aarhus" for AGF): one Danish club alone matches loosely. Second teams and youth sides never do
+    if (/\b(ii|iii|2|u\s?\d{2}|reserve|ungdom)\b/i.test(name)) return undefined
+    const loose = danish.filter((c) => alike([c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n), name))
+    return loose.length === 1 ? loose[0] : undefined
+  }
 }
 
 function read(file: string | undefined, mtime: number): Loaded {
@@ -476,4 +484,102 @@ export function databaseSeason(): SeasonData | undefined {
   }
   seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
   return seasonCache
+}
+
+// ---------------------------------------------------------------- a league's past seasons
+
+export interface LeagueSeason {
+  season: string
+  matches: number
+  teams: number
+  goalsPerMatch: number
+  /** The top three by points over all the season's matches in the database */
+  top: { name: string; slug?: string; points: number; played: number }[]
+}
+export interface LeagueHistory {
+  seasons: LeagueSeason[]
+  /** Points over every season in the database */
+  allTime: { name: string; slug?: string; seasons: number; played: number; points: number; goalsFor: number; goalsAgainst: number }[]
+  biggestWin?: PastMatch
+  bestCrowd?: PastMatch & { spectators: number }
+  matches: number
+}
+
+const leagueHistoryCache = new Map<string, { mtime: number; history?: LeagueHistory }>()
+
+/** A Danish division's finished seasons in the database: top three, all-time table and records */
+export function leagueHistory(divisionId: string): LeagueHistory | undefined {
+  const pattern = DIVISION_TOURNAMENTS.find(([id]) => id === divisionId)?.[1]
+  const d = data()
+  if (!pattern || !d) return undefined
+  const hit = leagueHistoryCache.get(divisionId)
+  if (hit && hit.mtime === d.mtime) return hit.history
+  const current = SEASON.slice(0, 4)
+  const own = d.matches.filter((m) => pattern.test(m.tournament) && !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) && !m.season.startsWith(current))
+  let history: LeagueHistory | undefined
+  if (own.length) {
+    const nameOf = (id: number, fallback: string) => d.clubOf.get(id)?.name ?? fallback
+    const keyOf = (id: number, name: string) => d.clubOf.get(id)?.id ?? `${id}|${name}`
+    type Row = { name: string; slug?: string; played: number; points: number; goalsFor: number; goalsAgainst: number; seasons: Set<string> }
+    const allTime = new Map<string, Row>()
+    const bySeason = new Map<string, DbMatch[]>()
+    for (const m of own) bySeason.set(m.season, [...(bySeason.get(m.season) ?? []), m])
+    const seasons: LeagueSeason[] = []
+    for (const [season, list] of bySeason) {
+      const table = new Map<string, Row>()
+      const add = (map: Map<string, Row>, id: number, name: string, f: number, a: number) => {
+        const key = keyOf(id, name)
+        const club = d.clubOf.get(id)
+        const r = map.get(key) ?? map.set(key, { name: nameOf(id, name), slug: club?.slug, played: 0, points: 0, goalsFor: 0, goalsAgainst: 0, seasons: new Set() }).get(key)!
+        r.played++
+        r.goalsFor += f
+        r.goalsAgainst += a
+        r.points += f > a ? 3 : f === a ? 1 : 0
+        r.seasons.add(season)
+      }
+      let goals = 0
+      for (const m of list) {
+        goals += m.homeScore + m.awayScore
+        add(table, m.homeId, m.homeName, m.homeScore, m.awayScore)
+        add(table, m.awayId, m.awayName, m.awayScore, m.homeScore)
+        add(allTime, m.homeId, m.homeName, m.homeScore, m.awayScore)
+        add(allTime, m.awayId, m.awayName, m.awayScore, m.homeScore)
+      }
+      const ranked = [...table.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor)
+      seasons.push({
+        season,
+        matches: list.length,
+        teams: table.size,
+        goalsPerMatch: goals / list.length,
+        top: ranked.slice(0, 3).map((r) => ({ name: r.name, slug: r.slug, points: r.points, played: r.played })),
+      })
+    }
+    seasons.sort((a, b) => b.season.localeCompare(a.season))
+    const past = (m: DbMatch): PastMatch => ({
+      date: m.date,
+      competition: m.tournament,
+      home: nameOf(m.homeId, m.homeName),
+      away: nameOf(m.awayId, m.awayName),
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+    })
+    const biggest = own.reduce<DbMatch | undefined>((best, m) => {
+      const margin = Math.abs(m.homeScore - m.awayScore)
+      const bestMargin = best ? Math.abs(best.homeScore - best.awayScore) : -1
+      return margin > bestMargin || (margin === bestMargin && best && m.homeScore + m.awayScore > best.homeScore + best.awayScore) ? m : best
+    }, undefined)
+    const crowd = own.reduce<DbMatch | undefined>((best, m) => ((m.spectators ?? 0) > (best?.spectators ?? 0) ? m : best), undefined)
+    history = {
+      seasons,
+      allTime: [...allTime.values()]
+        .map(({ seasons: s, ...r }) => ({ ...r, seasons: s.size }))
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 15),
+      biggestWin: biggest && past(biggest),
+      bestCrowd: crowd?.spectators ? { ...past(crowd), spectators: crowd.spectators } : undefined,
+      matches: own.length,
+    }
+  }
+  leagueHistoryCache.set(divisionId, { mtime: d.mtime, history })
+  return history
 }

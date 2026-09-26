@@ -13,6 +13,8 @@ import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { LeagueStats } from '../../../components/LeagueStats'
+import { LeagueHistory } from '../../../components/LeagueHistory'
+import { leagueHistory } from '../../../lib/history'
 import { Updated } from '../../../components/Updated'
 import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
@@ -97,6 +99,10 @@ export default async function LeaguePage({ params }: { params: Params }) {
         </section>
 
         <LeagueStats division={division} />
+        {(() => {
+          const history = leagueHistory(division.id)
+          return history ? <LeagueHistory name={division.name} history={history} /> : null
+        })()}
 
         <AdSlot placement="feed" />
 
