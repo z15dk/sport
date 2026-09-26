@@ -1182,20 +1182,26 @@ h2.league__name { margin: 0; }
 .admin-nav .filter-bar { width: auto; }
 .setting-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
 
-/* Club season summary: tiles and grouped numbers */
-.summary-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 18px 12px; }
-.summary-tiles__item { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
-.summary-tiles__item span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
-.summary-tiles__item strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; }
-.summary-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }
-.summary-group { padding: 14px 18px; border-bottom: 1px solid var(--line); }
-.summary-group:nth-child(odd) { border-right: 1px solid var(--line); }
-.summary-group dl { margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.summary-group dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
-.summary-group dt { color: var(--ink-2); }
-.summary-group dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+/* Club season summary: tiles and grouped numbers, as cards that are quick to scan */
+.summary-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 18px 14px; }
+.summary-tiles__item { background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px 12px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.summary-tiles__item span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.summary-tiles__item strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 34px; line-height: 1; }
+.summary-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 16px; align-items: start; }
+@media (max-width: 700px) { .summary-groups { grid-template-columns: 1fr; } }
+.summary-group { background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px 16px 8px; }
+.summary-group .stats-sub {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2);
+}
+.summary-group .stats-sub::before { content: ''; width: 4px; height: 14px; border-radius: 2px; background: var(--lime); }
+.summary-group dl { margin: 0; display: flex; flex-direction: column; }
+.summary-group dl div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.summary-group dl div:first-child { border-top: 0; }
+.summary-group dt { color: var(--ink-2); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.summary-group dt small { font-size: 12px; color: var(--ink-3); }
+.summary-group dd { white-space: nowrap; }
+.summary-group dd { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; line-height: 1.1; text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {
   .summary-tiles { grid-template-columns: repeat(2, 1fr); }
-  .summary-groups { grid-template-columns: 1fr; }
-  .summary-group:nth-child(odd) { border-right: 0; }
+  .summary-tiles__item strong { font-size: 30px; }
 }

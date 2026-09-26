@@ -44,7 +44,7 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
   const incidents = s.withIncidents > 0
   const perIncidentMatch = (v: number) => one(v / s.withIncidents)
 
-  const groups: { title: string; rows: [string, string | undefined][] }[] = [
+  const groups: { title: string; rows: [string, string | undefined, string?][] }[] = [
     {
       title: 'Angreb',
       rows: [
@@ -53,7 +53,7 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
         ['Straffesparksmål', soccer && incidents ? `${s.penaltiesScored}` : undefined],
         ['Mål i 1. / 2. halvleg', soccer && s.halves ? `${s.halves.scoredFirst} / ${s.halves.scoredSecond}` : undefined],
         ['Selvmål af modstanderen', soccer && incidents && s.ownGoalsFor ? `${s.ownGoalsFor}` : undefined],
-        ['Største sejr', s.biggestWin && `${s.biggestWin.gf}-${s.biggestWin.ga} mod ${s.biggestWin.opponent} (${date(s.biggestWin.date)})`],
+        ['Største sejr', s.biggestWin && `${s.biggestWin.gf}-${s.biggestWin.ga}`, s.biggestWin && `mod ${s.biggestWin.opponent} · ${date(s.biggestWin.date)}`],
       ],
     },
     {
@@ -63,7 +63,7 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
         [`${words.unit} imod pr. kamp`, one(s.goalsAgainstPerMatch)],
         ['Straffesparksmål imod', soccer && incidents ? `${s.penaltiesConceded}` : undefined],
         ['Mål imod i 1. / 2. halvleg', soccer && s.halves ? `${s.halves.concededFirst} / ${s.halves.concededSecond}` : undefined],
-        ['Største nederlag', s.worstDefeat && `${s.worstDefeat.gf}-${s.worstDefeat.ga} mod ${s.worstDefeat.opponent} (${date(s.worstDefeat.date)})`],
+        ['Største nederlag', s.worstDefeat && `${s.worstDefeat.gf}-${s.worstDefeat.ga}`, s.worstDefeat && `mod ${s.worstDefeat.opponent} · ${date(s.worstDefeat.date)}`],
       ],
     },
     {
@@ -82,8 +82,8 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
       rows: [
         ['Begge hold scorer', soccer ? `${s.bttsPct} %` : undefined],
         ['Over 2,5 mål', soccer ? `${s.over25Pct} %` : undefined],
-        ['Førte ved pausen → vandt', s.halfTime && s.halfTime.leading ? `${s.halfTime.leadingWon} af ${s.halfTime.leading}` : undefined],
-        ['Bagud ved pausen → point', s.halfTime && s.halfTime.trailing ? `${s.halfTime.trailingPoints} på ${s.halfTime.trailing} kampe` : undefined],
+        ['Førte ved pausen', s.halfTime && s.halfTime.leading ? `${s.halfTime.leadingWon} sejre` : undefined, s.halfTime && s.halfTime.leading ? `i ${s.halfTime.leading} kampe` : undefined],
+        ['Bagud ved pausen', s.halfTime && s.halfTime.trailing ? `${s.halfTime.trailingPoints} point` : undefined, s.halfTime && s.halfTime.trailing ? `hentet i ${s.halfTime.trailing} kampe` : undefined],
         ['Gule kort pr. kamp', incidents && soccer ? perIncidentMatch(s.yellow) : undefined],
         ['Røde kort', incidents && soccer ? `${s.red}` : undefined],
         ['Tilskuere hjemme (gns.)', s.homeAttendance?.toLocaleString('da-DK')],
@@ -114,15 +114,18 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
       </div>
       <div className="summary-groups">
         {groups.map((g) => {
-          const rows = g.rows.filter((r): r is [string, string] => r[1] !== undefined)
+          const rows = g.rows.filter((r): r is [string, string, string?] => r[1] !== undefined)
           if (!rows.length) return null
           return (
             <div key={g.title} className="summary-group">
               <h3 className="stats-sub">{g.title}</h3>
               <dl>
-                {rows.map(([label, value]) => (
+                {rows.map(([label, value, detail]) => (
                   <div key={label}>
-                    <dt>{label}</dt>
+                    <dt>
+                      {label}
+                      {detail && <small>{detail}</small>}
+                    </dt>
                     <dd>{value}</dd>
                   </div>
                 ))}
