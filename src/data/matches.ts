@@ -75,6 +75,14 @@ export function getMatches(date: string, sport: SportFilter, now: number): Match
         !taken.has(j) && alike(names[j].home, g.home.name) && alike(names[j].away, g.away.name) ? [j] : [],
       )
       if (loose.length === 1) i = loose[0]
+      // One team alike in the same league that day (a team plays once a day): "Bayern Munich" / "FC Bayern München"
+      const league = divisionOfGame(g)?.d
+      if (i === undefined && league) {
+        const either = ours.flatMap((m, j) =>
+          !taken.has(j) && m.leagueSlug === league.slug && (alike(names[j].home, g.home.name) || alike(names[j].away, g.away.name)) ? [j] : [],
+        )
+        if (either.length === 1) i = either[0]
+      }
     }
     if (i !== undefined) taken.add(i)
     if (i === undefined) {

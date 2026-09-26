@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
-import { alike, normalize } from '../data/aliases'
+import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
 import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
@@ -164,6 +164,18 @@ function apply() {
  * database lack: a missing result on a known match, or a match we don't have
  * at all (TheSportsDB's free key only gives the latest games of a league).
  */
+/** Every name one of our clubs goes by (TheSportsDB's, API-Sports', search names), for matching games across sources */
+const clubNamesMemo = new Map<string, string[]>()
+function clubNames(name: string): string[] {
+  let names = clubNamesMemo.get(name)
+  if (!names) {
+    const club = DIVISIONS.flatMap((d) => d.clubs).find((c) => c.name === name || c.originalName === name || c.apiName === name)
+    names = [name, club?.name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
+    clubNamesMemo.set(name, names)
+  }
+  return names
+}
+
 function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
   const byDivision = new Map<string, ReturnType<typeof seasonGames>>()
   for (const g of seasonGames()) {
@@ -186,7 +198,11 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
     for (const g of games) {
       if (Date.parse(g.kickoff) < start) continue
       const day = isoDate(new Date(g.kickoff))
-      const i = (byDay.get(day) ?? []).find((j) => alike([events[j].home], g.home.name) && alike([events[j].away], g.away.name)) ?? -1
+      // Both teams alike; else one of them (a team plays once a day), when only one match that day fits
+      const same = byDay.get(day) ?? []
+      const both = same.find((j) => alike(clubNames(events[j].home), g.home.name) && alike(clubNames(events[j].away), g.away.name))
+      const either = same.filter((j) => alike(clubNames(events[j].home), g.home.name) || alike(clubNames(events[j].away), g.away.name))
+      const i = both ?? (either.length === 1 ? either[0] : -1)
       if (i >= 0) {
         const e = events[i]
         if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }

@@ -125,6 +125,17 @@ export function leagueQuality(now = Date.now()): LeagueQuality[] {
         : { level: 'ok', text: 'Kilderne er enige om resultaterne (hvor begge har kampen)' },
     )
 
+    // API-Sports' games for the league this season: how many, with goals and cards, and joined to ours
+    if ((d.sport ?? 'soccer') === 'soccer') {
+      const from = own[0]?.kickoff.getTime() ?? 0
+      const theirs = apiGames.filter((g) => divisionOfGame(g)?.d.id === d.id && Date.parse(g.kickoff) >= from - 86_400_000)
+      const withEvents = theirs.filter((g) => g.incidents?.length).length
+      checks.push(
+        theirs.length
+          ? { level: 'ok', text: `API-Sports: ${theirs.length} spillede kampe denne sæson, ${withEvents} med målscorere/kort` }
+          : { level: 'warn', text: 'API-Sports har ingen af ligaens kampe denne sæson endnu – tjek ligaens id under Ligaer' },
+      )
+    }
     // Goals and cards: how many played matches have them
     if (finished.length && (d.sport ?? 'soccer') === 'soccer') {
       const withIncidents = finished.filter((f) => f.incidents?.length).length

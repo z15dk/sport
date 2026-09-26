@@ -18,6 +18,7 @@ const API_SPORTS_NAMES: Record<string, string[]> = {
   '1div': ['Betinia Liga', 'NordicBet Liga', '1st Division', '1. Division'],
   '2div': ['2nd Division', '2. Division'],
   '3div': ['3rd Division', '3. Division'],
+  ligaportugal: ['Primeira Liga', 'Liga Portugal Betclic'],
 }
 for (const [id, names] of Object.entries(API_SPORTS_NAMES)) {
   const i = DIVISIONS.findIndex((d) => d.id === id)
@@ -35,7 +36,7 @@ export function divisionOfGame(g: ExternalGame): { d: Division; i: number } | un
   for (const [key, v] of OUR_LEAGUES) {
     if (!key.startsWith(prefix)) continue
     const ours = key.slice(prefix.length)
-    if (name.endsWith(` ${ours}`) && !/women|kvinde|dame|u\d{2}/i.test(name)) return v
+    if (name.endsWith(` ${ours}`) && !/women|frauen|femenin|feminin|kvinde|dame|damer|u\d{2}/i.test(name)) return v
   }
   return undefined
 }
