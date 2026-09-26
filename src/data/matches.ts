@@ -8,6 +8,7 @@ import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubIn, wholeSeason } from './cups'
 import { isoDate } from '../lib/time'
+import { sameLeagueKeys } from './baselines'
 
 /** An API-Sports game as a match, placed in our league when it is one of ours (and with our clubs' names in a cup) */
 export function externalMatch(g: ExternalGame): Match {
@@ -127,6 +128,8 @@ export function clubMatches(clubName: string, now: number): Match[] {
 /** Matches for any team (any sport) over a range of days from `fromDate` */
 export function teamMatches(teamName: string | string[], sport: SportId, fromDate: string, days: number, now: number, leagueSlug?: string): Match[] {
   const names = new Set(Array.isArray(teamName) ? teamName : [teamName])
+  // The league under every name API-Sports lists it under (A-Liga / Kvindeliga)
+  const leagues = leagueSlug ? sameLeagueKeys(leagueSlug) : undefined
   const out: Match[] = []
   for (let i = 0; i < days; i++) {
     const d = new Date(`${fromDate}T12:00:00Z`)
@@ -134,7 +137,7 @@ export function teamMatches(teamName: string | string[], sport: SportId, fromDat
     const date = d.toISOString().slice(0, 10)
     for (const m of getMatches(date, sport, now)) {
       // In the team's own league when given: a women's team can share its name with the men's club
-      if ((names.has(m.home.name) || names.has(m.away.name)) && (!leagueSlug || m.leagueSlug === leagueSlug)) out.push(m)
+      if ((names.has(m.home.name) || names.has(m.away.name)) && (!leagues || (m.leagueSlug !== undefined && leagues.includes(m.leagueSlug)))) out.push(m)
     }
   }
   return out

@@ -9,7 +9,7 @@ import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
-import { externalGames, seasonGames } from './apisports'
+import { externalGames, seasonGames, tableTeams } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
@@ -120,7 +120,13 @@ function apply() {
   const settings = siteSettings()
   const leagueNames = leagueNameOverrides()
   const logos = Object.keys(customLogos()).length
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
+  const tables: NonNullable<RealData['tableTeams']> = {}
+  for (const t of tableTeams()) {
+    const l = (tables[t.leagueKey] ??= { sport: t.sport, league: leagueNames.names[t.leagueKey] ?? t.league, country: t.country, teams: [] })
+    if (!l.teams.some((x) => x.name === t.name)) l.teams.push({ name: t.name, logo: t.logo })
+  }
+  const tablesKey = hashString(JSON.stringify(tables)).toString(36)
+  const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
   if (mergedKey === key) return
   mergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -153,6 +159,7 @@ function apply() {
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
     }),
+    tableTeams: tables,
     leagueNames: leagueNames.names,
     clubNames: names.names,
     channels: channels.data,

@@ -549,6 +549,16 @@ export function externalLeagues(): ExternalLeague[] {
   return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}).map((l) => ({ ...l, logo: realLogo(l.logo) })))
 }
 
+/** Every team in the league tables we have, for the teams without a game in the fetched days (their pages and links) */
+export function tableTeams(): { leagueKey: string; sport: SportId; league: string; country?: string; name: string; logo?: string }[] {
+  const store = extrasStore()
+  return externalLeagues().flatMap((l) =>
+    (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>
+      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
+    ),
+  )
+}
+
 /** API-Sports' own table for a league (cached six hours); undefined when the plan or the budget doesn't allow it */
 export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[][] | undefined> {
   const api = league.api as Api
@@ -708,8 +718,12 @@ function seasonDue(api: Api, now: number): { league: string } | undefined {
   for (const id of ['2', '525']) wanted.add(id)
   // The cups and the tournaments kept for the whole season (the Champions League), by the league id their games have
   for (const g of seen) if (wholeSeason(g) && g.league.id) wanted.add(g.league.id)
-  const league = [...wanted]
-    .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > 3_600_000)
+  // Every other league we follow: its season's results for the statistics bank (team pages' results), every 6 hours
+  const others = new Set<string>()
+  for (const g of seen) if (g.league.id && !wanted.has(g.league.id)) others.add(g.league.id)
+  const every = (l: string) => (others.has(l) ? 6 * 3_600_000 : 3_600_000)
+  const league = [...wanted, ...others]
+    .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > every(l))
     .sort((a, b) => (s.seasonSynced?.[a] ?? 0) - (s.seasonSynced?.[b] ?? 0))[0]
   return league ? { league } : undefined
 }
@@ -719,7 +733,11 @@ async function fetchSeason(api: Api, due: { league: string }) {
   ;(s.seasonSynced ??= {})[due.league] = Date.now()
   const { response, error } = await call(api, `/fixtures?league=${due.league}&season=${SEASON.slice(0, 4)}&${TZ}`)
   if (error) return
-  const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g && inOurLeague(g))
+  const all = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g)
+  // Other leagues' results go straight to the statistics bank
+  const other = all.filter((g) => !inOurLeague(g) && !divisionOfGame(g) && !wholeSeason(g))
+  if (other.length) archiveSeason(`ext-${api}-${due.league}`, other[0].league.name, SEASON.slice(0, 4), other)
+  const games = all.filter(inOurLeague)
   const byDay = new Map<string, ExternalGame[]>()
   for (const g of games) {
     const day = isoDate(new Date(g.kickoff))
@@ -825,6 +843,23 @@ async function tick() {
         await fetchSeason(api, due)
         changed = true
         await sleep(300)
+      }
+    }
+    // The tables of the other leagues we follow (paid plans), so every team in them has a page, five a run
+    {
+      const s = mem.store.football
+      if (s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now())) {
+        const store = extrasStore()
+        const followed = new Set(Object.values(s.days).flatMap((d) => d.games.map((g) => g.league.id)))
+        const due = externalLeagues()
+          .filter((l) => l.api === 'football' && followed.has(l.id))
+          .filter((l) => Date.now() - (store.entries[`football|table|${l.id}|${l.season ?? ''}`]?.fetchedAt ?? 0) > 6 * 3_600_000)
+          .slice(0, 5)
+        for (const l of due) {
+          await apiLeagueTable(l)
+          changed = true
+          await sleep(300)
+        }
       }
     }
     // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
