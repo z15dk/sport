@@ -5,7 +5,7 @@ import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
 import { externalLeagueKey } from './external'
 import { BASELINES } from './baselines'
-import { alike } from './aliases'
+import { alike, nameWords } from './aliases'
 import { slugify } from '../lib/slug'
 
 // One register of every team playing in the leagues we show (from the real
@@ -32,12 +32,17 @@ export interface TeamEntry {
 /** "Brondby W", "HB Køge Women" -> the club part, for matching a women's team across sources */
 const clubPart = (name: string) => name.replace(/\b(w|women|kvinder|dame|damer|q)\b\.?/gi, '').trim()
 
+/** Every word of our clubs' names, once (the check below runs for every team API-Sports sends) */
+let ourWords: Set<string> | undefined
+const DIVISIONS_SLUGS = new Set(DIVISIONS.flatMap((d) => d.clubs.map((c) => c.slug)))
+
 /** Whether a name looks like one of our clubs ("F.C. København" for the women's team): its page then carries the league in its address */
 function resemblesOurClub(name: string) {
-  const part = clubPart(name)
-  return DIVISIONS.some((d) => d.clubs.some((c) => DIVISIONS_SLUGS.has(slugify(name)) || alike([c.name, c.originalName ?? c.name], part)))
+  if (DIVISIONS_SLUGS.has(slugify(name))) return true
+  ourWords ??= new Set(DIVISIONS.flatMap((d) => d.clubs.flatMap((c) => nameWords(c.originalName ?? c.name))))
+  const words = nameWords(clubPart(name))
+  return words.length > 0 && words.every((w) => ourWords!.has(w))
 }
-const DIVISIONS_SLUGS = new Set(DIVISIONS.flatMap((d) => d.clubs.map((c) => c.slug)))
 
 /** API-Sports' teams in their other leagues, and the teams of the starting tables (src/data/baselines.ts) */
 function externalTeams(taken: Set<string>): TeamEntry[] {

@@ -704,8 +704,9 @@ export function startApiSportsSync() {
   if (started || process.env.API_SPORTS === 'off') return
   started = true
   if (!(Object.keys(APIS) as Api[]).some(keyFor)) return
-  void tick()
-  setInterval(() => void tick(), 60_000).unref()
+  const run = () => tick().catch((err) => console.error('API-Sports-jobbet fejlede:', err))
+  void run()
+  setInterval(() => void run(), 60_000).unref()
 }
 
 /** Numbers for the status page */
