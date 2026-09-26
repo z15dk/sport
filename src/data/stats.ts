@@ -181,6 +181,17 @@ export interface ClubSeasonStats {
   yellow: number
   red: number
   homeAttendance?: number
+  /** Matches with goals and cards registered (cards per match are counted over these) */
+  withIncidents: number
+  /** Penalty goals for and against, own goals by the opponents (from matches with incidents) */
+  penaltiesScored: number
+  penaltiesConceded: number
+  ownGoalsFor: number
+  /** Goals in the first and second half (matches where every goal has a minute) */
+  halves?: { scoredFirst: number; scoredSecond: number; concededFirst: number; concededSecond: number }
+  /** Biggest win and heaviest defeat: [for, against, opponent, date] */
+  biggestWin?: { gf: number; ga: number; opponent: string; date: Date }
+  worstDefeat?: { gf: number; ga: number; opponent: string; date: Date }
 }
 
 const emptyRecord = (): Record3 => ({ played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 })
@@ -206,6 +217,13 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
     let red = 0
     let crowd = 0
     let crowdMatches = 0
+    let withIncidents = 0
+    let penaltiesScored = 0
+    let penaltiesConceded = 0
+    let ownGoalsFor = 0
+    const halves = { scoredFirst: 0, scoredSecond: 0, concededFirst: 0, concededSecond: 0 }
+    let biggestWin: ClubSeasonStats['biggestWin']
+    let worstDefeat: ClubSeasonStats['worstDefeat']
     for (const f of fixtures) {
       const isHome = f.home.id === club.id
       const side = isHome ? 'home' : 'away'
@@ -238,8 +256,29 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       const goals = (f.incidents ?? []).filter(isGoal)
       if (goals.length && goals.length === gf + ga) {
         withMinutes++
-        for (const g of goals) (scoringSide(g) === side ? scored : conceded)[interval(g.minute)]++
+        for (const g of goals) {
+          const ours = scoringSide(g) === side
+          ;(ours ? scored : conceded)[interval(g.minute)]++
+          const second = g.minute > 45
+          if (ours) halves[second ? 'scoredSecond' : 'scoredFirst']++
+          else halves[second ? 'concededSecond' : 'concededFirst']++
+        }
       }
+      if (f.incidents?.length) {
+        withIncidents++
+        for (const g of goals) {
+          if (g.kind === 'penalty') {
+            if (g.side === side) penaltiesScored++
+            else penaltiesConceded++
+          }
+          if (g.kind === 'own-goal' && g.side !== side) ownGoalsFor++
+        }
+      }
+      const opponent = isHome ? f.away.name : f.home.name
+      if (gf > ga && (!biggestWin || gf - ga > biggestWin.gf - biggestWin.ga || (gf - ga === biggestWin.gf - biggestWin.ga && gf > biggestWin.gf)))
+        biggestWin = { gf, ga, opponent, date: f.kickoff }
+      if (gf < ga && (!worstDefeat || ga - gf > worstDefeat.ga - worstDefeat.gf || (ga - gf === worstDefeat.ga - worstDefeat.gf && ga > worstDefeat.ga)))
+        worstDefeat = { gf, ga, opponent, date: f.kickoff }
       for (const i of f.incidents ?? []) {
         if (i.side !== side) continue
         if (i.kind === 'yellow') yellow++
@@ -278,6 +317,13 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       yellow,
       red,
       homeAttendance: crowdMatches ? Math.round(crowd / crowdMatches) : undefined,
+      withIncidents,
+      penaltiesScored,
+      penaltiesConceded,
+      ownGoalsFor,
+      halves: withMinutes ? halves : undefined,
+      biggestWin,
+      worstDefeat,
     }
   })
 }
