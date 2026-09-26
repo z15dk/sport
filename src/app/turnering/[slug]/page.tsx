@@ -200,6 +200,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
 
         <div className={leaders ? 'table-duo' : 'table-solo'}>
+        <div className="table-duo__main">
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
@@ -209,9 +210,10 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>
+        <LeagueStats division={division} />
+        </div>
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         </div>
-        <LeagueStats division={division} />
         {(() => {
           const history = leagueHistory(division.id)
           return history ? <LeagueHistory name={division.name} history={history} /> : null

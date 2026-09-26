@@ -1456,4 +1456,8 @@ h2.league__name { margin: 0; }
 @media (min-width: 1000px) {
   .table-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); align-items: start; }
   .table-duo .leaders__grid { grid-template-columns: minmax(0, 1fr); }
+  .table-duo > .leaders { position: sticky; top: 16px; }
 }
+/* The table with the statistics under it, in the left column */
+.table-duo__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.table-solo .table-duo__main { display: contents; }
