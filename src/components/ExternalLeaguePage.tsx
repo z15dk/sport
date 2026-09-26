@@ -109,7 +109,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         ))}
         {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
         {(!rounds || rows.length > 1) && (
-          <>
+          <div className={leaders ? 'table-duo' : 'table-solo'}>
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Stilling</h2>
@@ -179,11 +179,11 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
-          </>
+          {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          </div>
         )}
+        {rounds && rows.length <= 1 && leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
-
-        {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
 
         <AdSlot placement="feed" />
 

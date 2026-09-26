@@ -1449,3 +1449,11 @@ h2.league__name { margin: 0; }
 .nav-sheet .search { flex-wrap: wrap; }
 .nav-sheet .search-hits { flex-basis: 100%; }
 .nav-sheet .search__icon { top: 15px; }
+
+/* League pages: the table and the players side by side on desktop */
+.table-solo { display: contents; }
+.table-duo { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 1000px) {
+  .table-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); align-items: start; }
+  .table-duo .leaders__grid { grid-template-columns: minmax(0, 1fr); }
+}
