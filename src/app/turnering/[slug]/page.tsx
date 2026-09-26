@@ -19,6 +19,12 @@ import { Updated } from '../../../components/Updated'
 import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
+import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
+import { apiLeagueTable, externalLeague } from '../../../lib/apisports'
+import { archiveLeagueTable } from '../../../lib/history'
+import { getRealData } from '../../../data/real'
+import { externalLeagueKey, externalToMatch } from '../../../data/external'
+import { loadRealData } from '../../../lib/realdata'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +35,19 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const division = divisionBySlug((await params).slug)
+  const slug = (await params).slug
+  // One of API-Sports' other leagues
+  if (slug.startsWith('x-')) {
+    const league = externalLeague(slug)
+    if (!league) return { title: 'Turneringen findes ikke' }
+    const name = loadRealData()?.leagueNames?.[slug] ?? league.name
+    return {
+      title: `${name} – stilling, resultater og kampprogram`,
+      description: `Stillingen i ${name}, seneste resultater og kommende kampe.`,
+      alternates: { canonical: paths.league(slug) },
+    }
+  }
+  const division = divisionBySlug(slug)
   if (!division || !hasRealData(division.id)) return { title: 'Turneringen findes ikke' }
   const table = standings(division, Date.now())
   const leader = table[0]
@@ -41,8 +59,38 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   }
 }
 
+/** A page for one of API-Sports' other leagues: their table when the plan allows it, else ours from the statistics bank */
+async function externalLeaguePage(slug: string) {
+  const found = externalLeague(slug)
+  if (!found) notFound()
+  const now = Date.now()
+  const real = loadRealData() ?? getRealData()
+  const league = { ...found, name: real?.leagueNames?.[slug] ?? found.name }
+  const fromApi = await apiLeagueTable(found)
+  const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`)
+  const upcoming = (real?.external ?? [])
+    .filter((g) => externalLeagueKey(g.league) === slug && g.state !== 'finished')
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    .slice(0, 12)
+    .map(externalToMatch)
+  return (
+    <ExternalLeaguePage
+      league={league}
+      groups={fromApi ?? [own.rows]}
+      source={fromApi ? 'api-sports' : 'scoreline'}
+      matches={own.matches}
+      since={own.since}
+      recent={own.recent}
+      upcoming={upcoming}
+      now={now}
+    />
+  )
+}
+
 export default async function LeaguePage({ params }: { params: Params }) {
-  const division = divisionBySlug((await params).slug)
+  const slug = (await params).slug
+  if (slug.startsWith('x-')) return externalLeaguePage(slug)
+  const division = divisionBySlug(slug)
   // Leagues without real fixtures are not shown
   if (!division || !hasRealData(division.id)) notFound()
   const now = Date.now()

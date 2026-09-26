@@ -693,3 +693,48 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
     h2h,
   }
 }
+
+/**
+ * A league's table this season from the games our statistics bank has saved
+ * (after the league's last break of more than 45 days), with how many games
+ * it rests on and from when. For API-Sports' leagues, whose tables the free
+ * plan doesn't give.
+ */
+export function archiveLeagueTable(divisionId: string): { rows: TableRow[]; matches: number; since?: Date; recent: PastMatch[] } {
+  const inLeague = readArchive()
+    .filter((a) => a.divisionId === divisionId)
+    .sort((x, y) => x.date.getTime() - y.date.getTime())
+  let start = 0
+  for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
+  const season = inLeague.slice(start)
+  const rows = new Map<string, TableRow>()
+  const add = (name: string, f: number, a: number) => {
+    const key = normalize(name)
+    const r = rows.get(key) ?? rows.set(key, { rank: 0, name, played: 0, won: 0, drawn: 0, lost: 0, for: 0, against: 0, points: 0 }).get(key)!
+    r.played++
+    r.for = (r.for ?? 0) + f
+    r.against = (r.against ?? 0) + a
+    if (f > a) r.won++
+    else if (f < a) r.lost++
+    else r.drawn = (r.drawn ?? 0) + 1
+    r.points = (r.points ?? 0) + (f > a ? 3 : f === a ? 1 : 0)
+  }
+  for (const a of season) {
+    add(a.homeName, a.homeScore, a.awayScore)
+    add(a.awayName, a.awayScore, a.homeScore)
+  }
+  let table = [...rows.values()].sort(
+    (x, y) => (y.points ?? 0) - (x.points ?? 0) || (y.for ?? 0) - (y.against ?? 0) - ((x.for ?? 0) - (x.against ?? 0)) || (y.for ?? 0) - (x.for ?? 0),
+  )
+  // Without draws (basketball, volleyball) the table ranks on wins and shows no points
+  if (table.every((r) => !r.drawn)) table = table.map(({ drawn: _d, points: _p, ...r }) => r)
+  return {
+    rows: table.map((r, i) => ({ ...r, rank: i + 1 })),
+    matches: season.length,
+    since: season[0]?.date,
+    recent: season
+      .slice(-10)
+      .reverse()
+      .map((a) => ({ date: a.date, competition: a.tournament, home: a.homeName, away: a.awayName, homeScore: a.homeScore, awayScore: a.awayScore })),
+  }
+}

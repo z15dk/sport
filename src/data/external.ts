@@ -1,5 +1,5 @@
 import type { Match, MatchState, SportId } from '../types'
-import { matchSlug } from '../lib/slug'
+import { matchSlug, slugify } from '../lib/slug'
 import { isoDate } from '../lib/time'
 import { normalize } from './aliases'
 
@@ -30,6 +30,14 @@ export interface ExternalGame {
   ht?: [number, number]
 }
 
+/**
+ * The key an API-Sports league (not one of ours) goes by: its page
+ * (/turnering/<key>), its logo and its name in the admin pages. From the
+ * original name, so a rename keeps the key.
+ */
+export const externalLeagueKey = (league: { name: string; country?: string; originalName?: string }) =>
+  `x-${slugify(`${league.country ?? ''} ${league.originalName ?? league.name}`)}`
+
 /** Same date and the same two teams (by normalised name) */
 export const gameKey = (kickoff: string | Date, home: string, away: string) =>
   `${isoDate(typeof kickoff === 'string' ? new Date(kickoff) : kickoff)}|${normalize(home)}|${normalize(away)}`
@@ -46,6 +54,7 @@ export function externalToMatch(g: ExternalGame): Match {
     leagueOrder: 50,
     country: g.league.country,
     leagueBadge: g.league.logo,
+    leagueSlug: externalLeagueKey(g.league),
     kickoff,
     state: g.state,
     statusLabel: g.state === 'finished' ? 'Slut' : g.state === 'postponed' ? 'Udsat' : g.label,

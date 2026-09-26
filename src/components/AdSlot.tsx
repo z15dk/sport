@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, type AdPlacementId } from '../data/ads'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
+import { getRealData } from '../data/real'
 
 interface Props {
   placement: AdPlacementId
@@ -11,6 +12,8 @@ interface Props {
 
 /** A reserved advertising space; always labelled "Annonce" as Danish marketing law requires */
 export function AdSlot({ placement, index, className }: Props) {
+  // Switched on and off in the admin pages (off by default)
+  if (getRealData()?.settings?.ads !== true) return null
   const p = AD_PLACEMENTS[placement]
   const c = p.creative
   if (!c && !SHOW_AD_PLACEHOLDERS) return null

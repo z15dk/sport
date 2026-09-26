@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
 import { FilterBar } from './FilterBar'
@@ -12,7 +12,6 @@ import { oddsEnabled } from '../data/odds'
 import { Sidebar } from './Sidebar'
 import { FeaturedMatch } from './FeaturedMatch'
 import { SportTabs } from './SportTabs'
-import { StatTiles } from './StatTiles'
 import { AdSlot } from './AdSlot'
 import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
@@ -23,12 +22,10 @@ import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
 import Link from 'next/link'
 import { paths } from '../lib/site'
-import { fetchEventsByDay } from '../api/thesportsdb'
 import { addDays, danishTime, formatDayMonth, formatLong, formatTime, isoDate } from '../lib/time'
 import { ALL_SPORTS, sportById } from '../sports'
 import type { LeagueGroup, Match, SportFilter, StateFilter } from '../types'
 
-export type DataSource = 'fictional' | 'api'
 
 const STATE_ORDER = { live: 0, upcoming: 1, finished: 2, postponed: 3 } as const
 const REFRESH_MS = 30_000
@@ -78,7 +75,6 @@ interface Props {
 }
 
 export function MatchesView({ sport, date, today, initialNow }: Props) {
-  const [source, setSource] = usePersistentState<DataSource>('dataSource', 'fictional')
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>('all')
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
@@ -93,37 +89,19 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   }
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
-  const [tick, setTick] = useState(0)
   const now = useNow(REFRESH_MS, initialNow)
 
   // Recomputed when new data arrives (the version changes) as well as when time passes
   const dataVersion = getRealData()?.version
   const fictional = useMemo(() => getMatches(date, sport, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live data from TheSportsDB, only when chosen; falls back to fictional data
-  const apiKey = `${date}|${sport}|${tick}`
-  const [api, setApi] = useState<{ key: string; matches?: Match[]; error?: string }>()
-  useEffect(() => {
-    if (source !== 'api' || sport === 'all') return
-    const controller = new AbortController()
-    fetchEventsByDay(date, sport, sportById(sport).apiName, controller.signal)
-      .then((matches) => setApi({ key: apiKey, matches }))
-      .catch((err: unknown) => {
-        if (!controller.signal.aborted) setApi({ key: apiKey, error: err instanceof Error ? err.message : 'Ukendt fejl' })
-      })
-    return () => controller.abort()
-  }, [source, date, sport, apiKey])
-
-  const apiReady = source === 'api' && sport !== 'all' && api?.key === apiKey
-  const usingApi = apiReady && !!api?.matches
-  const matches = usingApi ? api!.matches! : fictional
-  const apiError = apiReady ? api?.error : undefined
+  const matches = fictional
 
   // The time view lists the chosen day and the ten days after it
   const DAYS_AHEAD = 10
   const range = useMemo(
-    () => (order === 'time' && !usingApi ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
-    [order, usingApi, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (order === 'time' ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
+    [order, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const pinned = useMemo(() => new Set(pinnedList), [pinnedList])
@@ -181,16 +159,12 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   // Match in focus: kick-off 12-24 hours ahead, counted from the start of the hour so the pick stays put for the hour
   const hour = Math.floor(now / 3_600_000)
   const featured = useMemo(() => {
-    if (usingApi) return []
     const from = hour * 3_600_000 + 12 * 3_600_000
     const start = hour * 3_600_000
     return upcomingMatches(sport, isoDate(start), start, 2, 10_000).filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
-  }, [usingApi, sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
-  const upcoming = useMemo(() => {
-    if (!usingApi) return upcomingMatches(sport, today, now)
-    return matches.filter((m) => m.state === 'upcoming').sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, 8)
-  }, [usingApi, matches, sport, today, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const upcoming = useMemo(() => upcomingMatches(sport, today, now), [sport, today, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const nextDay = useMemo(() => nearestMatchDay(date, sport, 1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const prevDay = useMemo(() => nearestMatchDay(date, sport, -1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
@@ -225,11 +199,9 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
       <LiveStrip matches={searched} upcoming={league ? upcoming.filter((m) => m.leagueId === league) : upcoming} now={now} />
 
-      {!usingApi && (apiError || ((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
+      {(((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
         <div className="banner" role="status">
-          {apiError ? (
-            'Live-data kunne ikke hentes, så du ser vores egne data.'
-          ) : real.length === 0 ? (
+          {real.length === 0 ? (
             'Kampene hentes fra TheSportsDB – kom tilbage om lidt.'
           ) : (
             <>
@@ -255,7 +227,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           <div className="feed__head">
             <h1 className="feed__title">
               {sportDef.label}
-              <span>{order === 'time' && !usingApi ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
+              <span>{order === 'time' ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
             </h1>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
             <div className="switch switch--order" role="group" aria-label="Sortering">
@@ -338,13 +310,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
 
         <aside className="aside">
           <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${sport}|${hour}`} />
-          <StatTiles
-            matches={matches}
-            updatedAt={new Date(now)}
-            source={source}
-            onSourceChange={setSource}
-            onRefresh={() => setTick((t) => t + 1)}
-          />
+
           <AdSlot placement="side" />
         </aside>
       </div>

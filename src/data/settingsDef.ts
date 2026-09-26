@@ -19,6 +19,14 @@ export const SETTINGS = [
       'Fra: ingen odds, bookmaker-mærker eller "Eksempel-odds" nogen steder. Til: odds på forsiden, i Kamp i fokus og på kampsiderne, altid med "18+ · Spil ansvarligt · StopSpillet.dk". Odds er eksempler, indtil der er en aftale med en bookmaker.',
     default: false,
   },
+  {
+    key: 'ads',
+    group: 'Reklamer',
+    label: 'Reklamepladser på siden',
+    description:
+      'Fra: ingen reklamepladser nogen steder (heller ikke pladsholdere). Til: pladserne vises, altid mærket "Annonce" – med annoncen, hvis der er en, ellers en pladsholder i den reserverede størrelse.',
+    default: false,
+  },
 ] as const satisfies readonly SettingDef[]
 
 export type SettingKey = (typeof SETTINGS)[number]['key']

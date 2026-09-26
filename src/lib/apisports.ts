@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { MatchState, SportId } from '../types'
-import type { ExternalGame } from '../data/external'
+import { externalLeagueKey, type ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -282,6 +282,19 @@ interface DayData {
   fetchedAt: number
   games: ExternalGame[]
 }
+/** An API-Sports league that is not one of ours */
+export interface ExternalLeague {
+  key: string
+  api: string
+  id: string
+  name: string
+  country?: string
+  sport: SportId
+  logo?: string
+  season?: string
+  lastSeen: number
+}
+
 interface ApiState {
   days: Record<string, DayData>
   /** Finished games in our leagues, by day, kept after the day leaves the window */
@@ -294,6 +307,8 @@ interface ApiState {
   leagueIds?: Record<string, string>
   /** Past seasons saved in the statistics bank: "division|year" -> matches saved (0: none or refused) */
   history?: Record<string, number>
+  /** API-Sports' leagues that are not ours, by externalLeagueKey, for their league pages */
+  leagues?: Record<string, ExternalLeague>
   remaining?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
@@ -451,6 +466,43 @@ async function fetchDay(api: Api, date: string) {
   const games = (response ?? []).map((r) => def.toGame(r, api)).filter((g): g is ExternalGame => !!g && def.keep(g))
   s.days[date] = { fetchedAt: Date.now(), games }
   s.lastError = undefined
+  // The other leagues, remembered for their league pages
+  for (const g of games) {
+    if (divisionOfGame(g) || !g.league.id) continue
+    const key = externalLeagueKey(g.league)
+    ;(s.leagues ??= {})[key] = { key, api, id: g.league.id, name: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, season: g.league.season, lastSeen: Date.now() }
+  }
+}
+
+/** An API-Sports league (not ours) by its key, if we have seen its games */
+export function externalLeague(key: string): ExternalLeague | undefined {
+  load()
+  for (const s of Object.values(mem.store)) if (s.leagues?.[key]) return s.leagues[key]
+  // Not remembered yet: from the games we have
+  for (const [api, s] of Object.entries(mem.store)) {
+    for (const d of Object.values(s.days)) {
+      const g = d.games.find((x) => !divisionOfGame(x) && x.league.id && externalLeagueKey(x.league) === key)
+      if (g) return { key, api, id: g.league.id, name: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, season: g.league.season, lastSeen: d.fetchedAt }
+    }
+  }
+  return undefined
+}
+
+/** Every API-Sports league (not ours) we have seen */
+export function externalLeagues(): ExternalLeague[] {
+  load()
+  return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}))
+}
+
+/** API-Sports' own table for a league (cached six hours); undefined when the plan or the budget doesn't allow it */
+export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[][] | undefined> {
+  const api = league.api as Api
+  const def = APIS[api]
+  if (!def?.standings) return undefined
+  const groups = await cached(api, `${api}|table|${league.id}|${league.season ?? ''}`, 6 * 3_600_000, def.standings(league.id, league.season), 'table', readTable).catch(
+    () => undefined,
+  )
+  return groups?.filter((g) => g.length > 1).length ? groups.filter((g) => g.length > 1) : undefined
 }
 
 /** The day of this API most in need of a refresh, or nothing when the quota is spent */

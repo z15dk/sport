@@ -1242,3 +1242,4 @@ h2.league__name { margin: 0; }
 @media (max-width: 600px) { .club-hero__mark { width: 110px; height: 110px; right: 8px; } }
 /* White logos on a dark plate, so they show on light backgrounds */
 .badge--light { background: #1d2019; box-sizing: border-box; }
+.h2h--pad { padding: 0 18px 16px; }

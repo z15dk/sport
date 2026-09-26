@@ -1,4 +1,3 @@
-import { slugify } from '../lib/slug'
 import { c, type Division } from './club'
 import { hasRealData } from './real'
 import { GERMANY } from './germany'
@@ -154,8 +153,7 @@ export function renameLeagues(names: Record<string, string>) {
   }
 }
 
-/** The key an API-Sports league (not one of ours) has in the admin pages: for its logo and its name */
-export const externalLeagueKey = (league: { name: string; country?: string }) => `x-${slugify(`${league.country ?? ''} ${league.name}`)}`
+export { externalLeagueKey } from './external'
 
 /** The leagues we have real fixtures for; only these are shown on the site */
 export const shownDivisions = () => DIVISIONS.filter((d) => hasRealData(d.id))
