@@ -2,7 +2,7 @@ import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
 import { SEARCH_NAMES, alike, normalize } from './aliases'
-import { DIVISIONS, renameClubs, sportOf, type Club, type Division } from './leagues'
+import { DIVISIONS, renameClubs, renameLeagues, sportOf, type Club, type Division } from './leagues'
 import { hashString } from './fixtures'
 import { GAME_LENGTH_MIN, type Extra } from './scoring'
 import { matchSlug, slugify } from '../lib/slug'
@@ -124,6 +124,7 @@ function current(): Season {
   if (season && season.version === real?.version) return season
   // Names changed in the admin pages, before anything is built from the clubs
   renameClubs(real?.clubNames ?? {})
+  renameLeagues(real?.leagueNames ?? {})
   const realDivisions = new Set(Object.entries(real?.leagues ?? {}).filter(([, e]) => e.length > 0).map(([id]) => id))
   const fixtures = (real ? buildReal(real) : []).sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const byDate = new Map<string, Fixture[]>()

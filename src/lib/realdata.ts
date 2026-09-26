@@ -13,6 +13,9 @@ import { externalGames, seasonGames } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
+import { leagueNameOverrides } from './leagueNames'
+import { customLogoUrl, customLogos } from './customLogos'
+import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
 
@@ -69,7 +72,9 @@ function apply() {
   const names = clubNameOverrides()
   const channels = channelData()
   const settings = siteSettings()
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}`
+  const leagueNames = leagueNameOverrides()
+  const logos = Object.keys(customLogos()).length
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}`
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -92,7 +97,15 @@ function apply() {
     fetchedAt: tsdbData?.fetchedAt ?? Date.now(),
     leagues,
     checked: tsdbData?.checked,
-    external: external.games,
+    // API-Sports' other leagues with the names and logos set in the admin pages
+    external: external.games.map((g) => {
+      if (divisionOfGame(g)) return g
+      const key = externalLeagueKey(g.league)
+      const name = leagueNames.names[key]
+      const logo = customLogoUrl(`liga-${key}`)
+      return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: name ? g.league.name : undefined } } : g
+    }),
+    leagueNames: leagueNames.names,
     clubNames: names.names,
     channels: channels.data,
     settings: settings.settings,

@@ -61,11 +61,12 @@ function wanted(): Wanted[] {
   }))
   const leagues: Wanted[] = [
     ...DIVISIONS.map((d) => ({
-      key: d.name,
+      // Keyed by the original name, so a name changed in the admin pages keeps its logo
+      key: d.originalName ?? d.name,
       kind: 'league' as const,
       sport: d.sport ?? 'soccer',
       country: d.country,
-      names: [d.apiLeague, d.name].filter((n): n is string => !!n),
+      names: [d.apiLeague, d.originalName, d.name].filter((n): n is string => !!n),
     })),
   ]
   return [...leagues, ...clubs]
@@ -290,6 +291,14 @@ export async function getBadges(): Promise<Record<string, string>> {
   for (const channel of channelData().data.channels) {
     const url = customLogoUrl(`kanal-${channel.id}`) ?? all[`kanal:${channel.id}`] ?? channel.logo
     if (url) all[`kanal:${channel.id}`] = url
+  }
+  // League logos uploaded in the admin pages (stored as liga-<slug>) win; renamed leagues keep the logo found under the old name
+  for (const d of DIVISIONS) {
+    const url = customLogoUrl(`liga-${d.slug}`) ?? all[d.originalName ?? d.name] ?? all[d.name]
+    if (url) {
+      all[d.name] = url
+      if (d.originalName) all[d.originalName] = url
+    }
   }
   // Clubs renamed in the admin pages keep the logo found under their original name
   for (const { club } of everyClub()) {

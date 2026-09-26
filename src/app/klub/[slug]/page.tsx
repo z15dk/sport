@@ -12,6 +12,7 @@ import { FormChips } from '../../../components/FormChips'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
+import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
@@ -88,6 +89,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
       />
       <div className="clubs">
         <header className="club-hero" style={{ '--club-bg': club.colors[0], '--club-fg': club.colors[1] } as React.CSSProperties}>
+          <BadgeWatermark name={club.name} />
           <TeamBadge link={false} name={club.name} colors={club.colors} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
@@ -183,6 +185,7 @@ function TeamPage({ team }: { team: TeamEntry }) {
       />
       <div className="clubs">
         <header className="club-hero">
+          <BadgeWatermark name={team.name} />
           <TeamBadge link={false} name={team.name} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">

@@ -3,6 +3,7 @@ import Link from 'next/link'
 const PAGES = [
   { href: '/admin/indstillinger', label: 'Indstillinger' },
   { href: '/admin/klubber', label: 'Klubber' },
+  { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
 ]
 

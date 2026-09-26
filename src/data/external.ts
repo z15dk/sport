@@ -11,7 +11,7 @@ export interface ExternalGame {
   /** "<api>-<id>", e.g. "football-1035037" */
   id: string
   sport: SportId
-  league: { id: string; name: string; country?: string; logo?: string; season?: string }
+  league: { id: string; name: string; country?: string; logo?: string; season?: string; /** Before a rename in the admin pages */ originalName?: string }
   home: { name: string; logo?: string; id?: number }
   away: { name: string; logo?: string; id?: number }
   /** ISO timestamp */

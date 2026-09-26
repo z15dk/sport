@@ -40,6 +40,8 @@ export interface RealData {
   external?: ExternalGame[]
   /** Club names changed in the admin pages, by club slug */
   clubNames?: Record<string, string>
+  /** League names changed in the admin pages, by league slug (ours) or externalLeagueKey */
+  leagueNames?: Record<string, string>
   /** Channels, rules, exceptions and TV listings (src/data/channels.ts) */
   channels?: ChannelData
   /** Settings from the admin pages */

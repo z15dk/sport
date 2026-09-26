@@ -6,7 +6,7 @@ import { countryKey } from './channels'
 /** Our leagues by sport, country and name, so API-Sports' games in them join the same league */
 const OUR_LEAGUES = new Map(
   DIVISIONS.flatMap((d, i) =>
-    [d.name, d.apiLeague]
+    [d.originalName ?? d.name, d.apiLeague]
       .filter((n): n is string => !!n)
       .map((n) => [`${sportOf(d)}|${countryKey(d.country)}|${n.toLowerCase()}`, { d, i }] as const),
   ),

@@ -17,7 +17,7 @@ export type LogoExt = keyof typeof TYPES
 export const MAX_LOGO_BYTES = 1_000_000
 
 const dir = (): string => process.env.LOGO_DIR ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'logos')
-const validSlug = (slug: string) => /^[a-z0-9-]{1,80}$/.test(slug)
+const validSlug = (slug: string) => /^[a-z0-9-]{1,130}$/.test(slug)
 
 /** The image type from the file's first bytes, so a renamed file cannot pass as an image */
 export function detectType(bytes: Buffer): LogoExt | undefined {

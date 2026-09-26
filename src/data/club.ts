@@ -43,6 +43,8 @@ export interface Division {
   movement: string
   /** League name at TheSportsDB (for logos) */
   apiLeague?: string
+  /** The name before it was changed in the admin pages */
+  originalName?: string
   clubs: Club[]
 }
 

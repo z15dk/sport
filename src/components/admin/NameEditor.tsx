@@ -4,7 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 /** Shows a club's name and lets an admin change it (empty = back to the original) */
-export function NameEditor({ slug, name, originalName }: { slug: string; name: string; originalName?: string }) {
+export function NameEditor({
+  slug,
+  name,
+  originalName,
+  endpoint = '/api/admin/club-name',
+}: {
+  slug: string
+  name: string
+  originalName?: string
+  /** Where the name is saved (clubs by default) */
+  endpoint?: string
+}) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(name)
@@ -16,7 +27,7 @@ export function NameEditor({ slug, name, originalName }: { slug: string; name: s
     setBusy(true)
     setError(undefined)
     try {
-      const res = await fetch('/api/admin/club-name', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, name: next }),
@@ -66,7 +77,7 @@ export function NameEditor({ slug, name, originalName }: { slug: string; name: s
         void save(value)
       }}
     >
-      <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={60} autoFocus aria-label="Klubnavn" disabled={busy} />
+      <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={60} autoFocus aria-label="Navn" disabled={busy} />
       <button className="pill is-active" type="submit" disabled={busy || !value.trim()}>
         {busy ? 'Gemmer …' : 'Gem'}
       </button>

@@ -1,3 +1,4 @@
+import { slugify } from '../lib/slug'
 import { c, type Division } from './club'
 import { hasRealData } from './real'
 import { GERMANY } from './germany'
@@ -144,6 +145,17 @@ export function renameClubs(names: Record<string, string>) {
     }
   }
 }
+
+/** Applies the league names changed in the admin pages (by league slug); the sources still know the original */
+export function renameLeagues(names: Record<string, string>) {
+  for (const d of DIVISIONS) {
+    d.originalName ??= d.name
+    d.name = names[d.slug] ?? d.originalName
+  }
+}
+
+/** The key an API-Sports league (not one of ours) has in the admin pages: for its logo and its name */
+export const externalLeagueKey = (league: { name: string; country?: string }) => `x-${slugify(`${league.country ?? ''} ${league.name}`)}`
 
 /** The leagues we have real fixtures for; only these are shown on the site */
 export const shownDivisions = () => DIVISIONS.filter((d) => hasRealData(d.id))
