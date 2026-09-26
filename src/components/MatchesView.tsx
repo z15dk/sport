@@ -19,7 +19,6 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
-import { SearchSuggestions } from './SearchSuggestions'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
@@ -75,11 +74,13 @@ interface Props {
   date: string
   today: string
   initialNow: number
+  /** "Live" in the menu opens the page on the matches being played */
+  initialFilter?: StateFilter
 }
 
-export function MatchesView({ sport, date, today, initialNow }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all' }: Props) {
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
-  const [filter, setFilter] = useState<StateFilter>('all')
+  const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
   const [picked, setPicked] = useState<{ sport: SportFilter; id: string }>()
   const league = picked?.sport === sport ? picked.id : undefined
@@ -92,7 +93,6 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   }
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
-  const [suggest, setSuggest] = useState(false)
   const now = useNow(REFRESH_MS, initialNow)
 
   // Recomputed when new data arrives (the version changes) as well as when time passes
@@ -197,18 +197,11 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           <input
             id="search"
             type="search"
-            placeholder="Søg klub, turnering eller kamp"
+            placeholder="Filtrér dagens kampe"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setSuggest(true)
-            }}
-            onFocus={() => setSuggest(true)}
-            onBlur={() => window.setTimeout(() => setSuggest(false), 150)}
-            onKeyDown={(e) => e.key === 'Escape' && setSuggest(false)}
+            onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
           />
-          {suggest && query.trim().length >= 2 && <SearchSuggestions query={query} onPick={() => setSuggest(false)} />}
         </label>
         <button className="live-chip" onClick={() => setFilter('live')} disabled={liveCount === 0}>
           <span className="live-dot" aria-hidden />

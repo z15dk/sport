@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Header } from '../components/Header'
+import { SiteNav } from '../components/SiteNav'
 import { BadgeProvider } from '../components/BadgeProvider'
 import { Footer } from '../components/Footer'
 import { AdSlot } from '../components/AdSlot'
@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <BadgeProvider badges={badges}>
             <div className="app">
               <div className="app__main">
-                <Header />
+                <SiteNav />
                 <AdSlot placement="top" />
                 {children}
               </div>
