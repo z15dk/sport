@@ -16,7 +16,8 @@ import { AdSlot } from './AdSlot'
 import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { externalMatch, getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { cupOfGame } from '../data/cups'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
@@ -152,7 +153,17 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
       if (have.has(leagueId) || (sport !== 'all' && sportOf(d) !== sport) || !shownDivisions().includes(d)) return []
       return [{ leagueId, leagueSlug: d.slug, league: d.name, country: d.country, order: i, matches: [] }]
     })
-    return [...groups, ...covered]
+    // The cups we follow, also on days without cup games
+    const cups: LeagueGroup[] = []
+    if (sport === 'all' || sport === 'soccer') {
+      for (const g of getRealData()?.external ?? []) {
+        if (!cupOfGame(g)) continue
+        const m = externalMatch(g)
+        if (have.has(m.leagueId) || cups.some((c) => c.leagueId === m.leagueId)) continue
+        cups.push({ leagueId: m.leagueId, leagueSlug: m.leagueSlug, league: m.league, country: m.country, leagueBadge: m.leagueBadge, order: m.leagueOrder, matches: [] })
+      }
+    }
+    return [...groups, ...covered, ...cups]
   }, [matches, pinned, sport, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sport === 'all' ? ALL_SPORTS : sportById(sport)

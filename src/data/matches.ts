@@ -5,6 +5,7 @@ import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
 import { SEARCH_NAMES, alike } from './aliases'
 import { divisionOfGame } from './ourLeagues'
+import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInCup } from './cups'
 import { isoDate } from '../lib/time'
 
@@ -14,17 +15,22 @@ export function externalMatch(g: ExternalGame): Match {
   if (cup) {
     const home = ourClubInCup(g.home.name, cup)?.club
     const away = ourClubInCup(g.away.name, cup)?.club
-    if (home || away) {
-      const renamed = { ...g, home: home ? { ...g.home, name: home.name, logo: undefined } : g.home, away: away ? { ...g.away, name: away.name, logo: undefined } : g.away }
-      const m = externalToMatch(renamed)
-      return { ...m, home: { ...m.home, colors: home?.colors }, away: { ...m.away, colors: away?.colors } }
-    }
+    const renamed = { ...g, home: home ? { ...g.home, name: home.name, logo: undefined } : g.home, away: away ? { ...g.away, name: away.name, logo: undefined } : g.away }
+    const m = externalToMatch(renamed)
+    // One cup, whichever source the game comes from, right after the country's leagues
+    return { ...m, ...cupPlace(m.leagueSlug), home: { ...m.home, colors: home?.colors }, away: { ...m.away, colors: away?.colors } }
   }
   const m = externalToMatch(g)
   const ours = divisionOfGame(g)
   if (!ours) return m
   const { d, i } = ours
   return { ...m, league: d.name, leagueId: `${d.countryCode.toLowerCase()}-${d.id}`, leagueSlug: d.slug, leagueOrder: i, country: d.country }
+}
+
+/** A cup's place in the lists: one group (all sources), right after the country's own football leagues */
+export function cupPlace(leagueSlug?: string): { leagueId: string; leagueOrder: number } {
+  const last = DIVISIONS.map((d, i) => ({ d, i })).filter(({ d }) => d.countryCode === 'DK' && sportOf(d) === 'soccer').at(-1)?.i ?? 0
+  return { leagueId: `cup-${leagueSlug ?? ''}`, leagueOrder: last + 0.5 }
 }
 
 // Matches for the front page, match pages and club pages, all from the
