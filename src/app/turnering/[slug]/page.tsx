@@ -20,7 +20,7 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
-import { apiLeagueTable, externalLeague } from '../../../lib/apisports'
+import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable } from '../../../lib/history'
 import { BASELINES } from '../../../data/baselines'
 import { getRealData } from '../../../data/real'
@@ -84,7 +84,7 @@ async function externalLeaguePage(slug: string) {
   return (
     <ExternalLeaguePage
       league={league}
-      groups={fromApi ?? [own.rows]}
+      groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? teamLogos().get(r.name) }))]}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}

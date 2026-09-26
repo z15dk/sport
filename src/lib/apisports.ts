@@ -1009,3 +1009,17 @@ export function observedGoals(game: ExternalGame): Incident[] | undefined {
   const goals = (game.homeScore ?? 0) + (game.awayScore ?? 0)
   return log.goals.length <= goals ? log.goals : undefined
 }
+
+/** Team logos by team name, from every game API-Sports has sent (for tables we compute ourselves) */
+export function teamLogos(): Map<string, string> {
+  load()
+  const holder = mem as typeof mem & { logos?: { mtime: number; map: Map<string, string> } }
+  if (holder.logos?.mtime === mem.mtime) return holder.logos.map
+  const map = new Map<string, string>()
+  for (const s of Object.values(mem.store)) {
+    const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
+    for (const g of games) for (const t of [g.home, g.away]) if (t.logo && !map.has(t.name)) map.set(t.name, t.logo)
+  }
+  holder.logos = { mtime: mem.mtime, map }
+  return map
+}

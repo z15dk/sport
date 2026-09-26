@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
-import { apiHeadToHead, apiMatchEvents, apiMatchExtra, observedGoals } from '../../../lib/apisports'
+import { apiHeadToHead, apiMatchEvents, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -68,10 +68,13 @@ export default async function MatchPage({ params }: { params: Params }) {
   const fromEvents = game && !match.incidents?.length ? await apiMatchEvents(game).catch(() => undefined) : undefined
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
   const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // Our own table has API-Sports' team names but no logos: from the games they have sent
+  const logos = teamLogos()
+  const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
   const extra = fromApi && {
     ...fromApi,
     form: fromApi.form ?? saved?.form,
-    table: fromApi.table ?? saved?.table,
+    table: fromApi.table ?? savedTable,
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
