@@ -19,6 +19,7 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
+import { SearchSuggestions } from './SearchSuggestions'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
@@ -91,6 +92,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   }
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
+  const [suggest, setSuggest] = useState(false)
   const now = useNow(REFRESH_MS, initialNow)
 
   // Recomputed when new data arrives (the version changes) as well as when time passes
@@ -195,10 +197,18 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           <input
             id="search"
             type="search"
-            placeholder="Søg hold eller turnering"
+            placeholder="Søg klub, turnering eller kamp"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSuggest(true)
+            }}
+            onFocus={() => setSuggest(true)}
+            onBlur={() => window.setTimeout(() => setSuggest(false), 150)}
+            onKeyDown={(e) => e.key === 'Escape' && setSuggest(false)}
+            autoComplete="off"
           />
+          {suggest && query.trim().length >= 2 && <SearchSuggestions query={query} onPick={() => setSuggest(false)} />}
         </label>
         <button className="live-chip" onClick={() => setFilter('live')} disabled={liveCount === 0}>
           <span className="live-dot" aria-hidden />
