@@ -83,7 +83,13 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
   const [picked, setPicked] = useState<{ sport: SportFilter; id: string }>()
   const league = picked?.sport === sport ? picked.id : undefined
-  const setLeague = (id: string | undefined) => setPicked(id ? { sport, id } : undefined)
+  const setLeague = (id: string | undefined) => {
+    setPicked(id ? { sport, id } : undefined)
+    // On phones the tournaments are under the list: go back up to it
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches) {
+      document.getElementById('kampe')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
   const [query, setQuery] = useState('')
   const [tick, setTick] = useState(0)
@@ -243,7 +249,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
       <div className="grid">
         <Sidebar groups={allGroups} pinned={pinned} selected={league} onSelect={setLeague} />
 
-        <main className="feed">
+        <main className="feed" id="kampe">
           <SportTabs active={sport} className="sport-tabs--desktop" />
           <div className="feed__head">
             <h1 className="feed__title">

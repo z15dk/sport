@@ -366,7 +366,9 @@ h1, h2, p { margin: 0; }
   .live-chip { margin-left: auto; }
   .page { padding: 16px 16px 32px; }
   .grid { grid-template-columns: 1fr; }
-  .aside { position: static; order: -1; }
+  .aside { position: static; order: 2; }
+  .feed { order: 0; }
+  .sidebar { display: flex; position: static; order: 1; }
   .tiles { grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .tile { min-height: 0; padding: 10px 12px; }
   .tile__label { font-size: 10px; }
@@ -1048,7 +1050,7 @@ h2.league__name { margin: 0; }
 .match__result--score .match__scores { justify-self: end; }
 .match__result--score .status { justify-self: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 600px) {
-  .match__result--score { grid-template-columns: 40px 76px; gap: 6px; }
+  .match__result--score { grid-template-columns: 34px 66px; gap: 4px; }
   .match__result--score .status { padding: 5px 8px; font-size: 11px; }
   .match__right { grid-template-columns: auto; }
   .match__slot { display: none; }
@@ -1133,3 +1135,23 @@ h2.league__name { margin: 0; }
 .table tr.is-highlight td { background: var(--lime); color: #111; }
 .table__club { display: inline-flex; align-items: center; gap: 8px; }
 .sheet__section--wide { grid-column: 1 / -1; }
+
+/* Phones: the match list first, full team names, odds under the teams */
+@media (max-width: 600px) {
+  .feed__title { font-size: 28px; }
+  .feed__head { gap: 8px; }
+  .filter-bar .pill { padding: 7px 10px; font-size: 13px; }
+  .league__header { flex-wrap: wrap; }
+  .league__toggle { flex-wrap: wrap; row-gap: 4px; }
+  .league__name { white-space: normal; font-size: 18px; }
+  .match { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; padding: 8px 10px; }
+  /* A row with odds: the odds get their own line under the teams */
+  .match:has(.match__odds) { grid-template-columns: 44px minmax(0, 1fr); }
+  .match:has(.match__odds) .match__right { grid-column: 2; justify-self: start; }
+  .match:has(.match__odds) .match__right .match__odds .odds-chip { width: 52px; }
+  .match:has(.match__odds) .match__right .match__odds .odds-chip em { display: inline; font-size: 9px; }
+  .match__odds .odds-chip { flex-direction: row; gap: 4px; }
+  .team__name { font-size: 14px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) { .filter-bar .pill { padding: 6px 8px; gap: 4px; } }
