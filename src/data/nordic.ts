@@ -60,7 +60,7 @@ export const NORDIC: Division[] = [
       ca('no-s08', 'Sarpsborg 08', 'Sarpsborg 08', 'Sarpsborg', '#0057b8'),
       ca('no-sef', 'Sandefjord', 'Sandefjord', 'Sandefjord', '#0057b8'),
       ca('no-kbk', 'Kristiansund BK', 'Kristiansund', 'Kristiansund', '#0057b8'),
-      ca('no-ham', 'HamKam', 'HamKam', 'Hamar', '#008d4f'),
+      ca('no-ham', 'HamKam', 'Hamarkameratene', 'Hamar', '#008d4f'),
       ca('no-kfu', 'KFUM Oslo', 'KFUM Oslo', 'Oslo', '#e2001a', '#ffffff'),
       ca('no-sta', 'IK Start', 'Start', 'Kristiansand', '#ffd200', '#111111'),
       ca('no-aal', 'Aalesunds FK', 'Aalesund', 'Ålesund', '#f47920', '#0057b8'),

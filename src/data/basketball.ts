@@ -30,6 +30,8 @@ export const BASKETBALL: Division[] = [
       c('b-vej', 'Vejen Basket', 'Vejen', '#008d4f', '#ffffff', true),
       c('b-gla', 'Gladsaxe Basketball', 'Gladsaxe', '#0b2a7a', '#ffffff', true),
       c('b-cph', 'Copenhagen Basketball', 'København', '#111111', '#ffd200', true),
+      c('b-vbh', 'Værløse Blue Hawks', 'Værløse', '#0057b8'),
+      c('b-bea', 'Bears Academy', 'Aarhus', '#111111', '#e2001a'),
     ],
   },
 ]
