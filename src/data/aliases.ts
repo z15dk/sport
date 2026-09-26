@@ -52,10 +52,28 @@ export function normalize(name: string) {
 
 const COMMON = new Set(['and', 'the', 'city', 'united', 'real', 'sporting', 'athletic', 'club', 'county', 'town', 'rovers', 'wanderers', 'hockey', 'basket', 'basketball', 'handball', 'handbold', 'fodbold', 'volley', 'sport', 'sports', 'klub'])
 /** A name folded for loose matching: normalized, and "aa" (from å) as "a" */
-const fold = (name: string) => normalize(name).replace(/aa/g, 'a')
+const foldMemo = new Map<string, string>()
+const fold = (name: string) => {
+  let f = foldMemo.get(name)
+  if (f === undefined) {
+    f = normalize(name).replace(/aa/g, 'a')
+    if (foldMemo.size > 50_000) foldMemo.clear()
+    foldMemo.set(name, f)
+  }
+  return f
+}
 
 /** Words of a name (folded, 3+ letters, no generic words), for loose matching across sources */
-export const nameWords = (name: string) => fold(name).split(' ').filter((w) => w.length >= 3 && !COMMON.has(w))
+const wordsMemo = new Map<string, string[]>()
+export const nameWords = (name: string) => {
+  let words = wordsMemo.get(name)
+  if (!words) {
+    words = fold(name).split(' ').filter((w) => w.length >= 3 && !COMMON.has(w))
+    if (wordsMemo.size > 50_000) wordsMemo.clear()
+    wordsMemo.set(name, words)
+  }
+  return words
+}
 
 /** Same word, or one is the start of the other ("djurgarden" / "djurgardens") */
 const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)))

@@ -71,7 +71,15 @@ function resolver() {
   }
   const danish = DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer').flatMap((d) => d.clubs)
   const everyone = DIVISIONS.flatMap((d) => d.clubs)
+  // Each name is looked up once: the loose matching below is too slow to repeat for every match in the database
+  const memo = new Map<string, Club | undefined>()
   return (name: string) => {
+    if (memo.has(name)) return memo.get(name)
+    const found = look(name)
+    memo.set(name, found)
+    return found
+  }
+  function look(name: string): Club | undefined {
     const exact = byName.get(normalize(name))
     if (exact) return exact
     // Written differently ("AGF Aarhus" for AGF): one Danish club alone matches loosely. Second teams and youth sides never do

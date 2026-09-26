@@ -52,7 +52,15 @@ function clubResolver(div: Division, names: Record<string, string>) {
     }
   }
   const unknown = new Map<string, Club>()
+  const seen = new Map<string, Club>()
   return (name: string): Club => {
+    const hit = seen.get(name)
+    if (hit) return hit
+    const club = find(name)
+    seen.set(name, club)
+    return club
+  }
+  function find(name: string): Club {
     const key = normalize(name)
     const found =
       byName.get(key) ??
