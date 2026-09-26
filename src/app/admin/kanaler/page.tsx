@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
 import { getBadges } from '../../../lib/badges'
 import { customLogoUrl } from '../../../lib/customLogos'
@@ -38,19 +39,11 @@ export default async function AdminChannels({ searchParams }: { searchParams: Se
   return (
     <div className="page">
       <div className="clubs admin">
-        <header className="admin__head">
-          <h1 className="feed__title">
-            Kanaler
-            <span>
-              <Link href="/admin/klubber">Klubber</Link> · Kanaler · <Link href="/admin/indstillinger">Indstillinger</Link>
-            </span>
-          </h1>
-          <form method="post" action="/api/admin/logout">
-            <button className="text-btn" type="submit">
-              Log ud
-            </button>
-          </form>
-        </header>
+        <AdminNav current="/admin/kanaler" />
+        <h1 className="feed__title">
+          Kanaler
+          
+        </h1>
 
         <p className="muted small">
           En kamps kanal findes i denne rækkefølge: undtagelse for kampen, TheSportsDB&apos;s danske TV-program, og til sidst den mest præcise

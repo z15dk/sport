@@ -9,7 +9,7 @@ type SearchParams = Promise<{ fejl?: string }>
 
 /** Login to the admin pages */
 export default async function AdminLogin({ searchParams }: { searchParams: SearchParams }) {
-  if (await isAdmin()) redirect('/admin/klubber')
+  if (await isAdmin()) redirect('/admin/indstillinger')
   const { fejl } = await searchParams
   return (
     <div className="page">

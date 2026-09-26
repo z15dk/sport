@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
 import { clubLogoOverview, type LogoSource } from '../../../lib/badges'
 import { DIVISIONS } from '../../../data/leagues'
@@ -38,20 +38,11 @@ export default async function AdminClubs({ searchParams }: { searchParams: Searc
   return (
     <div className="page">
       <div className="clubs admin">
-        <header className="admin__head">
-          <h1 className="feed__title">
-            Klubber
-            <span>
-              {all.length} klubber · {count('upload')} uploadet · {count('forbogstaver')} uden logo ·{' '}
-              <Link href="/admin/kanaler">Kanaler</Link> · <Link href="/admin/indstillinger">Indstillinger</Link>
-            </span>
-          </h1>
-          <form method="post" action="/api/admin/logout">
-            <button className="text-btn" type="submit">
-              Log ud
-            </button>
-          </form>
-        </header>
+        <AdminNav current="/admin/klubber" />
+        <h1 className="feed__title">
+          Klubber
+          <span>{all.length} klubber · {count('upload')} uploadet · {count('forbogstaver')} uden logo</span>
+        </h1>
 
         <form className="panel admin-filter" method="get">
           <input type="search" name="q" defaultValue={q} placeholder="Søg klub" aria-label="Søg klub" />

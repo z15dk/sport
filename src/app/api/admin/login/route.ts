@@ -9,5 +9,5 @@ export async function POST(request: Request) {
   const form = await request.formData()
   if (!checkPassword(String(form.get('password') ?? ''))) return back('/admin?fejl=1')
   ;(await cookies()).set(COOKIE, sessionToken(), cookieOptions)
-  return back('/admin/klubber')
+  return back('/admin/indstillinger')
 }

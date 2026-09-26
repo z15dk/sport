@@ -1,41 +1,35 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '../../../lib/admin'
 import { siteSettings } from '../../../lib/settings'
+import { SETTINGS } from '../../../data/settingsDef'
 import { SettingToggle } from '../../../components/admin/SettingToggle'
+import { AdminNav } from '../../../components/admin/AdminNav'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Indstillinger · Admin', robots: { index: false, follow: false } }
 
-/** Site settings: odds on or off */
+/** Every site setting (src/data/settingsDef.ts), grouped */
 export default async function AdminSettings() {
   if (!(await isAdmin())) redirect('/admin')
   const { settings } = siteSettings()
+  const groups = [...new Set(SETTINGS.map((s) => s.group))]
   return (
     <div className="page">
       <div className="clubs admin">
-        <header className="admin__head">
-          <h1 className="feed__title">
-            Indstillinger
-            <span>
-              <Link href="/admin/klubber">Klubber</Link> · <Link href="/admin/kanaler">Kanaler</Link> · Indstillinger
-            </span>
-          </h1>
-          <form method="post" action="/api/admin/logout">
-            <button className="text-btn" type="submit">
-              Log ud
-            </button>
-          </form>
-        </header>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Odds</h2>
-          <SettingToggle name="odds" label="Odds på siden" value={settings.odds} />
-          <p className="muted small">
-            Slået fra: ingen odds, bookmaker-mærker eller &quot;Eksempel-odds&quot; nogen steder på siden. Slået til: odds vises på forsiden, i Kamp i fokus
-            og på kampsiderne, altid med &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot;. Odds er stadig eksempler, indtil der er en aftale med en bookmaker.
-          </p>
-        </section>
+        <AdminNav current="/admin/indstillinger" />
+        <h1 className="feed__title">Indstillinger</h1>
+        {groups.map((group) => (
+          <section key={group} className="panel prose__section">
+            <h2 className="panel__title">{group}</h2>
+            {SETTINGS.filter((s) => s.group === group).map((s) => (
+              <div key={s.key} className="setting-row">
+                <SettingToggle name={s.key} label={s.label} value={settings[s.key]} />
+                <p className="muted small">{s.description}</p>
+              </div>
+            ))}
+          </section>
+        ))}
       </div>
     </div>
   )

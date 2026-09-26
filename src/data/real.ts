@@ -6,6 +6,7 @@
 import type { Incident, MatchState } from '../types'
 import type { ExternalGame } from './external'
 import type { ChannelData } from './channels'
+import type { SiteSettings } from './settingsDef'
 
 export interface RealEvent {
   id: string
@@ -25,12 +26,6 @@ export interface RealEvent {
   /** Half-time score */
   ht?: [number, number]
   spectators?: number
-}
-
-/** Site settings from the admin pages */
-export interface SiteSettings {
-  /** Show odds (off until there is a bookmaker agreement) */
-  odds: boolean
 }
 
 export interface RealData {
@@ -62,6 +57,11 @@ export const KNOWN_LEAGUE_IDS: Record<string, number> = {
   bundesliga2: 4399,
   allsvenskan: 4347,
   eliteserien: 4358,
+  // Danish leagues, ids from TheSportsDB's league pages
+  '1div': 4683,
+  '2div': 4632,
+  '3div': 5222,
+  metalligaen: 4930,
 }
 
 /** True when a division has real fixtures; divisions without are not shown anywhere */
