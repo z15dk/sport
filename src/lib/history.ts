@@ -376,6 +376,8 @@ type SeasonData = {
   tournaments: string[]
   /** Goals, cards, half-time score and attendance by "date|home|away" (club id or normalised name), for other sources' matches */
   extrasByMatch: Map<string, Pick<RealEvent, 'incidents' | 'ht' | 'spectators'>>
+  /** The same, as a list (for matching names written differently) */
+  extrasList: { kickoff: string; home: string; away: string; extras: Pick<RealEvent, 'incidents' | 'ht' | 'spectators'> }[]
 }
 let seasonCache: SeasonData | undefined
 
@@ -438,6 +440,7 @@ export function databaseSeason(): SeasonData | undefined {
     })
   }
   const extrasByMatch = new Map<string, Pick<RealEvent, 'incidents' | 'ht' | 'spectators'>>()
+  const extrasList: SeasonData['extrasList'] = []
   const leagues: Record<string, RealEvent[]> = {}
   const tournaments = new Set<string>()
   for (const r of rows) {
@@ -464,13 +467,11 @@ export function databaseSeason(): SeasonData | undefined {
     })
     const added = leagues[division].at(-1)!
     if (state === 'finished') {
-      extrasByMatch.set(matchKey(kickoff, String(r.home_name), String(r.away_name)), {
-        incidents: added.incidents,
-        ht: added.ht,
-        spectators: added.spectators,
-      })
+      const extras = { incidents: added.incidents, ht: added.ht, spectators: added.spectators }
+      extrasByMatch.set(matchKey(kickoff, String(r.home_name), String(r.away_name)), extras)
+      extrasList.push({ kickoff, home: String(r.home_name), away: String(r.away_name), extras })
     }
   }
-  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), extrasByMatch }
+  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
   return seasonCache
 }

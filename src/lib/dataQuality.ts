@@ -125,6 +125,20 @@ export function leagueQuality(now = Date.now()): LeagueQuality[] {
         : { level: 'ok', text: 'Kilderne er enige om resultaterne (hvor begge har kampen)' },
     )
 
+    // Goals and cards: how many played matches have them
+    if (finished.length && (d.sport ?? 'soccer') === 'soccer') {
+      const withIncidents = finished.filter((f) => f.incidents?.length).length
+      const scoreless = finished.filter((f) => f.score[0] + f.score[1] === 0).length
+      checks.push({
+        level: withIncidents >= (finished.length - scoreless) * 0.8 ? 'ok' : 'warn',
+        text: `Mål og kort: ${withIncidents} af ${finished.length} spillede kampe har målscorere/kort${withIncidents ? '' : ' – kilden har dem ikke for denne liga'}`,
+        items: finished
+          .filter((f) => !f.incidents?.length && f.score[0] + f.score[1] > 0)
+          .slice(-5)
+          .map((f) => `Mangler: ${label(f)} ${f.score[0]}-${f.score[1]} (${sourceOf(f)})`),
+      })
+    }
+
     // Fixtures ahead: without them the source has probably stopped
     const next = own.find((f) => f.kickoff.getTime() > now)
     checks.push(

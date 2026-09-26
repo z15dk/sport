@@ -80,7 +80,7 @@ function apply() {
     for (const [id, events] of Object.entries(leagues)) {
       leagues[id] = events.map((e) => {
         if (e.id.startsWith('db-')) return e
-        const x = db.extrasByMatch.get(matchKey(e.kickoff, e.home, e.away))
+        const x = db.extrasByMatch.get(matchKey(e.kickoff, e.home, e.away)) ?? looseExtras(db.extrasList, e)
         return x ? { ...e, incidents: e.incidents ?? x.incidents, ht: e.ht ?? x.ht, spectators: e.spectators ?? x.spectators } : e
       })
     }
@@ -135,6 +135,13 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
     }
     leagues[id] = events.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   }
+}
+
+/** The database's goals and cards for a match whose team names are written differently: within a day, both teams alike, only one candidate */
+function looseExtras(list: NonNullable<ReturnType<typeof databaseSeason>>['extrasList'], e: RealEvent) {
+  const t = Date.parse(e.kickoff)
+  const found = list.filter((x) => Math.abs(Date.parse(x.kickoff) - t) < 30 * 3_600_000 && alike([x.home], e.home) && alike([x.away], e.away))
+  return found.length === 1 ? found[0].extras : undefined
 }
 
 function setBase(data: RealData) {
