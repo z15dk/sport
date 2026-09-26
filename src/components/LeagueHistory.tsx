@@ -14,7 +14,11 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
   const seasonRow = (s: History['seasons'][number]) => (
     <tr key={s.season}>
       <td>{s.season}</td>
-      {[0, 1, 2].map((i) => (
+      {s.incomplete ? (
+        <td colSpan={3} className="history__missing-cell">
+          Ufuldstændig i vores kampdatabase ({s.matches} af {s.teams * (s.teams - 1)} kampe)
+        </td>
+      ) : [0, 1, 2].map((i) => (
         <td key={i}>
           {s.top[i] ? (
             <>

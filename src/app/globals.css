@@ -1215,3 +1215,6 @@ h2.league__name { margin: 0; }
 .featured__nav .featured__dot.is-active { background: var(--ink); width: 20px; border-radius: 4px; }
 @media (prefers-reduced-motion: reduce) { .featured__teams { animation: none; } }
 .history__sub { padding: 14px 18px 4px; margin: 0; }
+.history__missing td { color: var(--ink-3); font-style: italic; }
+.history__partial { font-family: var(--body, inherit); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); }
+.history__missing-cell { color: var(--ink-3); font-style: italic; }

@@ -6,11 +6,17 @@ const SHOWN = 10
 function SeasonRows({ seasons }: { seasons: SeasonRecord[] }) {
   return (
     <>
-      {seasons.map((s) => (
+      {seasons.map((s) =>
+        s.missing ? (
+          <tr key={`${s.season}-missing`} className="history__missing">
+            <td>{s.season}</td>
+            <td colSpan={8}>Ingen kampe i vores kampdatabase</td>
+          </tr>
+        ) : (
         <tr key={`${s.season}-${s.tournament}`}>
           <td>{s.season}</td>
           <td>{s.tournament}</td>
-          <td className="num pos">{s.position ? `${s.position}.` : '–'}</td>
+          <td className="num pos">{s.position ? `${s.position}.` : s.incomplete ? <span className="history__partial" title="Vores kampdatabase mangler nogle af sæsonens kampe">ufuldst.</span> : '–'}</td>
           <td className="num">{s.played}</td>
           <td className="num">{s.won}</td>
           <td className="num">{s.drawn}</td>
@@ -22,7 +28,8 @@ function SeasonRows({ seasons }: { seasons: SeasonRecord[] }) {
             <strong>{s.points}</strong>
           </td>
         </tr>
-      ))}
+        ),
+      )}
     </>
   )
 }
@@ -81,7 +88,10 @@ export function ClubHistory({ name, history }: { name: string; history: History 
           </div>
         </details>
       )}
-      <p className="muted small history__note">Rigtige resultater fra vores kampdatabase. Placering er beregnet ud fra kampene.</p>
+      <p className="muted small history__note">
+        Rigtige resultater fra vores kampdatabase. Placering er beregnet ud fra kampene og vises kun, når databasen har hele sæsonen (&quot;ufuldst.&quot;:
+        der mangler kampe). Sæsoner uden kampe i databasen står som huller – klubben kan godt have spillet i en række, vi ikke har data for.
+      </p>
     </section>
   )
 }

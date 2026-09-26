@@ -212,6 +212,10 @@ export interface SeasonRecord {
   season: string
   tournament: string
   position?: number
+  /** The database lacks some of the season's matches (no position then) */
+  incomplete?: boolean
+  /** A season between others with no matches in the database */
+  missing?: boolean
   teams: number
   played: number
   won: number
@@ -242,6 +246,17 @@ function tally(rec: Pick<SeasonRecord, 'played' | 'won' | 'drawn' | 'lost' | 'go
 const empty = () => ({ played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 })
 
 /** Final league position of every team in one tournament season, by points, goal difference and goals */
+/** Most matches any team has in a tournament's season in the database */
+function mostPlayed(d: Loaded, tournamentId: number, seasonId: number): number {
+  const played = new Map<number, number>()
+  for (const m of d.matches) {
+    if (m.tournamentId !== tournamentId || m.seasonId !== seasonId) continue
+    played.set(m.homeId, (played.get(m.homeId) ?? 0) + 1)
+    played.set(m.awayId, (played.get(m.awayId) ?? 0) + 1)
+  }
+  return Math.max(0, ...played.values())
+}
+
 function finalTable(d: Loaded, tournamentId: number, seasonId: number): number[] {
   const rows = new Map<number, ReturnType<typeof empty> & { id: number; points: number }>()
   const row = (id: number) => rows.get(id) ?? rows.set(id, { id, points: 0, ...empty() }).get(id)!
@@ -301,12 +316,25 @@ export function clubHistory(club: Club): ClubHistory | undefined {
     s.points += f > a ? 3 : f === a ? 1 : 0
     if (margin(m) > 0 && (!biggest || margin(m) > margin(biggest))) biggest = m
   }
-  const list = [...seasons.values()].map(({ tournamentId, seasonId, dbId, ...s }) => {
+  const list: SeasonRecord[] = [...seasons.values()].map(({ tournamentId, seasonId, dbId, ...s }) => {
     const table = finalTable(d, tournamentId, seasonId)
     // A position only makes sense for league play, where everyone plays everyone
     const league = s.played >= table.length - 1 && table.length >= 6
-    return { ...s, teams: table.length, position: league ? table.indexOf(dbId) + 1 : undefined }
+    // Fewer matches than the others, or not even a full double round: the database lacks matches
+    const incomplete = league && (s.played < mostPlayed(d, tournamentId, seasonId) || s.played < 2 * (table.length - 1))
+    return { ...s, teams: table.length, incomplete, position: league && !incomplete ? table.indexOf(dbId) + 1 : undefined }
   })
+  // Seasons in between with no matches at all: shown, so a gap in the data doesn't read as a gap in the club's history
+  const split = list.map((x) => /^(\d{4})\/(\d{2}|\d{4})$/.exec(x.season)).filter((m): m is RegExpExecArray => !!m)
+  if (split.length) {
+    const years = split.map((m) => Number(m[1]))
+    const short = split[0][2].length === 2
+    const have = new Set(years)
+    for (let y = Math.min(...years) + 1; y < Math.max(...years); y++) {
+      if (!have.has(y))
+        list.push({ season: `${y}/${short ? String(y + 1).slice(2) : y + 1}`, tournament: '', teams: 0, points: 0, missing: true, ...empty() })
+    }
+  }
   list.sort((x, y) => y.season.localeCompare(x.season) || (x.position ? 0 : 1) - (y.position ? 0 : 1))
   const history: ClubHistory = {
     total,
@@ -493,6 +521,8 @@ export interface LeagueSeason {
   matches: number
   teams: number
   goalsPerMatch: number
+  /** Fewer matches than a full double round: the top three are left out */
+  incomplete: boolean
   /** The top three by points over all the season's matches in the database */
   top: { name: string; slug?: string; points: number; played: number }[]
 }
@@ -551,6 +581,7 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
         matches: list.length,
         teams: table.size,
         goalsPerMatch: goals / list.length,
+        incomplete: list.length < table.size * (table.size - 1),
         top: ranked.slice(0, 3).map((r) => ({ name: r.name, slug: r.slug, points: r.points, played: r.played })),
       })
     }
