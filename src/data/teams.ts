@@ -4,7 +4,7 @@ import { seasonClubs } from './season'
 import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
 import { externalLeagueKey } from './external'
-import { cupOfGame, ourClubInCup } from './cups'
+import { ourClubByName, ourClubIn } from './cups'
 import { BASELINES } from './baselines'
 import { alike, nameWords } from './aliases'
 import { slugify } from '../lib/slug'
@@ -66,10 +66,9 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   for (const g of getRealData()?.external ?? []) {
     if (divisionOfGame(g)) continue
     const leagueSlug = externalLeagueKey(g.league)
-    const cup = cupOfGame(g)
     for (const side of [g.home, g.away]) {
-      // Our own clubs in a cup keep their own page
-      if (cup && ourClubInCup(side.name, cup)) continue
+      // Our own clubs in a cup or the Champions League keep their own page, as does a team with exactly one of our clubs' names
+      if (ourClubIn(g, side.name) || ourClubByName(side.name, g.sport)) continue
       // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
       const known = byLeague(leagueSlug).filter((t) => (t.names ?? [t.name]).some((n) => n === side.name) || alike([clubPart(t.name)], clubPart(side.name)))
       if (known.length === 1) {
@@ -118,10 +117,13 @@ export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 export const teamByName = (name: string) => teams().byName.get(name)
 
 /** A team in one of API-Sports' leagues, by a name from that league's data or table */
-export function teamInLeague(leagueSlug: string, name: string): TeamEntry | undefined {
+export function teamInLeague(leagueSlug: string, name: string, sport?: SportId): TeamEntry | undefined {
   const inLeague = teams().list.filter((t) => t.leagueSlug === leagueSlug)
+  // One of our clubs by its exact name ("Real Madrid" in the Champions League)
+  const ours = sport && ourClubByName(name, sport)
   return (
     inLeague.find((t) => (t.names ?? [t.name]).includes(name)) ??
+    (ours ? teamBySlug(ours.club.slug) : undefined) ??
     (() => {
       const loose = inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name)))
       return loose.length === 1 ? loose[0] : undefined

@@ -143,7 +143,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                           <td>
                             {(() => {
                               // Linked to the team's own page in this league (not a men's club of the same name)
-                              const team = teamInLeague(league.key, r.name)
+                              const team = teamInLeague(league.key, r.name, league.sport)
                               return (
                                 <span className="table__club">
                                   <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
