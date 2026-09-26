@@ -474,7 +474,9 @@ function onPaidPlan(s: ApiState) {
 }
 
 /** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
-const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, Math.floor((s!.limit ?? 100) * 0.3)) : 30)
+const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
+/** Requests a paid plan always keeps for the live scores: everything else may use the rest */
+const PAID_RESERVE = 300
 
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
@@ -671,7 +673,7 @@ function seasonDue(api: Api, now: number): { league: string } | undefined {
   const s = mem.store[api]
   if (!s || !isPaid(s) || api !== 'football') return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 200) return undefined
+  if (remaining <= PAID_RESERVE) return undefined
   learnLeagueIds(api)
   const wanted = new Set<string>()
   for (const d of DIVISIONS) {
@@ -762,7 +764,7 @@ async function tick() {
     // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
     {
       const s = mem.store.football
-      for (let n = 10; s && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+      for (let n = 20; s && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const ids = eventsDue(s)
         if (!ids.length) break
         await fetchEvents('football', ids)
@@ -770,12 +772,12 @@ async function tick() {
         await sleep(300)
       }
     }
-    // Goals and cards for the past seasons in the statistics bank (paid plans), 20 matches a request, while plenty is left
+    // Goals and cards for the past seasons in the statistics bank (paid plans), 20 matches a request, down to the reserve
     {
       const s = mem.store.football
-      for (let n = 20; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+      for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
-        if (remaining < (s.limit ?? 0) * 0.4) break
+        if (remaining < PAID_RESERVE) break
         const ids = archiveMissingEvents(20)
         if (!ids.length) break
         const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
@@ -1124,7 +1126,7 @@ const eventsKey = (g: ExternalGame) => `${g.state}|${g.homeScore ?? '-'}-${g.awa
  */
 function eventsDue(s: ApiState): string[] {
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (!isPaid(s) || remaining <= 200) return []
+  if (!isPaid(s) || remaining <= PAID_RESERVE) return []
   const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
   const due = new Set<string>()
   // Live games first, then the newest finished ones
