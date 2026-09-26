@@ -1,7 +1,7 @@
 import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
-import { SEARCH_NAMES, normalize } from './aliases'
+import { SEARCH_NAMES, alike, normalize } from './aliases'
 import { DIVISIONS, renameClubs, sportOf, type Club, type Division } from './leagues'
 import { hashString } from './fixtures'
 import { GAME_LENGTH_MIN, type Extra } from './scoring'
@@ -58,6 +58,9 @@ function clubResolver(div: Division, names: Record<string, string>) {
       byName.get(key) ??
       [...byName.entries()].find(([n]) => ` ${key} `.includes(` ${n} `) || ` ${n} `.includes(` ${key} `))?.[1]
     if (found) return found
+    // Written differently ("HV 71", "Djurgarden", "Linköpings HC"): one of the league's clubs alone matches loosely
+    const loose = [...new Set(div.clubs.filter((c) => alike([c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n), name)))]
+    if (loose.length === 1) return loose[0]
     if (!unknown.has(name)) {
       // A club missing from our register (e.g. just promoted) still gets a page
       let slug = slugify(name)
@@ -164,6 +167,8 @@ function realState(f: Fixture, now: number): { state: MatchState; statusLabel?: 
   const r = f.real
   if (r.state === 'finished') return { state: 'finished', statusLabel: 'Slut', hasScore: r.hasScore }
   if (r.state === 'postponed') return { state: 'postponed', statusLabel: 'Udsat', hasScore: false }
+  // Hours after it should have ended and still no result: not live, and no score we can vouch for
+  if (now > f.kickoff.getTime() + 5 * 3_600_000) return { state: 'postponed', statusLabel: 'Intet resultat', hasScore: false }
   if (r.state === 'live') {
     const p = r.progress ?? ''
     return { state: 'live', statusLabel: p === 'HT' ? 'Pause' : /^\d+$/.test(p) ? `${p}'` : 'Live', hasScore: r.hasScore }

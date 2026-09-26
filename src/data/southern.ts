@@ -38,6 +38,9 @@ export const SOUTHERN: Division[] = [
       ca('es-elc', 'Elche', 'Elche', 'Elche', '#05642c', '#ffffff'),
       ca('es-lev', 'Levante', 'Levante', 'Valencia', '#b4053f', '#1d3d8f'),
       ca('es-ovi', 'Real Oviedo', 'Real Oviedo', 'Oviedo', '#003c80', '#ffffff'),
+      ca('es-mal', 'Málaga CF', 'Málaga', 'Málaga', '#5bc2e7', '#ffffff'),
+      ca('es-rac', 'Racing de Santander', 'Racing de Santander', 'Santander', '#00843d', '#ffffff'),
+      ca('es-dep', 'Deportivo de La Coruña', 'Deportivo de A Coruña', 'A Coruña', '#0055a4', '#ffffff'),
     ],
   },
   {

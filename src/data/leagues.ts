@@ -120,6 +120,7 @@ const DENMARK: Division[] = [
       c('rif', 'Ringsted IF', 'Ringsted', '#0b2a7a'),
       c('asa', 'ASA Aarhus', 'Aarhus', '#0057b8'),
       c('vej', 'Vejgaard BK', 'Aalborg', '#00843d', '#ffffff', true),
+      c('naes', 'Næsby BK', 'Odense', '#5c6157'),
     ],
   },
 ]

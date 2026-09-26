@@ -36,6 +36,8 @@ type JobState = {
   missing?: string[]
   /** What each division was matched to at TheSportsDB */
   lookups?: Record<string, string>
+  /** When each stale event was last looked up again */
+  lookedUp?: Map<string, number>
 }
 // On globalThis: the job (started from instrumentation) and the pages load separate copies of this module
 const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData; __scorelineMergedKey?: string }
@@ -345,6 +347,27 @@ async function runHot() {
       leagues[divisionId] = sortEvents([...leagues[divisionId].filter((e) => !ids.has(e.id)), ...fresh])
       changed = true
     }
+  }
+  // Matches that should have ended hours ago without a result: ask for the event again
+  // (TheSportsDB's league lists can keep an old state), a few per run, newest first
+  const lookedUp = (state.lookedUp ??= new Map())
+  const stale = Object.entries(leagues)
+    .flatMap(([divisionId, events]) => events.map((e) => ({ divisionId, e })))
+    .filter(({ e }) => {
+      const t = Date.parse(e.kickoff)
+      return e.state !== 'finished' && e.state !== 'postponed' && t < now - 5 * 3_600_000 && t > now - 30 * 86_400_000 && /^\d+$/.test(e.id)
+    })
+    .sort((a, b) => b.e.kickoff.localeCompare(a.e.kickoff))
+    .filter(({ e }) => now - (lookedUp.get(e.id) ?? 0) > 6 * 3_600_000)
+    .slice(0, 6)
+  for (const { divisionId, e } of stale) {
+    lookedUp.set(e.id, now)
+    const { data, error } = await tsdb<{ events: ApiEvent[] | null }>(`lookupevent.php?id=${e.id}`)
+    state.requests++
+    const fresh = !error && data?.events?.[0] ? toReal(data.events[0]) : undefined
+    if (!fresh || fresh.id !== e.id || fresh.state === e.state) continue
+    leagues[divisionId] = leagues[divisionId].map((x) => (x.id === e.id ? { ...fresh, round: x.round } : x))
+    changed = true
   }
   if (changed) publish(leagues)
   state.lastHot = now
