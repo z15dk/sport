@@ -2,9 +2,16 @@ import Link from 'next/link'
 import type { LeagueHistory as History } from '../lib/history'
 import { paths } from '../lib/site'
 import { formatShortYear } from '../lib/time'
+import { TeamBadge } from './TeamBadge'
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
-const Club = ({ name, slug }: { name: string; slug?: string }) => (slug ? <Link href={paths.club(slug)}>{name}</Link> : <>{name}</>)
+/** A club with its logo, linked to its page when it has one */
+const Club = ({ name, slug }: { name: string; slug?: string }) => (
+  <span className="table__club">
+    <TeamBadge link={false} name={name} size={20} />
+    {slug ? <Link href={paths.club(slug)}>{name}</Link> : name}
+  </span>
+)
 
 /** A league's finished seasons from the match database: top three per season, all-time table and records */
 export function LeagueHistory({ name, history }: { name: string; history: History }) {
