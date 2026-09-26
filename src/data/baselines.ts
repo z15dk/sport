@@ -91,6 +91,12 @@ const SAME_LEAGUE: Record<string, string> = {
   'x-denmark-kvindeliga': 'x-denmark-a-liga',
 }
 
+/** A league's key and the other keys API-Sports lists it under */
+export function sameLeagueKeys(key: string): string[] {
+  const main = SAME_LEAGUE[key] ?? key
+  return [key, ...[main, ...Object.keys(SAME_LEAGUE).filter((k) => SAME_LEAGUE[k] === main)].filter((k) => k !== key)]
+}
+
 /** The starting table for a league's page, by its key */
 export const BASELINES: Record<string, Baseline> = {
   ...TABLES,

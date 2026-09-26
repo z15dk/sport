@@ -15,6 +15,7 @@ import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
+import { sameLeagueKeys } from '../data/baselines'
 import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
@@ -103,8 +104,9 @@ function apply() {
     external: external.games.map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
-      const name = leagueNames.names[key]
-      const logo = customLogoUrl(`liga-${key}`)
+      const keys = sameLeagueKeys(key)
+      const name = keys.map((k) => leagueNames.names[k]).find(Boolean)
+      const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: name ? g.league.name : undefined } } : g
     }),
     leagueNames: leagueNames.names,

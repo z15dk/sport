@@ -22,7 +22,9 @@ import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
 import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable } from '../../../lib/history'
-import { BASELINES } from '../../../data/baselines'
+import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
+import { customLogoUrl } from '../../../lib/customLogos'
+import { alike } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { externalLeagueKey, externalToMatch } from '../../../data/external'
 import { loadRealData } from '../../../lib/realdata'
@@ -41,7 +43,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (slug.startsWith('x-')) {
     const league = knownLeague(slug)
     if (!league) return { title: 'Turneringen findes ikke' }
-    const name = loadRealData()?.leagueNames?.[slug] ?? league.name
+    const names = loadRealData()?.leagueNames
+    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.name
     return {
       title: `${name} – stilling, resultater og kampprogram`,
       description: `Stillingen i ${name}, seneste resultater og kommende kampe.`,
@@ -72,24 +75,39 @@ async function externalLeaguePage(slug: string) {
   if (!found) notFound()
   const now = Date.now()
   const real = loadRealData() ?? getRealData()
-  const league = { ...found, name: real?.leagueNames?.[slug] ?? found.name }
+  const keys = sameLeagueKeys(slug)
+  const league = {
+    ...found,
+    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? found.name,
+    logo: keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean) ?? found.logo,
+  }
   const fromApi = found.id ? await apiLeagueTable(found) : undefined
   const baseline = BASELINES[slug]
   const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
+  // A team's logo from API-Sports' games, also when the table uses another name ("F.C. København" is "FC Copenhagen W")
+  const logos = teamLogos()
+  const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
+  const logoFor = (name: string) => {
+    const names = [name, ...(baseline?.rows.find((r) => r.name === name)?.aliases ?? [])]
+    for (const n of names) if (logos.has(n)) return logos.get(n)
+    const plain = names.map((n) => women(n).toLowerCase())
+    const found = [...logos.keys()].filter((k) => plain.includes(women(k).toLowerCase()) || alike(names.map(women), women(k)))
+    return logos.get(found.find((k) => women(k) !== k) ?? found[0] ?? '')
+  }
   const upcoming = (real?.external ?? [])
-    .filter((g) => externalLeagueKey(g.league) === slug && g.state !== 'finished')
+    .filter((g) => keys.includes(externalLeagueKey(g.league)) && g.state !== 'finished')
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
     .slice(0, 12)
     .map(externalToMatch)
   return (
     <ExternalLeaguePage
       league={league}
-      groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? teamLogos().get(r.name) }))]}
+      groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))]}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
       since={own.since}
-      recent={own.recent}
+      recent={own.recent.map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
       upcoming={upcoming}
       now={now}
     />

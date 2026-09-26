@@ -724,6 +724,10 @@ export function archiveLeagueTable(
   const keyOf = (name: string) => {
     const key = normalize(name)
     if (rows.has(key) || !aliases.size) return key
+    // The same name without "W"/"Q" first ("ASA Aarhus W" is "ASA Aarhus", not also "AGF Aarhus")
+    const plain = normalize(women(name))
+    const exact = [...aliases.entries()].find(([, names]) => names.some((n) => normalize(women(n)) === plain))
+    if (exact) return exact[0]
     const found = [...aliases.entries()].filter(([, names]) => alike(names.map(women), women(name)))
     return found.length === 1 ? found[0][0] : key
   }

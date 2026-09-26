@@ -175,13 +175,13 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                     <span className="h2h__meta">{formatShortYear(m.date)}</span>
                     <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
                       {m.home}
-                      <TeamBadge name={m.home} size={22} />
+                      <TeamBadge name={m.home} src={m.homeLogo} size={22} />
                     </span>
                     <span className="h2h__score">
                       {m.homeScore}–{m.awayScore}
                     </span>
                     <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
-                      <TeamBadge name={m.away} size={22} />
+                      <TeamBadge name={m.away} src={m.awayLogo} size={22} />
                       {m.away}
                     </span>
                   </li>

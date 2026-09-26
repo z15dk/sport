@@ -114,7 +114,8 @@ function MatchBody({
   const channels = channelsFor(match)
   // Latest results and the table: from API-Sports for their games, otherwise from our own season
   const form = extra?.form ?? seasonForm(match)
-  const table = extra?.table ?? seasonTable(match)
+  // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
+  const table = (extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table
 
   return (
     <article className="match-page">
