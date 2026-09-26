@@ -41,6 +41,9 @@ interface DbMatch {
 
 interface Loaded {
   mtime: number
+  /** football.db's modification time, and when the data was read (the archive is re-read at most every 15 minutes) */
+  dbTime?: number
+  readAt?: number
   matches: DbMatch[]
   /** Database team id -> our club */
   clubOf: Map<number, Club>
@@ -192,9 +195,11 @@ function data(): Loaded | undefined {
       loaded = undefined
       return undefined
     }
-    // Re-read when either football.db or the archive has changed
-    const mtime = (hasDb ? statSync(file).mtimeMs : 0) + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
-    if (!loaded || loaded.mtime !== mtime) loaded = read(hasDb ? file : undefined, mtime)
+    // Re-read when football.db has changed, or the archive (which changes all the time) at most every 15 minutes
+    const dbTime = hasDb ? statSync(file).mtimeMs : 0
+    const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
+    const stale = !loaded || loaded.dbTime !== dbTime || (loaded.mtime !== mtime && now - (loaded.readAt ?? 0) > 15 * 60_000)
+    if (stale) loaded = { ...read(hasDb ? file : undefined, mtime), dbTime, readAt: now }
     lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
     lastError = (err as Error).message

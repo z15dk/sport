@@ -176,10 +176,17 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
     const days = [...events.map((e) => e.kickoff), ...games.map((g) => g.kickoff)].map((k) => Date.parse(k)).sort((a, b) => a - b)
     let start = days[0] ?? 0
     for (let i = 1; i < days.length; i++) if (days[i] - days[i - 1] > 45 * 86_400_000) start = days[i]
+    // By day, so each game is only compared with the same day's matches
+    const byDay = new Map<string, number[]>()
+    events.forEach((e, i) => {
+      const d = isoDate(new Date(e.kickoff))
+      byDay.set(d, [...(byDay.get(d) ?? []), i])
+    })
+    const knownNames = new Set(events.flatMap((e) => [e.home, e.away]))
     for (const g of games) {
       if (Date.parse(g.kickoff) < start) continue
       const day = isoDate(new Date(g.kickoff))
-      const i = events.findIndex((e) => isoDate(new Date(e.kickoff)) === day && alike([e.home], g.home.name) && alike([e.away], g.away.name))
+      const i = (byDay.get(day) ?? []).find((j) => alike([events[j].home], g.home.name) && alike([events[j].away], g.away.name)) ?? -1
       if (i >= 0) {
         const e = events[i]
         if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
@@ -188,12 +195,13 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
         continue
       }
       // Team names as the league's other matches write them, so a club doesn't appear twice
-      const known = [...new Set(events.flatMap((e) => [e.home, e.away]))]
       const nameOf = (name: string) => {
-        const same = known.filter((n) => alike([n], name))
+        const same = [...knownNames].filter((n) => alike([n], name))
         return same.length === 1 ? same[0] : name
       }
-      events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue, incidents: g.incidents?.length ? g.incidents : undefined, ht: g.ht })
+      const added = events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue, incidents: g.incidents?.length ? g.incidents : undefined, ht: g.ht })
+      byDay.set(day, [...(byDay.get(day) ?? []), added - 1])
+      knownNames.add(events[added - 1].home).add(events[added - 1].away)
     }
     leagues[id] = events.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   }

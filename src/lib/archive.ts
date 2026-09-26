@@ -1,5 +1,5 @@
 import 'server-only'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf } from '../data/leagues'
 import { getRealData, type RealEvent } from '../data/real'
@@ -189,8 +189,31 @@ export interface ArchivedMatch {
   spectators?: number
 }
 
-/** Every archived match, newest first */
+/**
+ * Every archived match, newest first. Kept in memory and read again at most
+ * every 5 minutes (the archive grows all the time; pages must not read the
+ * whole file on every visit).
+ */
+const archiveHolder = globalThis as typeof globalThis & { __scorelineArchiveRead?: { at: number; mtime: number; rows: ArchivedMatch[] } }
 export function readArchive(): ArchivedMatch[] {
+  const cached = archiveHolder.__scorelineArchiveRead
+  if (cached && Date.now() - cached.at < 5 * 60_000) return cached.rows
+  let mtime = 0
+  try {
+    mtime = statSync(archiveFile()).mtimeMs
+  } catch {
+    mtime = 0
+  }
+  if (cached && cached.mtime === mtime) {
+    cached.at = Date.now()
+    return cached.rows
+  }
+  const rows = readArchiveFile()
+  archiveHolder.__scorelineArchiveRead = { at: Date.now(), mtime, rows }
+  return rows
+}
+
+function readArchiveFile(): ArchivedMatch[] {
   const lib = sqlite()
   if (!lib) return []
   let db: Db
