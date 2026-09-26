@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
-import { externalLeagueKey, type ExternalGame } from '../data/external'
+import { danishRound, externalLeagueKey, type ExternalGame } from '../data/external'
 import { estimateXg, type FormGame, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -978,14 +978,6 @@ function readTable(response: Raw[]): TableRow[][] {
 }
 
 /** API-Sports' round names in Danish ("Regular Season - 7" -> "7. runde") */
-function roundLabel(round: string) {
-  const m = /^(.*?)\s*-\s*(\d+)$/.exec(round)
-  const stage: Record<string, string> = { 'Regular Season': '', 'League Stage': 'Ligafase, ', 'Group Stage': 'Gruppespil, ', Qualifying: 'Kvalifikation, ' }
-  if (/^\d+$/.test(round)) return `${round}. runde`
-  if (m && m[1] in stage) return `${stage[m[1]]}${m[2]}. runde`
-  const words: Record<string, string> = { 'Round of 16': 'Ottendedelsfinale', 'Quarter-finals': 'Kvartfinale', 'Semi-finals': 'Semifinale', Final: 'Finale' }
-  return words[round] ?? round
-}
 
 /**
  * The match page's extras for an API-Sports game: facts from the game itself,
@@ -995,7 +987,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const api = apiOf(game)
   const def = APIS[api]
   const facts: MatchExtra['facts'] = []
-  if (game.round) facts.push({ label: 'Runde', value: roundLabel(game.round) })
+  if (game.round) facts.push({ label: 'Runde', value: danishRound(game.round)! })
   if (game.stadium || game.venue) facts.push({ label: 'Spillested', value: [game.stadium, game.venue].filter((x, i, a) => x && a.indexOf(x) === i).join(', ') })
   if (game.referee) facts.push({ label: 'Dommer', value: game.referee.replace(/,.*$/, '') })
   if (game.ht) facts.push({ label: 'Pausestilling', value: `${game.ht[0]}–${game.ht[1]}` })

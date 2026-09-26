@@ -35,6 +35,36 @@ export interface ExternalGame {
 }
 
 /**
+ * A round's name in Danish: "3rd Round" and "Round 3" -> "3. runde",
+ * "Regular Season - 9" -> "9. runde", "Round of 16" and "1/8-finals" ->
+ * "Ottendedelsfinale", "Quarter-finals" -> "Kvartfinale" and so on.
+ */
+export function danishRound(round?: string | number): string | undefined {
+  if (round === undefined || round === null || round === '') return undefined
+  const r = String(round).trim()
+  if (/^\d+$/.test(r)) return `${r}. runde`
+  const stage = /^(.*?)\s*-\s*(\d+)$/.exec(r)
+  const stages: Record<string, string> = { 'regular season': '', 'league stage': 'Ligafase, ', 'group stage': 'Gruppespil, ', qualifying: 'Kvalifikation, ' }
+  if (stage && stage[1].toLowerCase() in stages) return `${stages[stage[1].toLowerCase()]}${stage[2]}. runde`
+  const lower = r.toLowerCase()
+  const finals: [RegExp, string][] = [
+    [/semi/, 'Semifinale'],
+    [/quarter|1\/4|round of 8\b/, 'Kvartfinale'],
+    [/1\/8|8th final|round of 16/, 'Ottendedelsfinale'],
+    [/1\/16|16th final|round of 32/, '1/16-finale'],
+    [/1\/32|round of 64/, '1/32-finale'],
+    [/3rd place|third place|bronze/, 'Bronzekamp'],
+  ]
+  for (const [re, name] of finals) if (re.test(lower)) return name
+  if (/^finals?$/.test(lower)) return 'Finale'
+  if (/preliminary/.test(lower)) return 'Indledende runde'
+  const n = /(\d+)(?:st|nd|rd|th)?\s*round|round\s*(\d+)/.exec(lower)
+  if (n) return `${n[1] ?? n[2]}. runde`
+  if (/qualif/.test(lower)) return 'Kvalifikation'
+  return r
+}
+
+/**
  * The key an API-Sports league (not one of ours) goes by: its page
  * (/turnering/<key>), its logo and its name in the admin pages. From the
  * original name, so a rename keeps the key.

@@ -26,7 +26,7 @@ import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { alike } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
-import { externalLeagueKey } from '../../../data/external'
+import { danishRound, externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
@@ -114,7 +114,7 @@ async function externalLeaguePage(slug: string) {
   const played = cup ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
   const rounds: { name: string; matches: Match[] }[] = []
   for (const g of played) {
-    const name = roundLabel(g.round)
+    const name = danishRound(g.round) ?? 'Øvrige kampe'
     const round = rounds.find((r) => r.name === name) ?? (rounds.push({ name, matches: [] }), rounds.at(-1)!)
     round.matches.push(externalMatch(g))
   }
@@ -248,20 +248,4 @@ export default async function LeaguePage({ params }: { params: Params }) {
       </div>
     </div>
   )
-}
-
-/** API-Sports' round names in Danish ("Quarter-finals" -> "Kvartfinaler", "3rd Round" -> "3. runde") */
-function roundLabel(round?: string): string {
-  if (!round) return 'Øvrige kampe'
-  const r = round.toLowerCase()
-  if (/semi/.test(r)) return 'Semifinaler'
-  if (/quarter/.test(r)) return 'Kvartfinaler'
-  const part = r.match(/1\/(\d+)/)?.[1]
-  if (part) return `1/${part}-finaler`
-  const last = r.match(/round of (\d+)/)?.[1]
-  if (last) return `Sidste ${last}`
-  if (/final/.test(r) && !/\d/.test(r)) return 'Finale'
-  const n = r.match(/(\d+)/)?.[1]
-  if (n && /round|runde/.test(r)) return `${n}. runde`
-  return round
 }

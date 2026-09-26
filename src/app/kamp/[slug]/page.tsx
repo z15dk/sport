@@ -4,6 +4,7 @@ import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame } from '../../../data/cups'
+import { danishRound } from '../../../data/external'
 import { apiHeadToHead, apiMatchEvents, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
@@ -79,10 +80,12 @@ export default async function MatchPage({ params }: { params: Params }) {
   const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
   // A cup has rounds, not a table
   const cup = !!(external && cupOfGame(external))
-  const extra = fromApi && {
-    ...fromApi,
-    form: fromApi.form ?? saved?.form,
-    table: cup ? undefined : (fromApi.table ?? savedTable),
+  // Our match database's cup games: at least the round (API-Sports' games bring more facts)
+  const facts = fromApi ?? (external?.round ? { facts: [{ label: 'Runde', value: danishRound(external.round)! }] } : undefined)
+  const extra = facts && {
+    ...facts,
+    form: facts.form ?? saved?.form,
+    table: cup ? undefined : (facts.table ?? savedTable),
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
