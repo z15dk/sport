@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { realDataStatus } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
 import { archiveStatus } from '../../../lib/archive'
@@ -27,6 +28,9 @@ export default function DataStatusPage() {
     <div className="page">
       <div className="clubs prose">
         <h1 className="feed__title">Data-status</h1>
+        <p>
+          Er dataene rigtige? Se <Link href="/status/kvalitet">datakvalitet</Link>.
+        </p>
         <section className="panel prose__section">
           <h2 className="panel__title">Rigtige data fra TheSportsDB</h2>
           <p>
