@@ -129,6 +129,50 @@ function MatchBody({
   // A cup has rounds, not a table
   const table = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
 
+  // The goals and cards, beside the line-ups when there are statistics or line-ups, else in the facts column
+  const timeline = match.incidents && match.incidents.length > 0 ? (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Kampforløb</h2>
+              <ol className="timeline">
+                {match.incidents.map((e, n) => {
+                  const label =
+                    e.kind === 'goal' ? 'Mål' : e.kind === 'penalty' ? 'Mål (straffespark)' : e.kind === 'own-goal' ? 'Selvmål' : e.kind === 'red' ? 'Rødt kort' : 'Gult kort'
+                  const icon =
+                    e.kind === 'red' ? <span className="red-card" aria-hidden /> : e.kind === 'yellow' ? <span className="yellow-card" aria-hidden /> : <span aria-hidden>⚽</span>
+                  const body = (
+                    <span className={`timeline__event timeline__event--${e.side}`}>
+                      {e.side === 'home' ? (
+                        <>
+                          <span>
+                            {e.player ?? label}
+                            {e.player && <em> · {label}</em>}
+                          </span>
+                          {icon}
+                        </>
+                      ) : (
+                        <>
+                          {icon}
+                          <span>
+                            {e.player ?? label}
+                            {e.player && <em> · {label}</em>}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  )
+                  return (
+                    <li key={n} className="timeline__row">
+                      {e.side === 'home' ? body : <span />}
+                      <span className="timeline__minute">{e.minute}&apos;</span>
+                      {e.side === 'away' ? body : <span />}
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          ) : null
+  const pairRow = !!stats || lineups?.length === 2
+
   return (
     <article className="match-page">
       <nav className="crumbs" aria-label="Brødkrummer">
@@ -177,8 +221,10 @@ function MatchBody({
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
       <Updated at={now} />
 
-      {(stats || lineups?.length === 2) && (
-        <div className={`match-page__cols${stats && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
+      {pairRow && (
+        <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
+          {(stats || timeline) && (
+          <div className="match-page__col">
             {stats && (
               <section className="sheet__section">
                 <h2 className="sheet__title">Kampstatistik</h2>
@@ -203,6 +249,9 @@ function MatchBody({
               </section>
             )}
 
+            {timeline}
+          </div>
+          )}
             {lineups?.length === 2 && (
               <section className="sheet__section">
                 <h2 className="sheet__title">Opstillinger</h2>
@@ -258,47 +307,7 @@ function MatchBody({
             </dl>
           </section>
 
-          {match.incidents && match.incidents.length > 0 && (
-            <section className="sheet__section">
-              <h2 className="sheet__title">Kampforløb</h2>
-              <ol className="timeline">
-                {match.incidents.map((e, n) => {
-                  const label =
-                    e.kind === 'goal' ? 'Mål' : e.kind === 'penalty' ? 'Mål (straffespark)' : e.kind === 'own-goal' ? 'Selvmål' : e.kind === 'red' ? 'Rødt kort' : 'Gult kort'
-                  const icon =
-                    e.kind === 'red' ? <span className="red-card" aria-hidden /> : e.kind === 'yellow' ? <span className="yellow-card" aria-hidden /> : <span aria-hidden>⚽</span>
-                  const body = (
-                    <span className={`timeline__event timeline__event--${e.side}`}>
-                      {e.side === 'home' ? (
-                        <>
-                          <span>
-                            {e.player ?? label}
-                            {e.player && <em> · {label}</em>}
-                          </span>
-                          {icon}
-                        </>
-                      ) : (
-                        <>
-                          {icon}
-                          <span>
-                            {e.player ?? label}
-                            {e.player && <em> · {label}</em>}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  )
-                  return (
-                    <li key={n} className="timeline__row">
-                      {e.side === 'home' ? body : <span />}
-                      <span className="timeline__minute">{e.minute}&apos;</span>
-                      {e.side === 'away' ? body : <span />}
-                    </li>
-                  )
-                })}
-              </ol>
-            </section>
-          )}
+          {!pairRow && timeline}
 
           {table && table.rows.length > 1 && (
             <section className="sheet__section">
