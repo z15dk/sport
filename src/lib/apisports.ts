@@ -879,7 +879,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>> }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1258,6 +1258,78 @@ export function apiSportsLogoUrls(): string[] {
     for (const l of Object.values(s.leagues ?? {})) if (l.logo) urls.add(l.logo)
   }
   return [...urls]
+}
+
+// ---------------------------------------------------------------- every league API-Sports has
+
+export interface CatalogLeague {
+  id: string
+  name: string
+  /** "League" or "Cup" */
+  type: string
+  country: string
+  logo?: string
+  season?: number
+  /** What API-Sports has for the current season */
+  coverage: { events: boolean; lineups: boolean; statistics: boolean; players: boolean; standings: boolean; topScorers: boolean; odds: boolean }
+  /** Whether our job keeps its games (ours, a cup we follow, or let through by `keep`) */
+  followed: boolean
+  /** Our league, when it is one */
+  ours?: string
+}
+
+/** Every football league and cup API-Sports has this season, with what it covers (one request a day) */
+export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fetchedAt?: number; error?: string }> {
+  const api: Api = 'football'
+  const store = extrasStore()
+  const key = `${api}|catalog`
+  const entry = store.entries[key]
+  if (entry?.catalog && Date.now() - entry.fetchedAt < 24 * 3_600_000) return { leagues: entry.catalog, fetchedAt: entry.fetchedAt }
+  if (!keyFor(api)) return { leagues: entry?.catalog ?? [], fetchedAt: entry?.fetchedAt, error: 'Ingen API-Sports-nøgle på serveren' }
+  const { response, error } = await call(api, '/leagues?current=true')
+  if (error) return { leagues: entry?.catalog ?? [], fetchedAt: entry?.fetchedAt, error }
+  const leagues: CatalogLeague[] = (response ?? []).map((r) => {
+    const season = (r.seasons ?? []).find((x: Raw) => x.current) ?? r.seasons?.[0]
+    const c = season?.coverage ?? {}
+    const probe: ExternalGame = {
+      id: `${api}-0`,
+      sport: 'soccer',
+      league: { id: String(r.league?.id ?? ''), name: String(r.league?.name ?? ''), country: r.country?.name ?? undefined },
+      home: { name: '' },
+      away: { name: '' },
+      kickoff: new Date().toISOString(),
+      state: 'upcoming',
+    }
+    const ours = divisionOfGame(probe)?.d
+    return {
+      id: probe.league.id,
+      name: probe.league.name,
+      type: String(r.league?.type ?? ''),
+      country: String(r.country?.name ?? ''),
+      logo: realLogo(r.league?.logo ?? undefined),
+      season: season?.year != null ? Number(season.year) : undefined,
+      coverage: {
+        events: !!c.fixtures?.events,
+        lineups: !!c.fixtures?.lineups,
+        statistics: !!c.fixtures?.statistics_fixtures,
+        players: !!c.fixtures?.statistics_players,
+        standings: !!c.standings,
+        topScorers: !!c.top_scorers,
+        odds: !!c.odds,
+      },
+      followed: !!ours || !!cupOfGame(probe) || APIS[api].keep(probe),
+      ours: ours?.name,
+    }
+  })
+  store.entries[key] = { fetchedAt: Date.now(), catalog: leagues }
+  try {
+    mkdirSync(path.dirname(extrasFile()), { recursive: true })
+    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+    renameSync(`${extrasFile()}.tmp`, extrasFile())
+  } catch {
+    // kept in memory
+  }
+  return { leagues, fetchedAt: Date.now() }
 }
 
 // ---------------------------------------------------------------- match statistics and expected goals

@@ -8,6 +8,7 @@ import { isAdmin } from '../../../lib/admin'
 import { getBadges } from '../../../lib/badges'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { loadRealData } from '../../../lib/realdata'
+import { apiLeagueCatalog } from '../../../lib/apisports'
 import { DIVISIONS, externalLeagueKey, competitionLabel } from '../../../data/leagues'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { danishCountry } from '../../../data/countries'
@@ -33,6 +34,13 @@ export default async function AdminLeagues() {
     const key = externalLeagueKey({ name: original, country: g.league.country })
     if (!external.has(key)) external.set(key, { key, name: g.league.name, original, country: g.league.country, sport: g.sport, logo: g.league.logo })
   }
+  // Every football league API-Sports has, by country (Denmark first)
+  const catalog = await apiLeagueCatalog()
+  const countries = new Map<string, typeof catalog.leagues>()
+  for (const l of catalog.leagues) countries.set(l.country, [...(countries.get(l.country) ?? []), l])
+  const byCountry = [...countries.entries()]
+    .map(([c, list]) => [c, list.sort((a, b) => Number(b.followed) - Number(a.followed) || a.name.localeCompare(b.name, 'da'))] as const)
+    .sort(([a], [b]) => (a === 'Denmark' ? -1 : b === 'Denmark' ? 1 : danishCountry(a).localeCompare(danishCountry(b), 'da')))
   const others = [...external.values()].sort((a, b) => (a.country ?? '').localeCompare(b.country ?? '', 'da') || a.name.localeCompare(b.name, 'da'))
 
   return (
@@ -97,6 +105,57 @@ export default async function AdminLeagues() {
             })}
           </ul>
           {others.length === 0 && <p className="muted pad">Ingen ligaer fra API-Sports lige nu.</p>}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Alle fodboldligaer hos API-Sports</h2>
+          <p className="muted small pad">
+            {catalog.leagues.length} ligaer og pokaler med en aktuel sæson
+            {catalog.fetchedAt ? `, hentet ${new Date(catalog.fetchedAt).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })}` : ''}. &quot;Hentes&quot; betyder, at
+            vores job gemmer ligaens kampe. Mærkerne viser, hvad API-Sports har i denne sæson: mål og kort, opstillinger, kampstatistik, spillerstatistik,
+            stilling, topscorere og odds.
+            {catalog.error && ` Fejl: ${catalog.error}`}
+          </p>
+          {byCountry.map(([country, leagues]) => (
+            <details key={country} className="catalog" open={country === 'Denmark'}>
+              <summary>
+                {danishCountry(country)} <span className="muted">· {leagues.length} · {leagues.filter((l) => l.followed).length} hentes</span>
+              </summary>
+              <ul className="admin-list">
+                {leagues.map((l) => (
+                  <li key={l.id} className="admin-list__row catalog__row">
+                    <TeamBadge link={false} name={l.name} src={l.logo} size={32} label={competitionLabel(l.name)} />
+                    <span className="admin-list__name">
+                      {l.name}
+                      <em>
+                        {l.type === 'Cup' ? 'Pokal' : 'Liga'} · id {l.id}
+                        {l.season ? ` · sæson ${l.season}` : ''}
+                        {l.ours ? ` · vores ${l.ours}` : ''}
+                      </em>
+                    </span>
+                    <span className="catalog__coverage">
+                      {(
+                        [
+                          ['events', 'Mål/kort'],
+                          ['lineups', 'Opstillinger'],
+                          ['statistics', 'Kampstatistik'],
+                          ['players', 'Spillere'],
+                          ['standings', 'Stilling'],
+                          ['topScorers', 'Topscorere'],
+                          ['odds', 'Odds'],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <span key={k} className={`catalog__chip${l.coverage[k] ? ' is-on' : ''}`}>
+                          {label}
+                        </span>
+                      ))}
+                    </span>
+                    <span className={`admin-source admin-source--${l.followed ? 'upload' : 'forbogstaver'}`}>{l.followed ? 'Hentes' : 'Hentes ikke'}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
         </section>
       </div>
     </div>
