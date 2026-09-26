@@ -29,10 +29,12 @@ interface Props {
   now: number
   /** The starting table our own table builds on, when there is one */
   baseline?: Baseline
+  /** A cup: its played rounds, newest first (shown instead of a table) */
+  rounds?: { name: string; matches: Match[] }[]
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -66,7 +68,15 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             </span>
           </h1>
         </div>
-        {leader && (
+        {rounds && (
+          <p className="lead">
+            {rounds.length
+              ? `${league.name}: ${rounds.reduce((n, r) => n + r.matches.length, 0)} kampe spillet, senest ${rounds[0].name.toLowerCase()}.`
+              : `${league.name}: resultater og kommende kampe.`}
+            {upcoming[0] && ` Næste kamp: ${upcoming[0].home.name} – ${upcoming[0].away.name}.`}
+          </p>
+        )}
+        {!rounds && leader && (
           <p className="lead">
             {leader.name} fører {league.name} efter {leader.played} kampe
             {hasPoints ? ` med ${leader.points} point` : ` med ${leader.won} sejre`}.
@@ -74,98 +84,103 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         )}
         <Updated at={now} />
 
-        <section className="panel table-panel">
-          <header className="table-panel__head">
-            <h2 className="panel__title">Stilling</h2>
-            {source === 'scoreline' && baseline ? (
-              <span className="tag">Efter {baseline.round + Math.max(0, ...groups.flat().map((r) => r.played - baseline.rows[0].played))}. runde</span>
-            ) : (
-              source === 'scoreline' && matches !== undefined && <span className="tag">{matches} kampe</span>
-            )}
-          </header>
-          {rows.length > 1 ? (
-            groups.map((group, gi) => (
-              <div key={gi} className="table-wrap">
-                <table className="table table--compact">
-                  <thead>
-                    <tr>
-                      <th className="num">#</th>
-                      <th>Hold</th>
-                      <th className="num">K</th>
-                      <th className="num">V</th>
-                      {hasDraws && <th className="num">U</th>}
-                      <th className="num">T</th>
-                      {hasScore && <th className="num hide-sm">Score</th>}
-                      {hasPoints && <th className="num">P</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.map((r) => (
-                      <tr key={`${r.rank}-${r.name}`} className={baseline?.splitAfter === r.rank ? 'is-split' : undefined}>
-                        <td className="num pos">{r.rank}</td>
-                        <td>
-                          {(() => {
-                            // Linked to the team's own page in this league (not a men's club of the same name)
-                            const team = teamInLeague(league.key, r.name)
-                            return (
-                              <span className="table__club">
-                                <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
-                                {team ? <Link href={paths.club(team.slug)}>{r.name}</Link> : r.name}
-                              </span>
-                            )
-                          })()}
-                        </td>
-                        <td className="num">{r.played}</td>
-                        <td className="num">{r.won}</td>
-                        {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
-                        <td className="num">{r.lost}</td>
-                        {hasScore && (
-                          <td className="num hide-sm">
-                            {r.for ?? 0}–{r.against ?? 0}
-                          </td>
-                        )}
-                        {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))
-          ) : (
-            <p className="muted pad">Vi har endnu ikke nok spillede kampe til en stilling. Den bygges op for hver spillerunde.</p>
-          )}
-          <p className="muted small history__note">
-            {source === 'api-sports'
-              ? 'Stilling: API-Sports.'
-              : baseline
-                ? `Udgangspunkt: stillingen efter ${baseline.round}. runde fra ${baseline.source} (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen under nr. ${baseline.splitAfter} er som i stillingen på ${baseline.source}.`) : ''}`
-                : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr). API-Sports' gratisplan giver ikke sæsonens tidligere kampe, så stillingen er kun komplet fra da.`}
-          </p>
-        </section>
-
-        {upcoming.length > 0 && (
-          <section className="league">
+        {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
+        {rounds?.map((r) => (
+          <section key={r.name} className="league">
             <header className="league__header">
               <div className="league__toggle">
                 <span className="league__titles">
-                  <h2 className="league__name">Kommende og igangværende kampe</h2>
+                  <h2 className="league__name">{r.name}</h2>
                 </span>
               </div>
             </header>
             <ul className="league__matches">
-              {upcoming.map((m) => (
+              {r.matches.map((m) => (
                 <MatchRow key={m.id} match={m} showDate />
               ))}
             </ul>
           </section>
+        ))}
+        {!rounds && (
+          <>
+          <section className="panel table-panel">
+            <header className="table-panel__head">
+              <h2 className="panel__title">Stilling</h2>
+              {source === 'scoreline' && baseline ? (
+                <span className="tag">Efter {baseline.round + Math.max(0, ...groups.flat().map((r) => r.played - baseline.rows[0].played))}. runde</span>
+              ) : (
+                source === 'scoreline' && matches !== undefined && <span className="tag">{matches} kampe</span>
+              )}
+            </header>
+            {rows.length > 1 ? (
+              groups.map((group, gi) => (
+                <div key={gi} className="table-wrap">
+                  <table className="table table--compact">
+                    <thead>
+                      <tr>
+                        <th className="num">#</th>
+                        <th>Hold</th>
+                        <th className="num">K</th>
+                        <th className="num">V</th>
+                        {hasDraws && <th className="num">U</th>}
+                        <th className="num">T</th>
+                        {hasScore && <th className="num hide-sm">Score</th>}
+                        {hasPoints && <th className="num">P</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.map((r) => (
+                        <tr key={`${r.rank}-${r.name}`} className={baseline?.splitAfter === r.rank ? 'is-split' : undefined}>
+                          <td className="num pos">{r.rank}</td>
+                          <td>
+                            {(() => {
+                              // Linked to the team's own page in this league (not a men's club of the same name)
+                              const team = teamInLeague(league.key, r.name)
+                              return (
+                                <span className="table__club">
+                                  <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
+                                  {team ? <Link href={paths.club(team.slug)}>{r.name}</Link> : r.name}
+                                </span>
+                              )
+                            })()}
+                          </td>
+                          <td className="num">{r.played}</td>
+                          <td className="num">{r.won}</td>
+                          {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
+                          <td className="num">{r.lost}</td>
+                          {hasScore && (
+                            <td className="num hide-sm">
+                              {r.for ?? 0}–{r.against ?? 0}
+                            </td>
+                          )}
+                          {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))
+            ) : (
+              <p className="muted pad">Vi har endnu ikke nok spillede kampe til en stilling. Den bygges op for hver spillerunde.</p>
+            )}
+            <p className="muted small history__note">
+              {source === 'api-sports'
+                ? 'Stilling: API-Sports.'
+                : baseline
+                  ? `Udgangspunkt: stillingen efter ${baseline.round}. runde fra ${baseline.source} (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen under nr. ${baseline.splitAfter} er som i stillingen på ${baseline.source}.`) : ''}`
+                  : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr). API-Sports' gratisplan giver ikke sæsonens tidligere kampe, så stillingen er kun komplet fra da.`}
+            </p>
+          </section>
+          </>
         )}
+        {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
 
         <AdSlot placement="feed" />
 
         {recent.length > 0 && (
           <section className="panel table-panel">
             <header className="table-panel__head">
-              <h2 className="panel__title">Seneste resultater</h2>
+              <h2 className="panel__title">{rounds ? 'Tidligere kampe' : 'Seneste resultater'}</h2>
             </header>
             <ul className="h2h h2h--pad">
               {recent.map((m, i) => {
@@ -195,5 +210,24 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         </p>
       </div>
     </div>
+  )
+}
+
+function Upcoming({ upcoming }: { upcoming: Match[] }) {
+  return (
+    <section className="league">
+      <header className="league__header">
+        <div className="league__toggle">
+          <span className="league__titles">
+            <h2 className="league__name">Kommende og igangværende kampe</h2>
+          </span>
+        </div>
+      </header>
+      <ul className="league__matches">
+        {upcoming.map((m) => (
+          <MatchRow key={m.id} match={m} showDate />
+        ))}
+      </ul>
+    </section>
   )
 }

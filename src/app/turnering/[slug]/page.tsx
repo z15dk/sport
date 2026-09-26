@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
 import { allFixtures, isFinished, standings, toMatch } from '../../../data/season'
-import { getMatches } from '../../../data/matches'
+import { externalMatch, getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { TeamBadge } from '../../../components/TeamBadge'
@@ -26,7 +26,9 @@ import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { alike } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
-import { externalLeagueKey, externalToMatch } from '../../../data/external'
+import { externalLeagueKey } from '../../../data/external'
+import { cupOfGame } from '../../../data/cups'
+import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
 
 export const dynamic = 'force-dynamic'
@@ -44,10 +46,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const league = knownLeague(slug)
     if (!league) return { title: 'Turneringen findes ikke' }
     const names = loadRealData()?.leagueNames
-    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.name
+    const cup = cupOfGame({ sport: league.sport, league })
+    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? cup?.name ?? league.name
     return {
-      title: `${name} – stilling, resultater og kampprogram`,
-      description: `Stillingen i ${name}, seneste resultater og kommende kampe.`,
+      title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} – stilling, resultater og kampprogram`,
+      description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
       alternates: { canonical: paths.league(slug) },
     }
   }
@@ -78,7 +81,7 @@ async function externalLeaguePage(slug: string) {
   const keys = sameLeagueKeys(slug)
   const league = {
     ...found,
-    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? found.name,
+    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? cupOfGame({ sport: found.sport, league: found })?.name ?? found.name,
     logo: keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean) ?? found.logo,
   }
   const fromApi = found.id ? await apiLeagueTable(found) : undefined
@@ -94,20 +97,32 @@ async function externalLeaguePage(slug: string) {
     const found = [...logos.keys()].filter((k) => plain.includes(women(k).toLowerCase()) || alike(names.map(women), women(k)))
     return logos.get(found.find((k) => women(k) !== k) ?? found[0] ?? '')
   }
-  const upcoming = (real?.external ?? [])
-    .filter((g) => keys.includes(externalLeagueKey(g.league)) && g.state !== 'finished')
+  const games = (real?.external ?? []).filter((g) => keys.includes(externalLeagueKey(g.league)))
+  const upcoming = games
+    .filter((g) => g.state !== 'finished')
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
     .slice(0, 12)
-    .map(externalToMatch)
+    .map(externalMatch)
+  // A cup: its rounds instead of a table (newest first), and saved games from before we kept the whole cup
+  const cup = cupOfGame({ sport: found.sport, league: found })
+  const played = cup ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
+  const rounds: { name: string; matches: Match[] }[] = []
+  for (const g of played) {
+    const name = roundLabel(g.round)
+    const round = rounds.find((r) => r.name === name) ?? (rounds.push({ name, matches: [] }), rounds.at(-1)!)
+    round.matches.push(externalMatch(g))
+  }
+  const firstKept = played.at(-1) ? Date.parse(played.at(-1)!.kickoff) - 86_400_000 : Infinity
   return (
     <ExternalLeaguePage
       league={league}
+      rounds={cup ? rounds : undefined}
       groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))]}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
       since={own.since}
-      recent={own.recent.map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
+      recent={(cup ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
       upcoming={upcoming}
       now={now}
     />
@@ -227,4 +242,20 @@ export default async function LeaguePage({ params }: { params: Params }) {
       </div>
     </div>
   )
+}
+
+/** API-Sports' round names in Danish ("Quarter-finals" -> "Kvartfinaler", "3rd Round" -> "3. runde") */
+function roundLabel(round?: string): string {
+  if (!round) return 'Øvrige kampe'
+  const r = round.toLowerCase()
+  if (/semi/.test(r)) return 'Semifinaler'
+  if (/quarter/.test(r)) return 'Kvartfinaler'
+  const part = r.match(/1\/(\d+)/)?.[1]
+  if (part) return `1/${part}-finaler`
+  const last = r.match(/round of (\d+)/)?.[1]
+  if (last) return `Sidste ${last}`
+  if (/final/.test(r) && !/\d/.test(r)) return 'Finale'
+  const n = r.match(/(\d+)/)?.[1]
+  if (n && /round|runde/.test(r)) return `${n}. runde`
+  return round
 }

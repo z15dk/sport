@@ -5,10 +5,21 @@ import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
 import { SEARCH_NAMES, alike } from './aliases'
 import { divisionOfGame } from './ourLeagues'
+import { cupOfGame, ourClubInCup } from './cups'
 import { isoDate } from '../lib/time'
 
-/** An API-Sports game as a match, placed in our league when it is one of ours */
-function externalMatch(g: ExternalGame): Match {
+/** An API-Sports game as a match, placed in our league when it is one of ours (and with our clubs' names in a cup) */
+export function externalMatch(g: ExternalGame): Match {
+  const cup = cupOfGame(g)
+  if (cup) {
+    const home = ourClubInCup(g.home.name, cup)?.club
+    const away = ourClubInCup(g.away.name, cup)?.club
+    if (home || away) {
+      const renamed = { ...g, home: home ? { ...g.home, name: home.name, logo: undefined } : g.home, away: away ? { ...g.away, name: away.name, logo: undefined } : g.away }
+      const m = externalToMatch(renamed)
+      return { ...m, home: { ...m.home, colors: home?.colors }, away: { ...m.away, colors: away?.colors } }
+    }
+  }
   const m = externalToMatch(g)
   const ours = divisionOfGame(g)
   if (!ours) return m
@@ -87,7 +98,14 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
 /** Every match of a league club this season, in date order */
 export function clubMatches(clubName: string, now: number): Match[] {
   const club = seasonClub(clubName)
-  return club ? clubFixtures(club.club.id).map((f) => toMatch(f, now)) : []
+  if (!club) return []
+  const league = clubFixtures(club.club.id).map((f) => toMatch(f, now))
+  // Its cup games
+  const cup = (getRealData()?.external ?? [])
+    .filter((g) => cupOfGame(g))
+    .map(externalMatch)
+    .filter((m) => m.home.name === club.club.name || m.away.name === club.club.name)
+  return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
 }
 
 /** Matches for any team (any sport) over a range of days from `fromDate` */

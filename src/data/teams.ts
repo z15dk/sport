@@ -4,6 +4,7 @@ import { seasonClubs } from './season'
 import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
 import { externalLeagueKey } from './external'
+import { cupOfGame, ourClubInCup } from './cups'
 import { BASELINES } from './baselines'
 import { alike, nameWords } from './aliases'
 import { slugify } from '../lib/slug'
@@ -65,7 +66,10 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   for (const g of getRealData()?.external ?? []) {
     if (divisionOfGame(g)) continue
     const leagueSlug = externalLeagueKey(g.league)
+    const cup = cupOfGame(g)
     for (const side of [g.home, g.away]) {
+      // Our own clubs in a cup keep their own page
+      if (cup && ourClubInCup(side.name, cup)) continue
       // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
       const known = byLeague(leagueSlug).filter((t) => (t.names ?? [t.name]).some((n) => n === side.name) || alike([clubPart(t.name)], clubPart(side.name)))
       if (known.length === 1) {

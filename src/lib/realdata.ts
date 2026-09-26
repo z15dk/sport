@@ -16,6 +16,8 @@ import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
 import { sameLeagueKeys } from '../data/baselines'
+import { cupOfGame } from '../data/cups'
+import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
@@ -61,6 +63,13 @@ let mergedKey: string | undefined
 const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
 
 // ---------------------------------------------------------------- the two sources
+
+/** The days around today, plus the whole season of the cups we follow (src/data/cups.ts) */
+function withCups(games: ExternalGame[]): ExternalGame[] {
+  const ids = new Set(games.map((g) => g.id))
+  const cups = seasonGames().filter((g) => cupOfGame(g) && !ids.has(g.id))
+  return cups.length ? [...games, ...cups] : games
+}
 
 /** API-Sports' "image not available" pictures left out, so the teams get our neutral badge */
 function withoutPlaceholders<G extends { home: { logo?: string }; away: { logo?: string }; league: { logo?: string } }>(g: G): G {
@@ -109,11 +118,11 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: external.games.map(withoutPlaceholders).map((g) => {
+    external: withCups(external.games).map(withoutPlaceholders).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       const keys = sameLeagueKeys(key)
-      const name = keys.map((k) => leagueNames.names[k]).find(Boolean)
+      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: name ? g.league.name : undefined } } : g
     }),

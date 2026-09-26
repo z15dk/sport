@@ -7,6 +7,7 @@ import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
+import { cupOfGame } from '../data/cups'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, sportOf, type Division } from '../data/leagues'
@@ -379,7 +380,7 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
   return { version: String(Math.round(mem.mtime)), games: mem.games }
 }
 
-const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && !!divisionOfGame(g)
+const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || !!cupOfGame(g))
 
 /** The finished games in our leagues this season (kept days and the current window) */
 export function seasonGames(): ExternalGame[] {
@@ -484,7 +485,8 @@ export function externalLeague(key: string): ExternalLeague | undefined {
   for (const s of Object.values(mem.store)) if (s.leagues?.[key]) return { ...s.leagues[key], logo: realLogo(s.leagues[key].logo) }
   // Not remembered yet: from the games we have
   for (const [api, s] of Object.entries(mem.store)) {
-    for (const d of Object.values(s.days)) {
+    const days = [...Object.values(s.days), ...Object.values(s.past ?? {}).map((games) => ({ games, fetchedAt: 0 }))]
+    for (const d of days) {
       const g = d.games.find((x) => !divisionOfGame(x) && x.league.id && externalLeagueKey(x.league) === key)
       if (g) return { key, api, id: g.league.id, name: g.league.name, country: g.league.country, sport: g.sport, logo: realLogo(g.league.logo), season: g.league.season, lastSeen: d.fetchedAt }
     }
