@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getRealData, setRealData, type RealData } from '../data/real'
 
-const POLL_MS = 30_000
+const POLL_MS = 15_000
 
 /**
  * Hands the server's real fixtures to the browser before any match list renders,

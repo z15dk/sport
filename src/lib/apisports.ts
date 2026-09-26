@@ -348,7 +348,7 @@ const mem = (holder.__scorelineApiSports ??= { store: {}, mtime: 0, readAt: 0 })
 
 function load() {
   const now = Date.now()
-  if (now - mem.readAt < 15_000) return
+  if (now - mem.readAt < 5_000) return
   mem.readAt = now
   try {
     const mtime = statSync(file()).mtimeMs
@@ -583,7 +583,7 @@ function dueDay(api: Api, now: number): string | undefined {
     return g.state === 'live' || (g.state === 'upcoming' && t < now + 20 * 60_000 && t > now - 4 * 3_600_000)
   })
   // While games are on, today gets the requests left over after the other days
-  const todayEvery = busy ? Math.max(isPaid(s) ? 60_000 : 5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
+  const todayEvery = busy ? Math.max(isPaid(s) ? 25_000 : 5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
   if (age(today) > todayEvery) return today
   const yesterday = addDays(today, -1)
   if (allowed(s, yesterday, today) && age(yesterday) > 6 * 3_600_000) return yesterday
@@ -733,6 +733,37 @@ async function fetchSeason(api: Api, due: { league: string }) {
 /** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
 const KEEP_VERSION = '2026-09-26-more-leagues'
 
+/**
+ * The fast lane for paid plans: while games are on, today is fetched every 30
+ * seconds, and the goals and cards of games whose score just changed come right
+ * after. The rest (other days, seasons, history) stays in the main run.
+ */
+let liveRunning = false
+async function liveTick() {
+  if (liveRunning) return
+  liveRunning = true
+  try {
+    load()
+    let changed = false
+    for (const api of Object.keys(APIS) as Api[]) {
+      const s = mem.store[api]
+      if (!keyFor(api) || !isPaid(s)) continue
+      const today = isoDate(Date.now())
+      if (dueDay(api, Date.now()) !== today) continue
+      await fetchDay(api, today)
+      changed = true
+      // New goals: their scorers straight away (live games whose score changed)
+      if (api === 'football') {
+        const ids = eventsDue(s!).filter((id) => mem.store.football!.days[today]?.games.some((g) => g.id === `football-${id}` && g.state === 'live'))
+        if (ids.length) await fetchEvents('football', ids)
+      }
+    }
+    if (changed) save()
+  } finally {
+    liveRunning = false
+  }
+}
+
 let running = false
 async function tick() {
   if (running) return
@@ -875,6 +906,9 @@ export function startApiSportsSync() {
   const run = () => tick().catch((err) => console.error('API-Sports-jobbet fejlede:', err))
   void run()
   setInterval(() => void run(), 60_000).unref()
+  // Paid plans: today's games every 30 seconds while games are on, between the main runs
+  const live = () => liveTick().catch((err) => console.error('API-Sports live fejlede:', err))
+  setInterval(() => void live(), 30_000).unref()
 }
 
 /** Numbers for the status page */
