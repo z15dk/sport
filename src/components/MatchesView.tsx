@@ -8,6 +8,7 @@ import { LeagueSection } from './LeagueSection'
 import { MatchRow } from './MatchRow'
 import { OddsBy } from './MatchExtras'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
+import { oddsEnabled } from '../data/odds'
 import { Sidebar } from './Sidebar'
 import { FeaturedMatch } from './FeaturedMatch'
 import { SportTabs } from './SportTabs'
@@ -297,7 +298,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
                           <span className="league__country">{list.length === 1 ? '1 kamp' : `${list.length} kampe`}</span>
                           <h2 className="league__name">{day === today ? `I dag · ${formatLong(day)}` : formatLong(day)}</h2>
                         </span>
-                        {list.some((m) => m.state === 'upcoming') && <OddsBy />}
+                        {list.some((m) => m.state === 'upcoming') && oddsEnabled() && <OddsBy />}
                       </div>
                     </header>
                     <ul className="league__matches">
@@ -305,7 +306,7 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
                         <MatchRow key={m.id} match={m} showLeague showSport={sport === 'all'} />
                       ))}
                     </ul>
-                    {list.some((m) => m.state === 'upcoming') && (
+                    {list.some((m) => m.state === 'upcoming') && oddsEnabled() && (
                       <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
                         {RESPONSIBLE_GAMBLING.text}
                       </a>

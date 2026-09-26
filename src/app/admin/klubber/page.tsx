@@ -43,7 +43,7 @@ export default async function AdminClubs({ searchParams }: { searchParams: Searc
             Klubber
             <span>
               {all.length} klubber · {count('upload')} uploadet · {count('forbogstaver')} uden logo ·{' '}
-              <Link href="/admin/kanaler">Kanaler</Link>
+              <Link href="/admin/kanaler">Kanaler</Link> · <Link href="/admin/indstillinger">Indstillinger</Link>
             </span>
           </h1>
           <form method="post" action="/api/admin/logout">

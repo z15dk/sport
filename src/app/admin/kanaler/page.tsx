@@ -42,7 +42,7 @@ export default async function AdminChannels({ searchParams }: { searchParams: Se
           <h1 className="feed__title">
             Kanaler
             <span>
-              <Link href="/admin/klubber">Klubber</Link> · Kanaler
+              <Link href="/admin/klubber">Klubber</Link> · Kanaler · <Link href="/admin/indstillinger">Indstillinger</Link>
             </span>
           </h1>
           <form method="post" action="/api/admin/logout">

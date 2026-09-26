@@ -8,6 +8,7 @@ import { MatchRow } from './MatchRow'
 import { competitionLabel } from '../data/leagues'
 import { OddsBy } from './MatchExtras'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
+import { oddsEnabled } from '../data/odds'
 import { TeamBadge } from './TeamBadge'
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
 export function LeagueSection({ group, pinned, onTogglePin }: Props) {
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
-  const hasOdds = group.matches.some((m) => m.state === 'upcoming')
+  const hasOdds = oddsEnabled() && group.matches.some((m) => m.state === 'upcoming')
 
   return (
     <section className="league" id={`league-${group.leagueId}`}>

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { realDataStatus } from '../../../lib/realdata'
+import { realDataStatus, tsdbDanishLeagues } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
 import { archiveStatus } from '../../../lib/archive'
 import { apiSportsStatus } from '../../../lib/apisports'
@@ -24,6 +24,7 @@ export default function DataStatusPage() {
   const h = historyStatus()
   const a = archiveStatus()
   const apis = apiSportsStatus()
+  const danish = tsdbDanishLeagues()
   return (
     <div className="page">
       <div className="clubs prose">
@@ -41,6 +42,27 @@ export default function DataStatusPage() {
             Fil: <code>{s.file}</code>
           </p>
           {s.lastError && <p className="unverified">Seneste fejl: {s.lastError}</p>}
+        </section>
+        <section className="panel prose__section">
+          <h2 className="panel__title">Danske ligaer hos TheSportsDB</h2>
+          {danish.leagues.length === 0 ? (
+            <p>Listen hentes – genindlæs om et øjeblik.</p>
+          ) : (
+            <>
+              <p className="muted small">
+                Alle danske ligaer, TheSportsDB har (hentet {danish.fetchedAt}). Om der også er kampe i dem, ses under hver af vores ligaer længere nede –
+                gratisnøglen giver kun de seneste og næste kampe, en betalt nøgle hele sæsonen.
+              </p>
+              <ul>
+                {danish.leagues.map((l) => (
+                  <li key={l.id}>
+                    <strong>{l.name}</strong> ({l.sport}, id {l.id}){l.alternate ? ` · også kaldt ${l.alternate}` : ''} ·{' '}
+                    {l.ours ? `bruges til ${l.ours}` : <span className="muted">bruges ikke</span>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
         {s.leagues.map((l) => {
           const unknown = l.teams.filter((t) => !isKnown(t))

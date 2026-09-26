@@ -1,6 +1,7 @@
 import type { Match } from '../types'
 import { hashString, seeded } from './fixtures'
 import { teamByName } from './teams'
+import { getRealData } from './real'
 
 // Fictional pre-match odds from the clubs' strength, with a bookmaker margin.
 
@@ -21,9 +22,12 @@ function strength(name: string) {
 
 const toOdds = (p: number) => Math.max(1.03, Math.round((1 / (p * MARGIN)) * 100) / 100)
 
+/** Whether odds are shown at all (switched on in the admin pages; off by default) */
+export const oddsEnabled = () => getRealData()?.settings?.odds === true
+
 /** 1X2 odds for football and ice hockey (regular time), home/away for basketball */
 export function oddsFor(match: Match): Odds | undefined {
-  if (match.state !== 'upcoming') return undefined
+  if (match.state !== 'upcoming' || !oddsEnabled()) return undefined
   const rand = seeded(hashString(`odds-${match.id}`))
   const diff = strength(match.home.name) - strength(match.away.name) + (rand() - 0.5) * 0.15
   if (match.sport === 'basketball' || match.sport === 'tennis') {

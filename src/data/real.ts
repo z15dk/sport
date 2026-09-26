@@ -27,6 +27,12 @@ export interface RealEvent {
   spectators?: number
 }
 
+/** Site settings from the admin pages */
+export interface SiteSettings {
+  /** Show odds (off until there is a bookmaker agreement) */
+  odds: boolean
+}
+
 export interface RealData {
   /** Changes whenever the data changes */
   version: string
@@ -41,6 +47,8 @@ export interface RealData {
   clubNames?: Record<string, string>
   /** Channels, rules, exceptions and TV listings (src/data/channels.ts) */
   channels?: ChannelData
+  /** Settings from the admin pages */
+  settings?: SiteSettings
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */

@@ -14,6 +14,7 @@ import { divisionOfGame } from '../data/ourLeagues'
 import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
 import { channelData } from './channels'
+import { siteSettings } from './settings'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -38,6 +39,15 @@ type JobState = {
   lookups?: Record<string, string>
   /** When each stale event was last looked up again */
   lookedUp?: Map<string, number>
+  /** Every Danish league at TheSportsDB (for the status page), fetched once a day */
+  danish?: { fetchedAt: number; leagues: TsdbLeague[] }
+  danishFetching?: boolean
+}
+export interface TsdbLeague {
+  id: string
+  name: string
+  sport: string
+  alternate?: string
 }
 // On globalThis: the job (started from instrumentation) and the pages load separate copies of this module
 const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData; __scorelineMergedKey?: string }
@@ -58,7 +68,8 @@ function apply() {
   const external = externalGames()
   const names = clubNameOverrides()
   const channels = channelData()
-  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}`
+  const settings = siteSettings()
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}`
   if (holder.__scorelineMergedKey === key) return
   holder.__scorelineMergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
@@ -84,6 +95,7 @@ function apply() {
     external: external.games,
     clubNames: names.names,
     channels: channels.data,
+    settings: settings.settings,
   })
 }
 
@@ -442,5 +454,41 @@ export function realDataStatus() {
         teams: [...new Set(events.flatMap((e) => [e.home, e.away]))].sort(),
       }
     }),
+  }
+}
+
+/**
+ * Every Danish league TheSportsDB has, all sports, with which of our leagues
+ * uses it. Fetched in the background once a day; the page never waits.
+ */
+export function tsdbDanishLeagues(): { fetchedAt?: string; leagues: (TsdbLeague & { ours?: string })[] } {
+  const now = Date.now()
+  if (!state.danishFetching && (!state.danish || now - state.danish.fetchedAt > 86_400_000)) {
+    state.danishFetching = true
+    void tsdb<{ countries?: { idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string | null }[] | null }>(
+      'search_all_leagues.php?c=Denmark',
+    )
+      .then(({ data, error }) => {
+        state.requests++
+        if (error || !data) return
+        state.danish = {
+          fetchedAt: Date.now(),
+          leagues: (data.countries ?? []).map((l) => ({ id: l.idLeague, name: l.strLeague, sport: l.strSport, alternate: l.strLeagueAlternate || undefined })),
+        }
+      })
+      .finally(() => {
+        state.danishFetching = false
+      })
+  }
+  const used = new Map<string, string>()
+  for (const d of DIVISIONS) {
+    const known = KNOWN_LEAGUE_IDS[d.id] ?? leagueIds.get(d.id)
+    if (known) used.set(String(known), d.name)
+  }
+  return {
+    fetchedAt: state.danish ? new Date(state.danish.fetchedAt).toISOString() : undefined,
+    leagues: (state.danish?.leagues ?? [])
+      .map((l) => ({ ...l, ours: used.get(l.id) }))
+      .sort((a, b) => a.sport.localeCompare(b.sport) || a.name.localeCompare(b.name, 'da')),
   }
 }
