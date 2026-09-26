@@ -1374,3 +1374,8 @@ h2.league__name { margin: 0; }
 
 /* The footer spans the whole window; its content lines up with the page (at most 1400px) */
 .footer { margin: 32px 0 0; border-radius: var(--radius) var(--radius) 0 0; padding: 32px max(24px, calc((100% - 1400px) / 2 + 24px)) 40px; }
+.admin-subnav { display: flex; flex-wrap: wrap; gap: 18px; margin: 0 0 12px 8px; font-size: 14px; font-weight: 600; }
+.admin-subnav a { color: var(--ink-3); padding: 4px 0; border-bottom: 2px solid transparent; }
+.admin-subnav a:hover { color: var(--ink); }
+.admin-subnav a.is-active { color: var(--ink); border-bottom-color: var(--lime); }
+.admin-nav a, .admin-subnav a { text-decoration: none; }
