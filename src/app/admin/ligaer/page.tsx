@@ -116,8 +116,24 @@ export default async function AdminLeagues() {
             stilling, topscorere og odds.
             {catalog.error && ` Fejl: ${catalog.error}`}
           </p>
+          {byCountry.length > 0 && (
+            <div className="catalog__countries pad">
+              <strong>
+                {byCountry.length} lande · {catalog.leagues.filter((l) => l.followed).length} af {catalog.leagues.length} ligaer hentes
+              </strong>
+              <ul>
+                {byCountry.map(([country, leagues]) => (
+                  <li key={country}>
+                    <a href={`#land-${country}`} className={leagues.some((l) => l.followed) ? 'is-on' : ''}>
+                      {danishCountry(country)} <em>{leagues.length}</em>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {byCountry.map(([country, leagues]) => (
-            <details key={country} className="catalog" open={country === 'Denmark'}>
+            <details key={country} id={`land-${country}`} className="catalog" open={country === 'Denmark'}>
               <summary>
                 {danishCountry(country)} <span className="muted">· {leagues.length} · {leagues.filter((l) => l.followed).length} hentes</span>
               </summary>

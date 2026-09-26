@@ -1351,3 +1351,8 @@ h2.league__name { margin: 0; }
 .leaders__value { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; }
 .match-page__cols--one { grid-template-columns: 1fr; }
 .match-page__cols > .sheet__section { min-width: 0; }
+
+.catalog__countries ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.catalog__countries a { display: inline-flex; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
+.catalog__countries a.is-on { background: #eefbc4; }
+.catalog__countries em { font-style: normal; color: var(--ink-3); }
