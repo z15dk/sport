@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
 import { allFixtures, isFinished, standings, toMatch } from '../../../data/season'
@@ -20,7 +20,7 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
-import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
+import { apiLeagueTable, externalLeague, teamLogos, type ExternalLeague } from '../../../lib/apisports'
 import { archiveLeagueTable } from '../../../lib/history'
 import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     if (!league) return { title: 'Turneringen findes ikke' }
     const names = loadRealData()?.leagueNames
     const cup = cupOfGame({ sport: league.sport, league })
-    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? cup?.name ?? league.name
+    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? league.name
     return {
       title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} – stilling, resultater og kampprogram`,
       description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
@@ -68,23 +68,30 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 /** A page for one of API-Sports' other leagues: their table when the plan allows it, else ours from the statistics bank */
 /** A league we know from API-Sports' games, or from a starting table entered before any of its games came */
-function knownLeague(slug: string) {
+function knownLeague(slug: string): (ExternalLeague & { title?: string }) | undefined {
   const b = BASELINES[slug]
+  // A cup: under its own key from the games (API-Sports and our match database)
+  const g = (loadRealData() ?? getRealData())?.external?.find((x) => cupOfGame(x) && externalLeagueKey(x.league) === slug)
+  if (g) return { key: slug, api: g.id.split('-')[0], id: g.league.id, name: g.league.originalName ?? g.league.name, title: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, lastSeen: 0 }
   return externalLeague(slug) ?? (b && { key: slug, api: 'football', id: '', name: b.league.name, country: b.league.country, sport: b.league.sport, lastSeen: 0 })
 }
 
 async function externalLeaguePage(slug: string) {
   const found = knownLeague(slug)
   if (!found) notFound()
+  // A cup under a sponsor's name: its page is under the cup's own key
+  const cupKey = cupOfGame({ sport: found.sport, league: found }) && externalLeagueKey({ ...found, originalName: cupOfGame({ sport: found.sport, league: found })!.key })
+  if (cupKey && cupKey !== slug) permanentRedirect(paths.league(cupKey))
   const now = Date.now()
   const real = loadRealData() ?? getRealData()
   const keys = sameLeagueKeys(slug)
   const league = {
     ...found,
-    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? cupOfGame({ sport: found.sport, league: found })?.name ?? found.name,
+    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? found.title ?? cupOfGame({ sport: found.sport, league: found })?.name ?? found.name,
     logo: keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean) ?? found.logo,
   }
-  const fromApi = found.id ? await apiLeagueTable(found) : undefined
+  const cup = cupOfGame({ sport: found.sport, league: found })
+  const fromApi = found.id && !cup ? await apiLeagueTable(found) : undefined
   const baseline = BASELINES[slug]
   const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
   // A team's logo from API-Sports' games, also when the table uses another name ("F.C. København" is "FC Copenhagen W")
@@ -104,7 +111,6 @@ async function externalLeaguePage(slug: string) {
     .slice(0, 12)
     .map(externalMatch)
   // A cup: its rounds instead of a table (newest first), and saved games from before we kept the whole cup
-  const cup = cupOfGame({ sport: found.sport, league: found })
   const played = cup ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
   const rounds: { name: string; matches: Match[] }[] = []
   for (const g of played) {

@@ -1,4 +1,4 @@
-import type { Match, MatchState, SportId } from '../types'
+import type { Incident, Match, MatchState, SportId } from '../types'
 import { matchSlug, slugify } from '../lib/slug'
 import { isoDate } from '../lib/time'
 import { normalize } from './aliases'
@@ -28,6 +28,8 @@ export interface ExternalGame {
   referee?: string
   /** Half-time score */
   ht?: [number, number]
+  /** Goals and cards, when the source has them (our match database) */
+  incidents?: Incident[]
 }
 
 /**
@@ -60,6 +62,7 @@ export function externalToMatch(g: ExternalGame): Match {
     statusLabel: g.state === 'finished' ? 'Slut' : g.state === 'postponed' ? 'Udsat' : g.label,
     venue: g.venue,
     real: true,
+    ...(g.incidents?.length && { incidents: g.incidents }),
     winner:
       g.state !== 'finished' || !hasScore
         ? undefined

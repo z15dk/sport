@@ -60,7 +60,9 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Topped up with API-Sports' meetings (cached, within a small daily budget) when the database has fewer than 5
   let realH2h = dbH2h
   let h2hSource: H2hSource | undefined = dbH2h ? 'database' : undefined
-  const game = findExternalGame(match)
+  // API-Sports' game (not one from our match database, which API-Sports can't look up)
+  const external = findExternalGame(match)
+  const game = external && !external.id.startsWith('db-') ? external : undefined
   // Facts, form and table from API-Sports; our own season statistics cover our leagues' clubs
   const fromApi = game ? await apiMatchExtra(game).catch(() => undefined) : undefined
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved

@@ -12,6 +12,7 @@ import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
 import { archiveFile, readArchive } from './archive'
 import { hashString } from '../data/fixtures'
+import { cupOfGame } from '../data/cups'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
 // the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
@@ -431,6 +432,8 @@ type SeasonData = {
   tournaments: string[]
   /** Goals, cards, half-time score and attendance by "date|home|away" (club id or normalised name), for other sources' matches */
   extrasByMatch: Map<string, Pick<RealEvent, 'incidents' | 'ht' | 'spectators'>>
+  /** Cup games this season (src/data/cups.ts), in the shape of API-Sports' games */
+  cups: ExternalGame[]
   /** The same, as a list (for matching names written differently) */
   extrasList: { kickoff: string; home: string; away: string; extras: Pick<RealEvent, 'incidents' | 'ht' | 'spectators'> }[]
 }
@@ -498,15 +501,37 @@ export function databaseSeason(): SeasonData | undefined {
   const extrasList: SeasonData['extrasList'] = []
   const leagues: Record<string, RealEvent[]> = {}
   const tournaments = new Set<string>()
+  const cups: ExternalGame[] = []
   for (const r of rows) {
     const tournament = String(r.tournament_name ?? '')
     tournaments.add(tournament)
     const division = DIVISION_TOURNAMENTS.find(([, re]) => re.test(tournament))?.[0]
-    if (!division) continue
     const state = STATE[String(r.status ?? '').toLowerCase()] ?? 'upcoming'
     const score = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
     const incidents = incidentsOf.get(String(r.event_id))
     const kickoff = new Date(String(r.start_date)).toISOString()
+    if (!division) {
+      // The cup (its name changes with the sponsor)
+      const league = { id: 'db', name: tournament, country: 'Denmark' }
+      if (cupOfGame({ sport: 'soccer', league })) {
+        const finished = state === 'finished' || state === 'live'
+        cups.push({
+          id: `db-${r.event_id}`,
+          sport: 'soccer',
+          league,
+          home: { name: String(r.home_name) },
+          away: { name: String(r.away_name) },
+          kickoff,
+          state,
+          homeScore: finished ? score(r.home_score) : undefined,
+          awayScore: finished ? score(r.away_score) : undefined,
+          round: Number(r.round) ? `Round ${Number(r.round)}` : undefined,
+          ht: state === 'finished' && score(r.home_score_ht) !== undefined && score(r.away_score_ht) !== undefined ? [score(r.home_score_ht)!, score(r.away_score_ht)!] : undefined,
+          incidents,
+        })
+      }
+      continue
+    }
     ;(leagues[division] ??= []).push({
       id: `db-${r.event_id}`,
       round: Number(r.round) || 0,
@@ -527,7 +552,7 @@ export function databaseSeason(): SeasonData | undefined {
       extrasList.push({ kickoff, home: String(r.home_name), away: String(r.away_name), extras })
     }
   }
-  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
+  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, cups, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
   return seasonCache
 }
 

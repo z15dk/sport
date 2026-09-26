@@ -15,11 +15,13 @@ export interface Cup {
   name: string
   sport: SportId
   country: string
-  /** API-Sports' name for it (sponsors change, so a pattern) */
+  /** The sources' names for it (sponsors change, so a pattern) */
   match: RegExp
+  /** Its name in our addresses, the same whatever the sponsor: /turnering/x-<country>-<key> */
+  key: string
 }
 
-export const CUPS: Cup[] = [{ name: 'Betano Pokalen', sport: 'soccer', country: 'Denmark', match: /pokal|dbu cup|danish cup|landspokal/i }]
+export const CUPS: Cup[] = [{ name: 'Betano Pokalen', sport: 'soccer', country: 'Denmark', match: /pokal|dbu cup|danish cup|landspokal/i, key: 'Pokalen' }]
 
 const NOT_SENIOR = /women|kvinde|dame|u\s?\d{2}|youth|junior|futsal/i
 
@@ -28,6 +30,12 @@ export function cupOfGame(g: Pick<ExternalGame, 'sport' | 'league'>): Cup | unde
   const name = g.league.originalName ?? g.league.name
   if (NOT_SENIOR.test(name)) return undefined
   return CUPS.find((c) => c.sport === g.sport && countryKey(c.country) === countryKey(g.league.country) && c.match.test(name))
+}
+
+/** A cup game under the cup's own key, so every source and sponsor name lands on the same page */
+export function asCupGame(g: ExternalGame): ExternalGame {
+  const cup = cupOfGame(g)
+  return cup && g.league.originalName !== cup.key ? { ...g, league: { ...g.league, originalName: cup.key } } : g
 }
 
 /** Whether a league key (/turnering/<key>) is one of our cups, from the games we have */

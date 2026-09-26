@@ -16,7 +16,7 @@ import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
 import { sameLeagueKeys } from '../data/baselines'
-import { cupOfGame } from '../data/cups'
+import { CUPS, asCupGame, cupOfGame, ourClubInCup } from '../data/cups'
 import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { externalLeagueKey } from '../data/leagues'
@@ -64,11 +64,36 @@ const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
 
 // ---------------------------------------------------------------- the two sources
 
-/** The days around today, plus the whole season of the cups we follow (src/data/cups.ts) */
-function withCups(games: ExternalGame[]): ExternalGame[] {
+/**
+ * The days around today, plus the whole season of the cups we follow
+ * (src/data/cups.ts) from API-Sports and our match database, under the cup's
+ * own key. A game both have is API-Sports' (live score), with the database's
+ * goals and cards, and its result when API-Sports doesn't have one yet.
+ */
+function withCups(games: ExternalGame[], fromDb: ExternalGame[]): ExternalGame[] {
   const ids = new Set(games.map((g) => g.id))
-  const cups = seasonGames().filter((g) => cupOfGame(g) && !ids.has(g.id))
-  return cups.length ? [...games, ...cups] : games
+  const api = [...games, ...seasonGames().filter((g) => cupOfGame(g) && !ids.has(g.id))].map(asCupGame)
+  if (!fromDb.length) return api
+  const team = (name: string) => {
+    const cup = CUPS[0]
+    return ourClubInCup(name, cup)?.club.id ?? normalize(name)
+  }
+  const key = (g: ExternalGame) => `${isoDate(new Date(g.kickoff))}|${team(g.home.name)}|${team(g.away.name)}`
+  const db = new Map(fromDb.map((g) => [key(g), g]))
+  const out = api.map((g) => {
+    if (!cupOfGame(g)) return g
+    const same = db.get(key(g))
+    if (!same) return g
+    db.delete(key(g))
+    const final = same.state === 'finished' && g.state !== 'finished' && g.state !== 'live'
+    return {
+      ...g,
+      incidents: g.incidents ?? same.incidents,
+      ht: g.ht ?? same.ht,
+      ...(final && { state: same.state, homeScore: same.homeScore, awayScore: same.awayScore }),
+    }
+  })
+  return [...out, ...[...db.values()].map(asCupGame)]
 }
 
 /** API-Sports' "image not available" pictures left out, so the teams get our neutral badge */
@@ -118,13 +143,14 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: withCups(external.games).map(withoutPlaceholders).map((g) => {
+    external: withCups(external.games, db?.cups ?? []).map(withoutPlaceholders).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
-      const keys = sameLeagueKeys(key)
+      // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
+      const keys = [...sameLeagueKeys(key), ...(cupOfGame(g) ? [externalLeagueKey({ ...g.league, originalName: undefined })] : [])]
       const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
-      return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: name ? g.league.name : undefined } } : g
+      return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
     }),
     leagueNames: leagueNames.names,
     clubNames: names.names,

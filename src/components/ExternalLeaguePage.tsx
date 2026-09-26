@@ -206,7 +206,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           </section>
         )}
         <p className="muted small">
-          Kampe og resultater: API-Sports. <Link href="/">Se alle dagens kampe</Link>.
+          Kampe og resultater: {rounds ? 'API-Sports og vores kampdatabase' : 'API-Sports'}. <Link href="/">Se alle dagens kampe</Link>.
         </p>
       </div>
     </div>
