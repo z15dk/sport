@@ -751,29 +751,29 @@ async function tick() {
     // This season in full for our leagues and cups (paid plans), one league per API per run
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api) || dueDay(api, now)) continue
-      for (let n = 3; n > 0; n--) {
+      for (let n = 15; n > 0; n--) {
         const due = seasonDue(api, Date.now())
         if (!due) break
         await fetchSeason(api, due)
         changed = true
-        await sleep(1_000)
+        await sleep(300)
       }
     }
     // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
     {
       const s = mem.store.football
-      for (let n = 3; s && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+      for (let n = 10; s && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const ids = eventsDue(s)
         if (!ids.length) break
         await fetchEvents('football', ids)
         changed = true
-        await sleep(1_000)
+        await sleep(300)
       }
     }
     // Goals and cards for the past seasons in the statistics bank (paid plans), 20 matches a request, while plenty is left
     {
       const s = mem.store.football
-      for (let n = 5; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+      for (let n = 20; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
         if (remaining < (s.limit ?? 0) * 0.4) break
         const ids = archiveMissingEvents(20)
@@ -793,14 +793,14 @@ async function tick() {
           break
         }
         changed = true
-        await sleep(1_000)
+        await sleep(300)
       }
     }
     // Past seasons of our leagues for the club pages' history, with requests left over, one per API per run
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api) || dueDay(api, now)) continue
       // A paid plan fetches several seasons a run
-      for (let n = isPaid(mem.store[api]) ? 5 : 1; n > 0; n--) {
+      for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
         const due = historyDue(api)
         if (!due) break
         try {
@@ -810,7 +810,7 @@ async function tick() {
           ;(mem.store[api]!.history ??= {})[`${due.division.id}|${due.year}`] = 0
         }
         changed = true
-        await sleep(1_000)
+        await sleep(isPaid(mem.store[api]) ? 300 : 2_000)
       }
     }
     // Days that leave the window: our leagues' results are kept for the season, the rest is forgotten
