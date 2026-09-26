@@ -3,10 +3,10 @@ import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
 import { seasonClubs } from './season'
 import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
-import { externalLeagueKey } from './external'
-import { cupOfGame, ourClubInCup } from './cups'
-import { BASELINES } from './baselines'
-import { alike, nameWords } from './aliases'
+import { externalLeagueKey, type ExternalGame } from './external'
+import { ourClubByName, ourClubInGame } from './cups'
+import { BASELINES, sameLeagueKeys } from './baselines'
+import { alike, nameWords, normalize } from './aliases'
 import { slugify } from '../lib/slug'
 
 // One register of every team playing in the leagues we show (from the real
@@ -58,28 +58,55 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     taken.add(slug)
     out.set(key, { slug, name, ...e, names: [name] })
   }
-  const byLeague = (leagueSlug: string) => [...out.values()].filter((t) => t.leagueSlug === leagueSlug)
-  // The starting tables first, with the leagues' own names for the teams
+  // A league API-Sports lists under two names (A-Liga / Kvindeliga) is one league
+  const byLeague = (leagueSlug: string) => {
+    const keys = new Set(sameLeagueKeys(leagueSlug))
+    return [...out.values()].filter((t) => t.leagueSlug && keys.has(t.leagueSlug))
+  }
+  // The starting tables first, with the leagues' own names for the teams (once, under the league's main key)
+  const tables = new Set<object>()
+  // The tables' other names for a team, only for recognising it in API-Sports' games
+  const aliases = new Map<TeamEntry, string[]>()
+  const known = (t: TeamEntry) => [...(t.names ?? [t.name]), ...(aliases.get(t) ?? [])]
   for (const [key, b] of Object.entries(BASELINES)) {
-    for (const r of b.rows) add(r.name, { sport: b.league.sport, league: b.league.name, leagueSlug: key, country: b.league.country })
+    if (tables.has(b)) continue
+    tables.add(b)
+    for (const r of b.rows) {
+      add(r.name, { sport: b.league.sport, league: b.league.name, leagueSlug: key, country: b.league.country })
+      const t = out.get(`${key}|${r.name}`)
+      if (t && r.aliases) aliases.set(t, r.aliases)
+    }
+  }
+  // A team from API-Sports (a game or a table): our club, a team we have in that league, or a new one
+  const place = (name: string, logo: string | undefined, e: { sport: SportId; league: string; leagueSlug: string; country?: string }, g?: ExternalGame) => {
+    // Our own clubs in a cup or the Champions League keep their own page, as does a team with exactly one of our clubs' names
+    if (ourClubInGame(g ?? { sport: e.sport, league: { id: '', name: e.league, country: e.country } }, name)) return
+    // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
+    // The same name first ("FC Copenhagen W" is the table's "F.C. København", also known as "FC Copenhagen"), then a looser likeness
+    const inLeague = byLeague(e.leagueSlug)
+    const part = normalize(clubPart(name))
+    const tiers = [
+      inLeague.filter((t) => known(t).some((n) => n === name || normalize(clubPart(n)) === part)),
+      inLeague.filter((t) => alike(known(t).map(clubPart), clubPart(name))),
+      inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name))),
+    ]
+    const same = tiers.find((t) => t.length === 1)
+    if (same) {
+      const t = same[0]
+      if (!t.names!.includes(name)) t.names!.push(name)
+      t.logo ??= logo
+      return
+    }
+    add(name, { ...e, logo })
   }
   for (const g of getRealData()?.external ?? []) {
     if (divisionOfGame(g)) continue
-    const leagueSlug = externalLeagueKey(g.league)
-    const cup = cupOfGame(g)
-    for (const side of [g.home, g.away]) {
-      // Our own clubs in a cup keep their own page
-      if (cup && ourClubInCup(side.name, cup)) continue
-      // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
-      const known = byLeague(leagueSlug).filter((t) => (t.names ?? [t.name]).some((n) => n === side.name) || alike([clubPart(t.name)], clubPart(side.name)))
-      if (known.length === 1) {
-        const t = known[0]
-        if (!t.names!.includes(side.name)) t.names!.push(side.name)
-        t.logo ??= side.logo
-        continue
-      }
-      add(side.name, { sport: g.sport, league: g.league.name, leagueSlug, country: g.league.country, logo: side.logo })
-    }
+    const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country }
+    for (const side of [g.home, g.away]) place(side.name, side.logo, e, g)
+  }
+  // The rest of the leagues' tables: teams without a game in the fetched days
+  for (const [leagueSlug, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
+    for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: l.league, leagueSlug, country: l.country })
   }
   return [...out.values()]
 }
@@ -118,10 +145,13 @@ export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 export const teamByName = (name: string) => teams().byName.get(name)
 
 /** A team in one of API-Sports' leagues, by a name from that league's data or table */
-export function teamInLeague(leagueSlug: string, name: string): TeamEntry | undefined {
+export function teamInLeague(leagueSlug: string, name: string, sport?: SportId): TeamEntry | undefined {
   const inLeague = teams().list.filter((t) => t.leagueSlug === leagueSlug)
+  // One of our clubs by its exact name ("Real Madrid" in the Champions League)
+  const ours = sport && ourClubByName(name, sport)
   return (
     inLeague.find((t) => (t.names ?? [t.name]).includes(name)) ??
+    (ours ? teamBySlug(ours.club.slug) : undefined) ??
     (() => {
       const loose = inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name)))
       return loose.length === 1 ? loose[0] : undefined

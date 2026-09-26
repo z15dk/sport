@@ -29,7 +29,7 @@ import { customLogoUrl } from '../../../lib/customLogos'
 import { alike } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishRound, externalLeagueKey } from '../../../data/external'
-import { cupOfGame } from '../../../data/cups'
+import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
 
@@ -112,8 +112,9 @@ async function externalLeaguePage(slug: string) {
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
     .slice(0, 12)
     .map(externalMatch)
-  // A cup: its rounds instead of a table (newest first), and saved games from before we kept the whole cup
-  const played = cup ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
+  // A cup or a tournament with groups and knock-out rounds (Champions League): its rounds, newest first, and no table of our own
+  const tournament = !!cup || wholeSeason({ sport: found.sport, league: found })
+  const played = tournament ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
   const rounds: { name: string; matches: Match[] }[] = []
   for (const g of played) {
     const name = danishRound(g.round) ?? 'Øvrige kampe'
@@ -125,14 +126,14 @@ async function externalLeaguePage(slug: string) {
   return (
     <ExternalLeaguePage
       league={league}
-      rounds={cup ? rounds : undefined}
+      rounds={tournament ? rounds : undefined}
       leaders={leaders}
-      groups={fromApi ?? [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))]}
+      groups={fromApi ?? (tournament ? [] : [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))])}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
       since={own.since}
-      recent={(cup ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
+      recent={(tournament ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
       upcoming={upcoming}
       now={now}
     />
@@ -198,6 +199,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
 
+        <div className={leaders ? 'table-duo' : 'table-solo'}>
+        <div className="table-duo__main">
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
@@ -207,9 +210,10 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>
-
-        {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         <LeagueStats division={division} />
+        </div>
+        {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
+        </div>
         {(() => {
           const history = leagueHistory(division.id)
           return history ? <LeagueHistory name={division.name} history={history} /> : null

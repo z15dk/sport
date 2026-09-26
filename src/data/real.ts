@@ -3,7 +3,7 @@
 // the same data to the browser (RealDataProvider), so both build the same
 // season from it. Leagues TheSportsDB has no fixtures for are not shown.
 
-import type { Incident, MatchState } from '../types'
+import type { Incident, MatchState, SportId } from '../types'
 import type { ExternalGame } from './external'
 import type { ChannelData } from './channels'
 import type { SiteSettings } from './settingsDef'
@@ -38,6 +38,8 @@ export interface RealData {
   checked?: Record<string, number>
   /** Games from API-Sports in the days around today, all sports */
   external?: ExternalGame[]
+  /** Teams in API-Sports' league tables, by league key (externalLeagueKey): pages also for teams without a game in the fetched days */
+  tableTeams?: Record<string, { sport: SportId; league: string; country?: string; teams: { name: string; logo?: string }[] }>
   /** Club names changed in the admin pages, by club slug */
   clubNames?: Record<string, string>
   /** League names changed in the admin pages, by league slug (ours) or externalLeagueKey */

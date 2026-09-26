@@ -1,10 +1,11 @@
 import type { SportId } from '../types'
 import type { ExternalGame } from './external'
 import { externalLeagueKey } from './external'
-import { SEARCH_NAMES, alike } from './aliases'
+import { SEARCH_NAMES, alike, nameWords, normalize } from './aliases'
 import { seasonClubs } from './season'
 import { sportOf } from './leagues'
 import { countryKey } from './channels'
+import { BASELINES, sameLeagueKeys } from './baselines'
 
 // Cups we follow in full from API-Sports: the whole season's games are kept
 // (not just the days around today), the cup gets a page with its rounds, and
@@ -57,9 +58,59 @@ export function ourClubInCup(name: string, cup: Cup) {
         ({ club, division }) =>
           sportOf(division) === cup.sport &&
           countryKey(division.country) === countryKey(cup.country) &&
-          alike([club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].filter((n): n is string => !!n), name),
+          alike([club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].filter((n): n is string => !!n), name) &&
+          // Every word of the name is one of the club's ("Aarhus Fremad" is not AGF, which also goes by "Aarhus")
+          nameWords(name).every((w) => [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].some((n) => n && nameWords(n).includes(w))),
       )
-  const club = found.length === 1 ? found[0] : undefined
+  // The same name wins ("Aarhus Fremad" is Aarhus Fremad, not also AGF, which goes by "Aarhus")
+  const exact = found.filter(({ club }) => [club.name, club.originalName, club.apiName].some((n) => n && normalize(n) === normalize(name)))
+  const club = exact.length === 1 ? exact[0] : found.length === 1 ? found[0] : undefined
   memo.map.set(key, club)
   return club
+}
+
+/**
+ * Other tournaments we keep in full for the season (every round, result, goal
+ * and card), not just the days around today: the men's and women's Champions League.
+ */
+const WHOLE_SEASON: { country: string; match: RegExp }[] = [{ country: 'World', match: /^UEFA Champions League( Women)?$/i }]
+
+/** Whether a game's tournament is kept for the whole season: our cups and the tournaments above */
+export function wholeSeason(g: Pick<ExternalGame, 'sport' | 'league'>): boolean {
+  if (cupOfGame(g)) return true
+  const name = g.league.originalName ?? g.league.name
+  return g.sport === 'soccer' && WHOLE_SEASON.some((w) => w.country === g.league.country && w.match.test(name))
+}
+
+/** A women's, reserve or youth team: not the club itself, even with the club's name */
+export const NOT_FIRST_TEAM = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q|ii|iii|u\s?\d{2}|youth|junior|reserves?)\b|\s2$/i
+
+/** Our club with exactly this name (ours, TheSportsDB's or API-Sports'), in any country: "Real Madrid" in the Champions League is La Liga's Real Madrid */
+let exactMemo: { clubs: ReturnType<typeof seasonClubs>; map: Map<string, ReturnType<typeof seasonClubs>[number] | undefined> } | undefined
+export function ourClubByName(name: string, sport: SportId) {
+  const clubs = seasonClubs()
+  if (exactMemo?.clubs !== clubs) exactMemo = { clubs, map: new Map() }
+  const key = `${sport}|${name}`
+  if (exactMemo.map.has(key)) return exactMemo.map.get(key)
+  const n = normalize(name)
+  const found = n
+    ? clubs.filter(({ club, division }) => sportOf(division) === sport && [club.name, club.originalName, club.apiName].some((x) => x && normalize(x) === n))
+    : []
+  const club = found.length === 1 ? found[0] : undefined
+  exactMemo.map.set(key, club)
+  return club
+}
+
+/** Our club a team in a cup or a whole-season tournament stands for */
+export function ourClubIn(g: Pick<ExternalGame, 'sport' | 'league'>, name: string) {
+  const cup = cupOfGame(g)
+  return (cup && ourClubInCup(name, cup)) || (wholeSeason(g) ? ourClubByName(name, g.sport) : undefined)
+}
+
+/** Our club a team in any other tournament stands for: as above, else by its exact name, unless it is a women's or youth team or league */
+export function ourClubInGame(g: Pick<ExternalGame, 'sport' | 'league'>, name: string) {
+  const found = ourClubIn(g, name)
+  if (found) return found
+  if (NOT_FIRST_TEAM.test(`${g.league.name} ${name}`) || sameLeagueKeys(externalLeagueKey(g.league)).some((k) => BASELINES[k])) return undefined
+  return ourClubByName(name, g.sport)
 }

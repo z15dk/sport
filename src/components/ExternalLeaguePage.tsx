@@ -107,8 +107,9 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             </ul>
           </section>
         ))}
-        {!rounds && (
-          <>
+        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
+        {(!rounds || rows.length > 1) && (
+          <div className={leaders ? 'table-duo' : 'table-solo'}>
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Stilling</h2>
@@ -121,6 +122,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             {rows.length > 1 ? (
               groups.map((group, gi) => (
                 <div key={gi} className="table-wrap">
+                  {groups.length > 1 && group[0]?.group && <h3 className="table-group">{group[0].group.replace(/^Group\s+/i, 'Gruppe ')}</h3>}
                   <table className="table table--compact">
                     <thead>
                       <tr>
@@ -141,7 +143,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                           <td>
                             {(() => {
                               // Linked to the team's own page in this league (not a men's club of the same name)
-                              const team = teamInLeague(league.key, r.name)
+                              const team = teamInLeague(league.key, r.name, league.sport)
                               return (
                                 <span className="table__club">
                                   <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
@@ -177,11 +179,11 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
-          </>
+          {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          </div>
         )}
+        {rounds && rows.length <= 1 && leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
-
-        {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
 
         <AdSlot placement="feed" />
 

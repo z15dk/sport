@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { findExternalGame, findMatch, namesOf } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
-import { cupOfGame } from '../../../data/cups'
+import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
 import { apiGameFor, apiHeadToHead, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
@@ -88,7 +88,8 @@ export default async function MatchPage({ params }: { params: Params }) {
   const extra = facts && {
     ...facts,
     form: facts.form ?? saved?.form,
-    table: cup ? undefined : (facts.table ?? savedTable),
+    // A tournament with groups (Champions League): only API-Sports' table for the group, never one we compute
+    table: cup ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined

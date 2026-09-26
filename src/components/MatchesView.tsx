@@ -74,11 +74,13 @@ interface Props {
   date: string
   today: string
   initialNow: number
+  /** "Live" in the menu opens the page on the matches being played */
+  initialFilter?: StateFilter
 }
 
-export function MatchesView({ sport, date, today, initialNow }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all' }: Props) {
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
-  const [filter, setFilter] = useState<StateFilter>('all')
+  const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
   const [picked, setPicked] = useState<{ sport: SportFilter; id: string }>()
   const league = picked?.sport === sport ? picked.id : undefined
@@ -195,9 +197,10 @@ export function MatchesView({ sport, date, today, initialNow }: Props) {
           <input
             id="search"
             type="search"
-            placeholder="Søg hold eller turnering"
+            placeholder="Filtrér dagens kampe"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
           />
         </label>
         <button className="live-chip" onClick={() => setFilter('live')} disabled={liveCount === 0}>

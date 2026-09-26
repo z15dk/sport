@@ -6,7 +6,7 @@ import { sportFilterBySlug } from '../sports'
 
 export const dynamic = 'force-dynamic'
 
-type SearchParams = Promise<{ sport?: string; dato?: string }>
+type SearchParams = Promise<{ sport?: string; dato?: string; live?: string }>
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const { sport, dato } = await searchParams
@@ -19,9 +19,9 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 }
 
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
-  const { sport, dato } = await searchParams
+  const { sport, dato, live } = await searchParams
   const now = Date.now()
   const today = isoDate(now)
   const date = isValidIsoDate(dato) ? dato : today
-  return <MatchesView sport={sportFilterBySlug(sport).id} date={date} today={today} initialNow={now} />
+  return <MatchesView key={live ? 'live' : 'all'} sport={sportFilterBySlug(sport).id} date={date} today={today} initialNow={now} initialFilter={live ? 'live' : 'all'} />
 }

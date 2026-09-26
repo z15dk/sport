@@ -24,7 +24,7 @@ import { readArchive } from '../../../lib/archive'
 import { normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
-import { BASELINES } from '../../../data/baselines'
+import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { cupOfGame } from '../../../data/cups'
 import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
@@ -211,7 +211,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const names = team.names ?? [team.name]
   const keys = new Set(names.map(normalize))
   const own = (name: string) => keys.has(normalize(name))
-  const league = team.leagueSlug ? externalLeague(team.leagueSlug) : undefined
+  const league = team.leagueSlug ? sameLeagueKeys(team.leagueSlug).map(externalLeague).find(Boolean) : undefined
   const api = league?.api.split('-')[0]
   const divisionId = league ? `ext-${api}-${league.id}` : undefined
   // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games

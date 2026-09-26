@@ -6,24 +6,27 @@ import { externalToMatch, gameKey, type ExternalGame } from './external'
 import { SEARCH_NAMES, alike } from './aliases'
 import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
-import { cupOfGame, ourClubInCup } from './cups'
+import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
 import { isoDate } from '../lib/time'
+import { sameLeagueKeys } from './baselines'
 
 /** An API-Sports game as a match, placed in our league when it is one of ours (and with our clubs' names in a cup) */
 export function externalMatch(g: ExternalGame): Match {
-  const cup = cupOfGame(g)
-  if (cup) {
-    const home = ourClubInCup(g.home.name, cup)?.club
-    const away = ourClubInCup(g.away.name, cup)?.club
+  // Our clubs under their own names in the cup, the European tournaments and friendlies (not a women's or youth team of the same name)
+  const ours = (name: string) => (divisionOfGame(g) ? undefined : ourClubInGame(g, name)?.club)
+  const home = ours(g.home.name)
+  const away = ours(g.away.name)
+  if (wholeSeason(g) || home || away) {
     const renamed = { ...g, home: home ? { ...g.home, name: home.name, logo: undefined } : g.home, away: away ? { ...g.away, name: away.name, logo: undefined } : g.away }
     const m = externalToMatch(renamed)
+    const teams = { home: { ...m.home, colors: home?.colors ?? m.home.colors }, away: { ...m.away, colors: away?.colors ?? m.away.colors } }
     // One cup, whichever source the game comes from, right after the country's leagues
-    return { ...m, ...cupPlace(m.leagueSlug), home: { ...m.home, colors: home?.colors }, away: { ...m.away, colors: away?.colors } }
+    return cupOfGame(g) ? { ...m, ...cupPlace(m.leagueSlug), ...teams } : { ...m, ...teams }
   }
   const m = externalToMatch(g)
-  const ours = divisionOfGame(g)
-  if (!ours) return m
-  const { d, i } = ours
+  const own = divisionOfGame(g)
+  if (!own) return m
+  const { d, i } = own
   return { ...m, league: d.name, leagueId: `${d.countryCode.toLowerCase()}-${d.id}`, leagueSlug: d.slug, leagueOrder: i, country: d.country }
 }
 
@@ -116,9 +119,9 @@ export function clubMatches(clubName: string, now: number): Match[] {
   const club = seasonClub(clubName)
   if (!club) return []
   const league = clubFixtures(club.club.id).map((f) => toMatch(f, now))
-  // Its cup games
+  // Its cup, Champions League and other tournaments' games
   const cup = (getRealData()?.external ?? [])
-    .filter((g) => cupOfGame(g))
+    .filter((g) => !divisionOfGame(g))
     .map(externalMatch)
     .filter((m) => m.home.name === club.club.name || m.away.name === club.club.name)
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
@@ -127,6 +130,8 @@ export function clubMatches(clubName: string, now: number): Match[] {
 /** Matches for any team (any sport) over a range of days from `fromDate` */
 export function teamMatches(teamName: string | string[], sport: SportId, fromDate: string, days: number, now: number, leagueSlug?: string): Match[] {
   const names = new Set(Array.isArray(teamName) ? teamName : [teamName])
+  // The league under every name API-Sports lists it under (A-Liga / Kvindeliga)
+  const leagues = leagueSlug ? sameLeagueKeys(leagueSlug) : undefined
   const out: Match[] = []
   for (let i = 0; i < days; i++) {
     const d = new Date(`${fromDate}T12:00:00Z`)
@@ -134,7 +139,7 @@ export function teamMatches(teamName: string | string[], sport: SportId, fromDat
     const date = d.toISOString().slice(0, 10)
     for (const m of getMatches(date, sport, now)) {
       // In the team's own league when given: a women's team can share its name with the men's club
-      if ((names.has(m.home.name) || names.has(m.away.name)) && (!leagueSlug || m.leagueSlug === leagueSlug)) out.push(m)
+      if ((names.has(m.home.name) || names.has(m.away.name)) && (!leagues || (m.leagueSlug !== undefined && leagues.includes(m.leagueSlug)))) out.push(m)
     }
   }
   return out

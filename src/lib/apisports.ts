@@ -8,7 +8,7 @@ import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, t
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
-import { cupOfGame } from '../data/cups'
+import { cupOfGame, wholeSeason } from '../data/cups'
 import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
@@ -395,7 +395,7 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
   return { version: String(Math.round(mem.mtime)), games: mem.games }
 }
 
-const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || !!cupOfGame(g))
+const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || wholeSeason(g))
 
 /** The finished games in our leagues this season (kept days and the current window) */
 export function seasonGames(): ExternalGame[] {
@@ -547,6 +547,16 @@ export function externalLeague(key: string): ExternalLeague | undefined {
 export function externalLeagues(): ExternalLeague[] {
   load()
   return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}).map((l) => ({ ...l, logo: realLogo(l.logo) })))
+}
+
+/** Every team in the league tables we have, for the teams without a game in the fetched days (their pages and links) */
+export function tableTeams(): { leagueKey: string; sport: SportId; league: string; country?: string; name: string; logo?: string }[] {
+  const store = extrasStore()
+  return externalLeagues().flatMap((l) =>
+    (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>
+      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
+    ),
+  )
 }
 
 /** API-Sports' own table for a league (cached six hours); undefined when the plan or the budget doesn't allow it */
@@ -704,9 +714,16 @@ function seasonDue(api: Api, now: number): { league: string } | undefined {
   }
   // The cups, by the league id their games have
   const seen = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
-  for (const g of seen) if (cupOfGame(g) && g.league.id) wanted.add(g.league.id)
-  const league = [...wanted]
-    .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > 3_600_000)
+  // The Champions League (men 2, women 525 at API-Sports) also between match days; games from another league are left out by name
+  for (const id of ['2', '525']) wanted.add(id)
+  // The cups and the tournaments kept for the whole season (the Champions League), by the league id their games have
+  for (const g of seen) if (wholeSeason(g) && g.league.id) wanted.add(g.league.id)
+  // Every other league we follow: its season's results for the statistics bank (team pages' results), every 6 hours
+  const others = new Set<string>()
+  for (const g of seen) if (g.league.id && !wanted.has(g.league.id)) others.add(g.league.id)
+  const every = (l: string) => (others.has(l) ? 6 * 3_600_000 : 3_600_000)
+  const league = [...wanted, ...others]
+    .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > every(l))
     .sort((a, b) => (s.seasonSynced?.[a] ?? 0) - (s.seasonSynced?.[b] ?? 0))[0]
   return league ? { league } : undefined
 }
@@ -716,7 +733,11 @@ async function fetchSeason(api: Api, due: { league: string }) {
   ;(s.seasonSynced ??= {})[due.league] = Date.now()
   const { response, error } = await call(api, `/fixtures?league=${due.league}&season=${SEASON.slice(0, 4)}&${TZ}`)
   if (error) return
-  const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g && inOurLeague(g))
+  const all = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g)
+  // Other leagues' results go straight to the statistics bank
+  const other = all.filter((g) => !inOurLeague(g) && !divisionOfGame(g) && !wholeSeason(g))
+  if (other.length) archiveSeason(`ext-${api}-${due.league}`, other[0].league.name, SEASON.slice(0, 4), other)
+  const games = all.filter(inOurLeague)
   const byDay = new Map<string, ExternalGame[]>()
   for (const g of games) {
     const day = isoDate(new Date(g.kickoff))
@@ -822,6 +843,23 @@ async function tick() {
         await fetchSeason(api, due)
         changed = true
         await sleep(300)
+      }
+    }
+    // The tables of the other leagues we follow (paid plans), so every team in them has a page, five a run
+    {
+      const s = mem.store.football
+      if (s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now())) {
+        const store = extrasStore()
+        const followed = new Set(Object.values(s.days).flatMap((d) => d.games.map((g) => g.league.id)))
+        const due = externalLeagues()
+          .filter((l) => l.api === 'football' && followed.has(l.id))
+          .filter((l) => Date.now() - (store.entries[`football|table|${l.id}|${l.season ?? ''}`]?.fetchedAt ?? 0) > 6 * 3_600_000)
+          .slice(0, 5)
+        for (const l of due) {
+          await apiLeagueTable(l)
+          changed = true
+          await sleep(300)
+        }
       }
     }
     // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
@@ -1029,6 +1067,7 @@ function readTable(response: Raw[]): TableRow[][] {
       return {
         rank: Number(r.rank ?? r.position ?? 0),
         teamId: num(r.team?.id),
+        group: r.group ?? undefined,
         name: String(r.team?.name ?? ''),
         logo: r.team?.logo ?? undefined,
         played: count(games.played),
@@ -1189,7 +1228,7 @@ function eventsDue(s: ApiState): string[] {
   const due = new Set<string>()
   // Live games first, then the newest finished ones
   const wanted = games
-    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || cupOfGame(g)) && g.eventsFor !== eventsKey(g))
+    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
     .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)
