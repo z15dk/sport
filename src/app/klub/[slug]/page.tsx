@@ -214,7 +214,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games
   const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
   // A cup has rounds, not a table
-  const cup = !!cupOfGame({ sport: team.sport, league: { name: team.league, country: team.country } })
+  const cup = !!cupOfGame({ sport: team.sport, league: { id: '', name: team.league, country: team.country } })
   const fromApi = league && !cup ? await apiLeagueTable(league) : undefined
   const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : []))
   const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
