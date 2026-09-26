@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { teamByName } from '../data/teams'
 import { paths } from '../lib/site'
 import { useBadge } from './BadgeProvider'
@@ -27,16 +27,63 @@ export function TeamBadge({ link = true, ...props }: Props) {
   )
 }
 
+/** Whether each logo is (almost) all white, by URL; undefined while unknown or when the host doesn't allow reading it */
+const lightLogos = new Map<string, boolean | undefined>()
+
+/**
+ * Looks at a logo's pixels: a logo whose visible pixels are mostly white or
+ * very light gets a dark plate behind it, so it doesn't vanish on the page.
+ * A separate image with CORS, so the shown logo loads the same either way.
+ */
+function useLightLogo(url?: string) {
+  const [light, setLight] = useState(url ? lightLogos.get(url) : undefined)
+  useEffect(() => {
+    if (!url || lightLogos.has(url)) return
+    lightLogos.set(url, undefined)
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const n = 24
+        const canvas = document.createElement('canvas')
+        canvas.width = n
+        canvas.height = n
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+        if (!ctx) return
+        ctx.drawImage(img, 0, 0, n, n)
+        const data = ctx.getImageData(0, 0, n, n).data
+        let visible = 0
+        let bright = 0
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] < 128) continue
+          visible++
+          const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255
+          if (lum > 0.88) bright++
+        }
+        // Mostly transparent with light marks, or light nearly everywhere visible
+        const isLight = visible > 0 && bright / visible > 0.7 && visible < n * n * 0.9
+        lightLogos.set(url, isLight)
+        setLight(isLight)
+      } catch {
+        // The host doesn't allow reading the pixels: leave the logo as it is
+      }
+    }
+    img.src = url
+  }, [url])
+  return light
+}
+
 function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
   const known = useBadge(name)
   const url = src ?? known
   const [failed, setFailed] = useState(false)
+  const light = useLightLogo(failed ? undefined : url)
 
   if (url && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
       <img
-        className="badge"
+        className={light ? 'badge badge--light' : 'badge'}
         src={url}
         alt=""
         width={size}
