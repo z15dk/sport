@@ -91,14 +91,16 @@ export function clubMatches(clubName: string, now: number): Match[] {
 }
 
 /** Matches for any team (any sport) over a range of days from `fromDate` */
-export function teamMatches(teamName: string, sport: SportId, fromDate: string, days: number, now: number): Match[] {
+export function teamMatches(teamName: string | string[], sport: SportId, fromDate: string, days: number, now: number, leagueSlug?: string): Match[] {
+  const names = new Set(Array.isArray(teamName) ? teamName : [teamName])
   const out: Match[] = []
   for (let i = 0; i < days; i++) {
     const d = new Date(`${fromDate}T12:00:00Z`)
     d.setUTCDate(d.getUTCDate() + i)
     const date = d.toISOString().slice(0, 10)
     for (const m of getMatches(date, sport, now)) {
-      if (m.home.name === teamName || m.away.name === teamName) out.push(m)
+      // In the team's own league when given: a women's team can share its name with the men's club
+      if ((names.has(m.home.name) || names.has(m.away.name)) && (!leagueSlug || m.leagueSlug === leagueSlug)) out.push(m)
     }
   }
   return out

@@ -14,6 +14,7 @@ import { paths } from '../lib/site'
 import { JsonLd, breadcrumbLd, webPageLd } from '../lib/jsonld'
 import { SITE_URL } from '../lib/site'
 import type { Baseline } from '../data/baselines'
+import { teamInLeague } from '../data/teams'
 
 interface Props {
   league: ExternalLeague
@@ -103,10 +104,16 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                       <tr key={`${r.rank}-${r.name}`} className={baseline?.splitAfter === r.rank ? 'is-split' : undefined}>
                         <td className="num pos">{r.rank}</td>
                         <td>
-                          <span className="table__club">
-                            <TeamBadge name={r.name} src={r.logo} size={20} />
-                            {r.name}
-                          </span>
+                          {(() => {
+                            // Linked to the team's own page in this league (not a men's club of the same name)
+                            const team = teamInLeague(league.key, r.name)
+                            return (
+                              <span className="table__club">
+                                <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
+                                {team ? <Link href={paths.club(team.slug)}>{r.name}</Link> : r.name}
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="num">{r.played}</td>
                         <td className="num">{r.won}</td>

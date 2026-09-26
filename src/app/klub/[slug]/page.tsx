@@ -12,13 +12,16 @@ import { FormChips } from '../../../components/FormChips'
 import { MatchRow } from '../../../components/MatchRow'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
+import { danishCountry } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
-import { clubHistory } from '../../../lib/history'
+import { archiveLeagueTable, clubHistory } from '../../../lib/history'
+import { BASELINES } from '../../../data/baselines'
+import { externalLeague } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, isoDate } from '../../../lib/time'
@@ -161,16 +164,22 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
 function TeamPage({ team }: { team: TeamEntry }) {
   const now = Date.now()
   const today = isoDate(now)
-  const around = teamMatches(team.name, team.sport, addDays(today, -7), 15, now)
+  const names = team.names ?? [team.name]
+  // Its place in its league's table, for API-Sports' leagues with a starting table
+  const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
+  const league = team.leagueSlug ? externalLeague(team.leagueSlug) : undefined
+  const table = baseline ? archiveLeagueTable(league ? `ext-${league.api.split('-')[0]}-${league.id}` : '', baseline).rows : []
+  const row = table.find((r) => r.name === team.name || names.includes(r.name))
+  const around = teamMatches(names, team.sport, addDays(today, -7), 15, now, team.names ? team.leagueSlug : undefined)
   const recent = around.filter((m) => m.state === 'finished').slice(-5).reverse()
   const upcoming = around.filter((m) => m.state !== 'finished').slice(0, 5)
   const faq = teamFaq(team, upcoming[0], recent[0])
   const sport = sportById(team.sport)
   const last = recent[0]
   const next = upcoming[0]
-  const opponent = (m: typeof last) => (m.home.name === team.name ? m.away.name : m.home.name)
-  const score = (m: typeof last) =>
-    m.home.name === team.name ? `${m.home.score ?? 0}-${m.away.score ?? 0}` : `${m.away.score ?? 0}-${m.home.score ?? 0}`
+  const isHome = (m: typeof last) => names.includes(m.home.name)
+  const opponent = (m: typeof last) => (isHome(m) ? m.away.name : m.home.name)
+  const score = (m: typeof last) => (isHome(m) ? `${m.home.score ?? 0}-${m.away.score ?? 0}` : `${m.away.score ?? 0}-${m.home.score ?? 0}`)
 
   return (
     <div className="page">
@@ -185,19 +194,21 @@ function TeamPage({ team }: { team: TeamEntry }) {
       />
       <div className="clubs">
         <header className="club-hero">
-          <BadgeWatermark name={team.name} />
-          <TeamBadge link={false} name={team.name} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
+          <BadgeWatermark name={team.name} src={team.logo} />
+          <TeamBadge link={false} name={team.name} src={team.logo} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
-              {sport.label} · {team.league}
-              {team.country && ` · ${team.country}`}
+              {sport.label} ·{' '}
+              {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
+              {team.country && ` · ${danishCountry(team.country)}`}
             </span>
             <h1>{team.name}</h1>
           </div>
         </header>
 
         <p className="lead">
-          {team.name} spiller i {team.league}.
+          {team.name} spiller i {team.league}
+          {row ? ` og ligger nr. ${row.rank} med ${row.points ?? 0} point efter ${row.played} kampe (${row.won} sejre, ${row.drawn ?? 0} uafgjorte, ${row.lost} nederlag, målscore ${row.for ?? 0}-${row.against ?? 0})` : ''}.
           {last && ` Seneste kamp: ${score(last)} mod ${opponent(last)}.`}
           {next && ` Næste kamp er mod ${opponent(next)}.`}
         </p>

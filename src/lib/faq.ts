@@ -143,15 +143,18 @@ export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
 }
 
 export function teamFaq(team: TeamEntry, next?: Match, last?: Match): FaqItem[] {
+  // API-Sports' teams go by more than one name ("Brøndby IF" / "Brondby W")
+  const names = team.names ?? [team.name]
+  const home = (m: Match) => names.includes(m.home.name)
   const items: FaqItem[] = [{ q: `Hvilken turnering spiller ${team.name} i?`, a: `${team.name} spiller i ${team.league}.` }]
   if (next) {
-    const opponent = next.home.name === team.name ? next.away.name : next.home.name
+    const opponent = home(next) ? next.away.name : next.home.name
     items.push({ q: `Hvornår spiller ${team.name} næste gang?`, a: `${team.name} møder ${opponent} ${when(next.kickoff)}.` })
   }
   if (last) {
-    const own = last.home.name === team.name ? (last.home.score ?? 0) : (last.away.score ?? 0)
-    const other = last.home.name === team.name ? (last.away.score ?? 0) : (last.home.score ?? 0)
-    const opponent = last.home.name === team.name ? last.away.name : last.home.name
+    const own = home(last) ? (last.home.score ?? 0) : (last.away.score ?? 0)
+    const other = home(last) ? (last.away.score ?? 0) : (last.home.score ?? 0)
+    const opponent = home(last) ? last.away.name : last.home.name
     items.push({
       q: `Hvad blev ${genitive(team.name)} seneste resultat?`,
       a: `${own > other ? 'Sejr' : own < other ? 'Nederlag' : 'Uafgjort'} ${own}-${other} mod ${opponent} ${formatLong(last.kickoff)}.`,
