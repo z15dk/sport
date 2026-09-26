@@ -6,6 +6,7 @@ import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
 import { Updated } from './Updated'
+import { CalendarButton } from './CalendarButton'
 import { AdSlot } from './AdSlot'
 import { danishCountry } from '../data/countries'
 import { sportById } from '../sports'
@@ -83,6 +84,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           </p>
         )}
         <Updated at={now} />
+        <CalendarButton kind="turnering" slug={league.key} name={league.name} />
 
         {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
         {rounds?.map((r) => (

@@ -16,6 +16,7 @@ import { LeagueStats } from '../../../components/LeagueStats'
 import { LeagueHistory } from '../../../components/LeagueHistory'
 import { leagueHistory } from '../../../lib/history'
 import { Updated } from '../../../components/Updated'
+import { CalendarButton } from '../../../components/CalendarButton'
 import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
@@ -189,6 +190,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           {second.club.name}. Nederst ligger {rows.at(-1)!.club.name} med {rows.at(-1)!.points} point.
         </p>
         <Updated at={now} />
+        <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
 
         <section className="panel table-panel">
           <header className="table-panel__head">

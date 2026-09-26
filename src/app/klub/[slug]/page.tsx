@@ -28,6 +28,7 @@ import { BASELINES } from '../../../data/baselines'
 import { cupOfGame } from '../../../data/cups'
 import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { Updated } from '../../../components/Updated'
+import { CalendarButton } from '../../../components/CalendarButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { addDays, formatLong, formatShortYear, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
@@ -116,6 +117,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
           {sport === 'basketball' ? ' samlet score' : ' målscore'} på {r.goalsFor}-{r.goalsAgainst}.
         </p>
         <Updated at={now} />
+        <CalendarButton kind="klub" slug={club.slug} name={club.name} />
 
         <section className="tiles tiles--club" aria-label="Sæsonen i tal">
           <div className="tile tile--lime">
@@ -288,6 +290,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
           {!live[0] && next && ` Næste kamp er mod ${own(next.home.name) ? next.away.name : next.home.name} ${formatLong(next.kickoff)}.`}
         </p>
         <Updated at={now} />
+        <CalendarButton kind="klub" slug={team.slug} name={team.name} />
 
         {(row || n > 0) && (
           <section className="tiles tiles--club" aria-label="Nøgletal">
