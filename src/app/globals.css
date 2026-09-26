@@ -1371,3 +1371,6 @@ h2.league__name { margin: 0; }
 .story__title { margin: 0 0 8px; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 20px; }
 .story p { margin: 0 0 10px; line-height: 1.55; font-size: 16px; }
 .story .story__note { margin: 0; font-size: 12px; color: var(--ink-3); }
+
+/* The footer spans the whole window; its content lines up with the page (at most 1400px) */
+.footer { margin: 32px 0 0; border-radius: var(--radius) var(--radius) 0 0; padding: 32px max(24px, calc((100% - 1400px) / 2 + 24px)) 40px; }

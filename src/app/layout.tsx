@@ -52,9 +52,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Header />
                 <AdSlot placement="top" />
                 {children}
-                <Footer />
               </div>
             </div>
+            <Footer />
           </BadgeProvider>
         </RealDataProvider>
       </body>
