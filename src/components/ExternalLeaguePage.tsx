@@ -13,6 +13,7 @@ import { formatShortYear } from '../lib/time'
 import { paths } from '../lib/site'
 import { JsonLd, breadcrumbLd, webPageLd } from '../lib/jsonld'
 import { SITE_URL } from '../lib/site'
+import type { Baseline } from '../data/baselines'
 
 interface Props {
   league: ExternalLeague
@@ -25,10 +26,12 @@ interface Props {
   recent: PastMatch[]
   upcoming: Match[]
   now: number
+  /** The starting table our own table builds on, when there is one */
+  baseline?: Baseline
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -73,7 +76,11 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
-            {source === 'scoreline' && matches !== undefined && <span className="tag">{matches} kampe</span>}
+            {source === 'scoreline' && baseline ? (
+              <span className="tag">Efter {baseline.round + Math.max(0, ...groups.flat().map((r) => r.played - baseline.rows[0].played))}. runde</span>
+            ) : (
+              source === 'scoreline' && matches !== undefined && <span className="tag">{matches} kampe</span>
+            )}
           </header>
           {rows.length > 1 ? (
             groups.map((group, gi) => (
@@ -93,7 +100,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   </thead>
                   <tbody>
                     {group.map((r) => (
-                      <tr key={`${r.rank}-${r.name}`}>
+                      <tr key={`${r.rank}-${r.name}`} className={baseline?.splitAfter === r.rank ? 'is-split' : undefined}>
                         <td className="num pos">{r.rank}</td>
                         <td>
                           <span className="table__club">
@@ -123,7 +130,9 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           <p className="muted small history__note">
             {source === 'api-sports'
               ? 'Stilling: API-Sports.'
-              : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr). API-Sports' gratisplan giver ikke sæsonens tidligere kampe, så stillingen er kun komplet fra da.`}
+              : baseline
+                ? `Udgangspunkt: stillingen efter ${baseline.round}. runde fra ${baseline.source} (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen under nr. ${baseline.splitAfter} er som i stillingen på ${baseline.source}.`) : ''}`
+                : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr). API-Sports' gratisplan giver ikke sæsonens tidligere kampe, så stillingen er kun komplet fra da.`}
           </p>
         </section>
 

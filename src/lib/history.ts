@@ -8,6 +8,7 @@ import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
+import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
 import { archiveFile, readArchive } from './archive'
 import { hashString } from '../data/fixtures'
@@ -700,16 +701,34 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
  * it rests on and from when. For API-Sports' leagues, whose tables the free
  * plan doesn't give.
  */
-export function archiveLeagueTable(divisionId: string): { rows: TableRow[]; matches: number; since?: Date; recent: PastMatch[] } {
+export function archiveLeagueTable(
+  divisionId: string,
+  baseline?: Baseline,
+): { rows: TableRow[]; matches: number; since?: Date; recent: PastMatch[] } {
   const inLeague = readArchive()
     .filter((a) => a.divisionId === divisionId)
     .sort((x, y) => x.date.getTime() - y.date.getTime())
   let start = 0
   for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
-  const season = inLeague.slice(start)
+  // With a starting table, only the matches after it count on top of it
+  const season = baseline ? inLeague.filter((a) => a.date.getTime() > Date.parse(baseline.after)) : inLeague.slice(start)
   const rows = new Map<string, TableRow>()
-  const add = (name: string, f: number, a: number) => {
+  const aliases = new Map<string, string[]>()
+  for (const b of baseline?.rows ?? []) {
+    const { aliases: other, ...r } = b
+    rows.set(normalize(b.name), { rank: 0, ...r })
+    aliases.set(normalize(b.name), [b.name, ...(other ?? [])])
+  }
+  // A team from the data source, matched to the starting table's row ("Brondby W" to "Brøndby IF")
+  const women = (n: string) => n.replace(/\b(w|women|kvinder|dame|damer|q)\b\.?/gi, '').trim()
+  const keyOf = (name: string) => {
     const key = normalize(name)
+    if (rows.has(key) || !aliases.size) return key
+    const found = [...aliases.entries()].filter(([, names]) => alike(names.map(women), women(name)))
+    return found.length === 1 ? found[0][0] : key
+  }
+  const add = (name: string, f: number, a: number) => {
+    const key = keyOf(name)
     const r = rows.get(key) ?? rows.set(key, { rank: 0, name, played: 0, won: 0, drawn: 0, lost: 0, for: 0, against: 0, points: 0 }).get(key)!
     r.played++
     r.for = (r.for ?? 0) + f

@@ -53,7 +53,9 @@ export interface TsdbLeague {
   alternate?: string
 }
 // On globalThis: the job (started from instrumentation) and the pages load separate copies of this module
-const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData; __scorelineMergedKey?: string }
+const holder = globalThis as { __scorelineRealJob?: JobState; __scorelineTsdb?: RealData }
+// Per module copy, not on globalThis: the job and the pages each keep their own merged data, so each must merge for itself
+let mergedKey: string | undefined
 const state = (holder.__scorelineRealJob ??= { running: false, requests: 0 })
 
 // ---------------------------------------------------------------- the two sources
@@ -75,8 +77,8 @@ function apply() {
   const leagueNames = leagueNameOverrides()
   const logos = Object.keys(customLogos()).length
   const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}`
-  if (holder.__scorelineMergedKey === key) return
-  holder.__scorelineMergedKey = key
+  if (mergedKey === key) return
+  mergedKey = key
   const leagues = { ...(tsdbData?.leagues ?? {}) }
   // The source with more of the season wins (our database has the Danish divisions in full)
   for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (leagues[id]?.length ?? 0)) leagues[id] = events

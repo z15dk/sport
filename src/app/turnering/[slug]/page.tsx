@@ -22,6 +22,7 @@ import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
 import { apiLeagueTable, externalLeague } from '../../../lib/apisports'
 import { archiveLeagueTable } from '../../../lib/history'
+import { BASELINES } from '../../../data/baselines'
 import { getRealData } from '../../../data/real'
 import { externalLeagueKey, externalToMatch } from '../../../data/external'
 import { loadRealData } from '../../../lib/realdata'
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const slug = (await params).slug
   // One of API-Sports' other leagues
   if (slug.startsWith('x-')) {
-    const league = externalLeague(slug)
+    const league = knownLeague(slug)
     if (!league) return { title: 'Turneringen findes ikke' }
     const name = loadRealData()?.leagueNames?.[slug] ?? league.name
     return {
@@ -60,14 +61,21 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 /** A page for one of API-Sports' other leagues: their table when the plan allows it, else ours from the statistics bank */
+/** A league we know from API-Sports' games, or from a starting table entered before any of its games came */
+function knownLeague(slug: string) {
+  const b = BASELINES[slug]
+  return externalLeague(slug) ?? (b && { key: slug, api: 'football', id: '', name: b.league.name, country: b.league.country, sport: b.league.sport, lastSeen: 0 })
+}
+
 async function externalLeaguePage(slug: string) {
-  const found = externalLeague(slug)
+  const found = knownLeague(slug)
   if (!found) notFound()
   const now = Date.now()
   const real = loadRealData() ?? getRealData()
   const league = { ...found, name: real?.leagueNames?.[slug] ?? found.name }
-  const fromApi = await apiLeagueTable(found)
-  const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`)
+  const fromApi = found.id ? await apiLeagueTable(found) : undefined
+  const baseline = BASELINES[slug]
+  const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
   const upcoming = (real?.external ?? [])
     .filter((g) => externalLeagueKey(g.league) === slug && g.state !== 'finished')
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
@@ -78,6 +86,7 @@ async function externalLeaguePage(slug: string) {
       league={league}
       groups={fromApi ?? [own.rows]}
       source={fromApi ? 'api-sports' : 'scoreline'}
+      baseline={fromApi ? undefined : baseline}
       matches={own.matches}
       since={own.since}
       recent={own.recent}
