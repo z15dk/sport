@@ -263,7 +263,7 @@ function MatchBody({
                         <th className="num" title="Uafgjort">U</th>
                       )}
                       <th className="num" title="Tabt">T</th>
-                      {table.rows.some((r) => r.for !== undefined) && <th className="num">Score</th>}
+                      {table.rows.some((r) => r.for !== undefined) && <th className="num hide-sm">Score</th>}
                       {table.rows.some((r) => r.points !== undefined) && (
                         <th className="num" title="Point">
                           P
@@ -288,7 +288,7 @@ function MatchBody({
                           {table.rows.some((x) => x.drawn !== undefined) && <td className="num">{r.drawn ?? 0}</td>}
                           <td className="num">{r.lost}</td>
                           {table.rows.some((x) => x.for !== undefined) && (
-                            <td className="num">
+                            <td className="num hide-sm">
                               {r.for ?? 0}–{r.against ?? 0}
                             </td>
                           )}
