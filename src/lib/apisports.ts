@@ -48,7 +48,8 @@ const num = (v: unknown) => (v === null || v === undefined || v === '' ? undefin
 const total = (v: unknown) => (typeof v === 'number' ? v : num((v as { total?: unknown } | null)?.total))
 
 const FINISHED = new Set(['FT', 'AET', 'PEN', 'AOT', 'AP', 'AW'])
-const OFF = new Set(['PST', 'CANC', 'ABD', 'SUSP', 'AWD', 'WO', 'INT'])
+// Football writes PST for postponed, the other sports POST
+const OFF = new Set(['PST', 'POST', 'CANC', 'ABD', 'SUSP', 'AWD', 'WO', 'INT'])
 const UPCOMING = new Set(['NS', 'TBD'])
 function stateOf(short: string): MatchState {
   if (FINISHED.has(short)) return 'finished'
@@ -56,7 +57,7 @@ function stateOf(short: string): MatchState {
   if (UPCOMING.has(short) || !short) return 'upcoming'
   return 'live'
 }
-const PERIOD_LABEL: Record<string, string> = { HT: 'Pause', BT: 'Pause', P: 'Straffe', OT: 'Forl.', Q1: '1. kvt.', Q2: '2. kvt.', Q3: '3. kvt.', Q4: '4. kvt.', P1: '1. periode', P2: '2. periode', P3: '3. periode' }
+const PERIOD_LABEL: Record<string, string> = { ET: 'Forl.', PT: 'Straffe', LIVE: 'Live', HT: 'Pause', BT: 'Pause', P: 'Straffe', OT: 'Forl.', Q1: '1. kvt.', Q2: '2. kvt.', Q3: '3. kvt.', Q4: '4. kvt.', P1: '1. periode', P2: '2. periode', P3: '3. periode' }
 
 /** Youth and reserve teams are left out everywhere */
 const notYouth = (g: ExternalGame) => !/\bU\s?\d{2}\b|youth|reserve|junior/i.test(g.league.name)
