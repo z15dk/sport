@@ -1339,7 +1339,8 @@ h2.league__name { margin: 0; }
   .pitch__half { min-height: 220px; }
 }
 /* ---- League leaders ---- */
-.leaders__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 4px 16px 16px; }
+.leaders__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; padding: 4px 16px 16px; }
+@media (max-width: 640px) { .leaders__grid { grid-template-columns: minmax(0, 1fr); } }
 .leaders__list h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; color: var(--ink-3); }
 .leaders__list ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .leaders__list li { display: grid; grid-template-columns: 18px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: var(--surface-2); }
