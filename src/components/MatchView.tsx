@@ -307,6 +307,7 @@ function MatchBody({
           {compare && (
             <section className="sheet__section">
               <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
+            <CompareHead home={home} away={away} />
               {compare.map((c) => (
                 <StatBar
                   key={c.label}
@@ -325,6 +326,7 @@ function MatchBody({
           {homeStats && awayStats && (
             <section className="sheet__section">
               <h2 className="sheet__title">Klubberne i sæsonen</h2>
+            <CompareHead home={home} away={away} />
               <ClubComparison home={homeStats} away={awayStats} />
             </section>
           )}
@@ -512,4 +514,20 @@ function seasonTable(match: Match): MatchExtra['table'] {
     points: r.points,
   }))
   return { rows }
+}
+
+/** Which side is which in the comparisons: the home club left, the away club right */
+function CompareHead({ home, away }: { home: Match['home']; away: Match['away'] }) {
+  return (
+    <div className="compare-head">
+      <span>
+        <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={24} />
+        <ClubName name={home.name} />
+      </span>
+      <span>
+        <ClubName name={away.name} />
+        <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={24} />
+      </span>
+    </div>
+  )
 }

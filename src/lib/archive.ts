@@ -242,3 +242,35 @@ export function archiveStatus() {
   }
   return { file: archiveFile(), total, byDivision, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }
 }
+
+/**
+ * Saves a past season of one of our leagues (from API-Sports) in the
+ * statistics bank, so club pages get history for leagues football.db does
+ * not cover. Returns how many finished matches were saved.
+ */
+export function archiveSeason(divisionId: string, tournament: string, season: string, games: import('../data/external').ExternalGame[]): number {
+  const lib = sqlite()
+  if (!lib) return 0
+  const finished = games.filter((g) => g.state === 'finished' && g.homeScore !== undefined && g.awayScore !== undefined)
+  if (!finished.length) return 0
+  mkdirSync(path.dirname(archiveFile()), { recursive: true })
+  const db = new lib.DatabaseSync(archiveFile())
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec(SCHEMA)
+    const upsert = db.prepare(`
+      INSERT INTO matches (event_id, source, division_id, tournament_name, season_year, round, start_date, home_name, away_name,
+                           home_score, away_score, home_score_ht, away_score_ht, spectators, status, saved_at)
+      VALUES (?, 'API-Sports historik', ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NULL, 'finished', ?)
+      ON CONFLICT(event_id) DO NOTHING`)
+    const now = new Date().toISOString()
+    db.exec('BEGIN')
+    for (const g of finished) {
+      upsert.run(g.id, divisionId, tournament, season, g.kickoff, g.home.name, g.away.name, g.homeScore, g.awayScore, g.ht?.[0] ?? null, g.ht?.[1] ?? null, now)
+    }
+    db.exec('COMMIT')
+  } finally {
+    db.close()
+  }
+  return finished.length
+}

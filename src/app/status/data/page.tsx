@@ -140,6 +140,12 @@ export default function DataStatusPage() {
                   : `${x.games} kampe i ${x.leagues.length} turneringer · kald tilbage i dag: ${x.remaining ?? '?'}${x.limit ? ` af ${x.limit}` : ''} · i dag hentet ${x.todayFetchedAt ?? 'ikke endnu'}`}
                 {x.lastError && <span className="unverified"> · Fejl: {x.lastError}</span>}
                 {x.leagues.length > 0 && <span className="muted small"> · {x.leagues.join(', ')}</span>}
+                {x.history.length > 0 && (
+                  <span className="muted small">
+                    {' '}
+                    · Historik gemt: {x.history.map((h) => `${h.key.replace('|', ' ')} (${h.matches ? `${h.matches} kampe` : 'ikke adgang'})`).join(', ')}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

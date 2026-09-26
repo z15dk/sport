@@ -70,13 +70,19 @@ function resolver() {
     }
   }
   const danish = DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer').flatMap((d) => d.clubs)
+  const everyone = DIVISIONS.flatMap((d) => d.clubs)
   return (name: string) => {
     const exact = byName.get(normalize(name))
     if (exact) return exact
     // Written differently ("AGF Aarhus" for AGF): one Danish club alone matches loosely. Second teams and youth sides never do
     if (/\b(ii|iii|2|u\s?\d{2}|reserve|ungdom)\b/i.test(name)) return undefined
-    const loose = danish.filter((c) => alike([c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n), name))
-    return loose.length === 1 ? loose[0] : undefined
+    const names = (c: Club) => [c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n)
+    // Danish football first (football.db), then any of our clubs (past seasons of the other leagues in the statistics bank)
+    const loose = danish.filter((c) => alike(names(c), name))
+    if (loose.length === 1) return loose[0]
+    if (loose.length) return undefined
+    const other = everyone.filter((c) => alike(names(c), name))
+    return other.length === 1 ? other[0] : undefined
   }
 }
 

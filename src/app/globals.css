@@ -1230,3 +1230,7 @@ h2.league__name { margin: 0; }
 .facts__channels .partner-logo { position: relative; z-index: 1; }
 @media (max-width: 600px) { .hide-sm { display: none; } }
 .match-page__cols:has(> .match-page__col:empty) { grid-template-columns: 1fr; }
+.compare-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: -4px; font-size: 13px; font-weight: 700; }
+.compare-head span { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.compare-head span:last-child { text-align: right; }
+.compare-head .badge-link { position: relative; z-index: 1; }

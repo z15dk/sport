@@ -8,6 +8,8 @@ import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
+import { DIVISIONS, sportOf, type Division } from '../data/leagues'
+import { archiveSeason } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -288,6 +290,10 @@ interface ApiState {
   backfilled?: Record<string, number>
   /** Days the plan gives access to, relative to today (the free plan: yesterday to tomorrow) */
   allowedDays?: { from: number; to: number }
+  /** Our divisions' league ids at this API, learned from the games it returns */
+  leagueIds?: Record<string, string>
+  /** Past seasons saved in the statistics bank: "division|year" -> matches saved (0: none or refused) */
+  history?: Record<string, number>
   remaining?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
@@ -497,6 +503,75 @@ function backfillDay(api: Api, now: number): string | undefined {
   return undefined
 }
 
+// ---------------------------------------------------------------- past seasons for club history
+
+/** Which API has each sport's leagues */
+const API_FOR_SPORT: Partial<Record<SportId, Api>> = { soccer: 'football', ice_hockey: 'hockey', basketball: 'basketball', handball: 'handball' }
+/** API-Football's ids for our football leagues (the rest are learned from the games) */
+const FOOTBALL_IDS: Record<string, string> = {
+  superliga: '119', '1div': '120', premierleague: '39', championship: '40', laliga: '140', ligaportugal: '94',
+  bundesliga: '78', bundesliga2: '79', liga3: '80', allsvenskan: '113', eliteserien: '103',
+}
+/** Seasons the free plan gives access to */
+const HISTORY_YEARS = [2023, 2022, 2021]
+
+/** Learns our divisions' league ids from the games an API has returned */
+function learnLeagueIds(api: Api) {
+  const s = mem.store[api]
+  if (!s) return
+  const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
+  for (const g of games) {
+    const d = divisionOfGame(g)?.d
+    if (d && g.league.id && !s.leagueIds?.[d.id]) (s.leagueIds ??= {})[d.id] = g.league.id
+  }
+}
+
+/** The next past season to fetch for one of our leagues, or nothing */
+function historyDue(api: Api): { division: Division; league: string; year: number } | undefined {
+  const s = mem.store[api]
+  if (!s) return undefined
+  const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
+  if (remaining <= 40) return undefined
+  learnLeagueIds(api)
+  for (const division of DIVISIONS) {
+    if (API_FOR_SPORT[sportOf(division)] !== api) continue
+    const league = (api === 'football' ? FOOTBALL_IDS[division.id] : undefined) ?? s.leagueIds?.[division.id]
+    if (!league) continue
+    for (const year of HISTORY_YEARS) if (s.history?.[`${division.id}|${year}`] === undefined) return { division, league, year }
+  }
+  return undefined
+}
+
+/** Season as the API writes it and as we label it ("2022/2023", or "2022" for calendar-year leagues) */
+function seasonNames(api: Api, division: Division, year: number) {
+  const calendar = /^\d{4}$/.test(division.seasonLabel ?? '')
+  return {
+    param: api === 'basketball' ? `${year}-${year + 1}` : String(year),
+    label: calendar ? String(year) : `${year}/${year + 1}`,
+  }
+}
+
+async function fetchHistory(api: Api, due: { division: Division; league: string; year: number }) {
+  const s = mem.store[api]!
+  const { param, label } = seasonNames(api, due.division, due.year)
+  const path = api === 'football' ? `/fixtures?league=${due.league}&season=${param}&${TZ}` : `/games?league=${due.league}&season=${param}&${TZ}`
+  const { response, error } = await call(api, path)
+  const key = `${due.division.id}|${due.year}`
+  if (error) {
+    // A season the plan refuses is not asked for again; other errors are retried later
+    if (/plan|access|season/i.test(error)) (s.history ??= {})[key] = 0
+    return
+  }
+  const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g)
+  let saved = 0
+  try {
+    saved = archiveSeason(due.division.id, due.division.name, label, games)
+  } catch {
+    return // try again next time
+  }
+  ;(s.history ??= {})[key] = saved
+}
+
 let running = false
 async function tick() {
   if (running) return
@@ -531,6 +606,20 @@ async function tick() {
         const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g && inOurLeague(g))
         ;(s.past ??= {})[day] = games
         ;(s.backfilled ??= {})[day] = Date.now()
+      }
+      changed = true
+      await sleep(2_000)
+    }
+    // Past seasons of our leagues for the club pages' history, with requests left over, one per API per run
+    for (const api of Object.keys(APIS) as Api[]) {
+      if (!keyFor(api) || dueDay(api, now)) continue
+      const due = historyDue(api)
+      if (!due) continue
+      try {
+        await fetchHistory(api, due)
+      } catch {
+        // an unexpected answer: marked so the job doesn't ask again and again
+        ;(mem.store[api]!.history ??= {})[`${due.division.id}|${due.year}`] = 0
       }
       changed = true
       await sleep(2_000)
@@ -587,6 +676,7 @@ export function apiSportsStatus() {
       todayFetchedAt: fetchedToday ? new Date(fetchedToday).toISOString() : null,
       lastError: s?.lastError ?? null,
       allowedDays: s?.allowedDays ?? null,
+      history: Object.entries(s?.history ?? {}).map(([k, n]) => ({ key: k, matches: n })),
     }
   })
 }
