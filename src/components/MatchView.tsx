@@ -10,7 +10,7 @@ import { sportOf } from '../data/leagues'
 import { findMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
 import { useNow } from '../hooks/useNow'
-import type { Match } from '../types'
+import type { Incident, Match } from '../types'
 import { StatBar } from './StatBar'
 import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
@@ -20,6 +20,7 @@ import { PartnerLogo } from './PartnerLogo'
 import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
+import { MatchTimeline } from './MatchTimeline'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 
 /** Where the head-to-head meetings come from */
@@ -34,14 +35,16 @@ interface Props {
   h2hSource?: H2hSource
   /** Facts, form and table from API-Sports (server) */
   extra?: MatchExtra
+  /** Goals and cards from API-Sports when our sources have none (server) */
+  events?: Incident[]
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, h2hSource, extra, events }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -152,6 +155,7 @@ function MatchBody({
         </div>
       </header>
 
+      <MatchTimeline match={match} />
       <MatchExtrasPanel match={match} withChannels={false} />
 
       <h1 className="match-page__title">

@@ -1,7 +1,7 @@
 import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { MatchState, SportId } from '../types'
+import type { Incident, MatchState, SportId } from '../types'
 import { externalLeagueKey, type ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
@@ -739,7 +739,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][] }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -895,4 +895,68 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const group = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
   if (group && group.length > 1) extra.table = { rows: group, homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
+}
+
+// ---------------------------------------------------------------- goals and cards of a football match
+
+/**
+ * Goals and cards of an API-Sports football match, for the match page's
+ * timeline. Fetched again only when the score has changed since (a new goal)
+ * and once more when the match is over (for late cards), so a live match
+ * costs a request per goal, not per page view.
+ */
+export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | undefined> {
+  const api = apiOf(game)
+  if (api !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return undefined
+  const store = extrasStore()
+  const key = `${api}|events|${game.id}`
+  const entry = store.entries[key]
+  const goals = (game.homeScore ?? 0) + (game.awayScore ?? 0)
+  const counted = (entry?.incidents ?? []).filter((i) => i.kind !== 'yellow' && i.kind !== 'red').length
+  const fresh = entry && counted === goals && (game.state !== 'finished' || entry.final)
+  if (fresh || (entry && Date.now() - entry.fetchedAt < 60_000)) return entry.incidents
+  if (!keyFor(api)) return entry?.incidents
+  load()
+  const s = mem.store[api]
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+  const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= EXTRAS_PER_DAY) return entry?.incidents
+  store.spent[api] = { day: utcDay(), count: spent + 1 }
+  const id = game.id.split('-').pop()
+  const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
+  if (error) return entry?.incidents
+  const incidents: Incident[] = []
+  for (const r of response ?? []) {
+    const type = String(r.type ?? '').toLowerCase()
+    const detail = String(r.detail ?? '').toLowerCase()
+    const side = num(r.team?.id) === game.home.id ? 'home' : num(r.team?.id) === game.away.id ? 'away' : undefined
+    const minute = Number(r.time?.elapsed ?? 0) + Number(r.time?.extra ?? 0)
+    if (!side || !minute) continue
+    const kind: Incident['kind'] | undefined =
+      type === 'goal'
+        ? /missed/.test(detail)
+          ? undefined
+          : /own/.test(detail)
+            ? 'own-goal'
+            : /penalty/.test(detail)
+              ? 'penalty'
+              : 'goal'
+        : type === 'card'
+          ? /red|second yellow/.test(detail)
+            ? 'red'
+            : 'yellow'
+          : undefined
+    // An own goal is registered to the player's team; our incidents count it for the other side the same way
+    if (kind) incidents.push({ minute, side, kind, player: r.player?.name ?? undefined })
+  }
+  incidents.sort((a, b) => a.minute - b.minute)
+  store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
+  try {
+    mkdirSync(path.dirname(extrasFile()), { recursive: true })
+    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
+    renameSync(`${extrasFile()}.tmp`, extrasFile())
+  } catch {
+    // kept in memory
+  }
+  return incidents
 }
