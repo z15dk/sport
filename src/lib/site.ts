@@ -1,4 +1,4 @@
-export const SITE_NAME = 'Scoreline'
+export const SITE_NAME = 'Matchly'
 export const SITE_URL = (process.env.SITE_URL || 'http://localhost:5173').replace(/\/$/, '')
 
 /**

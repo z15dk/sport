@@ -1,4 +1,7 @@
-# Scoreline
+# Matchly
+
+Siden hedder Matchly (domæne: matchly.dk); tidligere Scoreline. Tekniske navne (`/opt/scoreline`, `scoreline-arkiv.db`, systemd-tjenesten `scoreline`, cookie og interne nøgler) beholder det gamle navn, så VPS'ens data og opsætning virker uændret.
+
 
 Sofascore-alternativ for fodbold (DK, DE, England, Spanien, Portugal, SE, NO), ishockey (Metal Ligaen, SHL) og basketball (Basketligaen). Next.js (App Router) + React + TypeScript. UI-tekst er på dansk.
 

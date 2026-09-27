@@ -1,9 +1,11 @@
 import 'server-only'
-import type { Incident } from '../types'
+import type { Incident, Match, SportId } from '../types'
 import type { Club, Division } from '../data/leagues'
-import { sportOf } from '../data/leagues'
+import { DIVISIONS, sportOf } from '../data/leagues'
 import { allFixtures, fixturesOn, isFinished, type Fixture } from '../data/season'
 import { alike } from '../data/aliases'
+import { getMatches } from '../data/matches'
+import { teamByName } from '../data/teams'
 import { addDays, isoDate } from './time'
 import { realHeadToHead } from './history'
 
@@ -76,7 +78,10 @@ export interface Fact {
 
 export interface Pick {
   fixture: Fixture
-  division: Division
+  /** Our league, when it is one (cups and API-Sports' other leagues have none) */
+  division?: Division
+  league: string
+  sport: SportId
   finished: boolean
   home: { pos?: number; points?: number }
   away: { pos?: number; points?: number }
@@ -84,6 +89,10 @@ export interface Pick {
   fact?: Fact
   /** Table position after the match, when it is the club's latest */
   after?: { home?: number; away?: number }
+  /** Logos the source sent with the match (API-Sports' games) */
+  logos?: Record<string, string>
+  /** The league's other finished matches that day, without their own card (at most 3) */
+  sameDay: Fixture[]
 }
 
 /** Danish genitive: "Randers FCs"; names ending in s, x or z get an apostrophe */
@@ -166,46 +175,121 @@ function tableFact(f: Fixture, div: Division): Fact | undefined {
   }
 }
 
-function factFor(f: Fixture, div: Division): Fact | undefined {
+function factFor(f: Fixture, div?: Division): Fact | undefined {
   const h2h = headToHeadFact(f)
   if (h2h && !h2h.text.startsWith('De seneste')) return h2h
-  return runFact(f) ?? h2h ?? tableFact(f, div)
+  return runFact(f) ?? h2h ?? (div ? tableFact(f, div) : undefined)
 }
 
-/** The 2-4 matches a day's posts are about: league weight, table, goals; one per league */
-export function pickMatches(date: string, now: number): Pick[] {
-  const candidates = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed')
-  const scored = candidates.map((f) => {
-    const div = f.division!
-    const table = sportOf(div) === 'soccer' ? tableAt(div, f.kickoff.getTime()) : undefined
-    const h = table?.get(f.home.id)
-    const a = table?.get(f.away.id)
-    let score = weight(div)
-    if (h && a && h.played >= 3) {
-      if (h.pos <= 4 && a.pos <= 4) score += 20
-      if (Math.abs(h.pos - a.pos) <= 2) score += 10
-      if (h.pos > h.of - 3 || a.pos > a.of - 3) score += 5
-    }
-    if (isFinished(f)) score += (f.score[0] + f.score[1]) * 2
-    return { f, div, score, h, a }
-  })
+/** How much a cup or an outside league weighs (API-Sports' games) */
+function externalWeight(m: Match) {
+  const name = m.league.toLowerCase()
+  if (/champions league/.test(name)) return /women|kvinde/.test(name) ? 55 : 90
+  if (/europa league/.test(name)) return 70
+  if (/conference league/.test(name)) return 60
+  if (m.leagueId.startsWith('cup-')) return 75
+  if (m.country === 'Danmark') return 30
+  return 10
+}
+
+/** A match from outside our leagues as a fixture, so it can be shown the same way */
+function externalFixture(m: Match): Fixture {
+  const club = (name: string): Club => {
+    const t = teamByName(name)
+    return { id: `x-${t?.slug ?? name}`, slug: t?.slug ?? name, name, city: '', colors: t?.colors ?? t?.season?.club.colors ?? ['#16181a', '#ffffff'] }
+  }
+  const hasScore = m.home.score !== undefined && m.away.score !== undefined
+  return {
+    id: m.id,
+    slug: m.slug,
+    competition: m.league,
+    leagueId: m.leagueId,
+    leagueSlug: m.leagueSlug,
+    leagueOrder: m.leagueOrder ?? 99,
+    round: m.round ?? 0,
+    sport: m.sport,
+    home: club(m.home.name),
+    away: club(m.away.name),
+    kickoff: m.kickoff,
+    score: [m.home.score ?? 0, m.away.score ?? 0],
+    real: { state: m.state, hasScore },
+    incidents: m.incidents,
+  }
+}
+
+/** How many matches a day's programme shows (fewer only when fewer are played) */
+export const DAY_MATCHES = 5
+
+/** The day's 5 matches: league weight, table and goals; the best of each league first, then the next best */
+/** A finished match with a result */
+export const isFinishedMatch = (f: Fixture) => isFinished(f)
+
+/** A finished match where every goal has a named scorer (the results carousel only shows these) */
+export const hasNamedScorers = (f: Fixture) => {
+  const goals = goalsOf(f)
+  return isFinished(f) && goals.length > 0 && goals.length === f.score[0] + f.score[1] && goals.every((i) => !!i.player)
+}
+
+export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true): Pick[] {
+  const ours = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed' && only(f))
+  const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
+  const known = new Set(ours.map((f) => f.id))
+  // Cups, Champions League and API-Sports' other leagues, for days our leagues rest
+  const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed')
+  const scored = [
+    ...ours.map((f) => {
+      const div = f.division!
+      const table = sportOf(div) === 'soccer' ? tableAt(div, f.kickoff.getTime()) : undefined
+      const h = table?.get(f.home.id)
+      const a = table?.get(f.away.id)
+      let score = weight(div)
+      if (h && a && h.played >= 3) {
+        if (h.pos <= 4 && a.pos <= 4) score += 20
+        if (Math.abs(h.pos - a.pos) <= 2) score += 10
+        if (h.pos > h.of - 3 || a.pos > a.of - 3) score += 5
+      }
+      if (isFinished(f)) score += (f.score[0] + f.score[1]) * 2
+      return { f, div: div as Division | undefined, league: div.name, sport: sportOf(div), score, h, a, logos: undefined as Record<string, string> | undefined }
+    }),
+    ...others.flatMap((m) => {
+      const f = externalFixture(m)
+      if (!only(f)) return []
+      const logos: Record<string, string> = {}
+      if (m.home.badge) logos[m.home.name] = m.home.badge
+      if (m.away.badge) logos[m.away.name] = m.away.badge
+      const score = externalWeight(m) + (isFinished(f) ? (f.score[0] + f.score[1]) * 2 : 0)
+      return [{ f, div: undefined as Division | undefined, league: m.league, sport: m.sport, score, h: undefined, a: undefined, logos }]
+    }),
+  ]
   scored.sort((x, y) => y.score - x.score || x.f.kickoff.getTime() - y.f.kickoff.getTime())
+  // The best match of each league first, then the next best, until there are five
   const chosen: typeof scored = []
   const leagues = new Set<string>()
   for (const s of scored) {
-    if (chosen.length >= 4) break
-    if (leagues.has(s.div.id)) continue
-    // Past two, only matches that are worth a post
-    if (chosen.length >= 2 && s.score < 50) break
+    if (chosen.length >= DAY_MATCHES) break
+    if (leagues.has(s.league)) continue
     chosen.push(s)
-    leagues.add(s.div.id)
+    leagues.add(s.league)
   }
+  for (const s of scored) {
+    if (chosen.length >= DAY_MATCHES) break
+    if (!chosen.includes(s)) chosen.push(s)
+  }
+  // A league's other results go on its first card only, so the carousel doesn't repeat them
+  const listed = new Set<string>()
   return chosen
     .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
-    .map(({ f, div, h, a }) => {
+    .map(({ f, div, league, sport, h, a, logos: own }) => {
+      const first = isFinished(f) && !listed.has(league)
+      if (first) listed.add(league)
+      const others = scored
+        .filter((x) => first && x.league === league && x.f !== f && !chosen.includes(x) && isFinished(x.f))
+        .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
+        .slice(0, 3)
+      const logos = Object.assign({}, own, ...others.map((x) => x.logos ?? {})) as Record<string, string>
       const finished = isFinished(f)
       let after: Pick['after']
-      if (finished && sportOf(div) === 'soccer') {
+      if (finished && div && sportOf(div) === 'soccer') {
         const latest = (club: Club) => played(club, now + 1)[0]?.fixture === f
         const table = tableAt(div, now + 1)
         after = { home: latest(f.home) ? table.get(f.home.id)?.pos : undefined, away: latest(f.away) ? table.get(f.away.id)?.pos : undefined }
@@ -213,11 +297,15 @@ export function pickMatches(date: string, now: number): Pick[] {
       return {
         fixture: f,
         division: div,
+        league,
+        sport,
         finished,
         home: { pos: h?.pos, points: h?.points },
         away: { pos: a?.pos, points: a?.points },
         fact: factFor(f, div),
         after,
+        logos,
+        sameDay: others.map((x) => x.f),
       }
     })
 }

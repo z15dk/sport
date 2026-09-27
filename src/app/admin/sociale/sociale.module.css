@@ -63,7 +63,7 @@
   position: relative;
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--line);
-  font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--body);
   font-size: 4cqw;
   line-height: 1.3;
 }
@@ -73,9 +73,10 @@
 .hd { display: flex; justify-content: space-between; align-items: baseline; padding: 6cqw 6.5cqw 0; font-size: 3.5cqw; font-weight: 500; opacity: 0.8; }
 .ft { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; padding: 4cqw 6.5cqw 5.5cqw; font-size: 3.3cqw; opacity: 0.8; }
 .mark { font-weight: 800; letter-spacing: -0.01em; font-size: 3.8cqw; }
-.big { font-weight: 700; letter-spacing: -0.015em; line-height: 0.95; font-stretch: 85%; }
+.big { font-family: var(--display); font-weight: 800; letter-spacing: 0; line-height: 0.95; }
 .num { font-variant-numeric: tabular-nums lining-nums; }
-.serif { font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif; line-height: 1.3; margin: 0; }
+/* the card's sentences: the site's display face, bold, so they read at a glance */
+.serif { font-family: var(--display); font-weight: 700; line-height: 1.1; margin: 0; }
 .sub { font-size: 3.4cqw; color: var(--p-ink-2); }
 
 .tb { width: 100%; border-collapse: collapse; font-size: 3.9cqw; font-variant-numeric: tabular-nums; }
@@ -115,9 +116,87 @@
 .block { position: relative; overflow: hidden; padding: 8cqw 6.5cqw; display: flex; align-items: center; gap: 4cqw; }
 .block > * { position: relative; }
 
-.axis { position: relative; height: 12cqw; margin-top: 4cqw; }
-.axis::before { content: ''; position: absolute; left: 0; right: 0; top: 4cqw; border-top: 0.4cqw solid var(--p-ink); }
-.axis i { position: absolute; top: 2.3cqw; width: 3.4cqw; height: 3.4cqw; border-radius: 50%; margin-left: -1.7cqw; box-shadow: 0 0 0 0.4cqw var(--paper); }
-.axis span { position: absolute; top: 6.5cqw; font-size: 3cqw; color: var(--p-ink-2); }
+.axis { position: relative; height: 19cqw; margin-top: 1cqw; }
+.axis::before { content: ''; position: absolute; left: 0; right: 0; top: 12cqw; border-top: 0.4cqw solid var(--p-ink); }
+.axis i { position: absolute; top: 10.3cqw; width: 3.4cqw; height: 3.4cqw; border-radius: 50%; margin-left: -1.7cqw; box-shadow: 0 0 0 0.4cqw var(--paper); }
+.axis .scale { position: absolute; top: 14.5cqw; font-size: 3cqw; color: var(--p-ink-2); }
+/* the minute over each goal */
+.minute { position: absolute; transform: translateX(-50%); font-size: 3cqw; font-weight: 700; white-space: nowrap; }
 
 .bar { height: 4.4cqw; border-radius: 0.6cqw; }
+
+/* the Matchly bar at the foot of every card: the same height on every card, feed and story alike */
+.brandbar {
+  margin-top: auto;
+  flex: none;
+  height: 14.2cqw;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3cqw;
+  background: #0f110c;
+  color: #fff;
+  padding: 0 6.5cqw;
+}
+.brandLogo {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 7.4cqw;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.brandLogo b { color: #ff4a1f; }
+.brandbar small { font-size: 3.1cqw; opacity: 0.75; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* a big number as the watermark on Matchly's own cards */
+.wmText {
+  position: absolute !important;
+  right: -6cqw;
+  bottom: 6cqw;
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 90cqw;
+  line-height: 0.8;
+  color: transparent;
+  -webkit-text-stroke: 0.5cqw rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+/* goals on the time axis on a colour: filled for the colour's club, hollow for the other */
+.onColor { --p-ink: currentColor; }
+.axis i.dotOn { background: currentColor; box-shadow: none; }
+.axis i.dotOff { background: transparent; border: 0.6cqw solid currentColor; box-shadow: none; }
+
+/* "Home – Away" on one line when it fits, wrapping between the teams (never inside a name) */
+.vs { display: flex; flex-wrap: wrap; align-items: center; column-gap: 1.6cqw; row-gap: 0.6cqw; line-height: 1.2; }
+.vs .team { white-space: nowrap; }
+
+/* a result in big type: home | score | away */
+.bigScore { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 3cqw; font-weight: 600; font-size: 4.2cqw; line-height: 1.15; }
+.bigScore strong { font-family: var(--display); font-weight: 800; font-size: 20cqw; line-height: 0.9; letter-spacing: -0.01em; }
+.bigScore span:last-child { text-align: right; }
+.scorers { display: grid; grid-template-columns: 1fr 1fr; gap: 4cqw; font-size: 3.4cqw; margin-top: 2cqw; line-height: 1.45; }
+.scorers > div:last-child { text-align: right; }
+.scorers b { font-weight: 700; opacity: 0.8; }
+
+.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fig figcaption :global(.text-btn) { font-size: 12px; }
+
+/* rows of one line each; long names end in "…" */
+.oneLine { table-layout: fixed; }
+.oneLine td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oneLine td.r { width: 17cqw; }
+
+/* the day's programme: each match in the two clubs' colours, the time between them */
+.fixtures { display: flex; flex-direction: column; gap: 1.8cqw; }
+.fixtureRow { display: grid; grid-template-columns: 1fr 17cqw 1fr; border-radius: 1.4cqw; overflow: hidden; min-height: 11cqw; }
+.fixtureTeam { position: relative; overflow: hidden; display: flex; align-items: center; gap: 2cqw; padding: 1.6cqw 2.2cqw; font-size: 3.3cqw; font-weight: 700; line-height: 1.1; min-width: 0; }
+.fixtureTeam > * { position: relative; }
+.fixtureTeam.right { justify-content: flex-end; text-align: right; }
+.fixtureName { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
+.fixtureTime { background: #0f110c; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1cqw; gap: 0.4cqw; }
+.fixtureTime b { font-family: var(--display); font-weight: 800; font-size: 5.4cqw; line-height: 1; }
+.fixtureTime small { font-size: 2.3cqw; opacity: 0.75; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

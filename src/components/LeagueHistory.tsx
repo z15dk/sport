@@ -73,7 +73,7 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
         </details>
       )}
       <p className="muted small history__note">
-        Beregnet af Scoreline ud fra sæsonernes kampe (3 point for sejr). Nr. 1-3 er efter point i sæsonens kampe og tager ikke højde for
+        Beregnet af Matchly ud fra sæsonernes kampe (3 point for sejr). Nr. 1-3 er efter point i sæsonens kampe og tager ikke højde for
         pointhalvering, fratrukne point eller slutspil.
       </p>
     </section>
