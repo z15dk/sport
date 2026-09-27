@@ -550,6 +550,29 @@ export function startRealDataSync() {
   }
   archive()
   setInterval(archive, 5 * 60_000).unref()
+  // New data is built here, in the background, not by the first visitor after a change
+  setInterval(() => void warm(), 10_000).unref()
+}
+
+let warmedVersion: string | undefined
+/**
+ * Loads new data and builds what every page needs from it (the season, the
+ * team register) right away. Before, the first page view after a change paid
+ * for it (seconds on the front page). The time it takes goes in the log.
+ */
+async function warm() {
+  const started = Date.now()
+  loadFromDisk()
+  const version = getRealData()?.version
+  if (!version || version === warmedVersion) return
+  warmedVersion = version
+  const loaded = Date.now()
+  const [{ seasonClubs }, { allTeams }] = await Promise.all([import('../data/season'), import('../data/teams')])
+  seasonClubs()
+  const season = Date.now()
+  allTeams()
+  const done = Date.now()
+  console.log(`[data] ny version ${version}: indlæst ${loaded - started} ms, sæson ${season - loaded} ms, klubregister ${done - season} ms`)
 }
 
 /** Rebuilds the data now (after a change in the admin pages) */
