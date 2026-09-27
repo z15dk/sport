@@ -1550,3 +1550,7 @@ h2.league__name { margin: 0; }
 /* The scorer's name on the match timeline */
 .timeline-graphic__track:has(.timeline-graphic__player) { height: 150px; }
 .timeline-graphic__player { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+
+/* The logo at the top of the footer, white */
+.footer .footer__logo { display: inline-block; color: #fff; opacity: 1; margin-bottom: 24px; text-decoration: none; }
+.footer .footer__logo:hover { text-decoration: none; }
