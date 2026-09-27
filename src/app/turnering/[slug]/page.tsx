@@ -240,6 +240,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         </div>
         {(() => {
+          // Not on the Danish leagues' pages: their history in our data is too incomplete (and mixes in second teams)
+          if (division.countryCode === 'DK') return null
           const history = leagueHistory(division.id)
           return history ? <LeagueHistory name={division.name} history={history} /> : null
         })()}
