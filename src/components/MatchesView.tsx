@@ -106,8 +106,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
   const matches = fictional
 
-  // The time view lists the chosen day and the two days after it (more made the page slow)
-  const DAYS_AHEAD = 2
+  // The time view lists the chosen day only (more days made the page slow); "Næste kampdag" goes on
+  const DAYS_AHEAD = 0
   const range = useMemo(
     () => (order === 'time' ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
     [order, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
@@ -231,7 +231,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
           <div className="feed__head">
             <h1 className="feed__title">
               {sportDef.label}
-              <span>{order === 'time' ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
+              <span>{order === 'time' && DAYS_AHEAD > 0 ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
             </h1>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
             <div className="switch switch--order" role="group" aria-label="Sortering">

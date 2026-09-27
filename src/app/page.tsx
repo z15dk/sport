@@ -26,9 +26,8 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   const today = isoDate(now)
   const date = isValidIsoDate(dato) ? dato : today
   const sportId = sportFilterBySlug(sport).id
-  // The browser gets today's games; the page adds the chosen day, the day before and the two after
-  // (the time view), and tomorrow (the match in focus)
-  const dates = new Set([...Array.from({ length: 4 }, (_, i) => addDays(date, i - 1)), today, addDays(today, 1)])
+  // The browser gets today's games; the page adds the chosen day and tomorrow (the match in focus)
+  const dates = new Set([date, today, addDays(today, 1)])
   const shown = [...dates].flatMap((d) => externalOn(d))
   const days = { prev: nearestMatchDay(date, sportId, -1, now), next: nearestMatchDay(date, sportId, 1, now) }
   return (
