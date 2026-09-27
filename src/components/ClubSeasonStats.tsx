@@ -189,7 +189,7 @@ export function ClubSeasonStats({ club, division }: { club: Club; division: Divi
           </div>
         )}
       </div>
-      <p className="muted small stats-note">Beregnet af Scoreline ud fra sæsonens spillede kampe i {division.name}.</p>
+      <p className="muted small stats-note">Beregnet af Matchly ud fra sæsonens spillede kampe i {division.name}.</p>
     </section>
   )
 }

@@ -276,7 +276,7 @@ function MatchBody({
                 ))}
                 {stats.xg?.source === 'scoreline' && (
                   <p className="muted small">
-                    Chance-tal er Scorelines estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
+                    Chance-tal er Matchlys estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
                     Det er ikke rigtig xG, som vurderer hvert skud for sig.
                   </p>
                 )}
@@ -394,7 +394,7 @@ function MatchBody({
                   </tbody>
                 </table>
               </div>
-              {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Scoreline ud fra sæsonens kampe.</p>}
+              {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Matchly ud fra sæsonens kampe.</p>}
             </section>
           )}
         </div>
@@ -414,7 +414,7 @@ function MatchBody({
                   lowerIsBetter={c.lowerIsBetter}
                 />
               ))}
-              <p className="muted small">Beregnet af Scoreline ud fra sæsonens spillede kampe.</p>
+              <p className="muted small">Beregnet af Matchly ud fra sæsonens spillede kampe.</p>
             </section>
           )}
 

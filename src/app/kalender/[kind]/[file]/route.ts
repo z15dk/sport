@@ -51,7 +51,7 @@ export async function GET(_request: Request, { params }: { params: Params }) {
   if (!name) return new Response('Kalenderen findes ikke', { status: 404 })
 
   const unique = [...new Map(matches.map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
-  const body = calendar(`${name} · Scoreline`, `Kampprogram og resultater for ${name}`, unique)
+  const body = calendar(`${name} · Matchly`, `Kampprogram og resultater for ${name}`, unique)
   return new Response(body, {
     headers: {
       'content-type': 'text/calendar; charset=utf-8',

@@ -1,4 +1,4 @@
-# Scoreline
+# Matchly
 
 Et Sofascore-alternativ bygget med Next.js (App Router).
 
@@ -55,7 +55,7 @@ og AI-assistenter kan læse indholdet uden JavaScript.
 
 - Synlig "Opdateret"-tid samt `WebPage.dateModified` på kamp-, klub- og turneringssider
 - Spørgsmål og svar (med `FAQPage`-data) på kamp-, klub- og turneringssider
-- "Om Scoreline" (`/om`) med `Organization`-data og en sidefod, der linker til alle rækker
+- "Om Matchly" (`/om`) med `Organization`-data og en sidefod, der linker til alle rækker
 - IndexNow (`/indexnow.txt`): giver Bing m.fl. besked, så snart en kamp er slut
 
 **Siden er sat til `noindex`, og `robots.txt` blokerer alle crawlere**, fordi

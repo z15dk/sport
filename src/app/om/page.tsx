@@ -5,9 +5,9 @@ import { JsonLd, breadcrumbLd, organizationLd } from '../../lib/jsonld'
 import { INDEXABLE, SITE_NAME, paths } from '../../lib/site'
 
 export const metadata: Metadata = {
-  title: 'Om Scoreline – hvem vi er og hvor tallene kommer fra',
+  title: 'Om Matchly – hvem vi er og hvor tallene kommer fra',
   description:
-    'Scoreline dækker fodbold, ishockey og basketball: Superligaen, Bundesliga, Premier League, Allsvenskan og Eliteserien med flere, Metal Ligaen, SHL og Basketligaen. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
+    'Matchly dækker fodbold, ishockey og basketball: Superligaen, Bundesliga, Premier League, Allsvenskan og Eliteserien med flere, Metal Ligaen, SHL og Basketligaen. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
   alternates: { canonical: paths.about() },
 }
 
@@ -23,14 +23,14 @@ export default function AboutPage() {
 
         {!INDEXABLE && (
           <p className="banner">
-            Scoreline er under udvikling. Odds er eksempler.
+            Matchly er under udvikling. Odds er eksempler.
           </p>
         )}
 
         <section className="panel prose__section">
-          <h2 className="panel__title">Hvad er Scoreline?</h2>
+          <h2 className="panel__title">Hvad er Matchly?</h2>
           <p>
-            Scoreline samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge. Vi dækker alle{' '}
+            Matchly samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge. Vi dækker alle{' '}
             {clubs} klubber i{' '}
             {divisions.map((d, i) => (
               <span key={d.id}>

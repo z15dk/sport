@@ -171,7 +171,7 @@ export function SiteNav() {
     <div ref={ref} className="site-nav">
       <header className="topbar">
         <Link className="logo" href="/">
-          Scoreline<span className="logo__dot">.</span>
+          Matchly<span className="logo__dot">.</span>
         </Link>
         <div className="topbar__search">
           <SearchBox onPick={close} />

@@ -448,7 +448,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                 ))}
               </tbody>
             </table>
-            {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Scoreline (se hele stillingen for grundlaget).</p>}
+            {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Matchly (se hele stillingen for grundlaget).</p>}
           </section>
         )}
 
@@ -489,7 +489,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                 </dd>
               </div>
             </dl>
-            <p className="muted small history__note">Beregnet af Scoreline ud fra de {n} kampe, vi har gemt for holdet.</p>
+            <p className="muted small history__note">Beregnet af Matchly ud fra de {n} kampe, vi har gemt for holdet.</p>
           </section>
         )}
 

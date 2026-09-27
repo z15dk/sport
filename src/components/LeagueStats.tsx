@@ -125,7 +125,7 @@ export function LeagueStats(props: { division: Division } | { stats: LeagueStats
           </div>
         )}
       </div>
-      <p className="muted small stats-note">Beregnet af Scoreline ud fra sæsonens spillede kampe.</p>
+      <p className="muted small stats-note">Beregnet af Matchly ud fra sæsonens spillede kampe.</p>
     </section>
   )
 }

@@ -5,7 +5,7 @@ import { DIVISIONS, seasonOf } from '../data/leagues'
 import { getRealData, type RealEvent } from '../data/real'
 import { cacheDir } from './tsdb'
 
-// Scoreline's own statistics bank: every finished match we have seen, from
+// Matchly's own statistics bank: every finished match we have seen, from
 // any source and any league, with result, half-time score, attendance, goals
 // and cards. Kept in SQLite beside football.db (/opt/scoreline/data on the
 // VPS, or ARCHIVE_DB), so nothing is lost when a source changes or drops a

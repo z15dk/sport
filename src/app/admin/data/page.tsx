@@ -119,7 +119,7 @@ export default async function DataStatusPage() {
           )}
         </section>
         <section className="panel prose__section">
-          <h2 className="panel__title">Scorelines statistikbank</h2>
+          <h2 className="panel__title">Matchlys statistikbank</h2>
           <p>
             Fil: <code>{a.file}</code> · Senest gemt: {a.lastRun ?? 'ikke endnu'}
           </p>

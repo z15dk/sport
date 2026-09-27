@@ -175,8 +175,8 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
               {source === 'api-sports'
                 ? ''
                 : baseline
-                  ? `Udgangspunkt: stillingen efter ${baseline.round}. runde (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Scoreline ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen står under nr. ${baseline.splitAfter}.`) : ''}`
-                  : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
+                  ? `Udgangspunkt: stillingen efter ${baseline.round}. runde (${formatShortYear(new Date(baseline.after))}). Derefter beregnet af Matchly ud fra ${matches ?? 0} ${matches === 1 ? 'kamp' : 'kampe'} (3 point for sejr).${baseline.splitAfter ? (baseline.splitLabel ? ` Nr. 1-${baseline.splitAfter} ${baseline.splitLabel}.` : ` Stregen står under nr. ${baseline.splitAfter}.`) : ''}`
+                  : `Beregnet af Matchly ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
           <LeagueStats stats={stats} sport={league.sport} />

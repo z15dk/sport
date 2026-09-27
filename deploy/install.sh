@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Installs Scoreline on a Debian/Ubuntu VPS and keeps it on the newest pushed version.
+# Installs Matchly on a Debian/Ubuntu VPS and keeps it on the newest pushed version.
 #
 #   curl -fsSL https://raw.githubusercontent.com/z15dk/sport/claude/sofascore-alternativ-forside-r7xj0k/deploy/install.sh | sudo bash
 #
-# Optional settings (put them before "bash", e.g. "| sudo DOMAIN=scoreline.dk bash"):
-#   DOMAIN=scoreline.dk   Serve the site on this domain with HTTPS (via Caddy). DNS must point at the server.
+# Optional settings (put them before "bash", e.g. "| sudo DOMAIN=matchly.dk bash"):
+#   DOMAIN=matchly.dk     Serve the site on this domain with HTTPS (via Caddy). DNS must point at the server.
 #   PORT=3000             Port the app listens on locally.
 #   BRANCH=...            Git branch to follow.
 set -euo pipefail
@@ -37,7 +37,7 @@ mkdir -p "$BASE/releases"
 if [ -n "$DOMAIN" ]; then SITE_URL="https://$DOMAIN"; else SITE_URL="http://$(curl -fsS4 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):$PORT"; fi
 if [ ! -f "$BASE/env" ]; then
   cat > "$BASE/env" <<ENV
-# Settings for Scoreline. After changes rebuild and restart with: sudo scoreline-update --force
+# Settings for Matchly. After changes rebuild and restart with: sudo scoreline-update --force
 NODE_ENV=production
 PORT=$PORT
 SITE_URL=$SITE_URL
@@ -62,7 +62,7 @@ chmod 755 /usr/local/bin/scoreline-update
 say "Opretter systemd-tjenester"
 cat > /etc/systemd/system/scoreline.service <<UNIT
 [Unit]
-Description=Scoreline (Next.js)
+Description=Matchly (Next.js)
 After=network-online.target
 Wants=network-online.target
 
@@ -80,7 +80,7 @@ UNIT
 
 cat > /etc/systemd/system/scoreline-update.service <<UNIT
 [Unit]
-Description=Hent og byg nyeste version af Scoreline
+Description=Hent og byg nyeste version af Matchly
 After=network-online.target
 
 [Service]
@@ -90,7 +90,7 @@ UNIT
 
 cat > /etc/systemd/system/scoreline-update.timer <<UNIT
 [Unit]
-Description=Tjek for ny version af Scoreline hvert minut
+Description=Tjek for ny version af Matchly hvert minut
 
 [Timer]
 OnBootSec=1min
