@@ -37,7 +37,6 @@ export function LeagueStats(props: { division: Division } | { stats: LeagueStats
     <section className="panel stats-panel" id="statistik">
       <header className="table-panel__head">
         <h2 className="panel__title">Statistik</h2>
-        <span className="tag">{s.played} {s.played === 1 ? 'kamp' : 'kampe'} spillet</span>
       </header>
       <div className="stat-grid">
         {tiles.map(([label, value]) => (
