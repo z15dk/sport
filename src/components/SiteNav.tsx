@@ -195,16 +195,26 @@ export function SiteNav() {
       </header>
 
       {/* Phones: the app bar at the bottom, its panels open from below */}
-      {open && (
+      {/* Phones: search takes the whole screen, the field at the top and the keyboard below */}
+      {open === 'search' && (
+        <div className="search-screen" role="dialog" aria-label="Søg">
+          <div className="search-screen__bar">
+            <SearchBox autoFocus onPick={close} />
+            <button type="button" className="search-screen__close" onClick={close}>
+              Luk
+            </button>
+          </div>
+        </div>
+      )}
+      {open && open !== 'search' && (
         <div className="sheet-backdrop" onClick={close}>
-          <div className="nav-sheet" role="dialog" aria-label={open === 'search' ? 'Søg' : open === 'teams' ? 'Mine hold' : 'Turneringer'} onClick={(e) => e.stopPropagation()}>
-            {open === 'search' && <SearchBox autoFocus onPick={close} />}
+          <div className="nav-sheet" role="dialog" aria-label={open === 'teams' ? 'Mine hold' : 'Turneringer'} onClick={(e) => e.stopPropagation()}>
             {open === 'tournaments' && <TournamentList onPick={close} />}
             {open === 'teams' && <MyTeamsList onPick={close} />}
           </div>
         </div>
       )}
-      <nav className="bottombar" aria-label="Menu">
+      <nav className={`bottombar${open === 'search' ? ' is-hidden' : ''}`} aria-label="Menu">
         <Link href="/" className={onHome && !open ? 'is-active' : ''} onClick={close}>
           <span className="bottombar__icon">
             <Icon name="today" />

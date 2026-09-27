@@ -328,8 +328,19 @@ export function clubHistory(club: Club): ClubHistory | undefined {
   const d = data()
   // Finished seasons only: the season being played has its own statistics
   const current = SEASON.slice(0, 4)
-  const own = d?.byClub.get(club.id)?.filter((m) => !m.season.startsWith(current))
-  if (!d || !own?.length) return undefined
+  const played = d?.byClub.get(club.id)?.filter((m) => !m.season.startsWith(current))
+  if (!d || !played?.length) return undefined
+  // A season in two divisions is the club and its reserve side: the lower division's matches are the second team's
+  const rankOf = (m: DbMatch) => DIVISION_TOURNAMENTS.findIndex(([id, re]) => (m.divisionId ? m.divisionId === id : re.test(m.tournament)))
+  const top = new Map<string, number>()
+  for (const m of played) {
+    const r = rankOf(m)
+    if (r >= 0 && !/kvinde|women|u\s?\d{2}/i.test(m.tournament)) top.set(m.season, Math.min(top.get(m.season) ?? r, r))
+  }
+  const own = played.filter((m) => {
+    const r = rankOf(m)
+    return r < 0 || r <= (top.get(m.season) ?? r)
+  })
   const hit = historyCache.get(club.id)
   if (hit && hit.mtime === d.mtime) return hit.history
 
@@ -674,22 +685,47 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
       !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) &&
       !m.season.startsWith(current),
   )
+  // Clubs playing in a higher division the same season: their team in this one is a reserve side ("FC København II"), not the club
+  const rank = DIVISION_TOURNAMENTS.findIndex(([id]) => id === divisionId)
+  const higher = new Map<string, Set<string>>()
+  for (const m of d.matches) {
+    if (/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament)) continue
+    const r = DIVISION_TOURNAMENTS.findIndex(([id, re]) => (m.divisionId ? m.divisionId === id : re.test(m.tournament)))
+    if (r < 0 || r >= rank) continue
+    const set = higher.get(m.season) ?? higher.set(m.season, new Set()).get(m.season)!
+    for (const id of [m.homeId, m.awayId]) {
+      const club = d.clubOf.get(id)
+      if (club) set.add(club.id)
+    }
+  }
   let history: LeagueHistory | undefined
   if (own.length) {
-    const nameOf = (id: number, fallback: string) => d.clubOf.get(id)?.name ?? fallback
-    const keyOf = (id: number, name: string) => d.clubOf.get(id)?.id ?? `${id}|${name}`
+    let season = ''
+    const reserve = (id: number) => {
+      const club = d.clubOf.get(id)
+      return !!club && !!higher.get(season)?.has(club.id)
+    }
+    const nameOf = (id: number, fallback: string) => {
+      const club = d.clubOf.get(id)
+      if (!club) return fallback
+      if (!reserve(id)) return club.name
+      // The source's own name, marked as the second team when it is written like the club's
+      return /\b(ii|2|b|u\s?\d{2})$/i.test(fallback.trim()) ? fallback : `${club.name} II`
+    }
+    const keyOf = (id: number, name: string) => (reserve(id) ? `${id}|${name}|ii` : (d.clubOf.get(id)?.id ?? `${id}|${name}`))
     type Row = { name: string; slug?: string; played: number; points: number; goalsFor: number; goalsAgainst: number; seasons: Set<string> }
     const allTime = new Map<string, Row>()
     const bySeason = new Map<string, DbMatch[]>()
     for (const m of own) bySeason.set(m.season, [...(bySeason.get(m.season) ?? []), m])
     const seasons: LeagueSeason[] = []
-    for (const [season, all] of bySeason) {
+    for (const [thisSeason, all] of bySeason) {
+      season = thisSeason
       const { counted: list, upper } = leagueMatchesOf(all, (m, side) => (side === 'home' ? keyOf(m.homeId, m.homeName) : keyOf(m.awayId, m.awayName)))
       const table = new Map<string, Row>()
       const add = (map: Map<string, Row>, id: number, name: string, f: number, a: number) => {
         const key = keyOf(id, name)
         const club = d.clubOf.get(id)
-        const r = map.get(key) ?? map.set(key, { name: nameOf(id, name), slug: club?.slug, played: 0, points: 0, goalsFor: 0, goalsAgainst: 0, seasons: new Set() }).get(key)!
+        const r = map.get(key) ?? map.set(key, { name: nameOf(id, name), slug: reserve(id) ? undefined : club?.slug, played: 0, points: 0, goalsFor: 0, goalsAgainst: 0, seasons: new Set() }).get(key)!
         r.played++
         r.goalsFor += f
         r.goalsAgainst += a
