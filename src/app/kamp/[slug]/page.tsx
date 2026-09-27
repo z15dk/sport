@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
@@ -24,12 +25,13 @@ export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
 
-function load(slug: string) {
+/** The match, once per request (the metadata and the page both need it) */
+const load = cache((slug: string) => {
   const date = dateFromMatchSlug(slug)
   const now = Date.now()
   const match = date ? findMatch(slug, date, now) : undefined
   return match && date ? { match, date, now } : undefined
-}
+})
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const found = load((await params).slug)
@@ -45,6 +47,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     alternates: { canonical: paths.match(match.slug) },
     openGraph: { title, description, type: 'article' },
   }
+}
+
+/** A lookup's answer, or nothing after a moment (the lookup goes on and its answer is cached for the next visit) */
+function within<T>(p: Promise<T>, ms = 1500): Promise<T | undefined> {
+  return Promise.race([p.catch(() => undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))])
 }
 
 export default async function MatchPage({ params }: { params: Params }) {
@@ -66,18 +73,20 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Also older matches: API-Sports' whole season as the job has kept it
   const external = findExternalGame(match) ?? apiGameFor(match, { home: namesOf(match.home.name), away: namesOf(match.away.name) })
   const game = external && !external.id.startsWith('db-') ? external : undefined
-  // Facts, form and table from API-Sports; our own season statistics cover our leagues' clubs
-  const fromApi = game ? await apiMatchExtra(game).catch(() => undefined) : undefined
+  // API-Sports' lookups at once, and never more than a moment's wait: what isn't ready is cached for the next visit
+  const [fromApi, fromEventsApi, lineups, h2hGames] = await Promise.all([
+    game ? within(apiMatchExtra(game)) : undefined,
+    game && !match.incidents?.length ? within(apiMatchEvents(game)) : undefined,
+    game ? within(apiMatchLineups(game)) : undefined,
+    game && (dbH2h?.length ?? 0) < 5 ? within(apiHeadToHead(game)) : undefined,
+  ])
+  const fromEvents = fromEventsApi
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved
   const saved = game ? archiveGameExtras(game) : undefined
-  // Goals and cards for the timeline, when our own sources don't have them
-  const fromEvents = game && !match.incidents?.length ? await apiMatchEvents(game).catch(() => undefined) : undefined
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
   const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
-  // Line-ups (API-Sports; about an hour before kick-off)
-  const lineups = game ? await apiMatchLineups(game).catch(() => undefined) : undefined
   // Shots, possession and expected goals (API-Sports' paid plan)
-  const stats = game ? await apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents).catch(() => undefined) : undefined
+  const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent
   const logos = teamLogos()
   const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
@@ -92,7 +101,7 @@ export default async function MatchPage({ params }: { params: Params }) {
     table: cup ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
   }
   if ((dbH2h?.length ?? 0) < 5) {
-    const games = game ? await apiHeadToHead(game).catch(() => undefined) : undefined
+    const games = h2hGames
     if (game && games?.length) {
       const nameOf = (id?: number, fallback = '') =>
         id === game.home.id ? match.home.name : id === game.away.id ? match.away.name : fallback

@@ -19,15 +19,37 @@ function finishedIn(division: Division): Fixture[] {
   return allFixtures().filter((f) => f.division === division && isFinished(f))
 }
 
+/** A team in the statistics: one of our clubs, or a team from another league */
+export interface StatTeam {
+  id: string
+  name: string
+  colors?: [string, string]
+  /** Logo for teams from other leagues */
+  logo?: string
+}
+
+/** A finished match as the statistics need it (our fixtures fit, and other leagues' games are turned into it) */
+export interface StatGame {
+  home: StatTeam
+  away: StatTeam
+  score: [number, number]
+  ht?: [number, number]
+  incidents?: Incident[]
+  spectators?: number
+  kickoff: Date
+  /** Its match page, when it has one */
+  slug?: string
+}
+
 export interface ScorerRow {
   player: string
-  club: Club
+  club: StatTeam
   goals: number
   penalties: number
 }
 
 export interface CardRow {
-  club: Club
+  club: StatTeam
   yellow: number
   red: number
 }
@@ -48,9 +70,9 @@ export interface LeagueStats {
   scorers: ScorerRow[]
   cards: CardRow[]
   /** Average home attendance per club, highest first */
-  attendance: { club: Club; average: number; matches: number }[]
-  biggestWin?: Fixture
-  mostGoals?: Fixture
+  attendance: { club: StatTeam; average: number; matches: number }[]
+  biggestWin?: StatGame
+  mostGoals?: StatGame
 }
 
 const cache = new Map<string, { fixtures: Fixture[]; stats: unknown }>()
@@ -64,7 +86,7 @@ function memo<T>(key: string, compute: () => T): T {
   return stats
 }
 
-function scorersOf(fixtures: Fixture[], only?: Club): ScorerRow[] {
+function scorersOf(fixtures: StatGame[], only?: Club): ScorerRow[] {
   const rows = new Map<string, ScorerRow>()
   for (const f of fixtures) {
     for (const i of f.incidents ?? []) {
@@ -81,73 +103,75 @@ function scorersOf(fixtures: Fixture[], only?: Club): ScorerRow[] {
 }
 
 export function leagueStats(division: Division): LeagueStats | undefined {
-  return memo(`league|${division.id}`, () => {
-    const fixtures = finishedIn(division)
-    if (!fixtures.length) return undefined
-    let goals = 0
-    let home = 0
-    let draw = 0
-    let over = 0
-    let btts = 0
-    let htGoals = 0
-    let htAll = 0
-    const intervals = [0, 0, 0, 0, 0, 0]
-    let withMinutes = 0
-    const cards = new Map<string, CardRow>()
-    const crowd = new Map<string, { club: Club; total: number; matches: number }>()
-    let biggestWin: Fixture | undefined
-    let mostGoals: Fixture | undefined
-    for (const f of fixtures) {
-      const [h, a] = f.score
-      goals += h + a
-      if (h > a) home++
-      else if (h === a) draw++
-      if (h + a > 2) over++
-      if (h > 0 && a > 0) btts++
-      if (f.ht) {
-        htGoals += f.ht[0] + f.ht[1]
-        htAll += h + a
-      }
-      const goalsWithMinute = (f.incidents ?? []).filter(isGoal)
-      if (goalsWithMinute.length && goalsWithMinute.length === h + a) {
-        withMinutes++
-        for (const g of goalsWithMinute) intervals[interval(g.minute)]++
-      }
-      for (const i of f.incidents ?? []) {
-        if (i.kind !== 'yellow' && i.kind !== 'red') continue
-        const club = i.side === 'home' ? f.home : f.away
-        const row = cards.get(club.id) ?? cards.set(club.id, { club, yellow: 0, red: 0 }).get(club.id)!
-        row[i.kind]++
-      }
-      if (f.spectators) {
-        const c = crowd.get(f.home.id) ?? crowd.set(f.home.id, { club: f.home, total: 0, matches: 0 }).get(f.home.id)!
-        c.total += f.spectators
-        c.matches++
-      }
-      if (!biggestWin || Math.abs(h - a) > Math.abs(biggestWin.score[0] - biggestWin.score[1])) biggestWin = f
-      if (!mostGoals || h + a > mostGoals.score[0] + mostGoals.score[1]) mostGoals = f
+  return memo(`league|${division.id}`, () => gameStats(finishedIn(division)))
+}
+
+/** The statistics of a season's finished matches, from any source */
+export function gameStats(fixtures: StatGame[]): LeagueStats | undefined {
+  if (!fixtures.length) return undefined
+  let goals = 0
+  let home = 0
+  let draw = 0
+  let over = 0
+  let btts = 0
+  let htGoals = 0
+  let htAll = 0
+  const intervals = [0, 0, 0, 0, 0, 0]
+  let withMinutes = 0
+  const cards = new Map<string, CardRow>()
+  const crowd = new Map<string, { club: StatTeam; total: number; matches: number }>()
+  let biggestWin: StatGame | undefined
+  let mostGoals: StatGame | undefined
+  for (const f of fixtures) {
+    const [h, a] = f.score
+    goals += h + a
+    if (h > a) home++
+    else if (h === a) draw++
+    if (h + a > 2) over++
+    if (h > 0 && a > 0) btts++
+    if (f.ht) {
+      htGoals += f.ht[0] + f.ht[1]
+      htAll += h + a
     }
-    const n = fixtures.length
-    return {
-      played: n,
-      goals,
-      goalsPerMatch: goals / n,
-      homeWinPct: pct(home, n),
-      drawPct: pct(draw, n),
-      awayWinPct: pct(n - home - draw, n),
-      over25Pct: pct(over, n),
-      bttsPct: pct(btts, n),
-      firstHalfPct: htAll ? pct(htGoals, htAll) : undefined,
-      byInterval: withMinutes ? { goals: intervals, matches: withMinutes } : undefined,
-      scorers: scorersOf(fixtures).slice(0, 10),
-      cards: [...cards.values()].sort((x, y) => y.red * 3 + y.yellow - (x.red * 3 + x.yellow)),
-      attendance: [...crowd.values()]
-        .map((c) => ({ club: c.club, average: Math.round(c.total / c.matches), matches: c.matches }))
-        .sort((x, y) => y.average - x.average),
-      biggestWin: biggestWin && biggestWin.score[0] !== biggestWin.score[1] ? biggestWin : undefined,
-      mostGoals,
+    const goalsWithMinute = (f.incidents ?? []).filter(isGoal)
+    if (goalsWithMinute.length && goalsWithMinute.length === h + a) {
+      withMinutes++
+      for (const g of goalsWithMinute) intervals[interval(g.minute)]++
     }
-  })
+    for (const i of f.incidents ?? []) {
+      if (i.kind !== 'yellow' && i.kind !== 'red') continue
+      const club = i.side === 'home' ? f.home : f.away
+      const row = cards.get(club.id) ?? cards.set(club.id, { club, yellow: 0, red: 0 }).get(club.id)!
+      row[i.kind]++
+    }
+    if (f.spectators) {
+      const c = crowd.get(f.home.id) ?? crowd.set(f.home.id, { club: f.home, total: 0, matches: 0 }).get(f.home.id)!
+      c.total += f.spectators
+      c.matches++
+    }
+    if (!biggestWin || Math.abs(h - a) > Math.abs(biggestWin.score[0] - biggestWin.score[1])) biggestWin = f
+    if (!mostGoals || h + a > mostGoals.score[0] + mostGoals.score[1]) mostGoals = f
+  }
+  const n = fixtures.length
+  return {
+    played: n,
+    goals,
+    goalsPerMatch: goals / n,
+    homeWinPct: pct(home, n),
+    drawPct: pct(draw, n),
+    awayWinPct: pct(n - home - draw, n),
+    over25Pct: pct(over, n),
+    bttsPct: pct(btts, n),
+    firstHalfPct: htAll ? pct(htGoals, htAll) : undefined,
+    byInterval: withMinutes ? { goals: intervals, matches: withMinutes } : undefined,
+    scorers: scorersOf(fixtures).slice(0, 10),
+    cards: [...cards.values()].sort((x, y) => y.red * 3 + y.yellow - (x.red * 3 + x.yellow)),
+    attendance: [...crowd.values()]
+      .map((c) => ({ club: c.club, average: Math.round(c.total / c.matches), matches: c.matches }))
+      .sort((x, y) => y.average - x.average),
+    biggestWin: biggestWin && biggestWin.score[0] !== biggestWin.score[1] ? biggestWin : undefined,
+    mostGoals,
+  }
 }
 
 export interface Record3 {

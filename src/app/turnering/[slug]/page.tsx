@@ -23,10 +23,12 @@ import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
 import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos, type ExternalLeague } from '../../../lib/apisports'
-import { archiveLeagueTable } from '../../../lib/history'
+import { archiveLeagueTable, archiveSeasonGames } from '../../../lib/history'
+import { archiveIncidents } from '../../../lib/archive'
+import { gameStats, type StatGame, type StatTeam } from '../../../data/stats'
 import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
-import { alike } from '../../../data/aliases'
+import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishRound, externalLeagueKey } from '../../../data/external'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
@@ -123,6 +125,29 @@ async function externalLeaguePage(slug: string) {
   }
   const leaders = found.api.startsWith('football') && found.id && found.id !== 'db' ? await apiLeagueLeaders(found.id).catch(() => undefined) : undefined
   const firstKept = played.at(-1) ? Date.parse(played.at(-1)!.kickoff) - 86_400_000 : Infinity
+  // The season's statistics: the statistics bank's matches (with their goals and cards), and the fetched days' games on top
+  const archived = found.id && found.id !== 'db' ? archiveSeasonGames(`ext-${found.api.split('-')[0]}-${found.id}`) : []
+  const archivedIncidents = archiveIncidents(archived.map((a) => a.id))
+  const team = (name: string, logo?: string): StatTeam => ({ id: normalize(name) || name, name, logo: logo ?? logoFor(name) })
+  const statGames = new Map<string, StatGame>()
+  for (const a of archived) {
+    statGames.set(a.id, { home: team(a.homeName), away: team(a.awayName), score: [a.homeScore, a.awayScore], ht: a.ht, incidents: archivedIncidents.get(a.id), spectators: a.spectators, kickoff: a.date })
+  }
+  const seasonFrom = archived[0] ? archived[0].date.getTime() - 86_400_000 : 0
+  for (const g of games) {
+    if (g.state !== 'finished' || g.homeScore === undefined || g.awayScore === undefined || Date.parse(g.kickoff) < seasonFrom) continue
+    const m = externalMatch(g)
+    statGames.set(g.id, {
+      home: team(m.home.name, m.home.badge),
+      away: team(m.away.name, m.away.badge),
+      score: [g.homeScore, g.awayScore],
+      ht: g.ht ?? statGames.get(g.id)?.ht,
+      incidents: g.incidents?.length ? g.incidents : statGames.get(g.id)?.incidents,
+      kickoff: new Date(g.kickoff),
+      slug: m.slug,
+    })
+  }
+  const stats = gameStats([...statGames.values()])
   return (
     <ExternalLeaguePage
       league={league}
@@ -135,6 +160,7 @@ async function externalLeaguePage(slug: string) {
       since={own.since}
       recent={(tournament ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
       upcoming={upcoming}
+      stats={stats}
       now={now}
     />
   )
@@ -204,9 +230,6 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <section className="panel table-panel">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
-            <span className="tag">
-              Efter {rounds} runder
-            </span>
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>

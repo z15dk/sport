@@ -92,7 +92,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     }
   }
   const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
-  const [query, setQuery] = useState('')
+  // The site's search (top bar) finds clubs and tournaments; the day's matches are not filtered by text
+  const query = ''
   const now = useNow(REFRESH_MS, initialNow)
 
   // Recomputed when new data arrives (the version changes) as well as when time passes
@@ -168,7 +169,6 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     }
     return [...groups, ...covered, ...cups]
   }, [matches, pinned, sport, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
-  const liveCount = matches.filter((m) => m.state === 'live').length
   const sportDef = sport === 'all' ? ALL_SPORTS : sportById(sport)
   // Match in focus: kick-off 12-24 hours ahead, counted from the start of the hour so the pick stays put for the hour
   const hour = Math.floor(now / 3_600_000)
@@ -188,27 +188,6 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
   return (
     <div className="page">
-      <div className="toolbar">
-        <label className="search">
-          <span className="visually-hidden">Søg efter hold eller turnering</span>
-          <svg viewBox="0 0 24 24" aria-hidden className="search__icon">
-            <path d="M10.5 3a7.5 7.5 0 015.96 12.06l4.24 4.24-1.4 1.4-4.24-4.24A7.5 7.5 0 1110.5 3zm0 2a5.5 5.5 0 100 11 5.5 5.5 0 000-11z" />
-          </svg>
-          <input
-            id="search"
-            type="search"
-            placeholder="Filtrér dagens kampe"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button className="live-chip" onClick={() => setFilter('live')} disabled={liveCount === 0}>
-          <span className="live-dot" aria-hidden />
-          {liveCount} live
-        </button>
-      </div>
-
       {/* On phones the sports come first, above the live strip */}
       <SportTabs active={sport} className="sport-tabs--mobile" />
 

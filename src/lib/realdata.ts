@@ -184,13 +184,35 @@ function clubNames(name: string): string[] {
   return names
 }
 
+/** How API-Sports' games joined our leagues' matches in the last merge, per division (for /admin/kvalitet) */
+export interface ApiMergeStatus {
+  games: number
+  withIncidents: number
+  matched: number
+  added: number
+  /** Matches (ours or added) that got API-Sports' goals and cards */
+  usedIncidents: number
+  /** Our matches that kept their own (complete) goals and cards */
+  keptOwn: number
+  /** API-Sports' games with goals and cards whose match we already had with a different, incomplete set */
+  skipped: string[]
+}
+const mergeHolder = globalThis as { __scorelineApiMerge?: Record<string, ApiMergeStatus> }
+export const apiMergeStatus = (divisionId: string) => mergeHolder.__scorelineApiMerge?.[divisionId]
+
+/** Whether a match's goals add up to its score (every goal is there) */
+const goalsComplete = (e: Pick<RealEvent, 'incidents' | 'homeScore' | 'awayScore'>) =>
+  (e.incidents ?? []).filter((i) => i.kind === 'goal' || i.kind === 'penalty' || i.kind === 'own-goal').length === (e.homeScore ?? 0) + (e.awayScore ?? 0)
+
 function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
+  const status: Record<string, ApiMergeStatus> = {}
   const byDivision = new Map<string, ReturnType<typeof seasonGames>>()
   for (const g of seasonGames()) {
     const d = divisionOfGame(g)?.d
     if (d) byDivision.set(d.id, [...(byDivision.get(d.id) ?? []), g])
   }
   for (const [id, games] of byDivision) {
+    const st: ApiMergeStatus = (status[id] = { games: games.length, withIncidents: games.filter((g) => g.incidents?.length).length, matched: 0, added: 0, usedIncidents: 0, keptOwn: 0, skipped: [] })
     const events = [...(leagues[id] ?? [])]
     // This season only: from the first match after the last break of more than 45 days
     const days = [...events.map((e) => e.kickoff), ...games.map((g) => g.kickoff)].map((k) => Date.parse(k)).sort((a, b) => a - b)
@@ -214,8 +236,16 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
       if (i >= 0) {
         const e = events[i]
         if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
-        // Goals and cards from API-Sports where our source has none
-        if (!events[i].incidents?.length && g.incidents?.length) events[i] = { ...events[i], incidents: g.incidents, ht: events[i].ht ?? g.ht }
+        st.matched++
+        // Goals and cards from API-Sports where our source has none, or only some of the goals
+        const ours = events[i]
+        if (g.incidents?.length && (!ours.incidents?.length || (!goalsComplete(ours) && goalsComplete(g)))) {
+          events[i] = { ...ours, incidents: g.incidents, ht: ours.ht ?? g.ht }
+          st.usedIncidents++
+        } else if (ours.incidents?.length) {
+          st.keptOwn++
+          if (g.incidents?.length && !goalsComplete(ours)) st.skipped.push(`${ours.home} – ${ours.away} (${day})`)
+        }
         continue
       }
       // Team names as the league's other matches write them, so a club doesn't appear twice
@@ -224,11 +254,14 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
         return same.length === 1 ? same[0] : name
       }
       const added = events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue, incidents: g.incidents?.length ? g.incidents : undefined, ht: g.ht })
+      st.added++
+      if (g.incidents?.length) st.usedIncidents++
       byDay.set(day, [...(byDay.get(day) ?? []), added - 1])
       knownNames.add(events[added - 1].home).add(events[added - 1].away)
     }
     leagues[id] = events.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   }
+  mergeHolder.__scorelineApiMerge = status
 }
 
 /** The database's goals and cards for a match whose team names are written differently: within a day, both teams alike, only one candidate */

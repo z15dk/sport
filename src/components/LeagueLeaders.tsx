@@ -1,4 +1,16 @@
 import type { LeaderRow, Leaders } from '../data/matchExtra'
+import { seasonClubs } from '../data/season'
+import { sportOf } from '../data/leagues'
+import { SEARCH_NAMES, normalize } from '../data/aliases'
+
+/** Our club's own name for API-Sports' team name ("FC Copenhagen" -> "FC København") */
+function ourName(team: string) {
+  const n = normalize(team)
+  const found = seasonClubs().filter(
+    ({ club, division }) => sportOf(division) === 'soccer' && [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].some((x) => x && normalize(x) === n),
+  )
+  return found.length === 1 ? found[0].club.name : team
+}
 
 const LISTS: { key: keyof Leaders; title: string; unit: string }[] = [
   { key: 'scorers', title: 'Topscorere', unit: 'mål' },
@@ -19,7 +31,7 @@ function List({ title, unit, rows }: { title: string; unit: string; rows: Leader
             <span className="leaders__who">
               <strong>{r.name}</strong>
               <em>
-                {r.teamLogo && <img src={r.teamLogo} alt="" width={14} height={14} loading="lazy" />} {r.team}
+                {r.teamLogo && <img src={r.teamLogo} alt="" width={14} height={14} loading="lazy" />} {ourName(r.team)}
                 {r.games ? ` · ${r.games} kampe` : ''}
               </em>
             </span>

@@ -1397,9 +1397,11 @@ h2.league__name { margin: 0; }
 .topbar { position: relative; display: flex; align-items: center; gap: 16px; padding: 18px 24px 6px; }
 .topbar__search { flex: 1; display: flex; justify-content: center; min-width: 0; }
 .topbar__search .search { margin: 0; max-width: 520px; width: 100%; }
-.topbar__nav { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px; background: var(--surface); }
-.topbar__btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 999px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
-.topbar__btn:hover, .topbar__btn.is-open { color: var(--ink); background: var(--surface-2); }
+.topbar__nav { display: flex; align-items: center; gap: 2px; }
+.topbar__btn { display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 14px; border-radius: 999px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.topbar__btn svg { width: 19px; height: 19px; }
+.topbar__btn:hover { background: var(--surface); }
+.topbar__btn.is-open { background: var(--ink); color: #fff; }
 .topbar__live .live-dot { opacity: 0.35; }
 .topbar__live.has-live .live-dot { opacity: 1; }
 .topbar__count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; text-align: center; }
@@ -1422,26 +1424,33 @@ h2.league__name { margin: 0; }
   .topbar { padding: 14px 16px 4px; }
   .topbar .logo { font-size: 28px; }
   .topbar__search, .topbar__nav, .nav-menu--drop { display: none; }
+  /* A floating bar in the site's ink, the current item on a lime pill */
   .bottombar {
-    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--ink); border-radius: 18px 18px 0 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 50;
+    left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 6px 7px; background: var(--ink); border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(15, 17, 12, 0.28), 0 2px 6px rgba(15, 17, 12, 0.18);
   }
   .bottombar a, .bottombar button {
-    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border: 0; background: none;
-    font: inherit; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, 0.7); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: 0; background: none; min-width: 0;
+    font: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: 0.01em; color: rgba(255, 255, 255, 0.62); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .bottombar a > span, .bottombar button > span { font-size: 18px; line-height: 22px; height: 22px; }
-  .bottombar .is-active { color: var(--lime); }
-  .bottombar__live { display: inline-flex; align-items: center; gap: 4px; }
-  .bottombar__live b { font-size: 12px; color: #fff; background: var(--live); border-radius: 999px; padding: 0 6px; line-height: 18px; }
+  .bottombar__icon { display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; transition: background 0.15s ease, color 0.15s ease; }
+  .bottombar .is-active { color: #fff; }
+  .bottombar .is-active .bottombar__icon { background: var(--lime); color: var(--ink); }
+  .bottombar .is-active svg path[d^="m12 3.8"] { fill: currentColor; }
+  .bottombar a:active .bottombar__icon, .bottombar button:active .bottombar__icon { background: rgba(255, 255, 255, 0.12); }
+  .bottombar__live { display: inline-flex; gap: 5px; }
+  .bottombar__live b { font-size: 11px; color: #fff; background: var(--live); border-radius: 999px; padding: 0 6px; line-height: 17px; }
   .sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(15, 17, 12, 0.35); }
   .nav-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow-y: auto;
-    padding: 18px 16px calc(84px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: var(--bg);
+    padding: 18px 16px calc(96px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: var(--bg);
   }
   .nav-sheet .search { max-width: none; margin: 0; }
   .nav-sheet .search-hits { position: static; margin-top: 8px; box-shadow: none; }
-  body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  body { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
 }
 /* The menu has Live now: the front page's own live button goes */
 .toolbar .live-chip { display: none; }
@@ -1461,3 +1470,38 @@ h2.league__name { margin: 0; }
 /* The table with the statistics under it, in the left column */
 .table-duo__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .table-solo .table-duo__main { display: contents; }
+
+/* League history: one card per season, the champion first */
+.season-cards { list-style: none; margin: 0; padding: 4px 16px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.season-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); min-width: 0; }
+.season-card__year { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-3); }
+.season-card__champion { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.season-card__champion > span { display: flex; flex-direction: column; min-width: 0; }
+.season-card__champion a, .season-card__champion > span { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-card__champion em { font-style: normal; font-weight: 600; font-size: 12px; color: var(--ink-3); }
+.season-card__rest { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; counter-reset: place 1; }
+.season-card__rest li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; min-width: 0; counter-increment: place; }
+.season-card__rest li::before { content: counter(place) "."; width: 16px; flex: none; font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.season-card__rest .table__club { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-card__meta { font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line, rgba(0,0,0,.08)); padding-top: 8px; margin-top: auto; }
+.season-card__missing { font-size: 13px; color: var(--ink-3); font-style: italic; }
+.history__more[open] summary { padding-bottom: 4px; }
+@media (max-width: 640px) {
+  /* A row to swipe through instead of a long column */
+  .season-cards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .season-cards::-webkit-scrollbar { display: none; }
+  .season-card { scroll-snap-align: start; }
+}
+.season-cards--all { display: none; }
+@media (max-width: 640px) {
+  .season-cards--first, .history__more { display: none; }
+  .season-cards--all { display: grid; }
+}
+
+/* Loading skeletons (match page) */
+.skeleton { border-radius: 22px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: skeleton 1.2s ease-in-out infinite; margin-bottom: 16px; }
+.skeleton--hero { height: 190px; background-color: var(--ink); }
+.skeleton--line { height: 18px; width: 60%; border-radius: 999px; }
+.skeleton--panel { height: 220px; }
+@keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

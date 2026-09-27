@@ -3,14 +3,14 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
-import type { Incident, MatchState } from '../types'
+import type { Incident, MatchState, SportId } from '../types'
 import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveFile, readArchive } from './archive'
+import { archiveFile, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 
@@ -37,6 +37,19 @@ interface DbMatch {
   homeScore: number
   awayScore: number
   spectators?: number
+  /** football.db is football; the statistics bank has every sport */
+  sport: SportId
+  /** The statistics bank's league id (ours, or "ext-<api>-<id>"); football.db's matches have none */
+  divisionId?: string
+}
+
+/** The sport of a league id in the statistics bank: one of ours, or API-Sports' ("ext-basketball-12") */
+const API_SPORTS: Record<string, SportId> = { football: 'soccer', basketball: 'basketball', nba: 'basketball', hockey: 'ice_hockey', handball: 'handball', volleyball: 'volleyball', nfl: 'american_football' }
+function sportOfDivisionId(id: string): SportId | undefined {
+  const ours = DIVISIONS.find((d) => d.id === id)
+  if (ours) return sportOf(ours)
+  const api = /^ext-([a-z]+)-/.exec(id)?.[1]
+  return api ? API_SPORTS[api] : undefined
 }
 
 interface Loaded {
@@ -62,10 +75,12 @@ let loaded: Loaded | undefined
 let checkedAt = 0
 let lastError: string | undefined
 
-function resolver() {
+/** Finds our club for a team name, among the clubs of one sport (a football team is never a basketball club of the same town) */
+function resolver(sport: SportId = 'soccer') {
   const byName = new Map<string, Club>()
   // Danish football first (football.db is Danish football), then every other league (the archive has them all)
-  const ordered = [...DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer'), ...DIVISIONS.filter((d) => d.countryCode !== 'DK' || sportOf(d) !== 'soccer')]
+  const same = DIVISIONS.filter((d) => sportOf(d) === sport)
+  const ordered = [...same.filter((d) => d.countryCode === 'DK'), ...same.filter((d) => d.countryCode !== 'DK')]
   for (const d of ordered) {
     for (const club of d.clubs) {
       for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
@@ -74,8 +89,8 @@ function resolver() {
       }
     }
   }
-  const danish = DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer').flatMap((d) => d.clubs)
-  const everyone = DIVISIONS.flatMap((d) => d.clubs)
+  const danish = same.filter((d) => d.countryCode === 'DK').flatMap((d) => d.clubs)
+  const everyone = same.flatMap((d) => d.clubs)
   // Each name is looked up once: the loose matching below is too slow to repeat for every match in the database
   const memo = new Map<string, Club | undefined>()
   return (name: string) => {
@@ -131,41 +146,50 @@ function read(file: string | undefined, mtime: number): Loaded {
     homeScore: Number(r.home_score),
     awayScore: Number(r.away_score),
     spectators: r.spectators == null ? undefined : Number(r.spectators),
+    sport: 'soccer' as SportId,
   }))
 
   // Our own statistics bank: every other league, and anything football.db no longer has
   const seen = new Set(fromDb.map((m) => matchKey(m.date.toISOString(), m.homeName, m.awayName)))
-  const teamId = (name: string) => -hashString(normalize(name))
+  // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
+  const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
   const fromArchive: DbMatch[] = readArchive()
     .filter((a) => !seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName)))
-    .map((a) => ({
+    .flatMap((a) => {
+      const sport = sportOfDivisionId(a.divisionId)
+      return sport ? [{ a, sport }] : []
+    })
+    .map(({ a, sport }) => ({
       id: -hashString(a.id),
       tournamentId: -hashString(a.divisionId),
       tournament: a.tournament,
       seasonId: -hashString(a.season),
       season: a.season,
       date: a.date,
-      homeId: teamId(a.homeName),
+      homeId: teamId(sport, a.homeName),
       homeName: a.homeName,
-      awayId: teamId(a.awayName),
+      awayId: teamId(sport, a.awayName),
       awayName: a.awayName,
       homeScore: a.homeScore,
       awayScore: a.awayScore,
       spectators: a.spectators,
+      sport,
+      divisionId: a.divisionId,
     }))
   const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
 
   // Newest name per team id (clubs get renamed), then matched to our register
-  const names = new Map<number, string>()
+  const names = new Map<number, { name: string; sport: SportId }>()
   for (const m of matches) {
-    if (!names.has(m.homeId)) names.set(m.homeId, m.homeName)
-    if (!names.has(m.awayId)) names.set(m.awayId, m.awayName)
+    if (!names.has(m.homeId)) names.set(m.homeId, { name: m.homeName, sport: m.sport })
+    if (!names.has(m.awayId)) names.set(m.awayId, { name: m.awayName, sport: m.sport })
   }
-  const find = resolver()
+  const finders = new Map<SportId, ReturnType<typeof resolver>>()
+  const find = (name: string, sport: SportId) => (finders.get(sport) ?? finders.set(sport, resolver(sport)).get(sport)!)(name)
   const clubOf = new Map<number, Club>()
   const unmatched: string[] = []
-  for (const [id, name] of names) {
-    const club = find(name)
+  for (const [id, { name, sport }] of names) {
+    const club = find(name, sport)
     if (club) clubOf.set(id, club)
     else unmatched.push(name)
   }
@@ -585,6 +609,57 @@ export interface LeagueHistory {
 const leagueHistoryCache = new Map<string, { mtime: number; history?: LeagueHistory }>()
 
 /** A Danish division's finished seasons in the database: top three, all-time table and records */
+/**
+ * A season's league matches as the table counts them. Danish leagues play a
+ * regular season (everyone twice) and then split: the top six play for the
+ * title or promotion, the rest against relegation, with the points carried
+ * over. Play-offs (for a European place, or against another division's teams)
+ * are not in the table. Older formats (three rounds, no split) count as they are.
+ * Returns the counted matches and, for a split season, the upper group.
+ */
+function leagueMatchesOf<M extends { date: Date; homeScore: number; awayScore: number }>(
+  all: M[],
+  keyOf: (m: M, side: 'home' | 'away') => string,
+): { counted: M[]; upper?: Set<string> } {
+  const sorted = [...all].sort((a, b) => a.date.getTime() - b.date.getTime())
+  // The league's own teams: those with a season's worth of matches (a play-off opponent from another division has one or two)
+  const games = new Map<string, number>()
+  for (const m of sorted) for (const side of ['home', 'away'] as const) games.set(keyOf(m, side), (games.get(keyOf(m, side)) ?? 0) + 1)
+  const most = Math.max(0, ...games.values())
+  const core = new Set([...games].filter(([, n]) => n >= most / 2).map(([k]) => k))
+  const league = sorted.filter((m) => core.has(keyOf(m, 'home')) && core.has(keyOf(m, 'away')))
+  const n = core.size
+  if (n < 6 || league.length <= n * (n - 1)) return { counted: league }
+  // The regular season: each pair's first two meetings (a postponed match played late still belongs to it)
+  const met = new Map<string, number>()
+  const regularGames: M[] = []
+  const after: M[] = []
+  for (const m of league) {
+    const pair = [keyOf(m, 'home'), keyOf(m, 'away')].sort().join('|')
+    const times = (met.get(pair) ?? 0) + 1
+    met.set(pair, times)
+    ;(times <= 2 ? regularGames : after).push(m)
+  }
+  // The table after the regular season
+  const points = new Map<string, { p: number; gd: number; gf: number }>()
+  for (const m of regularGames) {
+    for (const side of ['home', 'away'] as const) {
+      const [f, a] = side === 'home' ? [m.homeScore, m.awayScore] : [m.awayScore, m.homeScore]
+      const r = points.get(keyOf(m, side)) ?? points.set(keyOf(m, side), { p: 0, gd: 0, gf: 0 }).get(keyOf(m, side))!
+      r.p += f > a ? 3 : f === a ? 1 : 0
+      r.gd += f - a
+      r.gf += f
+    }
+  }
+  const order = [...points.entries()].sort(([, x], [, y]) => y.p - x.p || y.gd - x.gd || y.gf - x.gf).map(([k]) => k)
+  const upper = new Set(order.slice(0, 6))
+  const across = after.filter((m) => upper.has(keyOf(m, 'home')) !== upper.has(keyOf(m, 'away')))
+  // Mostly across the halves: a third round for everyone, not a split
+  if (across.length > after.length / 4) return { counted: league }
+  const acrossSet = new Set(across)
+  return { counted: league.filter((m) => !acrossSet.has(m)), upper }
+}
+
 export function leagueHistory(divisionId: string): LeagueHistory | undefined {
   const pattern = DIVISION_TOURNAMENTS.find(([id]) => id === divisionId)?.[1]
   const d = data()
@@ -592,7 +667,13 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
   const hit = leagueHistoryCache.get(divisionId)
   if (hit && hit.mtime === d.mtime) return hit.history
   const current = SEASON.slice(0, 4)
-  const own = d.matches.filter((m) => pattern.test(m.tournament) && !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) && !m.season.startsWith(current))
+  // football.db's matches by the tournament's name; the statistics bank's only when saved under this league (another sport's or country's "Superliga" is not ours)
+  const own = d.matches.filter(
+    (m) =>
+      (m.divisionId ? m.divisionId === divisionId : pattern.test(m.tournament)) &&
+      !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) &&
+      !m.season.startsWith(current),
+  )
   let history: LeagueHistory | undefined
   if (own.length) {
     const nameOf = (id: number, fallback: string) => d.clubOf.get(id)?.name ?? fallback
@@ -602,7 +683,8 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
     const bySeason = new Map<string, DbMatch[]>()
     for (const m of own) bySeason.set(m.season, [...(bySeason.get(m.season) ?? []), m])
     const seasons: LeagueSeason[] = []
-    for (const [season, list] of bySeason) {
+    for (const [season, all] of bySeason) {
+      const { counted: list, upper } = leagueMatchesOf(all, (m, side) => (side === 'home' ? keyOf(m.homeId, m.homeName) : keyOf(m.awayId, m.awayName)))
       const table = new Map<string, Row>()
       const add = (map: Map<string, Row>, id: number, name: string, f: number, a: number) => {
         const key = keyOf(id, name)
@@ -622,7 +704,12 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
         add(allTime, m.homeId, m.homeName, m.homeScore, m.awayScore)
         add(allTime, m.awayId, m.awayName, m.awayScore, m.homeScore)
       }
-      const ranked = [...table.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor)
+      // The championship (or promotion) group first: a team from the relegation group can't finish above it, whatever its points
+      const byPoints = (x: Row, y: Row) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor
+      const keyed = [...table.entries()]
+      const ranked = upper
+        ? [...keyed.filter(([k]) => upper.has(k)).map(([, r]) => r).sort(byPoints), ...keyed.filter(([k]) => !upper.has(k)).map(([, r]) => r).sort(byPoints)]
+        : keyed.map(([, r]) => r).sort(byPoints)
       seasons.push({
         season,
         matches: list.length,
@@ -731,6 +818,16 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
  * it rests on and from when. For API-Sports' leagues, whose tables the free
  * plan doesn't give.
  */
+/** A league's matches this season in the statistics bank: from the first match after the last break of more than 45 days */
+export function archiveSeasonGames(divisionId: string): ArchivedMatch[] {
+  const inLeague = readArchive()
+    .filter((a) => a.divisionId === divisionId)
+    .sort((x, y) => x.date.getTime() - y.date.getTime())
+  let start = 0
+  for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
+  return inLeague.slice(start)
+}
+
 export function archiveLeagueTable(
   divisionId: string,
   baseline?: Baseline,
