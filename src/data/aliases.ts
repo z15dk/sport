@@ -37,6 +37,8 @@ export const SEARCH_NAMES: Record<string, string> = {
 
 /** Short names other sources use, which no loose match finds ("Wolves" is Wolverhampton Wanderers) */
 export const OTHER_NAMES: Record<string, string[]> = {
+  // Akademisk Boldklub from Gladsaxe; "Copenhagen" alone would make it FC København
+  ab: ['AB Copenhagen', 'AB Gladsaxe', 'Akademisk Boldklub', 'Akademisk BK'],
   'e-wol': ['Wolves'],
   'e-qpr': ['QPR'],
   'e-wba': ['West Brom'],
@@ -113,8 +115,14 @@ const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.leng
 const DISTINCT = new Set(['city', 'united', 'real', 'sporting', 'athletic', 'county', 'town', 'rovers', 'wanderers'])
 const distinctWords = (name: string) => fold(name).split(' ').filter((w) => DISTINCT.has(w))
 
+/** Names that only ever match exactly: their one long word is another club's ("AB Copenhagen" is not FC Copenhagen) */
+const EXACT_ONLY = new Set(['AB Copenhagen', 'AB Gladsaxe'].map((n) => fold(n)))
+
 export function alike(names: string[], other: string) {
-  const compact = fold(other).replace(/ /g, '')
+  const otherFold = fold(other)
+  if (EXACT_ONLY.has(otherFold)) return names.some((n) => fold(n) === otherFold)
+  names = names.filter((n) => !EXACT_ONLY.has(fold(n)) || fold(n) === otherFold)
+  const compact = otherFold.replace(/ /g, '')
   const theirs = nameWords(other)
   const theirDistinct = distinctWords(other)
   return names.some((n) => {

@@ -63,7 +63,7 @@ export function ourClubInCup(name: string, cup: Cup) {
           nameWords(name).every((w) => clubNames(club).some((n) => nameWords(n).includes(w))),
       )
   // The same name wins ("Aarhus Fremad" is Aarhus Fremad, not also AGF, which goes by "Aarhus")
-  const exact = found.filter(({ club }) => [club.name, club.originalName, club.apiName].some((n) => n && normalize(n) === normalize(name)))
+  const exact = found.filter(({ club }) => clubNames(club).some((n) => normalize(n) === normalize(name)))
   const club = exact.length === 1 ? exact[0] : found.length === 1 ? found[0] : undefined
   memo.map.set(key, club)
   return club
