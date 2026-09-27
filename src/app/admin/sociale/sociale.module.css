@@ -122,7 +122,7 @@
 
 .bar { height: 4.4cqw; border-radius: 0.6cqw; }
 
-/* the Scoreline bar at the foot of every card */
+/* the Matchly bar at the foot of every card */
 .brandbar {
   margin-top: auto;
   display: flex;
@@ -146,7 +146,7 @@
 .brandLogo b { color: #ff4a1f; }
 .brandbar small { font-size: 3.1cqw; opacity: 0.75; text-align: right; }
 
-/* a big number as the watermark on Scoreline's own cards */
+/* a big number as the watermark on Matchly's own cards */
 .wmText {
   position: absolute !important;
   right: -6cqw;

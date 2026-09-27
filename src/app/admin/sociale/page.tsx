@@ -93,25 +93,25 @@ const Head = ({ left }: { left: string }) => (
     <span>{left}</span>
   </div>
 )
-/** The Scoreline bar at the foot of every card, so the sender shows wherever a card is shared */
+/** The Matchly bar at the foot of every card, with the address, so the sender shows wherever a card is shared */
 const Foot = ({ left, right }: { left?: string; right?: string }) => (
   <div className={s.brandbar}>
     <span className={s.brandLogo}>
-      Scoreline<b>.</b>
+      Matchly<b>.</b>
     </span>
-    <small>{[left, right].filter(Boolean).join(' · ')}</small>
+    <small>{['matchly.dk', left, right].filter(Boolean).join(' · ')}</small>
   </div>
 )
 
 const BRAND: CSSProperties = { background: '#16181a', color: '#ffffff' }
-/** A card's colour: the club's field, or Scoreline's own for a carousel's first and last card */
+/** A card's colour: the club's field, or Matchly's own for a carousel's first and last card */
 const colourOf = (club?: Club) => (club ? field(club) : BRAND)
 
 /**
  * One card in a carousel. Every card is built the same way, so the carousel
  * reads as one story: a full colour with the club's logo as a watermark, a
  * small label, a big headline, the logos with a line, a little content and
- * the Scoreline bar.
+ * the Matchly bar.
  */
 function StoryCard({
   caption,
@@ -508,7 +508,7 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
               </tbody>
             </table>
           </div>
-          <Foot left="Scoreline" />
+          <Foot left="Optakt" />
         </Card>
       ))}
     </div>
