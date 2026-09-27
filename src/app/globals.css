@@ -1546,3 +1546,7 @@ h2.league__name { margin: 0; }
 @media (max-width: 900px) { .match-page__flow { columns: 1; } }
 /* In the two-column flow the two teams' latest matches stack */
 .match-page__flow .form-cols { grid-template-columns: 1fr; }
+
+/* The scorer's name on the match timeline */
+.timeline-graphic__track:has(.timeline-graphic__player) { height: 150px; }
+.timeline-graphic__player { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
