@@ -42,45 +42,35 @@ export function NewsFeedsAdmin({ feeds }: { feeds: Row[] }) {
     <div className="news-admin">
       <ul className="news-admin__list">
         {feeds.map((f) => (
-          <li key={f.id} className="setting-row">
-            <div className="setting">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={f.enabled}
-                aria-label={`${f.name} til/fra`}
-                className={`switch-toggle${f.enabled ? ' is-on' : ''}`}
-                onClick={() => send({ type: 'toggle', id: f.id, enabled: !f.enabled })}
-                disabled={busy}
-              >
-                <span className="switch-toggle__knob" />
-              </button>
-              <span>
-                <strong>{f.name}</strong> <span className="muted small">{f.url}</span>
+          <li key={f.id} className={`news-admin__row${f.enabled ? '' : ' is-off'}`}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={f.enabled}
+              aria-label={`${f.name} til/fra`}
+              className={`switch-toggle${f.enabled ? ' is-on' : ''}`}
+              onClick={() => send({ type: 'toggle', id: f.id, enabled: !f.enabled })}
+              disabled={busy}
+            >
+              <span className="switch-toggle__knob" />
+            </button>
+            <span className="news-admin__text">
+              <strong>{f.name}</strong>
+              <a className="news-admin__url" href={f.url} target="_blank" rel="noopener noreferrer">
+                {f.url}
+              </a>
+              <span className={`news-admin__status${!f.enabled ? '' : f.error ? ' is-error' : f.fetchedAt ? ' is-ok' : ''}`}>
+                {!f.enabled ? 'Slået fra' : f.error ? `Fejl: ${f.error}` : f.fetchedAt ? `Hentet ${f.fetchedAt} · ${f.items} artikler` : 'Ikke hentet endnu'}
               </span>
-              <button
-                type="button"
-                className="text-btn"
-                disabled={busy}
-                onClick={() => confirm(`Fjern ${f.name}?`) && send({ type: 'remove', id: f.id })}
-              >
-                Fjern
-              </button>
-            </div>
-            <p className="muted small">
-              {f.error ? (
-                <span className="unverified">Fejl: {f.error}</span>
-              ) : f.fetchedAt ? (
-                `Hentet ${f.fetchedAt} · ${f.items} artikler i feedet`
-              ) : (
-                'Ikke hentet endnu'
-              )}
-            </p>
+            </span>
+            <button type="button" className="text-btn" disabled={busy} onClick={() => confirm(`Fjern ${f.name}?`) && send({ type: 'remove', id: f.id })}>
+              Fjern
+            </button>
           </li>
         ))}
       </ul>
       <form
-        className="news-admin__add"
+        className="admin-filter news-admin__add"
         onSubmit={async (e) => {
           e.preventDefault()
           if (await send({ type: 'add', name, url })) {
@@ -89,8 +79,8 @@ export function NewsFeedsAdmin({ feeds }: { feeds: Row[] }) {
           }
         }}
       >
-        <input placeholder="Navn (fx Bold)" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required />
-        <input placeholder="https://…/feed" value={url} onChange={(e) => setUrl(e.target.value)} type="url" required />
+        <input className="news-admin__name" placeholder="Navn, fx Bold" aria-label="Kildens navn" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required />
+        <input placeholder="https://…/feed" aria-label="Feedets adresse" value={url} onChange={(e) => setUrl(e.target.value)} type="url" required />
         <button className="pill is-active" type="submit" disabled={busy}>
           Tilføj kilde
         </button>

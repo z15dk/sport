@@ -150,6 +150,21 @@ export function newsStatus() {
   return readStore().status
 }
 
+/** How many articles each club and league has, for the admin page */
+export function newsCoverage() {
+  const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
+  const clubs = new Map<string, number>()
+  const leagues = new Map<string, number>()
+  let total = 0
+  for (const a of readStore().articles) {
+    if (!enabled.has(a.feed)) continue
+    total++
+    for (const c of a.clubs) clubs.set(c, (clubs.get(c) ?? 0) + 1)
+    for (const l of a.leagues) leagues.set(l, (leagues.get(l) ?? 0) + 1)
+  }
+  return { total, clubs, leagues }
+}
+
 /** The newest articles about a club or a league */
 export function newsFor(ref: { club?: string; league?: string }, limit = 6): Article[] {
   const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
@@ -313,7 +328,8 @@ async function fetchFeed(feed: Feed): Promise<Item[]> {
   const res = await fetch(url, {
     headers: { 'user-agent': 'Matchly/1.0 (+https://matchly.dk)', accept: 'application/rss+xml, application/xml, text/xml' },
     redirect: 'follow',
-    signal: AbortSignal.timeout(10_000),
+    // Indkast can be slow to answer
+    signal: AbortSignal.timeout(25_000),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const text = await res.text()

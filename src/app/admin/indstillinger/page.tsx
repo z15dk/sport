@@ -6,7 +6,10 @@ import { SETTINGS } from '../../../data/settingsDef'
 import { SettingToggle } from '../../../components/admin/SettingToggle'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
-import { newsFeeds, newsStatus } from '../../../lib/news'
+import Link from 'next/link'
+import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
+import { DIVISIONS } from '../../../data/leagues'
+import { paths } from '../../../lib/site'
 import { formatNumeric, formatTime } from '../../../lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -18,6 +21,15 @@ export default async function AdminSettings() {
   const { settings } = siteSettings()
   const groups = [...new Set(SETTINGS.map((s) => s.group))]
   const status = newsStatus()
+  const coverage = newsCoverage()
+  const clubsWithNews = DIVISIONS.flatMap((d) => d.clubs)
+    .filter((c) => coverage.clubs.has(c.id))
+    .map((c) => ({ name: c.name, href: paths.club(c.slug), count: coverage.clubs.get(c.id)! }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'da'))
+  const leaguesWithNews = DIVISIONS.filter((d) => coverage.leagues.has(d.id) || d.clubs.some((c) => coverage.clubs.has(c.id))).map((d) => ({
+    name: d.name,
+    href: paths.league(d.slug),
+  }))
   const feeds = newsFeeds().map((f) => {
     const st = status[f.id] ?? {}
     return { ...f, items: st.items, error: st.error, fetchedAt: st.fetchedAt ? `${formatNumeric(new Date(st.fetchedAt))} ${formatTime(new Date(st.fetchedAt))}` : undefined }
@@ -45,6 +57,30 @@ export default async function AdminSettings() {
             eller ligaen. Klik åbner artiklen hos kilden. Feeds hentes hvert 15. minut.
           </p>
           <NewsFeedsAdmin feeds={feeds} />
+          <div className="news-coverage">
+            <h3>
+              Koblet til klubber og ligaer <span className="muted small">({coverage.total} artikler i alt)</span>
+            </h3>
+            {clubsWithNews.length === 0 ? (
+              <p className="muted small">Ingen artikler nævner vores klubber endnu.</p>
+            ) : (
+              <>
+                <p className="muted small">Ligasider med nyheder: {leaguesWithNews.map((l, i) => (
+                  <span key={l.href}>
+                    {i > 0 && ', '}
+                    <Link href={l.href}>{l.name}</Link>
+                  </span>
+                ))}</p>
+                <ul className="news-coverage__list">
+                  {clubsWithNews.map((c) => (
+                    <li key={c.href}>
+                      <Link href={c.href}>{c.name}</Link> <span className="muted small">{c.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         </section>
       </div>
     </div>

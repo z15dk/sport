@@ -9,7 +9,7 @@ import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
 import { clubMatches, findMatch } from '../data/matches'
 import { matchPreview, matchReport } from '../data/matchStory'
-import { teamByName } from '../data/teams'
+import { teamByName, teamInLeague } from '../data/teams'
 import { useNow } from '../hooks/useNow'
 import type { Incident, Match } from '../types'
 import { StatBar } from './StatBar'
@@ -372,10 +372,23 @@ function MatchBody({
                         <tr key={`${r.rank}-${r.name}`} className={ours ? 'is-highlight' : undefined}>
                           <td className="num pos">{r.rank}</td>
                           <td>
-                            <span className="table__club">
-                              <TeamBadge name={r.name} src={r.logo} size={20} />
-                              {r.name}
-                            </span>
+                            {(() => {
+                              // Badge and name link to the club's page
+                              const team = (match.leagueSlug && teamInLeague(match.leagueSlug, r.name, match.sport)) || teamByName(r.name)
+                              const cell = (
+                                <>
+                                  <TeamBadge link={false} name={r.name} src={r.logo} size={20} />
+                                  {r.name}
+                                </>
+                              )
+                              return team ? (
+                                <Link className="table__club club-cell" href={paths.club(team.slug)}>
+                                  {cell}
+                                </Link>
+                              ) : (
+                                <span className="table__club">{cell}</span>
+                              )
+                            })()}
                           </td>
                           <td className="num">{r.played}</td>
                           <td className="num">{r.won}</td>
