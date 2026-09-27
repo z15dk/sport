@@ -91,6 +91,8 @@ export interface Pick {
   after?: { home?: number; away?: number }
   /** Logos the source sent with the match (API-Sports' games) */
   logos?: Record<string, string>
+  /** The league's other finished matches that day, without their own card (at most 3) */
+  sameDay: Fixture[]
 }
 
 /** Danish genitive: "Randers FCs"; names ending in s, x or z get an apostrophe */
@@ -263,9 +265,18 @@ export function pickMatches(date: string, now: number): Pick[] {
     if (chosen.length >= DAY_MATCHES) break
     if (!chosen.includes(s)) chosen.push(s)
   }
+  // A league's other results go on its first card only, so the carousel doesn't repeat them
+  const listed = new Set<string>()
   return chosen
     .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
-    .map(({ f, div, league, sport, h, a, logos }) => {
+    .map(({ f, div, league, sport, h, a, logos: own }) => {
+      const first = isFinished(f) && !listed.has(league)
+      if (first) listed.add(league)
+      const others = scored
+        .filter((x) => first && x.league === league && x.f !== f && !chosen.includes(x) && isFinished(x.f))
+        .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
+        .slice(0, 3)
+      const logos = Object.assign({}, own, ...others.map((x) => x.logos ?? {})) as Record<string, string>
       const finished = isFinished(f)
       let after: Pick['after']
       if (finished && div && sportOf(div) === 'soccer') {
@@ -284,6 +295,7 @@ export function pickMatches(date: string, now: number): Pick[] {
         fact: factFor(f, div),
         after,
         logos,
+        sameDay: others.map((x) => x.f),
       }
     })
 }

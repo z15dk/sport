@@ -63,7 +63,7 @@
   position: relative;
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--line);
-  font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--body);
   font-size: 4cqw;
   line-height: 1.3;
 }
@@ -73,9 +73,10 @@
 .hd { display: flex; justify-content: space-between; align-items: baseline; padding: 6cqw 6.5cqw 0; font-size: 3.5cqw; font-weight: 500; opacity: 0.8; }
 .ft { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; padding: 4cqw 6.5cqw 5.5cqw; font-size: 3.3cqw; opacity: 0.8; }
 .mark { font-weight: 800; letter-spacing: -0.01em; font-size: 3.8cqw; }
-.big { font-weight: 700; letter-spacing: -0.015em; line-height: 0.95; font-stretch: 85%; }
+.big { font-family: var(--display); font-weight: 800; letter-spacing: 0; line-height: 0.95; }
 .num { font-variant-numeric: tabular-nums lining-nums; }
-.serif { font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif; line-height: 1.3; margin: 0; }
+/* the card's sentences: the site's display face, bold, so they read at a glance */
+.serif { font-family: var(--display); font-weight: 700; line-height: 1.1; margin: 0; }
 .sub { font-size: 3.4cqw; color: var(--p-ink-2); }
 
 .tb { width: 100%; border-collapse: collapse; font-size: 3.9cqw; font-variant-numeric: tabular-nums; }

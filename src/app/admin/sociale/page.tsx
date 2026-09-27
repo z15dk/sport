@@ -163,7 +163,8 @@ function StoryCard({
         </div>
       )}
       {children && (
-        <div className={s.pad} style={{ marginTop: '5cqw' }}>
+        // Takes the room there is, so the Matchly bar always stays on the card
+        <div className={s.pad} style={{ marginTop: '5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
           {children}
         </div>
       )}
@@ -279,25 +280,31 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
           <Foot left={`${picks.length} kampe`} right="Dansk tid" />
         </Card>
         <Card story caption="Story (9:16)">
-          <Head left="I dag" />
-          <div style={{ marginTop: '8cqw', display: 'flex', flexDirection: 'column', gap: '2cqw' }}>
+          <Head left={day} />
+          <div className={s.pad} style={{ marginTop: '4cqw' }}>
+            <div className={s.big} style={{ fontSize: '9cqw' }}>
+              Dagens udvalgte kampe
+            </div>
+          </div>
+          {/* Takes the room there is, so the Matchly bar always stays on the card */}
+          <div style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
             {picks.map((p) => (
               <div key={p.fixture.id}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '5cqw', fontWeight: 600 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '4.6cqw', fontWeight: 600, lineHeight: 1.15 }}>
                   {[p.fixture.home, p.fixture.away].map((club) => (
-                    <div key={club.id} className={s.block} style={{ ...field(club), padding: '5cqw 4cqw', gap: '2cqw' }}>
+                    <div key={club.id} className={s.block} style={{ ...field(club), padding: '3.6cqw 4cqw', gap: '2cqw' }}>
                       <Watermark club={club} logos={logos} style={{ width: '40cqw', height: '40cqw', right: '-12cqw', top: '-10cqw' }} />
                       <Crest club={club} logos={logos} plate /> {club.name}
                     </div>
                   ))}
                 </div>
-                <div className={cx(s.pad, s.sub)} style={{ paddingTop: '1.5cqw', fontSize: '4cqw' }}>
+                <div className={cx(s.pad, s.sub)} style={{ paddingTop: '1cqw', fontSize: '3.6cqw' }}>
                   {formatTime(p.fixture.kickoff)} · {p.league}
                 </div>
               </div>
             ))}
           </div>
-          <Foot left={day} />
+          <Foot left={`${picks.length} kampe`} />
         </Card>
       </div>
       <p className={s.text}>
@@ -369,7 +376,7 @@ function Week({ week, logos }: { week: WeekNumbers; logos: Logos }) {
               </div>
             )}
             {late >= 3 && (
-              <p className={s.serif} style={{ fontSize: '4.6cqw', marginTop: '3cqw' }}>
+              <p className={s.serif} style={{ fontSize: '6cqw', marginTop: '3cqw' }}>
                 {late} af målene faldt efter det 70. minut.
               </p>
             )}
@@ -395,7 +402,7 @@ function Week({ week, logos }: { week: WeekNumbers; logos: Logos }) {
             <BigScore f={u.fixture} />
             <Scorers f={u.fixture} max={4} />
             {u.loserUnbeaten >= 3 && (
-              <p className={s.serif} style={{ fontSize: '4.6cqw', marginTop: '3cqw' }}>
+              <p className={s.serif} style={{ fontSize: '6cqw', marginTop: '3cqw' }}>
                 {u.loser.name} havde ikke tabt i {u.loserUnbeaten} kampe.
               </p>
             )}
@@ -480,7 +487,7 @@ function Week({ week, logos }: { week: WeekNumbers; logos: Logos }) {
           foot={`${total}/${total}`}
           logos={logos}
         >
-          <p className={s.serif} style={{ fontSize: '4.8cqw' }}>
+          <p className={s.serif} style={{ fontSize: '6.2cqw' }}>
             Link i profilen. I morgen: formtabellen.
           </p>
         </StoryCard>
@@ -527,7 +534,7 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
             </div>
           ))}
           <div className={s.pad} style={{ marginTop: '8cqw' }}>
-            <p className={s.serif} style={{ fontSize: '5.6cqw' }}>
+            <p className={s.serif} style={{ fontSize: '9cqw', lineHeight: 1.02 }}>
               {p.fact!.text}
             </p>
             <div className={s.sub} style={{ marginTop: '5cqw', marginBottom: '1cqw' }}>
@@ -606,7 +613,7 @@ function Results({ date, picks, logos }: { date: string; picks: Pick[]; logos: L
               {goals.length > 0 ? (
                 <table className={s.tb} style={{ fontSize: '3.7cqw' }}>
                   <tbody>
-                    {goals.slice(0, 6).map((i, n) => {
+                    {goals.slice(0, p.sameDay.length ? 5 - p.sameDay.length : 6).map((i, n) => {
                       const side = scoringSide(i)
                       if (side === 'home') h++
                       else a++
@@ -628,13 +635,35 @@ function Results({ date, picks, logos }: { date: string; picks: Pick[]; logos: L
                     })}
                   </tbody>
                 </table>
-              ) : (
-                <p className={s.sub}>Kilderne har ikke målscorerne til denne kamp endnu.</p>
-              )}
+              ) : null}
               {after.length > 0 && (
-                <p className={s.serif} style={{ fontSize: '4.4cqw', marginTop: '3cqw' }}>
+                <p className={s.serif} style={{ fontSize: '5.7cqw', marginTop: '3cqw' }}>
                   {after.join(' ')}
                 </p>
+              )}
+              {p.sameDay.length > 0 && (
+                <div style={{ marginTop: goals.length ? '4cqw' : 0 }}>
+                  <div style={{ fontSize: '3.2cqw', opacity: 0.8, marginBottom: '1cqw' }}>Også i {p.league}</div>
+                  <table className={s.tb} style={{ fontSize: '3.5cqw' }}>
+                    <tbody>
+                      {p.sameDay.map((o) => (
+                        <tr key={o.id}>
+                          <td>
+                            <span className={s.team}>
+                              <Crest club={o.home} logos={logos} plate /> {o.home.name}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap', padding: '0 2cqw' }}>{score(o)}</td>
+                          <td className={s.r} style={{ whiteSpace: 'normal' }}>
+                            <span className={s.team}>
+                              {o.away.name} <Crest club={o.away} logos={logos} plate />
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </StoryCard>
           )
@@ -664,9 +693,6 @@ export default async function SocialPage({ searchParams }: { searchParams: Searc
   const lastMonday = addDays(date, -((weekday + 6) % 7))
   return (
     <div className="page">
-      {/* Fonts for the cards only */}
-      {/* eslint-disable-next-line @next/next/no-page-custom-font -- only this test page uses them */}
-      <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" />
       <div className="clubs prose admin">
         <AdminNav current="/admin/sociale" />
         <h1 className="feed__title">Sociale medier (test)</h1>
