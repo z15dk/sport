@@ -7,6 +7,7 @@ import { JsonLd, organizationLd } from '../lib/jsonld'
 import { getBadges } from '../lib/badges'
 import { loadRealData } from '../lib/realdata'
 import { RealDataProvider } from '../components/RealDataProvider'
+import { clientRealData } from '../lib/clientData'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -46,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <JsonLd data={organizationLd()} />
-        <RealDataProvider data={real}>
+        <RealDataProvider data={clientRealData(real)}>
           <BadgeProvider badges={badges}>
             <div className="app">
               <div className="app__main">

@@ -70,6 +70,10 @@ function isFeedAdSpot(i: number, total: number): boolean {
 }
 
 interface Props {
+  /** The nearest days with matches before and after `date` (server) */
+  nearDays?: { prev?: string; next?: string }
+  /** The next matches over the coming ten days (server) */
+  upcoming?: Match[]
   sport: SportFilter
   date: string
   today: string
@@ -78,7 +82,7 @@ interface Props {
   initialFilter?: StateFilter
 }
 
-export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all' }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven }: Props) {
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
@@ -102,8 +106,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
   const matches = fictional
 
-  // The time view lists the chosen day and the ten days after it
-  const DAYS_AHEAD = 10
+  // The time view lists the chosen day and the two days after it (more made the page slow)
+  const DAYS_AHEAD = 2
   const range = useMemo(
     () => (order === 'time' ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
     [order, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
@@ -178,9 +182,14 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     return upcomingMatches(sport, isoDate(start), start, 2, 10_000).filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
   }, [sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
-  const upcoming = useMemo(() => upcomingMatches(sport, today, now), [sport, today, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
-  const nextDay = useMemo(() => nearestMatchDay(date, sport, 1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
-  const prevDay = useMemo(() => nearestMatchDay(date, sport, -1, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  // From the server when given (it has the ten days; the browser only the days shown)
+  const upcoming = useMemo(
+    () => (upcomingGiven ? upcomingGiven.filter((m) => m.state === 'live' || m.kickoff.getTime() > now) : upcomingMatches(sport, today, now)),
+    [upcomingGiven, sport, today, now, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  // Worked out on the server, which has every day's games (the browser only gets the days shown)
+  const nextDay = useMemo(() => (nearDays ? nearDays.next : nearestMatchDay(date, sport, 1, now)), [nearDays, date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prevDay = useMemo(() => (nearDays ? nearDays.prev : nearestMatchDay(date, sport, -1, now)), [nearDays, date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
   // Only the top leagues are named when they have no matches, to keep the note short

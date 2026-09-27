@@ -2,7 +2,9 @@ import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { findExternalGame, findMatch, namesOf } from '../../../data/matches'
+import { clubExternalGames, findExternalGame, findMatch, namesOf } from '../../../data/matches'
+import { RealDataExtra } from '../../../components/RealDataExtra'
+import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
@@ -150,6 +152,12 @@ export default async function MatchPage({ params }: { params: Params }) {
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
       <JsonLd data={faqLd(faq)} />
+      <RealDataExtra
+        {...realExtras(
+          [...new Map([...(external ? [external] : []), ...clubExternalGames(match.home.name), ...clubExternalGames(match.away.name)].map((g) => [g.id, g])).values()],
+          extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
+        )}
+      />
       <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />

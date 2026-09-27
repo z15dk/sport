@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
-import { clubMatches, teamMatches } from '../../../data/matches'
+import { clubExternalGames, clubMatches, teamMatches } from '../../../data/matches'
+import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
 import { FormChart } from '../../../components/FormChart'
@@ -96,6 +97,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 
   return (
     <div className="page">
+      <RealDataExtra games={clubExternalGames(club.name)} />
       <JsonLd data={clubLd(club, division)} />
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd data={faqLd(faq)} />

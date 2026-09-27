@@ -48,6 +48,13 @@ export interface RealData {
   channels?: ChannelData
   /** Settings from the admin pages */
   settings?: SiteSettings
+  /**
+   * Browser only: every team name's page slug ('' when it is the name's own slug),
+   * so the browser links teams without building the whole team register
+   */
+  teamIndex?: Record<string, string>
+  /** Browser only: team slugs by "league slug|name", for league tables */
+  leagueTeamIndex?: Record<string, string>
 }
 
 /** TheSportsDB league ids we know; other divisions are looked up by their `apiLeague` name */
@@ -85,6 +92,29 @@ export function getRealData(): RealData | undefined {
 export function setRealData(data: RealData | undefined) {
   if (data && holder.__scorelineReal?.version === data.version) return
   holder.__scorelineReal = data
+}
+
+/**
+ * Browser only: adds the games a page shows beyond the few days the browser
+ * gets (a club's cup games, an older match) and their teams' links. Does
+ * nothing on the server, where every game is already there.
+ */
+export function addRealExtras(extra: { games?: ExternalGame[]; teamIndex?: Record<string, string>; leagueTeamIndex?: Record<string, string> }) {
+  if (typeof window === 'undefined') return
+  const cur = holder.__scorelineReal
+  if (!cur) return
+  const have = new Set((cur.external ?? []).map((g) => g.id))
+  const games = (extra.games ?? []).filter((g) => !have.has(g.id))
+  const newNames = Object.keys(extra.teamIndex ?? {}).some((k) => !(k in (cur.teamIndex ?? {})))
+  const newPairs = Object.keys(extra.leagueTeamIndex ?? {}).some((k) => !(k in (cur.leagueTeamIndex ?? {})))
+  // Nothing new: keep the same objects, so what is worked out from them stays cached
+  if (!games.length && !newNames && !newPairs) return
+  holder.__scorelineReal = {
+    ...cur,
+    external: games.length ? [...(cur.external ?? []), ...games] : cur.external,
+    teamIndex: newNames ? { ...cur.teamIndex, ...extra.teamIndex } : cur.teamIndex,
+    leagueTeamIndex: newPairs ? { ...cur.leagueTeamIndex, ...extra.leagueTeamIndex } : cur.leagueTeamIndex,
+  }
 }
 
 /** Server only: registers how to refresh the data before it is read */

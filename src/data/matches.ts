@@ -135,6 +135,14 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
   return undefined
 }
 
+/** A league club's games outside its league (cup, Champions League), as the source has them */
+export function clubExternalGames(clubName: string): ExternalGame[] {
+  return (getRealData()?.external ?? []).filter((g) => !divisionOfGame(g)).filter((g) => {
+    const m = externalMatch(g)
+    return m.home.name === clubName || m.away.name === clubName
+  })
+}
+
 /** Every match of a league club this season, in date order */
 export function clubMatches(clubName: string, now: number): Match[] {
   const club = seasonClub(clubName)

@@ -146,23 +146,41 @@ function build(): TeamEntry[] {
 }
 
 // Rebuilt when the season changes (new real data)
-let cache: { clubs: ReturnType<typeof seasonClubs>; version?: string; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
+let cache: { clubs: ReturnType<typeof seasonClubs>; version?: string; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
 function teams() {
   const clubs = seasonClubs()
   const version = getRealData()?.version
-  if (cache?.clubs !== clubs || cache.version !== version) {
+  const external = getRealData()?.external
+  // Also rebuilt when a page adds games in the browser (same version, more games)
+  if (cache?.clubs !== clubs || cache.version !== version || cache.external !== external) {
     const list = build()
     // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
     const byName = new Map<string, TeamEntry>()
     for (const t of list) for (const n of t.names ?? [t.name]) if (!byName.has(n)) byName.set(n, t)
-    cache = { clubs, version, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName }
+    cache = { clubs, version, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName }
   }
   return cache
 }
 
 export const allTeams = () => teams().list
 export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
-export const teamByName = (name: string) => teams().byName.get(name)
+
+/** In the browser: the server's name index, so a link never needs the whole register built there */
+const browserIndex = () => (typeof window === 'undefined' ? undefined : getRealData()?.teamIndex)
+const fromIndex = (name: string, slug: string | undefined) => (slug === undefined ? undefined : ({ slug: slug || slugify(name), name } as TeamEntry))
+
+export const teamByName = (name: string): TeamEntry | undefined => {
+  const index = browserIndex()
+  if (index) return fromIndex(name, index[name])
+  return teams().byName.get(name)
+}
+
+/** Every team name's slug, '' when it is the name's own slug (sent to the browser as RealData.teamIndex) */
+export function teamNameIndex(): Record<string, string> {
+  const index: Record<string, string> = {}
+  for (const [name, t] of teams().byName) index[name] = t.slug === slugify(name) ? '' : t.slug
+  return index
+}
 
 /** For a women's team of one of our clubs ("FC Copenhagen W" in the A-Liga): that club's id */
 export function womenOf(team: TeamEntry): string | undefined {
@@ -178,6 +196,10 @@ export function womenTeamOf(clubId: string): TeamEntry | undefined {
 
 /** A team in one of API-Sports' leagues, by a name from that league's data or table */
 export function teamInLeague(leagueSlug: string, name: string, sport?: SportId): TeamEntry | undefined {
+  if (typeof window !== 'undefined') {
+    const pairs = getRealData()?.leagueTeamIndex
+    if (pairs) return fromIndex(name, pairs[`${leagueSlug}|${name}`])
+  }
   const inLeague = teams().list.filter((t) => t.leagueSlug === leagueSlug)
   // One of our clubs by its exact name ("Real Madrid" in the Champions League)
   const ours = sport && ourClubByName(name, sport)
