@@ -318,17 +318,18 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
           {/* Takes the room there is, so the Matchly bar always stays on the card */}
           <div style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
             {picks.map((p) => (
-              <div key={p.fixture.id}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '4.6cqw', fontWeight: 600, lineHeight: 1.15 }}>
-                  {[p.fixture.home, p.fixture.away].map((club) => (
-                    <div key={club.id} className={s.block} style={{ ...field(club), padding: '3.6cqw 4cqw', gap: '2cqw' }}>
-                      <Watermark club={club} logos={logos} style={{ width: '40cqw', height: '40cqw', right: '-12cqw', top: '-10cqw' }} />
-                      <Crest club={club} logos={logos} plate /> {club.name}
-                    </div>
-                  ))}
-                </div>
-                <div className={cx(s.pad, s.sub)} style={{ paddingTop: '1cqw', fontSize: '3.6cqw' }}>
-                  {formatTime(p.fixture.kickoff)} · {p.league}
+              <div key={p.fixture.id} className={cx(s.fixtureRow, s.storyRow)}>
+                {[p.fixture.home, p.fixture.away].map((club, i) => (
+                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+                    <Watermark club={club} logos={logos} style={{ width: '34cqw', height: '34cqw', top: '-10cqw', ...(i === 0 ? { right: '-10cqw' } : { left: '-10cqw' }) }} />
+                    {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
+                    <Crest club={club} logos={logos} plate />
+                    {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
+                  </div>
+                ))}
+                <div className={s.fixtureTime} style={{ gridColumn: 2, gridRow: 1 }}>
+                  <b>{formatTime(p.fixture.kickoff)}</b>
+                  <small>{p.league}</small>
                 </div>
               </div>
             ))}
