@@ -79,11 +79,19 @@ export const nameWords = (name: string) => {
 const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)))
 
 /** Whether one of a club's names matches a name from another source ("HV 71" / "HV71", "Djurgarden" / "Djurgårdens IF") */
+/** Generic words that still tell two clubs of one city apart ("Manchester City" / "Manchester United") */
+const DISTINCT = new Set(['city', 'united', 'real', 'sporting', 'athletic', 'county', 'town', 'rovers', 'wanderers'])
+const distinctWords = (name: string) => fold(name).split(' ').filter((w) => DISTINCT.has(w))
+
 export function alike(names: string[], other: string) {
   const compact = fold(other).replace(/ /g, '')
   const theirs = nameWords(other)
+  const theirDistinct = distinctWords(other)
   return names.some((n) => {
     if (compact.length >= 3 && fold(n).replace(/ /g, '') === compact) return true
+    // Both named with such a word, and not the same one: two different clubs
+    const ourDistinct = distinctWords(n)
+    if (ourDistinct.length && theirDistinct.length && !ourDistinct.some((w) => theirDistinct.includes(w))) return false
     // Every word of the shorter name is in the other ("Hamburg" / "Hamburger SV", not "Deportivo Alavés" / "Deportivo de A Coruña")
     const ours = nameWords(n)
     const [few, many] = ours.length <= theirs.length ? [ours, theirs] : [theirs, ours]
