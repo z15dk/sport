@@ -17,6 +17,8 @@ export async function register() {
   startLogoCheck(apiSportsLogoUrls)
   const { startTvSync } = await import('./lib/channels')
   startTvSync()
+  const { startNewsSync } = await import('./lib/news')
+  startNewsSync()
   startIndexNow()
   startRealDataSync()
   startLogoSync()

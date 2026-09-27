@@ -18,6 +18,8 @@ import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
+import { NewsList } from '../../../components/NewsList'
+import { newsFor } from '../../../lib/news'
 import { archiveLeagueTable, clubHistory } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
 import { normalize } from '../../../data/aliases'
@@ -158,6 +160,7 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
         </div>
 
         <ClubSeasonStats club={club} division={division} />
+        <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {history && <ClubHistory name={club.name} history={history} />}
 
         <AdSlot placement="content" />

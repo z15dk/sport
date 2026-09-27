@@ -9,6 +9,8 @@ import { MatchRow } from '../../../components/MatchRow'
 import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { TeamBadge } from '../../../components/TeamBadge'
+import { NewsList } from '../../../components/NewsList'
+import { newsFor } from '../../../lib/news'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
@@ -239,6 +241,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <StandingsTable division={division} rows={rows} />
         </section>
         <LeagueStats division={division} />
+        <NewsList articles={newsFor({ league: division.id })} division={division} />
         {/* The rounds under the statistics, beside the players */}
         {byRound ? (
           <RoundResults rounds={byRound} now={now} />
