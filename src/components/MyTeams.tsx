@@ -1,5 +1,6 @@
 'use client'
 
+import { GoalAlertToggle } from './GoalAlertToggle'
 import Link from 'next/link'
 import { useFavoriteTeams } from '../hooks/useFavoriteTeams'
 import { usePersistentState } from '../hooks/usePersistentState'
@@ -135,6 +136,7 @@ export function MyTeams({ now }: { now: number }) {
     <section className="my-teams" aria-label="Mine hold">
       <header className="my-teams__head">
         <h2>Mine hold</h2>
+        <GoalAlertToggle />
         <Link href={paths.clubs()}>Følg flere</Link>
       </header>
       <ul className="my-teams__list">

@@ -19,6 +19,8 @@ export async function register() {
   startTvSync()
   const { startNewsSync } = await import('./lib/news')
   startNewsSync()
+  const { startPushSync } = await import('./lib/push')
+  startPushSync()
   startIndexNow()
   startRealDataSync()
   startLogoSync()

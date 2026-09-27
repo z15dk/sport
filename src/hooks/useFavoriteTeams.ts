@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { syncGoalAlertTeams } from './useGoalAlerts'
 
 // The teams a visitor follows (club slugs), kept in the browser. Every
 // component using this hook stays in step: a follow on a club page shows on
@@ -46,6 +47,8 @@ export function useFavoriteTeams() {
     }
     setTeams(next)
     window.dispatchEvent(new Event(EVENT))
+    // Goal alerts follow the new list
+    void syncGoalAlertTeams()
   }, [])
 
   return { teams, loaded, toggle, follows: (slug: string) => teams.includes(slug) }
