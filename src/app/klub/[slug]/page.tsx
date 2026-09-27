@@ -173,8 +173,8 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
           </div>
         </div>
 
-        <ClubSeasonStats club={club} division={division} />
-        {teamStats && <TeamStatsPanel stats={teamStats} name={club.name} />}
+        {/* The source's team statistics replace our own box where it has them */}
+        {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {history && <ClubHistory name={club.name} history={history} />}
 
