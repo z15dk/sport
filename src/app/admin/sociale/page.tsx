@@ -309,6 +309,10 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
           </div>
         </StoryCard>
         <Card story caption="Story (9:16)">
+          {/* Matchly's M, big and faint in outline, behind the day's matches */}
+          <span className={s.wmM} aria-hidden>
+            M
+          </span>
           <Head left={day} />
           <div className={s.pad} style={{ marginTop: '4cqw' }}>
             <div className={s.big} style={{ fontSize: '9cqw' }}>
