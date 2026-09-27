@@ -221,8 +221,17 @@ function externalFixture(m: Match): Fixture {
 export const DAY_MATCHES = 5
 
 /** The day's 5 matches: league weight, table and goals; the best of each league first, then the next best */
-export function pickMatches(date: string, now: number): Pick[] {
-  const ours = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed')
+/** A finished match with a result */
+export const isFinishedMatch = (f: Fixture) => isFinished(f)
+
+/** A finished match where every goal has a named scorer (the results carousel only shows these) */
+export const hasNamedScorers = (f: Fixture) => {
+  const goals = goalsOf(f)
+  return isFinished(f) && goals.length > 0 && goals.length === f.score[0] + f.score[1] && goals.every((i) => !!i.player)
+}
+
+export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true): Pick[] {
+  const ours = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed' && only(f))
   const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
   const known = new Set(ours.map((f) => f.id))
   // Cups, Champions League and API-Sports' other leagues, for days our leagues rest
@@ -242,13 +251,14 @@ export function pickMatches(date: string, now: number): Pick[] {
       if (isFinished(f)) score += (f.score[0] + f.score[1]) * 2
       return { f, div: div as Division | undefined, league: div.name, sport: sportOf(div), score, h, a, logos: undefined as Record<string, string> | undefined }
     }),
-    ...others.map((m) => {
+    ...others.flatMap((m) => {
       const f = externalFixture(m)
+      if (!only(f)) return []
       const logos: Record<string, string> = {}
       if (m.home.badge) logos[m.home.name] = m.home.badge
       if (m.away.badge) logos[m.away.name] = m.away.badge
       const score = externalWeight(m) + (isFinished(f) ? (f.score[0] + f.score[1]) * 2 : 0)
-      return { f, div: undefined as Division | undefined, league: m.league, sport: m.sport, score, h: undefined, a: undefined, logos }
+      return [{ f, div: undefined as Division | undefined, league: m.league, sport: m.sport, score, h: undefined, a: undefined, logos }]
     }),
   ]
   scored.sort((x, y) => y.score - x.score || x.f.kickoff.getTime() - y.f.kickoff.getTime())

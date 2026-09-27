@@ -134,7 +134,8 @@
   color: #fff;
   padding: 3.2cqw 6.5cqw 3.6cqw;
 }
-.story .brandbar { margin-bottom: 12cqw; }
+/* stories: the bar reaches the bottom, its content sits above Instagram's own buttons */
+.story .brandbar { padding-bottom: 16cqw; }
 .brandLogo {
   font-family: var(--display);
   font-style: italic;
@@ -177,3 +178,6 @@
 .bigScore span:last-child { text-align: right; }
 .scorers { display: grid; grid-template-columns: 1fr 1fr; gap: 4cqw; font-size: 3.1cqw; opacity: 0.85; margin-top: 2cqw; line-height: 1.35; }
 .scorers span:last-child { text-align: right; }
+
+.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fig figcaption :global(.text-btn) { font-size: 12px; }

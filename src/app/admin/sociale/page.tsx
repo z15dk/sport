@@ -5,11 +5,12 @@ import type { CSSProperties, ReactNode } from 'react'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
 import { getBadges } from '../../../lib/badges'
-import { goalsOf, pickMatches, scoringSide, todayIso, weekNumbers, type Pick, type WeekNumbers } from '../../../lib/social'
+import { goalsOf, hasNamedScorers, isFinishedMatch, pickMatches, scoringSide, todayIso, weekNumbers, type Pick, type WeekNumbers } from '../../../lib/social'
 import type { Club } from '../../../data/leagues'
 import type { Fixture } from '../../../data/season'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 import s from './sociale.module.css'
+import { CardDownload, RailDownload } from './CardDownload'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sociale medier (test)', robots: { index: false, follow: false } }
@@ -49,12 +50,14 @@ const initials = (name: string) =>
 
 function Crest({ club, logos, large, plate }: { club: Club; logos: Logos; large?: boolean; plate?: boolean }) {
   const url = logos[club.name]
-  if (!url)
-    return (
+  if (!url) {
+    const mark = (
       <span className={cx(s.initials, large && s.lg)} style={{ background: club.colors[0], color: club.colors[1] }}>
         {initials(club.name)}
       </span>
     )
+    return plate ? <span className={s.plate}>{mark}</span> : mark
+  }
   // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
   const img = <img className={large ? s.crestLg : s.crest} src={url} alt="" />
   return plate ? <span className={s.plate}>{img}</span> : img
@@ -77,13 +80,26 @@ function Team({ club, logos }: { club: Club; logos: Logos }) {
   )
 }
 
+/** A file-name friendly version of a text: "Randers FC–Viborg FF" -> "randers-fc-viborg-ff" */
+const fileSlug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'oe')
+    .replace(/å/g, 'aa')
+    .normalize('NFD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
 function Card({ children, story, caption, style, className }: { children: ReactNode; story?: boolean; caption: string; style?: CSSProperties; className?: string }) {
   return (
     <figure className={cx(s.fig, story && s.story)}>
-      <div className={cx(s.card, className)} style={style}>
+      <div className={cx(s.card, className)} style={style} data-card={fileSlug(caption)}>
         {children}
       </div>
-      <figcaption>{caption}</figcaption>
+      <figcaption>
+        {caption} · <CardDownload />
+      </figcaption>
     </figure>
   )
 }
@@ -222,15 +238,19 @@ const dm = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}`
 const score = (f: Fixture) => `${f.score[0]}–${f.score[1]}`
 const dots = (n: number) => n.toLocaleString('da-DK')
 
-function Day({ time, label, title, where, children }: { time: string; label: string; title: string; where: string; children: ReactNode }) {
+function Day({ time, label, title, where, rail, children }: { time: string; label: string; title: string; where: string; rail: string; children: ReactNode }) {
   return (
     <section className={s.day}>
       <div className={s.when}>
         {time}
         <small>{label}</small>
       </div>
-      <div className={s.body}>
-        <h2>{title}</h2>
+      {/* data-rail names the files: date, section, number and card */}
+      <div className={s.body} data-rail={rail}>
+        <div className={s.titleRow}>
+          <h2>{title}</h2>
+          <RailDownload />
+        </div>
         <p className={s.where}>{where}</p>
         {children}
       </div>
@@ -518,7 +538,7 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
       {withFact.map((p) => (
         <Card key={p.fixture.id} story caption={`${formatTime(new Date(p.fixture.kickoff.getTime() - 2 * 3_600_000))} · ${p.fixture.home.name}–${p.fixture.away.name}`}>
           {[p.fixture.home, p.fixture.away].map((club, i) => (
-            <div key={club.id} className={s.block} style={{ ...field(club), paddingTop: i === 0 ? '12cqw' : '7cqw', flexDirection: 'column', alignItems: 'flex-start', gap: '2cqw' }}>
+            <div key={club.id} className={s.block} style={{ ...field(club), paddingTop: i === 0 ? '12cqw' : '7cqw', flexDirection: 'column', alignItems: 'flex-start', gap: '2cqw', flexShrink: 0 }}>
               <Watermark club={club} logos={logos} style={{ width: '62cqw', height: '62cqw', right: '-14cqw', top: '-12cqw' }} />
               {i === 0 && (
                 <span style={{ fontSize: '3.6cqw', opacity: 0.85 }}>
@@ -533,7 +553,8 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
               </span>
             </div>
           ))}
-          <div className={s.pad} style={{ marginTop: '8cqw' }}>
+          {/* The colour fields keep their size; a long table is cut, never the teams or the Matchly bar */}
+          <div className={s.pad} style={{ marginTop: '8cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
             <p className={s.serif} style={{ fontSize: '9cqw', lineHeight: 1.02 }}>
               {p.fact!.text}
             </p>
@@ -542,7 +563,7 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
             </div>
             <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
               <tbody>
-                {p.fact!.proof.map((r) => (
+                {p.fact!.proof.slice(0, 5).map((r) => (
                   <tr key={r.label}>
                     <td>{r.label}</td>
                     <td className={s.r}>{r.value}</td>
@@ -560,9 +581,10 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
 
 // ---------------------------------------------------------------- evening: results
 
-function Results({ date, picks, logos }: { date: string; picks: Pick[]; logos: Logos }) {
+/** The evening carousel: the first card lists up to 5 results (scorers or not); a card of its own only for matches with every scorer named */
+function Results({ date, overview, picks, logos }: { date: string; overview: Pick[]; picks: Pick[]; logos: Logos }) {
   const done = picks.filter((p) => p.finished)
-  if (!done.length) return <p className={s.empty}>Ingen af dagens udvalgte kampe er færdigspillet endnu.</p>
+  if (!overview.length) return <p className={s.empty}>Ingen færdige kampe endnu.</p>
   const total = done.length + 1
   const day = String(new Date(`${date}T12:00:00Z`).getUTCDate())
   return (
@@ -571,7 +593,7 @@ function Results({ date, picks, logos }: { date: string; picks: Pick[]; logos: L
         <StoryCard caption="Forside" mark={day} label={formatLong(date)} headline="Resultater" crests={[]} foot={`1/${total}`} logos={logos}>
           <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
             <tbody>
-              {done.map((p) => (
+              {overview.map((p) => (
                 <tr key={p.fixture.id}>
                   <td>
                     <span className={s.team}>
@@ -671,7 +693,7 @@ function Results({ date, picks, logos }: { date: string; picks: Pick[]; logos: L
       </div>
       <p className={s.text}>
         <b>Tekst</b>
-        {done.map((p) => `${p.fixture.home.name} ${score(p.fixture)} ${p.fixture.away.name}`).join('. ')}
+        {overview.map((p) => `${p.fixture.home.name} ${score(p.fixture)} ${p.fixture.away.name}`).join('. ')}
         {'.\n\nAlle mål og tabeller: link i profilen.'}
       </p>
     </>
@@ -686,8 +708,12 @@ export default async function SocialPage({ searchParams }: { searchParams: Searc
   const { dato } = await searchParams
   const date = isValidIsoDate(dato) ? dato : todayIso(now)
   const picks = pickMatches(date, now)
+  // The results carousel: the day's best finished matches where every goal has a named scorer
+  const results = pickMatches(date, now, hasNamedScorers)
+  // Its first card: the day's best finished matches, scorers or not
+  const finished = pickMatches(date, now, isFinishedMatch)
   // Our logos, plus the ones API-Sports sent with its games
-  const logos: Logos = { ...Object.assign({}, ...picks.map((p) => p.logos ?? {})), ...(await getBadges()) }
+  const logos: Logos = { ...Object.assign({}, ...[...picks, ...results, ...finished].map((p) => p.logos ?? {})), ...(await getBadges()) }
   const week = weekNumbers(date)
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
   const lastMonday = addDays(date, -((weekday + 6) % 7))
@@ -718,20 +744,20 @@ export default async function SocialPage({ searchParams }: { searchParams: Searc
         {picks.length === 0 ? (
           <p>Ingen kampe i vores ligaer denne dag.</p>
         ) : (
-          <Day time="08.00" label="Morgen" title="Dagens kampe" where={`Facebook-feed og Instagram-story · ${picks.length} udvalgte kampe`}>
+          <Day rail={`${date}-dagens-kampe`} time="08.00" label="Morgen" title="Dagens kampe" where={`Facebook-feed og Instagram-story · ${picks.length} udvalgte kampe`}>
             <Programme date={date} picks={picks} logos={logos} />
           </Day>
         )}
-        <Day time="10.00" label="Mandag" title="Ugens tal" where={`Karrusel i feed på Facebook og Instagram · ${formatLong(week.from)} – ${formatLong(week.to)}`}>
+        <Day rail={`${date}-ugens-tal`} time="10.00" label="Mandag" title="Ugens tal" where={`Karrusel i feed på Facebook og Instagram · ${formatLong(week.from)} – ${formatLong(week.to)}`}>
           <Week week={week} logos={logos} />
         </Day>
         {picks.length > 0 && (
           <>
-            <Day time="–2 t" label="Før kamp" title="Optakter" where="Instagram-story ca. 2 timer før hver kamp">
+            <Day rail={`${date}-optakt`} time="–2 t" label="Før kamp" title="Optakter" where="Instagram-story ca. 2 timer før hver kamp">
               <Previews picks={picks} logos={logos} />
             </Day>
-            <Day time="Aften" label="Efter kampene" title="Resultater" where="Karrusel i feed på Facebook og Instagram, når den sidste udvalgte kamp er slut">
-              <Results date={date} picks={picks} logos={logos} />
+            <Day rail={`${date}-resultater`} time="Aften" label="Efter kampene" title="Resultater" where="Karrusel i feed på Facebook og Instagram · forsiden viser op til 5 resultater; eget kort kun til kampe, hvor alle mål har en målscorer med navn">
+              <Results date={date} overview={finished} picks={results} logos={logos} />
             </Day>
           </>
         )}
