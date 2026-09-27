@@ -3,7 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
-import type { Incident, MatchState } from '../types'
+import type { Incident, MatchState, SportId } from '../types'
 import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import type { ExternalGame } from '../data/external'
@@ -37,6 +37,19 @@ interface DbMatch {
   homeScore: number
   awayScore: number
   spectators?: number
+  /** football.db is football; the statistics bank has every sport */
+  sport: SportId
+  /** The statistics bank's league id (ours, or "ext-<api>-<id>"); football.db's matches have none */
+  divisionId?: string
+}
+
+/** The sport of a league id in the statistics bank: one of ours, or API-Sports' ("ext-basketball-12") */
+const API_SPORTS: Record<string, SportId> = { football: 'soccer', basketball: 'basketball', nba: 'basketball', hockey: 'ice_hockey', handball: 'handball', volleyball: 'volleyball', nfl: 'american_football' }
+function sportOfDivisionId(id: string): SportId | undefined {
+  const ours = DIVISIONS.find((d) => d.id === id)
+  if (ours) return sportOf(ours)
+  const api = /^ext-([a-z]+)-/.exec(id)?.[1]
+  return api ? API_SPORTS[api] : undefined
 }
 
 interface Loaded {
@@ -62,10 +75,12 @@ let loaded: Loaded | undefined
 let checkedAt = 0
 let lastError: string | undefined
 
-function resolver() {
+/** Finds our club for a team name, among the clubs of one sport (a football team is never a basketball club of the same town) */
+function resolver(sport: SportId = 'soccer') {
   const byName = new Map<string, Club>()
   // Danish football first (football.db is Danish football), then every other league (the archive has them all)
-  const ordered = [...DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer'), ...DIVISIONS.filter((d) => d.countryCode !== 'DK' || sportOf(d) !== 'soccer')]
+  const same = DIVISIONS.filter((d) => sportOf(d) === sport)
+  const ordered = [...same.filter((d) => d.countryCode === 'DK'), ...same.filter((d) => d.countryCode !== 'DK')]
   for (const d of ordered) {
     for (const club of d.clubs) {
       for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
@@ -74,8 +89,8 @@ function resolver() {
       }
     }
   }
-  const danish = DIVISIONS.filter((d) => d.countryCode === 'DK' && sportOf(d) === 'soccer').flatMap((d) => d.clubs)
-  const everyone = DIVISIONS.flatMap((d) => d.clubs)
+  const danish = same.filter((d) => d.countryCode === 'DK').flatMap((d) => d.clubs)
+  const everyone = same.flatMap((d) => d.clubs)
   // Each name is looked up once: the loose matching below is too slow to repeat for every match in the database
   const memo = new Map<string, Club | undefined>()
   return (name: string) => {
@@ -131,41 +146,50 @@ function read(file: string | undefined, mtime: number): Loaded {
     homeScore: Number(r.home_score),
     awayScore: Number(r.away_score),
     spectators: r.spectators == null ? undefined : Number(r.spectators),
+    sport: 'soccer' as SportId,
   }))
 
   // Our own statistics bank: every other league, and anything football.db no longer has
   const seen = new Set(fromDb.map((m) => matchKey(m.date.toISOString(), m.homeName, m.awayName)))
-  const teamId = (name: string) => -hashString(normalize(name))
+  // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
+  const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
   const fromArchive: DbMatch[] = readArchive()
     .filter((a) => !seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName)))
-    .map((a) => ({
+    .flatMap((a) => {
+      const sport = sportOfDivisionId(a.divisionId)
+      return sport ? [{ a, sport }] : []
+    })
+    .map(({ a, sport }) => ({
       id: -hashString(a.id),
       tournamentId: -hashString(a.divisionId),
       tournament: a.tournament,
       seasonId: -hashString(a.season),
       season: a.season,
       date: a.date,
-      homeId: teamId(a.homeName),
+      homeId: teamId(sport, a.homeName),
       homeName: a.homeName,
-      awayId: teamId(a.awayName),
+      awayId: teamId(sport, a.awayName),
       awayName: a.awayName,
       homeScore: a.homeScore,
       awayScore: a.awayScore,
       spectators: a.spectators,
+      sport,
+      divisionId: a.divisionId,
     }))
   const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
 
   // Newest name per team id (clubs get renamed), then matched to our register
-  const names = new Map<number, string>()
+  const names = new Map<number, { name: string; sport: SportId }>()
   for (const m of matches) {
-    if (!names.has(m.homeId)) names.set(m.homeId, m.homeName)
-    if (!names.has(m.awayId)) names.set(m.awayId, m.awayName)
+    if (!names.has(m.homeId)) names.set(m.homeId, { name: m.homeName, sport: m.sport })
+    if (!names.has(m.awayId)) names.set(m.awayId, { name: m.awayName, sport: m.sport })
   }
-  const find = resolver()
+  const finders = new Map<SportId, ReturnType<typeof resolver>>()
+  const find = (name: string, sport: SportId) => (finders.get(sport) ?? finders.set(sport, resolver(sport)).get(sport)!)(name)
   const clubOf = new Map<number, Club>()
   const unmatched: string[] = []
-  for (const [id, name] of names) {
-    const club = find(name)
+  for (const [id, { name, sport }] of names) {
+    const club = find(name, sport)
     if (club) clubOf.set(id, club)
     else unmatched.push(name)
   }
@@ -643,7 +667,13 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
   const hit = leagueHistoryCache.get(divisionId)
   if (hit && hit.mtime === d.mtime) return hit.history
   const current = SEASON.slice(0, 4)
-  const own = d.matches.filter((m) => pattern.test(m.tournament) && !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) && !m.season.startsWith(current))
+  // football.db's matches by the tournament's name; the statistics bank's only when saved under this league (another sport's or country's "Superliga" is not ours)
+  const own = d.matches.filter(
+    (m) =>
+      (m.divisionId ? m.divisionId === divisionId : pattern.test(m.tournament)) &&
+      !/kvinde|women|pokal|cup|u\s?\d{2}/i.test(m.tournament) &&
+      !m.season.startsWith(current),
+  )
   let history: LeagueHistory | undefined
   if (own.length) {
     const nameOf = (id: number, fallback: string) => d.clubOf.get(id)?.name ?? fallback
