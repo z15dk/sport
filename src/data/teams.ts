@@ -69,6 +69,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   // The tables' other names for a team, only for recognising it in API-Sports' games
   const aliases = new Map<TeamEntry, string[]>()
   const known = (t: TeamEntry) => [...(t.names ?? [t.name]), ...(aliases.get(t) ?? [])]
+  const t0 = Date.now()
   for (const [key, b] of Object.entries(BASELINES)) {
     if (tables.has(b)) continue
     tables.add(b)
@@ -110,15 +111,23 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     }
     add(name, { ...e, logo })
   }
+  const t1 = Date.now()
+  let games = 0
   for (const g of getRealData()?.external ?? []) {
+    games++
     if (divisionOfGame(g)) continue
     const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country }
     for (const side of [g.home, g.away]) place(side.name, side.logo, e, g)
   }
   // The rest of the leagues' tables: teams without a game in the fetched days
+  const t2 = Date.now()
   for (const [leagueSlug, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
     for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: l.league, leagueSlug, country: l.country })
   }
+  const t3 = Date.now()
+  // Where the time goes when the register is slow (server log, see realdata.ts warm())
+  if (typeof window === 'undefined' && t3 - t0 > 500)
+    console.log(`[data] klubregister: udgangspunkter ${t1 - t0} ms, ${games} kampe ${t2 - t1} ms, tabeller ${t3 - t2} ms, ${placed.size} hold`)
   return [...out.values()]
 }
 
