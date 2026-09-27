@@ -224,3 +224,5 @@
 
 /* the same neon M on the dark programme card, with a glow */
 .wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; opacity: 0.35; filter: drop-shadow(0 0 1.2cqw rgba(198, 241, 53, 0.4)); }
+/* the story is taller: a bigger M */
+.story .wmMGreen { left: -12cqw; bottom: 14cqw; font-size: 215cqw; }

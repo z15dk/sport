@@ -316,9 +316,9 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
             ))}
           </div>
         </StoryCard>
-        <Card story caption="Story (9:16)">
-          {/* Matchly's M, big and faint in outline, behind the day's matches */}
-          <span className={s.wmM} aria-hidden>
+        <Card story caption="Story (9:16)" style={BRAND} className={s.onColor}>
+          {/* Matchly's neon M, faint in outline, behind the day's matches (as on the feed card) */}
+          <span className={cx(s.wmM, s.wmMGreen)} aria-hidden>
             M
           </span>
           <Head left={day} />
