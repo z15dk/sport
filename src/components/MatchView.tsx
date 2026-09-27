@@ -252,6 +252,8 @@ function MatchBody({
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
 
+      {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
+      <div className="match-page__flow">
       {pairRow && (
         <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
           {(stats || timeline) && (
@@ -424,6 +426,7 @@ function MatchBody({
           )}
 
         </div>
+      </div>
       </div>
       <div className="match-page__grid match-page__grid--wide">
         {form && (form.home.length > 0 || form.away.length > 0) && (

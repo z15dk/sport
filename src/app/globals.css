@@ -1537,3 +1537,10 @@ h2.league__name { margin: 0; }
 /* League pages: results by round */
 .league__note { list-style: none; padding: 10px 16px 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
 .rounds-older > summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+
+/* Match page: the top boxes in one two-column flow (no gaps beside a long box); one column on phones */
+.match-page__flow { columns: 2; column-gap: 16px; }
+.match-page__flow .match-page__cols,
+.match-page__flow .match-page__col { display: contents; }
+.match-page__flow .sheet__section { break-inside: avoid; margin: 0 0 16px; }
+@media (max-width: 900px) { .match-page__flow { columns: 1; } }
