@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import type { LeaderRow, Leaders } from '../data/matchExtra'
+import { playerPath } from '../data/player'
 import { seasonClubs } from '../data/season'
 import { sportOf } from '../data/leagues'
 import { normalize, clubNames } from '../data/aliases'
@@ -29,7 +31,13 @@ function List({ title, unit, rows }: { title: string; unit: string; rows: Leader
             <span className="leaders__rank">{i + 1}</span>
             {r.photo ? <img className="leaders__photo" src={r.photo} alt="" width={28} height={28} loading="lazy" /> : <span className="leaders__photo" />}
             <span className="leaders__who">
-              <strong>{r.name}</strong>
+              {r.id ? (
+                <Link className="leaders__name" href={playerPath(r.id, r.name)}>
+                  <strong>{r.name}</strong>
+                </Link>
+              ) : (
+                <strong>{r.name}</strong>
+              )}
               <em>
                 {r.teamLogo && <img src={r.teamLogo} alt="" width={14} height={14} loading="lazy" />} {ourName(r.team)}
                 {r.games ? ` · ${r.games} kampe` : ''}

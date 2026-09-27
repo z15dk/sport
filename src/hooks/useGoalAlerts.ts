@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 // push address and the teams; following or unfollowing a team sends the new
 // list (syncGoalAlertTeams, called from useFavoriteTeams).
 
-export type AlertState = 'loading' | 'unsupported' | 'ios-install' | 'denied' | 'off' | 'on'
+export type AlertState = 'loading' | 'unsupported' | 'insecure' | 'ios-install' | 'denied' | 'off' | 'on'
 
 const supported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 /** iPhone/iPad Safari outside the home screen app: push only works once added to the home screen */
@@ -63,6 +63,8 @@ export function useGoalAlerts() {
   useEffect(() => {
     let live = true
     ;(async () => {
+      // Push only works on https (or localhost)
+      if (!window.isSecureContext) return 'insecure'
       if (!supported()) return iosBrowser() ? 'ios-install' : 'unsupported'
       if (Notification.permission === 'denied') return 'denied'
       return (await currentSubscription()) ? 'on' : 'off'

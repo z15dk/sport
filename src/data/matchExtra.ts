@@ -62,6 +62,8 @@ export interface Lineup {
 
 /** A league's best players this season (API-Sports) */
 export interface LeaderRow {
+  /** API-Sports' player id, for the player's page */
+  id?: number
   name: string
   photo?: string
   team: string

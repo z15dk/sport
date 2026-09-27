@@ -13,6 +13,7 @@ import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
+import type { PlayerData, PlayerSeasonRow } from '../data/player'
 import { archiveEvents, archiveMissingEvents, archiveSeason } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
@@ -1001,7 +1002,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1623,7 +1624,8 @@ export function apiLeagueIdOf(divisionId: string): string | undefined {
 /** A league's top scorers, assists and cards this season (four requests, kept 6 hours; paid plans) */
 export async function apiLeagueLeaders(leagueId: string, season = SEASON.slice(0, 4)): Promise<Leaders | undefined> {
   const entry = extrasStore().entries[`football|leaders|${leagueId}|${season}`]
-  if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000) return entry.leaders
+  // Lists saved before they had player ids are fetched again, so the names can link to the players' pages
+  if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000 && entry.leaders.scorers.every((r) => r.id)) return entry.leaders
   // Stale: shown while new lists are fetched in the background; nothing yet: fetched now
   const fresh = fetchLeaders(leagueId, season).catch(() => undefined)
   return entry?.leaders ?? (await fresh)
@@ -1657,6 +1659,7 @@ async function fetchLeadersNow(api: Api, key: string, leagueId: string, season: 
       .map((r) => {
         const st = r.statistics?.[0] ?? {}
         return {
+          id: num(r.player?.id),
           name: String(r.player?.name ?? ''),
           photo: r.player?.photo ?? undefined,
           team: String(st.team?.name ?? ''),
@@ -1703,4 +1706,120 @@ export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; h
   if (both) return both
   const either = [...new Map(same.filter((g) => alike(home, g.home.name) || alike(away, g.away.name)).map((g) => [g.id, g])).values()]
   return either.length === 1 ? either[0] : undefined
+}
+
+/**
+ * A football player's page: profile and statistics per competition for this
+ * season and the one before, transfers and trophies (4 requests, kept a day;
+ * shown old while new ones are fetched). Only on the paid plan, above the
+ * reserve kept for live games.
+ */
+export async function apiPlayer(id: number): Promise<PlayerData | undefined> {
+  const key = `football|player|${id}`
+  const entry = extrasStore().entries[key]
+  if (entry?.player && Date.now() - entry.fetchedAt < 86_400_000) return entry.player
+  const fresh = fetchPlayer(id).catch(() => undefined)
+  return entry?.player ?? (await fresh)
+}
+
+const playersRunning = new Set<number>()
+async function fetchPlayer(id: number): Promise<PlayerData | undefined> {
+  const api: Api = 'football'
+  const key = `${api}|player|${id}`
+  const store = extrasStore()
+  if (playersRunning.has(id)) return store.entries[key]?.player
+  playersRunning.add(id)
+  try {
+    load()
+    const s = mem.store[api]
+    if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.player
+    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+    if (remaining <= PAID_RESERVE) return store.entries[key]?.player
+    const season = Number(SEASON.slice(0, 4))
+    const [now, before, transfers, trophies] = await Promise.all([
+      call(api, `/players?id=${id}&season=${season}`, 8_000),
+      call(api, `/players?id=${id}&season=${season - 1}`, 8_000),
+      call(api, `/transfers?player=${id}`, 8_000),
+      call(api, `/trophies?player=${id}`, 8_000),
+    ])
+    const first = now.response?.[0] ?? before.response?.[0]
+    if (!first?.player) return store.entries[key]?.player
+    const p = first.player
+    const rows = (r: Raw | undefined): PlayerSeasonRow[] =>
+      (r?.statistics ?? [])
+        .map((st: Raw) => ({
+          team: String(st.team?.name ?? ''),
+          teamId: num(st.team?.id),
+          teamLogo: realLogo(st.team?.logo ?? undefined),
+          league: String(st.league?.name ?? ''),
+          leagueId: num(st.league?.id),
+          leagueLogo: st.league?.logo ?? undefined,
+          country: st.league?.country ?? undefined,
+          season: Number(st.league?.season ?? 0),
+          games: num(st.games?.appearences) ?? 0,
+          lineups: num(st.games?.lineups),
+          minutes: num(st.games?.minutes),
+          number: num(st.games?.number),
+          position: st.games?.position ?? undefined,
+          rating: num(st.games?.rating),
+          captain: !!st.games?.captain,
+          goals: num(st.goals?.total) ?? 0,
+          assists: num(st.goals?.assists) ?? 0,
+          conceded: num(st.goals?.conceded),
+          saves: num(st.goals?.saves),
+          shots: num(st.shots?.total),
+          shotsOn: num(st.shots?.on),
+          passes: num(st.passes?.total),
+          keyPasses: num(st.passes?.key),
+          passAccuracy: num(st.passes?.accuracy),
+          tackles: num(st.tackles?.total),
+          interceptions: num(st.tackles?.interceptions),
+          duels: num(st.duels?.total),
+          duelsWon: num(st.duels?.won),
+          dribbles: num(st.dribbles?.attempts),
+          dribblesWon: num(st.dribbles?.success),
+          foulsDrawn: num(st.fouls?.drawn),
+          foulsCommitted: num(st.fouls?.committed),
+          yellow: (num(st.cards?.yellow) ?? 0) + (num(st.cards?.yellowred) ?? 0),
+          red: (num(st.cards?.red) ?? 0) + (num(st.cards?.yellowred) ?? 0),
+          penScored: num(st.penalty?.scored),
+          penMissed: num(st.penalty?.missed),
+        }))
+        .filter((x: PlayerSeasonRow) => x.league && (x.games > 0 || x.minutes))
+    const player: PlayerData = {
+      id,
+      name: String(p.name ?? ''),
+      firstname: p.firstname ?? undefined,
+      lastname: p.lastname ?? undefined,
+      age: num(p.age),
+      birthDate: p.birth?.date ?? undefined,
+      birthPlace: p.birth?.place ?? undefined,
+      birthCountry: p.birth?.country ?? undefined,
+      nationality: p.nationality ?? undefined,
+      height: p.height ?? undefined,
+      weight: p.weight ?? undefined,
+      injured: !!p.injured,
+      photo: p.photo ?? undefined,
+      seasons: [...rows(now.response?.[0]), ...rows(before.response?.[0])],
+      transfers: ((transfers.response?.[0]?.transfers ?? []) as Raw[])
+        .map((t) => ({
+          date: String(t.date ?? ''),
+          type: t.type ?? undefined,
+          from: String(t.teams?.out?.name ?? ''),
+          fromLogo: realLogo(t.teams?.out?.logo ?? undefined),
+          to: String(t.teams?.in?.name ?? ''),
+          toLogo: realLogo(t.teams?.in?.logo ?? undefined),
+        }))
+        .filter((t) => t.date && t.to)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+      trophies: ((trophies.response ?? []) as Raw[])
+        .map((t) => ({ league: String(t.league ?? ''), country: t.country ?? undefined, season: String(t.season ?? ''), place: String(t.place ?? '') }))
+        .filter((t) => t.league && t.place),
+    }
+    store.entries[key] = { fetchedAt: Date.now(), player }
+    saveExtras()
+    return player
+  } finally {
+    playersRunning.delete(id)
+  }
 }
