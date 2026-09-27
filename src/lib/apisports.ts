@@ -343,7 +343,7 @@ type Store = Record<string, ApiState>
 const file = (): string => process.env.APISPORTS_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'apisports.json')
 
 // On globalThis: the job and the pages load separate copies of this module
-const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[] } }
+const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string } }
 const mem = (holder.__scorelineApiSports ??= { store: {}, mtime: 0, readAt: 0 })
 
 function load() {
@@ -391,8 +391,26 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
       for (const d of fetched) for (const g of d.games) if (days.has(isoDate(new Date(g.kickoff)))) byId.set(g.id, g)
     }
     mem.games = [...byId.values()].sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    mem.gamesVersion = gamesVersion(mem.games)
   }
-  return { version: String(Math.round(mem.mtime)), games: mem.games }
+  // At least every 5 minutes anyway (the minute of live games outside our leagues)
+  return { version: `${mem.gamesVersion}|${Math.floor(Date.now() / 300_000)}`, games: mem.games }
+}
+
+/**
+ * What the pages show of the games, as one short string. The file is saved
+ * every 30 seconds by the live job even when nothing changed; a new version
+ * makes the server rebuild everything and every open page reload, so the
+ * version only changes with the games: kick-off, state, score, goals and cards,
+ * and the live minute only in our leagues and cups (the rest every 5 minutes).
+ */
+function gamesVersion(games: ExternalGame[]) {
+  const h = createHash('sha1')
+  for (const g of games) {
+    const ours = !!divisionOfGame(g) || !!cupOfGame(g) || wholeSeason(g)
+    h.update(`${g.id}|${g.kickoff}|${g.state}|${g.homeScore ?? ''}-${g.awayScore ?? ''}|${g.incidents?.length ?? 0}|${ours ? (g.label ?? '') : ''}\n`)
+  }
+  return h.digest('hex').slice(0, 16)
 }
 
 const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || wholeSeason(g))
