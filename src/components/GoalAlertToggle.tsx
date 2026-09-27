@@ -7,7 +7,7 @@ export function GoalAlertToggle({ compact = false }: { compact?: boolean }) {
   const { state, error, enable, disable } = useGoalAlerts()
   if (state === 'loading') return null
   if (state === 'insecure' || state === 'unsupported') {
-    if (compact) return null
+    if (compact) return <span className="goal-alert__note">🔕 Målalarm {state === 'insecure' ? 'kræver https' : 'virker ikke i denne browser'}</span>
     return (
       <p className="goal-alert__hint">
         {state === 'insecure'
@@ -17,7 +17,7 @@ export function GoalAlertToggle({ compact = false }: { compact?: boolean }) {
     )
   }
   if (state === 'ios-install') {
-    if (compact) return null
+    if (compact) return <span className="goal-alert__note">🔔 Målalarm: Del → Føj til hjemmeskærm</span>
     return (
       <p className="goal-alert__hint">
         🔔 Målalarm på iPhone: tryk på <strong>Del</strong> → <strong>Føj til hjemmeskærm</strong>, åbn Matchly derfra og slå målalarm til.
@@ -25,7 +25,7 @@ export function GoalAlertToggle({ compact = false }: { compact?: boolean }) {
     )
   }
   if (state === 'denied') {
-    return compact ? null : <p className="goal-alert__hint">🔕 Målalarm er blokeret i browseren. Tillad notifikationer for siden for at slå den til.</p>
+    return compact ? <span className="goal-alert__note">🔕 Målalarm er blokeret i browseren</span> : <p className="goal-alert__hint">🔕 Målalarm er blokeret i browseren. Tillad notifikationer for siden for at slå den til.</p>
   }
   const on = state === 'on'
   return (
