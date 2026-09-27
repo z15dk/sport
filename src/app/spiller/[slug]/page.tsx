@@ -326,7 +326,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
           </section>
         </div>
 
-        <p className="muted small">Statistik fra API-Sports. Rating er et gennemsnit af deres kampkarakterer (1–10).</p>
+        <p className="muted small">Rating er et gennemsnit af spillerens kampkarakterer (1–10).</p>
         <AdSlot placement="content" />
       </div>
     </div>
