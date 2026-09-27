@@ -32,6 +32,11 @@ export interface Article {
   /** Our clubs (club ids) and leagues (division ids) the headline or standfirst names */
   clubs: string[]
   leagues: string[]
+  /** About women's football ("kvinder", "Kvindeligaen", "FCK-pigerne"): shown on the women's team's page, not the club's */
+  women?: boolean
+  /** Standfirst and categories, kept to match the article again when the rules change */
+  text?: string
+  cats?: string[]
 }
 
 interface FeedStatus {
@@ -154,26 +159,27 @@ export function newsStatus() {
 export function newsCoverage() {
   const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
   const clubs = new Map<string, number>()
+  const women = new Map<string, number>()
   const leagues = new Map<string, number>()
   let total = 0
   for (const a of readStore().articles) {
     if (!enabled.has(a.feed)) continue
     total++
-    for (const c of a.clubs) clubs.set(c, (clubs.get(c) ?? 0) + 1)
-    for (const l of a.leagues) leagues.set(l, (leagues.get(l) ?? 0) + 1)
+    for (const c of a.clubs) (a.women ? women : clubs).set(c, ((a.women ? women : clubs).get(c) ?? 0) + 1)
+    if (!a.women) for (const l of a.leagues) leagues.set(l, (leagues.get(l) ?? 0) + 1)
   }
-  return { total, clubs, leagues }
+  return { total, clubs, women, leagues }
 }
 
 /** The newest articles about a club or a league */
-export function newsFor(ref: { club?: string; league?: string }, limit = 6): Article[] {
+export function newsFor(ref: { club?: string; league?: string; women?: boolean }, limit = 6): Article[] {
   const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
   // A league's news: the league itself or any of its clubs
   const clubs = new Set(DIVISIONS.find((d) => d.id === ref.league)?.clubs.map((c) => c.id))
   const about = (a: Article) =>
     ref.club ? a.clubs.includes(ref.club) : ref.league ? a.leagues.includes(ref.league) || a.clubs.some((c) => clubs.has(c)) : false
   return readStore()
-    .articles.filter((a) => enabled.has(a.feed) && about(a))
+    .articles.filter((a) => enabled.has(a.feed) && !!a.women === !!ref.women && about(a))
     .slice(0, limit)
 }
 
@@ -205,6 +211,7 @@ interface Item {
   link: string
   date: number
   standfirst: string
+  cats: string[]
 }
 
 function parseRss(xml: string): Item[] {
@@ -217,7 +224,8 @@ function parseRss(xml: string): Item[] {
     const date = Date.parse(decode(tag(item, 'pubDate') ?? tag(item, 'dc:date') ?? ''))
     // WordPress adds "Indlægget ... blev først udgivet på ..." to the standfirst
     const standfirst = decode(tag(item, 'description') ?? '').replace(/Indlægget .* blev først udgivet på .*$/, '').trim()
-    out.push({ id: decode(tag(item, 'guid') ?? '') || link, title, link, date: Number.isNaN(date) ? Date.now() : date, standfirst })
+    const cats = [...item.matchAll(/<category(?:\s[^>]*)?>([\s\S]*?)<\/category>/gi)].map((c) => decode(c[1])).filter(Boolean).slice(0, 20)
+    out.push({ id: decode(tag(item, 'guid') ?? '') || link, title, link, date: Number.isNaN(date) ? Date.now() : date, standfirst: standfirst.slice(0, 400), cats })
   }
   return out
 }
@@ -308,8 +316,16 @@ function mentions(text: string[], tokens: string[]) {
   return false
 }
 
-function match(title: string, standfirst: string) {
+/** Words that make an article about women's football */
+const WOMEN_WORDS = /^(kvind|dame|pige|women|frauen|damallsvenskan|toppserien|wsl$)/
+
+function isWomen(text: string[]) {
+  return text.some((w) => WOMEN_WORDS.test(w)) || mentions(text, ['a', 'liga']) || mentions(text, ['liga', 'f'])
+}
+
+function match(title: string, standfirst: string, cats: string[] = []) {
   const text = words(`${title} ${standfirst}`)
+  const women = isWomen(text) || isWomen(words(cats.join(' ')))
   const clubs = new Set<string>()
   const leagues = new Set<string>()
   for (const p of allPatterns()) {
@@ -317,7 +333,7 @@ function match(title: string, standfirst: string) {
     if (p.club) clubs.add(p.club.id)
     if (p.division) leagues.add(p.division.id)
   }
-  return { clubs: [...clubs], leagues: [...leagues] }
+  return { clubs: [...clubs], leagues: [...leagues], women }
 }
 
 // ---------------------------------------------------------------- the job
@@ -349,7 +365,7 @@ export async function syncNews() {
         const items = await fetchFeed(feed)
         for (const it of items) {
           const key = `${feed.id}|${it.id}`
-          byId.set(key, { id: it.id, feed: feed.id, source: feed.name, title: it.title, link: it.link, date: it.date, ...match(it.title, it.standfirst) })
+          byId.set(key, { id: it.id, feed: feed.id, source: feed.name, title: it.title, link: it.link, date: it.date, text: it.standfirst, cats: it.cats })
         }
         store.status[feed.id] = { fetchedAt: Date.now(), items: items.length }
       } catch (err) {
@@ -359,6 +375,8 @@ export async function syncNews() {
     const from = Date.now() - KEEP_MS
     store.articles = [...byId.values()]
       .filter((a) => a.date >= from)
+      // Every article matched again, so a change in the rules reaches the older ones too
+      .map((a) => ({ ...a, ...match(a.title, a.text ?? '', a.cats) }))
       .sort((a, b) => b.date - a.date)
       .slice(0, MAX_ARTICLES)
     saveStore(store)

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
-import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
+import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubMatches, teamMatches } from '../../../data/matches'
 import { clubStats } from '../../../data/matchInsights'
@@ -462,6 +462,10 @@ async function TeamPage({ team }: { team: TeamEntry }) {
           </section>
         )}
 
+        {(() => {
+          const clubId = womenOf(team)
+          return clubId ? <NewsList articles={newsFor({ club: clubId, women: true })} team={team} /> : null
+        })()}
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>

@@ -9,6 +9,7 @@ import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
 import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
 import { DIVISIONS } from '../../../data/leagues'
+import { womenTeamOf } from '../../../data/teams'
 import { paths } from '../../../lib/site'
 import { formatNumeric, formatTime } from '../../../lib/time'
 
@@ -25,6 +26,13 @@ export default async function AdminSettings() {
   const clubsWithNews = DIVISIONS.flatMap((d) => d.clubs)
     .filter((c) => coverage.clubs.has(c.id))
     .map((c) => ({ name: c.name, href: paths.club(c.slug), count: coverage.clubs.get(c.id)! }))
+    .concat(
+      [...coverage.women].map(([id, count]) => {
+        const t = womenTeamOf(id)
+        const club = DIVISIONS.flatMap((d) => d.clubs).find((c) => c.id === id)
+        return { name: `${t?.name ?? club?.name ?? id} (kvinder)`, href: t ? paths.club(t.slug) : '', count }
+      }),
+    )
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'da'))
   const leaguesWithNews = DIVISIONS.filter((d) => coverage.leagues.has(d.id) || d.clubs.some((c) => coverage.clubs.has(c.id))).map((d) => ({
     name: d.name,
@@ -73,8 +81,9 @@ export default async function AdminSettings() {
                 ))}</p>
                 <ul className="news-coverage__list">
                   {clubsWithNews.map((c) => (
-                    <li key={c.href}>
-                      <Link href={c.href}>{c.name}</Link> <span className="muted small">{c.count}</span>
+                    <li key={c.name}>
+                      {c.href ? <Link href={c.href}>{c.name}</Link> : <span title="Kvindeholdet har ingen side hos os">{c.name}</span>}{' '}
+                      <span className="muted small">{c.count}</span>
                     </li>
                   ))}
                 </ul>

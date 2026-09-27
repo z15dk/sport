@@ -164,6 +164,18 @@ export const allTeams = () => teams().list
 export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 export const teamByName = (name: string) => teams().byName.get(name)
 
+/** For a women's team of one of our clubs ("FC Copenhagen W" in the A-Liga): that club's id */
+export function womenOf(team: TeamEntry): string | undefined {
+  if (team.season) return undefined
+  if (!/\b(w|women|kvinder|dame|damer)\b/i.test(team.name) && !/kvinde|women|frauen|a-liga|damallsvenskan|toppserien/i.test(team.league)) return undefined
+  return ourClubByName(clubPart(team.name), team.sport)?.club.id
+}
+
+/** The women's team of one of our clubs, by the club's id */
+export function womenTeamOf(clubId: string): TeamEntry | undefined {
+  return teams().list.find((t) => womenOf(t) === clubId)
+}
+
 /** A team in one of API-Sports' leagues, by a name from that league's data or table */
 export function teamInLeague(leagueSlug: string, name: string, sport?: SportId): TeamEntry | undefined {
   const inLeague = teams().list.filter((t) => t.leagueSlug === leagueSlug)

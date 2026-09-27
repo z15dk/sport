@@ -17,10 +17,21 @@ function when(date: number, now: number) {
  * club or a league, each with the club's logo, the source and the time. A click
  * opens the article on the source's own site in a new tab.
  */
-export function NewsList({ articles, division, club }: { articles: Article[]; division: Division; club?: Club }) {
+export function NewsList({
+  articles,
+  division,
+  club,
+  team,
+}: {
+  articles: Article[]
+  division?: Division
+  club?: Club
+  /** A team outside our leagues (a women's team): its own logo on every article */
+  team?: { name: string; logo?: string; colors?: [string, string] }
+}) {
   if (!articles.length) return null
   const now = Date.now()
-  const byId = new Map(division.clubs.map((c) => [c.id, c]))
+  const byId = new Map(division?.clubs.map((c) => [c.id, c]))
   return (
     <section className="panel news">
       <h2 className="panel__title">Seneste nyheder</h2>
@@ -30,10 +41,12 @@ export function NewsList({ articles, division, club }: { articles: Article[]; di
           return (
             <li key={`${a.feed}|${a.id}`}>
               <a className="news__item" href={a.link} target="_blank" rel="noopener noreferrer">
-                {who ? (
+                {team ? (
+                  <TeamBadge link={false} name={team.name} src={team.logo} colors={team.colors} size={32} />
+                ) : who ? (
                   <TeamBadge link={false} name={who.name} colors={who.colors} size={32} />
                 ) : (
-                  <TeamBadge link={false} name={division.name} label={division.short} colors={['#0f110c', '#c6f135']} size={32} />
+                  division && <TeamBadge link={false} name={division.name} label={division.short} colors={['#0f110c', '#c6f135']} size={32} />
                 )}
                 <span className="news__text">
                   <strong className="news__title">{a.title}</strong>
