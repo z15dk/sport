@@ -97,9 +97,9 @@ function TeamCard({ slug, now, onUnfollow }: { slug: string; now: number; onUnfo
 export function MyTeams({ now }: { now: number }) {
   const { teams, loaded, toggle } = useFavoriteTeams()
   const [hintHidden, setHintHidden] = usePersistentState('myTeamsHintHidden', false)
-  if (!loaded) return null
-
-  if (!teams.length) {
+  // Before the browser's list is read (and on the server) the suggestions show, as for a new visitor,
+  // so the page doesn't jump down when they appear
+  if (!loaded || !teams.length) {
     if (hintHidden) return null
     const suggestions = seasonClubs()
       .filter(({ division }) => division.id === 'superliga')
