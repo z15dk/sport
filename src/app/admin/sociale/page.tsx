@@ -180,6 +180,34 @@ const MatchLine = ({ f }: { f: Fixture }) => (
 )
 const winnerOf = (f: Fixture) => (f.score[1] > f.score[0] ? f.away : f.home)
 
+/** The result, big: home and away with the score between */
+const BigScore = ({ f }: { f: Fixture }) => (
+  <div className={s.bigScore}>
+    <span>{f.home.name}</span>
+    <strong className={s.num}>{score(f)}</strong>
+    <span>{f.away.name}</span>
+  </div>
+)
+
+/** The goals as one short line per goal, when the sources have them */
+function Scorers({ f, max }: { f: Fixture; max: number }) {
+  const goals = goalsOf(f)
+  if (!goals.length) return null
+  const name = (i: (typeof goals)[number]) => `${i.player ?? 'Mål'}${i.kind === 'penalty' ? ' (str.)' : i.kind === 'own-goal' ? ' (selvmål)' : ''}`
+  const side = (x: 'home' | 'away') =>
+    goals
+      .filter((i) => scoringSide(i) === x)
+      .slice(0, max)
+      .map((i) => `${name(i)} ${i.minute}'`)
+      .join(', ')
+  return (
+    <div className={s.scorers}>
+      <span>{side('home')}</span>
+      <span>{side('away')}</span>
+    </div>
+  )
+}
+
 /** ISO week number of a date */
 function weekNumber(date: string) {
   const d = new Date(`${date}T12:00:00Z`)
@@ -219,22 +247,29 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
       <div className={s.rail}>
         <Card caption="Feed (4:5)">
           <Head left="Kampprogram" />
-          <div className={s.pad} style={{ marginTop: '9cqw' }}>
-            <div className={s.big} style={{ fontSize: '9cqw' }}>
+          <div className={s.pad} style={{ marginTop: '6cqw' }}>
+            <div className={s.big} style={{ fontSize: '8cqw' }}>
               {day}
             </div>
           </div>
-          <div className={s.pad} style={{ marginTop: '6cqw' }}>
-            <table className={s.tb} style={{ fontSize: '3.6cqw' }}>
+          {/* Takes the room there is: long names never push the Matchly bar off the card */}
+          <div className={s.pad} style={{ marginTop: '4cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+            <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
               <tbody>
                 {picks.map((p) => (
                   <tr key={p.fixture.id}>
-                    <td className={s.k}>{formatTime(p.fixture.kickoff)}</td>
-                    <td>
-                      <div className={s.sub} style={{ fontSize: '3cqw' }}>
+                    <td className={s.k} style={{ padding: '1.5cqw 0' }}>
+                      {formatTime(p.fixture.kickoff)}
+                    </td>
+                    <td style={{ padding: '1.5cqw 0' }}>
+                      <div className={s.sub} style={{ fontSize: '2.9cqw' }}>
                         {p.league}
                       </div>
-                      <Team club={p.fixture.home} logos={logos} /> – <Team club={p.fixture.away} logos={logos} />
+                      <div className={s.vs}>
+                        <Team club={p.fixture.home} logos={logos} />
+                        <span aria-hidden>–</span>
+                        <Team club={p.fixture.away} logos={logos} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -354,12 +389,13 @@ function Week({ week, logos }: { week: WeekNumbers; logos: Logos }) {
               </>
             }
             crests={[u.fixture.home, u.fixture.away]}
-            line={<MatchLine f={u.fixture} />}
             foot={next()}
             logos={logos}
           >
+            <BigScore f={u.fixture} />
+            <Scorers f={u.fixture} max={4} />
             {u.loserUnbeaten >= 3 && (
-              <p className={s.serif} style={{ fontSize: '4.6cqw' }}>
+              <p className={s.serif} style={{ fontSize: '4.6cqw', marginTop: '3cqw' }}>
                 {u.loser.name} havde ikke tabt i {u.loserUnbeaten} kampe.
               </p>
             )}
