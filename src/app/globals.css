@@ -1529,3 +1529,6 @@ h2.league__name { margin: 0; }
 
 /* Wide rows (the league tabs) scroll inside the page on phones instead of widening it (and Safari zooming the page out) */
 .clubs, .clubs__head, .division-tabs, .page { min-width: 0; max-width: 100%; }
+/* A national team's flag in the round badge */
+.badge--flag { position: relative; display: inline-block; flex: none; border-radius: 50%; overflow: hidden; background: var(--surface-2); box-shadow: inset 0 0 0 1px rgba(15, 17, 12, 0.08); }
+.badge--flag .flag { position: absolute; top: 0; left: 50%; width: 150%; height: 100%; transform: translateX(-50%); display: block; }

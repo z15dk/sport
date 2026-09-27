@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { teamByName } from '../data/teams'
 import { paths } from '../lib/site'
 import { useBadge } from './BadgeProvider'
+import { Flag, hasFlag } from './Flag'
+import { danishCountry } from '../data/countries'
 
 interface Props {
   name: string
@@ -95,6 +97,15 @@ function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
       />
     )
   }
+  // A national team without a logo: its flag ("Netherlands", "Holland U21", "Denmark W")
+  const country = nationOf(name)
+  if (country) {
+    return (
+      <span className="badge badge--flag" style={{ width: size, height: size }} aria-hidden>
+        <Flag country={country} />
+      </span>
+    )
+  }
   const initials = label ?? badgeInitials(name)
   return (
     <span
@@ -132,4 +143,11 @@ export function badgeInitials(name: string) {
     .map((w) => w[0])
     .join('')
     .toUpperCase()
+}
+
+/** The country a national team's name stands for, when we have its flag ("Netherlands W" -> "Holland") */
+function nationOf(name: string): string | undefined {
+  const plain = name.replace(/\s+(w|women|u\s?\d{2})$/i, '').trim()
+  const country = danishCountry(plain)
+  return hasFlag(country) ? country : hasFlag(plain) ? plain : undefined
 }
