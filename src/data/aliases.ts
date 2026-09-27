@@ -35,8 +35,21 @@ export const SEARCH_NAMES: Record<string, string> = {
   hikh: 'Hellerup IK',
 }
 
+// normalize() runs for every name in every match lookup: remembered, as the same names come again and again
+const normalizeMemo = new Map<string, string>()
+
 /** Lowercase, no accents or Danish letters, no punctuation or common club prefixes */
 export function normalize(name: string) {
+  let n = normalizeMemo.get(name)
+  if (n === undefined) {
+    n = normalizeOnce(name)
+    if (normalizeMemo.size > 50_000) normalizeMemo.clear()
+    normalizeMemo.set(name, n)
+  }
+  return n
+}
+
+function normalizeOnce(name: string) {
   return ` ${name
     .toLowerCase()
     .replace(/æ/g, 'ae')
