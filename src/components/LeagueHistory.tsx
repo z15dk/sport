@@ -13,9 +13,9 @@ const Club = ({ name, slug }: { name: string; slug?: string }) => (
   </span>
 )
 
-/** A league's finished seasons from the match database: top three per season, all-time table and records */
+/** A league's finished seasons from the match database: top three per season and records */
 export function LeagueHistory({ name, history }: { name: string; history: History }) {
-  const { seasons, allTime, biggestWin, bestCrowd } = history
+  const { seasons, biggestWin, bestCrowd } = history
   const shown = seasons.slice(0, 6)
   const rest = seasons.slice(6)
   // One card per season: the champion big, second and third under it
@@ -71,41 +71,6 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
           <summary>Vis alle {seasons.length} sæsoner</summary>
           <ul className="season-cards">{rest.map(seasonCard)}</ul>
         </details>
-      )}
-      {allTime.length > 0 && (
-        <>
-          <h3 className="stats-sub history__sub">Alle tiders tabel</h3>
-          <div className="table-wrap">
-            <table className="table table--compact">
-              <thead>
-                <tr>
-                  <th className="num">#</th>
-                  <th>Klub</th>
-                  <th className="num">Sæsoner</th>
-                  <th className="num hide-sm">K</th>
-                  <th className="num">Mål</th>
-                  <th className="num">P</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allTime.map((r, i) => (
-                  <tr key={`${r.name}-${i}`}>
-                    <td className="num pos">{i + 1}</td>
-                    <td>
-                      <Club name={r.name} slug={r.slug} />
-                    </td>
-                    <td className="num">{r.seasons}</td>
-                    <td className="num hide-sm">{r.played}</td>
-                    <td className="num">
-                      {r.goalsFor}-{r.goalsAgainst}
-                    </td>
-                    <td className="num pts">{r.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
       )}
       <p className="muted small history__note">
         Beregnet af Scoreline ud fra sæsonernes kampe (3 point for sejr). Nr. 1-3 er efter point i sæsonens kampe og tager ikke højde for
