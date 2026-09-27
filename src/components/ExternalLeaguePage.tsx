@@ -8,6 +8,8 @@ import { MatchRow } from './MatchRow'
 import { Updated } from './Updated'
 import { CalendarButton } from './CalendarButton'
 import { LeagueLeaders } from './LeagueLeaders'
+import { LeagueStats } from './LeagueStats'
+import type { LeagueStats as LeagueStatsData } from '../data/stats'
 import type { Leaders } from '../data/matchExtra'
 import { AdSlot } from './AdSlot'
 import { danishCountry } from '../data/countries'
@@ -29,6 +31,8 @@ interface Props {
   since?: Date
   recent: PastMatch[]
   upcoming: Match[]
+  /** Our statistics for the season, from its finished games */
+  stats?: LeagueStatsData
   now: number
   /** The starting table our own table builds on, when there is one */
   baseline?: Baseline
@@ -39,7 +43,7 @@ interface Props {
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -110,6 +114,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
         {(!rounds || rows.length > 1) && (
           <div className={leaders ? 'table-duo' : 'table-solo'}>
+          <div className="table-duo__main">
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Stilling</h2>
@@ -174,10 +179,13 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   : `Beregnet af Scoreline ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
+          <LeagueStats stats={stats} sport={league.sport} />
+          </div>
           {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
           </div>
         )}
         {rounds && rows.length <= 1 && leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+        {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
 
         <AdSlot placement="feed" />

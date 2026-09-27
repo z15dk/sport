@@ -186,6 +186,7 @@ export interface ArchivedMatch {
   awayName: string
   homeScore: number
   awayScore: number
+  ht?: [number, number]
   spectators?: number
 }
 
@@ -225,7 +226,7 @@ function readArchiveFile(): ArchivedMatch[] {
   try {
     return db
       .prepare(
-        `SELECT event_id, division_id, tournament_name, season_year, start_date, home_name, away_name, home_score, away_score, spectators
+        `SELECT event_id, division_id, tournament_name, season_year, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators
            FROM matches WHERE status = 'finished' ORDER BY start_date DESC`,
       )
       .all()
@@ -239,6 +240,7 @@ function readArchiveFile(): ArchivedMatch[] {
         awayName: String(r.away_name ?? ''),
         homeScore: Number(r.home_score),
         awayScore: Number(r.away_score),
+        ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
         spectators: r.spectators == null ? undefined : Number(r.spectators),
       }))
   } catch {
@@ -249,6 +251,40 @@ function readArchiveFile(): ArchivedMatch[] {
 }
 
 /** Numbers for the status page */
+/** The goals and cards the statistics bank has for these matches */
+export function archiveIncidents(ids: string[]): Map<string, import('../types').Incident[]> {
+  const out = new Map<string, import('../types').Incident[]>()
+  const lib = sqlite()
+  if (!lib || !ids.length) return out
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return out
+  }
+  try {
+    const wanted = new Set(ids)
+    // One query for the lot: the ids are ours (from the archive), in chunks the database accepts
+    for (let i = 0; i < ids.length; i += 500) {
+      const chunk = ids.slice(i, i + 500)
+      const rows = db.prepare(`SELECT event_id, minute, side, kind, player FROM incidents WHERE event_id IN (${chunk.map(() => '?').join(',')}) ORDER BY minute`).all(...chunk)
+      for (const r of rows) {
+        const id = String(r.event_id)
+        if (!wanted.has(id)) continue
+        const kind = String(r.kind) as import('../types').Incident['kind']
+        if (!['goal', 'penalty', 'own-goal', 'yellow', 'red'].includes(kind)) continue
+        if (!out.has(id)) out.set(id, [])
+        out.get(id)!.push({ minute: Number(r.minute), side: r.side === 'away' ? 'away' : 'home', kind, player: r.player ? String(r.player) : undefined })
+      }
+    }
+  } catch {
+    // an older archive without incidents
+  } finally {
+    db.close()
+  }
+  return out
+}
+
 export function archiveStatus() {
   const lib = sqlite()
   let byDivision: { division: string; matches: number; incidents: number }[] = []

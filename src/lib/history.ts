@@ -10,7 +10,7 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveFile, readArchive } from './archive'
+import { archiveFile, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 
@@ -731,6 +731,16 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
  * it rests on and from when. For API-Sports' leagues, whose tables the free
  * plan doesn't give.
  */
+/** A league's matches this season in the statistics bank: from the first match after the last break of more than 45 days */
+export function archiveSeasonGames(divisionId: string): ArchivedMatch[] {
+  const inLeague = readArchive()
+    .filter((a) => a.divisionId === divisionId)
+    .sort((x, y) => x.date.getTime() - y.date.getTime())
+  let start = 0
+  for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
+  return inLeague.slice(start)
+}
+
 export function archiveLeagueTable(
   divisionId: string,
   baseline?: Baseline,
