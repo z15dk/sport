@@ -16,41 +16,39 @@ const Club = ({ name, slug }: { name: string; slug?: string }) => (
 /** A league's finished seasons from the match database: top three per season, all-time table and records */
 export function LeagueHistory({ name, history }: { name: string; history: History }) {
   const { seasons, allTime, biggestWin, bestCrowd } = history
-  const shown = seasons.slice(0, 10)
-  const rest = seasons.slice(10)
-  const seasonRow = (s: History['seasons'][number]) => (
-    <tr key={s.season}>
-      <td>{s.season}</td>
-      {s.incomplete ? (
-        <td colSpan={3} className="history__missing-cell">
+  const shown = seasons.slice(0, 6)
+  const rest = seasons.slice(6)
+  // One card per season: the champion big, second and third under it
+  const seasonCard = (s: History['seasons'][number]) => (
+    <li key={s.season} className="season-card">
+      <span className="season-card__year">{s.season}</span>
+      {s.incomplete || !s.top[0] ? (
+        <span className="season-card__missing">
           Ufuldstændig ({s.matches} af {s.teams * (s.teams - 1)} kampe)
-        </td>
-      ) : [0, 1, 2].map((i) => (
-        <td key={i}>
-          {s.top[i] ? (
-            <>
-              <Club {...s.top[i]} /> <span className="muted small">{s.top[i].points} p</span>
-            </>
-          ) : (
-            '–'
-          )}
-        </td>
-      ))}
-      <td className="num">{s.matches}</td>
-      <td className="num">{one(s.goalsPerMatch)}</td>
-    </tr>
-  )
-  const head = (
-    <thead>
-      <tr>
-        <th>Sæson</th>
-        <th>Nr. 1</th>
-        <th>Nr. 2</th>
-        <th>Nr. 3</th>
-        <th className="num">Kampe</th>
-        <th className="num">Mål/kamp</th>
-      </tr>
-    </thead>
+        </span>
+      ) : (
+        <>
+          <span className="season-card__champion">
+            <TeamBadge link={false} name={s.top[0].name} size={32} />
+            <span>
+              {s.top[0].slug ? <Link href={paths.club(s.top[0].slug)}>{s.top[0].name}</Link> : s.top[0].name}
+              <em>{s.top[0].points} point</em>
+            </span>
+          </span>
+          <ol className="season-card__rest" start={2}>
+            {s.top.slice(1, 3).map((t) => (
+              <li key={t.name}>
+                <Club {...t} />
+                <span className="muted small">{t.points} p</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      <span className="season-card__meta">
+        {s.matches} kampe · {one(s.goalsPerMatch)} mål/kamp
+      </span>
+    </li>
   )
   return (
     <section className="panel table-panel history">
@@ -66,21 +64,12 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
         {bestCrowd &&
           ` Flest tilskuere: ${bestCrowd.spectators.toLocaleString('da-DK')} til ${bestCrowd.home} – ${bestCrowd.away} (${formatShortYear(bestCrowd.date)}).`}
       </p>
-      <div className="table-wrap">
-        <table className="table table--compact">
-          {head}
-          <tbody>{shown.map(seasonRow)}</tbody>
-        </table>
-      </div>
+      <ul className="season-cards season-cards--first">{shown.map(seasonCard)}</ul>
+      <ul className="season-cards season-cards--all" aria-label="Alle sæsoner">{seasons.map(seasonCard)}</ul>
       {rest.length > 0 && (
         <details className="history__more">
           <summary>Vis alle {seasons.length} sæsoner</summary>
-          <div className="table-wrap">
-            <table className="table table--compact">
-              {head}
-              <tbody>{rest.map(seasonRow)}</tbody>
-            </table>
-          </div>
+          <ul className="season-cards">{rest.map(seasonCard)}</ul>
         </details>
       )}
       {allTime.length > 0 && (
@@ -93,7 +82,7 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
                   <th className="num">#</th>
                   <th>Klub</th>
                   <th className="num">Sæsoner</th>
-                  <th className="num">K</th>
+                  <th className="num hide-sm">K</th>
                   <th className="num">Mål</th>
                   <th className="num">P</th>
                 </tr>
@@ -106,7 +95,7 @@ export function LeagueHistory({ name, history }: { name: string; history: Histor
                       <Club name={r.name} slug={r.slug} />
                     </td>
                     <td className="num">{r.seasons}</td>
-                    <td className="num">{r.played}</td>
+                    <td className="num hide-sm">{r.played}</td>
                     <td className="num">
                       {r.goalsFor}-{r.goalsAgainst}
                     </td>

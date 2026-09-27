@@ -1461,3 +1461,30 @@ h2.league__name { margin: 0; }
 /* The table with the statistics under it, in the left column */
 .table-duo__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .table-solo .table-duo__main { display: contents; }
+
+/* League history: one card per season, the champion first */
+.season-cards { list-style: none; margin: 0; padding: 4px 16px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.season-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); min-width: 0; }
+.season-card__year { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-3); }
+.season-card__champion { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.season-card__champion > span { display: flex; flex-direction: column; min-width: 0; }
+.season-card__champion a, .season-card__champion > span { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-card__champion em { font-style: normal; font-weight: 600; font-size: 12px; color: var(--ink-3); }
+.season-card__rest { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; counter-reset: place 1; }
+.season-card__rest li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; min-width: 0; counter-increment: place; }
+.season-card__rest li::before { content: counter(place) "."; width: 16px; flex: none; font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.season-card__rest .table__club { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-card__meta { font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line, rgba(0,0,0,.08)); padding-top: 8px; margin-top: auto; }
+.season-card__missing { font-size: 13px; color: var(--ink-3); font-style: italic; }
+.history__more[open] summary { padding-bottom: 4px; }
+@media (max-width: 640px) {
+  /* A row to swipe through instead of a long column */
+  .season-cards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .season-cards::-webkit-scrollbar { display: none; }
+  .season-card { scroll-snap-align: start; }
+}
+.season-cards--all { display: none; }
+@media (max-width: 640px) {
+  .season-cards--first, .history__more { display: none; }
+  .season-cards--all { display: grid; }
+}
