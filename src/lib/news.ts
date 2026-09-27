@@ -365,7 +365,7 @@ export async function syncNews() {
         const items = await fetchFeed(feed)
         for (const it of items) {
           const key = `${feed.id}|${it.id}`
-          byId.set(key, { id: it.id, feed: feed.id, source: feed.name, title: it.title, link: it.link, date: it.date, text: it.standfirst, cats: it.cats })
+          byId.set(key, { id: it.id, feed: feed.id, source: feed.name, title: it.title, link: it.link, date: it.date, text: it.standfirst, cats: it.cats, clubs: [], leagues: [] })
         }
         store.status[feed.id] = { fetchedAt: Date.now(), items: items.length }
       } catch (err) {
