@@ -437,8 +437,7 @@ function MatchBody({
             </div>
           </section>
         )}
-      </div>
-      <div className="match-page__grid match-page__grid--wide">
+      {/* The head-to-heads in the same flow: beside the other boxes where there is room, full width on phones */}
         <section className="sheet__section">
           <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
           {h2h.length > 0 && (
