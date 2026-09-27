@@ -223,4 +223,4 @@
 }
 
 /* the same neon M on the dark programme card, with a glow */
-.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; filter: drop-shadow(0 0 1.6cqw rgba(198, 241, 53, 0.55)); }
+.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; opacity: 0.35; filter: drop-shadow(0 0 1.2cqw rgba(198, 241, 53, 0.4)); }
