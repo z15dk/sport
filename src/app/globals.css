@@ -1422,26 +1422,33 @@ h2.league__name { margin: 0; }
   .topbar { padding: 14px 16px 4px; }
   .topbar .logo { font-size: 28px; }
   .topbar__search, .topbar__nav, .nav-menu--drop { display: none; }
+  /* A floating bar in the site's ink, the current item on a lime pill */
   .bottombar {
-    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--ink); border-radius: 18px 18px 0 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 50;
+    left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 6px 7px; background: var(--ink); border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(15, 17, 12, 0.28), 0 2px 6px rgba(15, 17, 12, 0.18);
   }
   .bottombar a, .bottombar button {
-    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border: 0; background: none;
-    font: inherit; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, 0.7); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: 0; background: none; min-width: 0;
+    font: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: 0.01em; color: rgba(255, 255, 255, 0.62); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .bottombar a > span, .bottombar button > span { font-size: 18px; line-height: 22px; height: 22px; }
-  .bottombar .is-active { color: var(--lime); }
-  .bottombar__live { display: inline-flex; align-items: center; gap: 4px; }
-  .bottombar__live b { font-size: 12px; color: #fff; background: var(--live); border-radius: 999px; padding: 0 6px; line-height: 18px; }
+  .bottombar__icon { display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; transition: background 0.15s ease, color 0.15s ease; }
+  .bottombar .is-active { color: #fff; }
+  .bottombar .is-active .bottombar__icon { background: var(--lime); color: var(--ink); }
+  .bottombar .is-active svg path[d^="m12 3.8"] { fill: currentColor; }
+  .bottombar a:active .bottombar__icon, .bottombar button:active .bottombar__icon { background: rgba(255, 255, 255, 0.12); }
+  .bottombar__live { display: inline-flex; gap: 5px; }
+  .bottombar__live b { font-size: 11px; color: #fff; background: var(--live); border-radius: 999px; padding: 0 6px; line-height: 17px; }
   .sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(15, 17, 12, 0.35); }
   .nav-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow-y: auto;
-    padding: 18px 16px calc(84px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: var(--bg);
+    padding: 18px 16px calc(96px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: var(--bg);
   }
   .nav-sheet .search { max-width: none; margin: 0; }
   .nav-sheet .search-hits { position: static; margin-top: 8px; box-shadow: none; }
-  body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  body { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
 }
 /* The menu has Live now: the front page's own live button goes */
 .toolbar .live-chip { display: none; }

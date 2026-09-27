@@ -206,25 +206,68 @@ export function SiteNav() {
       )}
       <nav className="bottombar" aria-label="Menu">
         <Link href="/" className={onHome && !open ? 'is-active' : ''} onClick={close}>
-          <span aria-hidden>⚽</span>I dag
+          <span className="bottombar__icon">
+            <Icon name="today" />
+          </span>
+          I dag
         </Link>
         <Link href="/?live=1" onClick={close}>
-          <span aria-hidden className="bottombar__live">
+          <span className="bottombar__icon bottombar__live">
             <span className="live-dot" />
             {live > 0 && <b>{live}</b>}
           </span>
           Live
         </Link>
         <button type="button" className={open === 'search' ? 'is-active' : ''} onClick={() => toggle('search')}>
-          <span aria-hidden>🔍</span>Søg
+          <span className="bottombar__icon">
+            <Icon name="search" />
+          </span>
+          Søg
         </button>
         <button type="button" className={open === 'tournaments' ? 'is-active' : ''} onClick={() => toggle('tournaments')}>
-          <span aria-hidden>🏆</span>Turneringer
+          <span className="bottombar__icon">
+            <Icon name="trophy" />
+          </span>
+          Turneringer
         </button>
         <button type="button" className={open === 'teams' ? 'is-active' : ''} onClick={() => toggle('teams')}>
-          <span aria-hidden>★</span>Mine hold
+          <span className="bottombar__icon">
+            <Icon name="star" />
+          </span>
+          Mine hold
         </button>
       </nav>
     </div>
+  )
+}
+
+/** The bottom bar's line icons, drawn in the text colour */
+function Icon({ name }: { name: 'today' | 'search' | 'trophy' | 'star' }) {
+  const paths = {
+    today: (
+      <>
+        <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
+        <path d="M3.5 10h17M8 3v4M16 3v4" />
+        <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m16 16 4.5 4.5" />
+      </>
+    ),
+    trophy: (
+      <>
+        <path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0V4Z" />
+        <path d="M7.5 6H4.5v1.5A3 3 0 0 0 7.8 10.5M16.5 6h3v1.5a3 3 0 0 1-3.3 3M12 13.5V17M8.5 20.5h7M9.5 17h5v3.5h-5z" />
+      </>
+    ),
+    star: <path d="m12 3.8 2.5 5.2 5.6.8-4.1 3.9 1 5.6-5-2.7-5 2.7 1-5.6-4.1-3.9 5.6-.8L12 3.8Z" />,
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {paths[name]}
+    </svg>
   )
 }
