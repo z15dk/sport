@@ -243,207 +243,205 @@ export default async function PlayerPage({ params }: { params: Params }) {
           </section>
         )}
 
-        {lastGames.length > 0 && (
-          <section className="panel player-games">
-            <h2 className="panel__title">Kampe</h2>
-            <div className="table-wrap table-wrap--flush">
-              <table className="table table--compact player-games__table">
-                <thead>
-                  <tr>
-                    <th>Dato</th>
-                    <th>Kamp</th>
-                    <th className="num" title="Resultat">Res.</th>
-                    <th className="num" title="Rating">Rating</th>
-                    <th className="num hide-phone" title="Minutter">Min</th>
-                    <th className="num" title="Mål">{keeper ? 'Redn.' : 'Mål'}</th>
-                    <th className="num hide-phone" title="Assists">Ass.</th>
-                    <th className="num hide-phone" title="Kort">Kort</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lastGames.map((g) => {
-                    const own = g.side === 'home' ? g.homeScore : g.awayScore
-                    const other = g.side === 'home' ? g.awayScore : g.homeScore
-                    const res = own > other ? 'V' : own < other ? 'T' : 'U'
-                    const text = (
-                      <>
-                        <span className={g.side === 'home' ? 'is-own' : undefined}>{clubOf(g.home)?.name ?? g.home}</span>
-                        <b>{g.homeScore}</b>
-                        <span className={g.side === 'away' ? 'is-own' : undefined}>{clubOf(g.away)?.name ?? g.away}</span>
-                        <b>{g.awayScore}</b>
-                      </>
-                    )
-                    return (
-                      <tr key={g.eventId}>
-                        <td className="player-games__date">
-                          {formatNumeric(g.date)}
-                          <span>{g.tournament}</span>
-                        </td>
-                        <td>
-                          {g.match ? (
-                            <Link className="player-games__match" href={`/kamp/${g.match.slug}`}>
-                              {text}
-                            </Link>
-                          ) : (
-                            <span className="player-games__match">{text}</span>
-                          )}
-                        </td>
-                        <td className="num">
-                          {g.side && (
-                            <span className={`form__chip form__chip--${res}`} title={res === 'V' ? 'Sejr' : res === 'U' ? 'Uafgjort' : 'Tab'}>
-                              {res}
-                            </span>
-                          )}
-                        </td>
-                        <td className="num">{g.rating ? <span className={`rating-chip ${ratingBand(g.rating)}`}>{g.rating.toFixed(1).replace('.', ',')}</span> : '–'}</td>
-                        <td className="num hide-phone">{g.minutes ?? '–'}&apos;</td>
-                        <td className="num pts">{keeper ? (g.saves ?? 0) : g.goals || '–'}</td>
-                        <td className="num hide-phone">{g.assists || '–'}</td>
-                        <td className="num hide-phone">
-                          {g.yellow ? <span className="card-mark card-mark--yellow" title="Gult kort" /> : null}
-                          {g.red ? <span className="card-mark card-mark--red" title="Rødt kort" /> : null}
-                          {!g.yellow && !g.red ? '–' : null}
-                        </td>
+
+        <div className="player-cols">
+          <div className="player-col">
+            {lastGames.length > 0 && (
+              <section className="panel player-games">
+                <h2 className="panel__title">Kampe</h2>
+                <div className="table-wrap table-wrap--flush">
+                  <table className="table table--compact player-games__table">
+                    <thead>
+                      <tr>
+                        <th>Dato</th>
+                        <th>Kamp</th>
+                        <th className="num" title="Resultat">Res.</th>
+                        <th className="num" title="Rating">Rating</th>
+                        <th className="num hide-phone" title="Minutter">Min</th>
+                        <th className="num" title="Mål">{keeper ? 'Redn.' : 'Mål'}</th>
+                        <th className="num hide-phone" title="Assists">Ass.</th>
+                        <th className="num hide-phone" title="Kort">Kort</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        <div className="player-grid">
-          {months.some((m) => m.rating) && (
-            <section className="panel">
-              <h2 className="panel__title">Rating pr. måned</h2>
-              <RatingChart months={months} />
-              <p className="muted small pad">Gennemsnitlig kampkarakter (1–10) i hver af de seneste 12 måneder.</p>
-            </section>
-          )}
-          <section className="panel table-panel">
-            <header className="table-panel__head">
-              <h2 className="panel__title">Sæsonen {seasonLabel(season)}</h2>
-            </header>
-            <SeasonTable rows={rows} keeper={keeper} />
-          </section>
-
-          <section className="panel">
-            <h2 className="panel__title">Detaljer</h2>
-            <dl className="player-detail">
-              {detail.map((d) => (
-                <div key={d.label}>
-                  <dt>{d.label}</dt>
-                  <dd>{d.value}</dd>
+                    </thead>
+                    <tbody>
+                      {lastGames.map((g) => {
+                        const own = g.side === 'home' ? g.homeScore : g.awayScore
+                        const other = g.side === 'home' ? g.awayScore : g.homeScore
+                        const res = own > other ? 'V' : own < other ? 'T' : 'U'
+                        const text = (
+                          <>
+                            <span className={g.side === 'home' ? 'is-own' : undefined}>{clubOf(g.home)?.name ?? g.home}</span>
+                            <b>{g.homeScore}</b>
+                            <span className={g.side === 'away' ? 'is-own' : undefined}>{clubOf(g.away)?.name ?? g.away}</span>
+                            <b>{g.awayScore}</b>
+                          </>
+                        )
+                        return (
+                          <tr key={g.eventId}>
+                            <td className="player-games__date">
+                              {formatNumeric(g.date)}
+                              <span>{g.tournament}</span>
+                            </td>
+                            <td>
+                              {g.match ? (
+                                <Link className="player-games__match" href={`/kamp/${g.match.slug}`}>
+                                  {text}
+                                </Link>
+                              ) : (
+                                <span className="player-games__match">{text}</span>
+                              )}
+                            </td>
+                            <td className="num">
+                              {g.side && (
+                                <span className={`form__chip form__chip--${res}`} title={res === 'V' ? 'Sejr' : res === 'U' ? 'Uafgjort' : 'Tab'}>
+                                  {res}
+                                </span>
+                              )}
+                            </td>
+                            <td className="num">{g.rating ? <span className={`rating-chip ${ratingBand(g.rating)}`}>{g.rating.toFixed(1).replace('.', ',')}</span> : '–'}</td>
+                            <td className="num hide-phone">{g.minutes ?? '–'}&apos;</td>
+                            <td className={`num${(keeper ? g.saves : g.goals) ? ' pts' : ' player-games__none'}`}>{keeper ? (g.saves ?? '–') : g.goals || '–'}</td>
+                            <td className={`num hide-phone${g.assists ? ' player-games__strong' : ' player-games__none'}`}>{g.assists || '–'}</td>
+                            <td className="num hide-phone">
+                              {g.yellow ? <span className="card-mark card-mark--yellow" title="Gult kort" /> : null}
+                              {g.red ? <span className="card-mark card-mark--red" title="Rødt kort" /> : null}
+                              {!g.yellow && !g.red ? '–' : null}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              <div>
-                <dt>Kort</dt>
-                <dd>
-                  <span className="card-mark card-mark--yellow" aria-hidden="true" /> {sum(rows, 'yellow')}{' '}
-                  <span className="card-mark card-mark--red" aria-hidden="true" /> {sum(rows, 'red')}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          {goalsInOurGames.length > 0 && (
-            <section className="panel">
-              <h2 className="panel__title">Hans mål</h2>
-              <ul className="player-goals">
-                {goalsInOurGames.map(({ match: m, minutes: mins }) => (
-                  <li key={m.id}>
-                    <Link href={`/kamp/${m.slug}`}>
-                      <span className="player-goals__date">{formatNumeric(m.kickoff)}</span>
-                      <span className="player-goals__match">
-                        {m.home.name} {m.home.score}–{m.away.score} {m.away.name}
-                      </span>
-                      <span className="player-goals__min">{mins.join(', ')}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {earlier.length > 0 && (
-            <section className="panel table-panel">
-              <header className="table-panel__head">
-                <h2 className="panel__title">Sæsonen {seasonLabel(earlier[0].season)}</h2>
-              </header>
-              <SeasonTable rows={earlier} keeper={keeper} />
-            </section>
-          )}
-
-          {p.transfers.length > 0 && (
-            <section className="panel">
-              <h2 className="panel__title">Klubskifter</h2>
-              <ul className="player-transfers">
-                {p.transfers.slice(0, 8).map((t) => (
-                  <li key={`${t.date}-${t.to}`}>
-                    <span className="player-transfers__date">{formatNumeric(new Date(t.date))}</span>
-                    <span className="player-transfers__teams">
-                      <TeamName name={t.from} logo={t.fromLogo} />
-                      <span aria-label="til">→</span>
-                      <TeamName name={t.to} logo={t.toLogo} />
-                    </span>
-                    {t.type && t.type !== 'N/A' && <span className="player-transfers__type">{transferType(t.type)}</span>}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {p.trophies.some((t) => t.place === 'Winner') && (
-            <section className="panel">
-              <h2 className="panel__title">Trofæer</h2>
-              <ul className="player-trophies">
-                {p.trophies
-                  .filter((t) => t.place === 'Winner')
-                  .slice(0, 12)
-                  .map((t) => (
-                    <li key={`${t.league}-${t.season}`}>
-                      <span aria-hidden="true">🏆</span> <strong>{t.league}</strong> <span className="muted">{t.season}</span>
+              </section>
+            )}
+            {goalsInOurGames.length > 0 && (
+              <section className="panel">
+                <h2 className="panel__title">Hans mål</h2>
+                <ul className="player-goals">
+                  {goalsInOurGames.map(({ match: m, minutes: mins }) => (
+                    <li key={m.id}>
+                      <Link href={`/kamp/${m.slug}`}>
+                        <span className="player-goals__date">{formatNumeric(m.kickoff)}</span>
+                        <span className="player-goals__match">
+                          {m.home.name} {m.home.score}–{m.away.score} {m.away.name}
+                        </span>
+                        <span className="player-goals__min">{mins.join(', ')}</span>
+                      </Link>
                     </li>
                   ))}
-              </ul>
+                </ul>
+              </section>
+            )}
+            {p.trophies.some((t) => t.place === 'Winner') && (
+              <section className="panel">
+                <h2 className="panel__title">Trofæer</h2>
+                <ul className="player-trophies">
+                  {p.trophies
+                    .filter((t) => t.place === 'Winner')
+                    .slice(0, 12)
+                    .map((t) => (
+                      <li key={`${t.league}-${t.season}`}>
+                        <span aria-hidden="true">🏆</span> <strong>{t.league}</strong> <span className="muted">{t.season}</span>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            )}
+          </div>
+          <div className="player-col">
+            {months.some((m) => m.rating) && (
+              <section className="panel">
+                <h2 className="panel__title">Rating pr. måned</h2>
+                <RatingChart months={months} />
+                <p className="muted small pad">Gennemsnitlig kampkarakter (1–10) i hver af de seneste 12 måneder.</p>
+              </section>
+            )}
+            <section className="panel table-panel">
+              <header className="table-panel__head">
+                <h2 className="panel__title">Sæsonen {seasonLabel(season)}</h2>
+              </header>
+              <SeasonTable rows={rows} keeper={keeper} />
             </section>
-          )}
-
-          <section className="panel">
-            <h2 className="panel__title">Om {p.name}</h2>
-            <dl className="player-detail">
-              {p.firstname && p.lastname && (
+            {earlier.length > 0 && (
+              <section className="panel table-panel">
+                <header className="table-panel__head">
+                  <h2 className="panel__title">Sæsonen {seasonLabel(earlier[0].season)}</h2>
+                </header>
+                <SeasonTable rows={earlier} keeper={keeper} />
+              </section>
+            )}
+            <section className="panel">
+              <h2 className="panel__title">Detaljer</h2>
+              <dl className="player-detail">
+                {detail.map((d) => (
+                  <div key={d.label}>
+                    <dt>{d.label}</dt>
+                    <dd>{d.value}</dd>
+                  </div>
+                ))}
                 <div>
-                  <dt>Fulde navn</dt>
+                  <dt>Kort</dt>
                   <dd>
-                    {p.firstname} {p.lastname}
+                    <span className="card-mark card-mark--yellow" aria-hidden="true" /> {sum(rows, 'yellow')}{' '}
+                    <span className="card-mark card-mark--red" aria-hidden="true" /> {sum(rows, 'red')}
                   </dd>
                 </div>
-              )}
-              {p.birthDate && (
-                <div>
-                  <dt>Født</dt>
-                  <dd>
-                    {birthFmt.format(new Date(p.birthDate))}
-                    {p.birthPlace ? `, ${p.birthPlace}` : ''}
-                  </dd>
-                </div>
-              )}
-              {p.height && (
-                <div>
-                  <dt>Højde</dt>
-                  <dd>{p.height}</dd>
-                </div>
-              )}
-              {p.weight && (
-                <div>
-                  <dt>Vægt</dt>
-                  <dd>{p.weight}</dd>
-                </div>
-              )}
-            </dl>
-          </section>
+              </dl>
+            </section>
+            {p.transfers.length > 0 && (
+              <section className="panel">
+                <h2 className="panel__title">Klubskifter</h2>
+                <ul className="player-transfers">
+                  {p.transfers.slice(0, 8).map((t) => (
+                    <li key={`${t.date}-${t.to}`}>
+                      <span className="player-transfers__date">{formatNumeric(new Date(t.date))}</span>
+                      <span className="player-transfers__teams">
+                        <TeamName name={t.from} logo={t.fromLogo} />
+                        <span aria-label="til">→</span>
+                        <TeamName name={t.to} logo={t.toLogo} />
+                      </span>
+                      {t.type && t.type !== 'N/A' && <span className="player-transfers__type">{transferType(t.type)}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            <section className="panel">
+              <h2 className="panel__title">Om {p.name}</h2>
+              <dl className="player-detail">
+                {p.firstname && p.lastname && (
+                  <div>
+                    <dt>Fulde navn</dt>
+                    <dd>
+                      {p.firstname} {p.lastname}
+                    </dd>
+                  </div>
+                )}
+                {p.birthDate && (
+                  <div>
+                    <dt>Født</dt>
+                    <dd>
+                      {birthFmt.format(new Date(p.birthDate))}
+                      {p.birthPlace ? `, ${p.birthPlace}` : ''}
+                    </dd>
+                  </div>
+                )}
+                {p.height && (
+                  <div>
+                    <dt>Højde</dt>
+                    <dd>{p.height}</dd>
+                  </div>
+                )}
+                {p.weight && (
+                  <div>
+                    <dt>Vægt</dt>
+                    <dd>{p.weight}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          </div>
         </div>
 
         <p className="muted small">Rating er et gennemsnit af spillerens kampkarakterer (1–10).</p>
