@@ -121,3 +121,47 @@
 .axis span { position: absolute; top: 6.5cqw; font-size: 3cqw; color: var(--p-ink-2); }
 
 .bar { height: 4.4cqw; border-radius: 0.6cqw; }
+
+/* the Scoreline bar at the foot of every card */
+.brandbar {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3cqw;
+  background: #0f110c;
+  color: #fff;
+  padding: 3.2cqw 6.5cqw 3.6cqw;
+}
+.story .brandbar { margin-bottom: 12cqw; }
+.brandLogo {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 7.4cqw;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.brandLogo b { color: #ff4a1f; }
+.brandbar small { font-size: 3.1cqw; opacity: 0.75; text-align: right; }
+
+/* a big number as the watermark on Scoreline's own cards */
+.wmText {
+  position: absolute !important;
+  right: -6cqw;
+  bottom: 6cqw;
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 90cqw;
+  line-height: 0.8;
+  color: transparent;
+  -webkit-text-stroke: 0.5cqw rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+/* goals on the time axis on a colour: filled for the colour's club, hollow for the other */
+.onColor { --p-ink: currentColor; }
+.axis i.dotOn { background: currentColor; box-shadow: none; }
+.axis i.dotOff { background: transparent; border: 0.6cqw solid currentColor; box-shadow: none; }
