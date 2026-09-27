@@ -1533,3 +1533,7 @@ h2.league__name { margin: 0; }
 /* A league's live matches at the top of its page: phones only (larger screens show them under "Dagens kampe") */
 .league--live-top .league__name { display: inline-flex; align-items: center; gap: 8px; }
 @media (min-width: 761px) { .league--live-top { display: none; } }
+
+/* League pages: results by round */
+.league__note { list-style: none; padding: 10px 16px 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.rounds-older > summary { cursor: pointer; font-weight: 700; padding: 8px 0; }

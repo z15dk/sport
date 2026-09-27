@@ -7,6 +7,7 @@ import { externalMatch, getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { LiveNow } from '../../../components/LiveNow'
+import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
@@ -190,6 +191,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
     .slice(-10)
     .reverse()
     .map((f) => toMatch(f, now))
+  // The matches by round, when the sources give round numbers (else the ten latest results)
+  const byRound = roundsOf(division, now)
   const [first, second] = rows
   const faq = leagueFaq(division, rows)
 
@@ -266,7 +269,9 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </section>
         )}
 
-        {results.length > 0 && (
+        {byRound ? (
+          <RoundResults rounds={byRound} now={now} />
+        ) : results.length > 0 && (
           <section className="league">
             <header className="league__header">
               <div className="league__toggle">
