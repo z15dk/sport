@@ -11,6 +11,7 @@ import type { Fixture } from '../../../data/season'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 import s from './sociale.module.css'
 import { CardDownload, RailDownload } from './CardDownload'
+import { FitRows } from './FitRows'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sociale medier (test)', robots: { index: false, follow: false } }
@@ -180,7 +181,7 @@ function StoryCard({
       )}
       {children && (
         // Takes the room there is, so the Matchly bar always stays on the card
-        <div className={s.pad} style={{ marginTop: '5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+        <div className={s.pad} style={{ marginTop: '5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
           {children}
         </div>
       )}
@@ -274,7 +275,7 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
             </div>
           </div>
           {/* Takes the room there is: long names never push the Matchly bar off the card */}
-          <div className={s.pad} style={{ marginTop: '4cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+          <div className={s.pad} style={{ marginTop: '4cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
             <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
               <tbody>
                 {picks.map((p) => (
@@ -307,7 +308,7 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
             </div>
           </div>
           {/* Takes the room there is, so the Matchly bar always stays on the card */}
-          <div style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
             {picks.map((p) => (
               <div key={p.fixture.id}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', fontSize: '4.6cqw', fontWeight: 600, lineHeight: 1.15 }}>
@@ -554,16 +555,16 @@ function Previews({ picks, logos }: { picks: Pick[]; logos: Logos }) {
             </div>
           ))}
           {/* The colour fields keep their size; a long table is cut, never the teams or the Matchly bar */}
-          <div className={s.pad} style={{ marginTop: '8cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+          <div className={s.pad} style={{ marginTop: '8cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
             <p className={s.serif} style={{ fontSize: '9cqw', lineHeight: 1.02 }}>
               {p.fact!.text}
             </p>
             <div className={s.sub} style={{ marginTop: '5cqw', marginBottom: '1cqw' }}>
               {p.fact!.proofTitle}
             </div>
-            <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
+            <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.4cqw' }}>
               <tbody>
-                {p.fact!.proof.slice(0, 5).map((r) => (
+                {p.fact!.proof.map((r) => (
                   <tr key={r.label}>
                     <td>{r.label}</td>
                     <td className={s.r}>{r.value}</td>
@@ -721,6 +722,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Searc
     <div className="page">
       <div className="clubs prose admin">
         <AdminNav current="/admin/sociale" />
+        <FitRows />
         <h1 className="feed__title">Sociale medier (test)</h1>
         <p>
           De kort, en dags opslag på Facebook og Instagram ville få, lavet af sidens rigtige data og logoer. Intet bliver postet herfra. Ugens tal

@@ -123,19 +123,19 @@
 
 .bar { height: 4.4cqw; border-radius: 0.6cqw; }
 
-/* the Matchly bar at the foot of every card */
+/* the Matchly bar at the foot of every card: the same height on every card, feed and story alike */
 .brandbar {
   margin-top: auto;
+  flex: none;
+  height: 14.2cqw;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 3cqw;
   background: #0f110c;
   color: #fff;
-  padding: 3.2cqw 6.5cqw 3.6cqw;
+  padding: 0 6.5cqw;
 }
-/* stories: the bar reaches the bottom, its content sits above Instagram's own buttons */
-.story .brandbar { padding-bottom: 16cqw; }
 .brandLogo {
   font-family: var(--display);
   font-style: italic;
@@ -146,7 +146,7 @@
   letter-spacing: -0.01em;
 }
 .brandLogo b { color: #ff4a1f; }
-.brandbar small { font-size: 3.1cqw; opacity: 0.75; text-align: right; }
+.brandbar small { font-size: 3.1cqw; opacity: 0.75; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* a big number as the watermark on Matchly's own cards */
 .wmText {
@@ -181,3 +181,8 @@
 
 .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .fig figcaption :global(.text-btn) { font-size: 12px; }
+
+/* rows of one line each; long names end in "…" */
+.oneLine { table-layout: fixed; }
+.oneLine td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oneLine td.r { width: 17cqw; }
