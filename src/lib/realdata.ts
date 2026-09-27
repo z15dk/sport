@@ -19,6 +19,7 @@ import { sameLeagueKeys } from '../data/baselines'
 import { CUPS, asCupGame, cupOfGame, ourClubInCup, wholeSeason } from '../data/cups'
 import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
+import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
@@ -99,7 +100,13 @@ function withCups(games: ExternalGame[], fromDb: ExternalGame[]): ExternalGame[]
 
 /** API-Sports' "image not available" pictures left out, so the teams get our neutral badge */
 function withoutPlaceholders<G extends { home: { logo?: string }; away: { logo?: string }; league: { logo?: string } }>(g: G): G {
-  const [home, away, league] = [realLogo(g.home.logo), realLogo(g.away.logo), realLogo(g.league.logo)]
+  // National teams without a logo (youth, women's, Olympic): the country's flag
+  const national = (g.league as { country?: string }).country === 'World'
+  const [home, away, league] = [
+    realLogo(g.home.logo) ?? nationalFlag((g.home as { name?: string }).name ?? '', national),
+    realLogo(g.away.logo) ?? nationalFlag((g.away as { name?: string }).name ?? '', national),
+    realLogo(g.league.logo),
+  ]
   if (home === g.home.logo && away === g.away.logo && league === g.league.logo) return g
   return { ...g, home: { ...g.home, logo: home }, away: { ...g.away, logo: away }, league: { ...g.league, logo: league } }
 }
