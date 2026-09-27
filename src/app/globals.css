@@ -38,8 +38,10 @@ h1, h2, p { margin: 0; }
 }
 
 .visually-hidden {
-  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
+/* A table keeps its content's width whatever its own: as a block it stays 1px (charts' data tables for screen readers) */
+table.visually-hidden { display: block; }
 .muted { color: var(--ink-2); }
 .small { font-size: 12px; }
 .pad { padding: 0 18px 16px; }
@@ -1524,3 +1526,6 @@ h2.league__name { margin: 0; }
   .search-screen__close { flex: none; height: 48px; padding: 0 4px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; }
   .bottombar.is-hidden { display: none; }
 }
+
+/* Wide rows (the league tabs) scroll inside the page on phones instead of widening it (and Safari zooming the page out) */
+.clubs, .clubs__head, .division-tabs, .page { min-width: 0; max-width: 100%; }
