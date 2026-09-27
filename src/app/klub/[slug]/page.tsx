@@ -22,12 +22,14 @@ import { NewsList } from '../../../components/NewsList'
 import { newsFor } from '../../../lib/news'
 import { archiveLeagueTable, clubHistory } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
-import { normalize } from '../../../data/aliases'
+import { clubNames, normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
 import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { cupOfGame } from '../../../data/cups'
-import { apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
+import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { FollowButton } from '../../../components/FollowButton'
@@ -71,7 +73,7 @@ export default async function ClubPage({ params }: { params: Params }) {
 }
 
 /** Full page for clubs in the leagues we cover, which have season and table data */
-function LeagueClub({ club, division }: { club: Club; division: Division }) {
+async function LeagueClub({ club, division }: { club: Club; division: Division }) {
   const now = Date.now()
   const stats = clubStats(club.name, now)!
   const r = stats.row
@@ -86,6 +88,11 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
   // Five rows around the club
   const start = Math.max(0, Math.min(i - 2, table.length - 5))
   const nearby = table.slice(start, start + 5)
+  // The source's team statistics and injured/suspended players (football)
+  const apiLeague = sport === 'soccer' ? apiLeagueIdOf(division.id) : undefined
+  const apiTeam = apiLeague ? apiTeamIdOf(apiLeague, clubNames(club)) : undefined
+  const [teamStats, injuries] = apiLeague && apiTeam ? await Promise.all([apiTeamStats(apiLeague, apiTeam), apiInjuries(apiLeague)]) : [undefined, undefined]
+  const absent = injuriesForTeam(injuries, apiTeam, now)
 
   return (
     <div className="page">
@@ -156,10 +163,18 @@ function LeagueClub({ club, division }: { club: Club; division: Division }) {
               </header>
               <StandingsTable division={division} rows={nearby} highlight={club.id} offset={start} total={table.length} compact />
             </section>
+            {absent.list.length > 0 && (
+              <section className="panel">
+                <h2 className="panel__title">Skader og karantæner</h2>
+                <p className="muted small pad">Til kampen {formatLong(absent.date!.slice(0, 10))}</p>
+                <InjuryList list={absent.list} />
+              </section>
+            )}
           </div>
         </div>
 
         <ClubSeasonStats club={club} division={division} />
+        {teamStats && <TeamStatsPanel stats={teamStats} name={club.name} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {history && <ClubHistory name={club.name} history={history} />}
 

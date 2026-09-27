@@ -25,6 +25,8 @@ import { TeamBadge } from './TeamBadge'
 import { MatchTimeline } from './MatchTimeline'
 import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
+import { InjuryList } from './InjuryList'
+import type { Injury } from '../data/teamStats'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -46,14 +48,16 @@ interface Props {
   cup?: boolean
   /** Line-ups, home team first (server) */
   lineups?: Lineup[]
+  /** Injured and suspended players for this match (server) */
+  absent?: { home: Injury[]; away: Injury[] }
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -100,6 +104,7 @@ function MatchBody({
   stats,
   cup,
   lineups,
+  absent,
 }: {
   match: Match
   now: number
@@ -108,6 +113,7 @@ function MatchBody({
   stats?: MatchStats
   cup?: boolean
   lineups?: Lineup[]
+  absent?: { home: Injury[]; away: Injury[] }
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -407,6 +413,19 @@ function MatchBody({
                 </table>
               </div>
               {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Matchly ud fra sæsonens kampe.</p>}
+            </section>
+          )}
+          {absent && absent.home.length + absent.away.length > 0 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Skader og karantæner</h2>
+              <div className="absent-cols">
+                {(['home', 'away'] as const).map((side) => (
+                  <div key={side}>
+                    <h3 className="absent-cols__team">{side === 'home' ? home.name : away.name}</h3>
+                    {absent[side].length ? <InjuryList list={absent[side]} compact /> : <p className="muted small">Ingen meldt ude</p>}
+                  </div>
+                ))}
+              </div>
             </section>
           )}
         </div>

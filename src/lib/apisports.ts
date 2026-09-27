@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
 import type { PlayerData, PlayerSeasonRow } from '../data/player'
+import type { Injury, Periods, TeamStats } from '../data/teamStats'
 import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
@@ -1018,7 +1019,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1897,4 +1898,129 @@ async function fetchPlayer(id: number): Promise<PlayerData | undefined> {
   } finally {
     playersRunning.delete(id)
   }
+}
+
+// ---------------------------------------------------------------- team statistics and injuries
+
+/** The source's team id for one of our clubs in a league: from the league's saved games */
+export function apiTeamIdOf(leagueId: string, names: string[]): number | undefined {
+  load()
+  const s = mem.store.football
+  if (!s) return undefined
+  const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()].filter((g) => String(g.league.id) === String(leagueId))
+  for (const g of games) {
+    for (const t of [g.home, g.away]) if (t.id && alike(names, t.name)) return t.id
+  }
+  return undefined
+}
+
+/** Spends one request on an extra when the paid plan has calls above the reserve */
+function extraAllowed(api: Api) {
+  load()
+  const s = mem.store[api]
+  if (!keyFor(api) || !isPaid(s)) return false
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+  return remaining > PAID_RESERVE
+}
+
+function saveExtrasSoon() {
+  try {
+    saveExtras()
+  } catch {
+    // kept in memory
+  }
+}
+
+const extrasRunning = new Set<string>()
+/** A cached extra: fresh within `maxAge`; stale ones are shown while a new one is fetched in the background */
+async function cachedExtra<T>(key: string, maxAge: number, pick: (e: ExtraStore['entries'][string]) => T | undefined, fetchNow: () => Promise<T | undefined>): Promise<T | undefined> {
+  const entry = extrasStore().entries[key]
+  const have = entry ? pick(entry) : undefined
+  if (have !== undefined && Date.now() - entry!.fetchedAt < maxAge) return have
+  const fresh = (async () => {
+    if (extrasRunning.has(key) || !extraAllowed('football')) return have
+    extrasRunning.add(key)
+    try {
+      return (await fetchNow()) ?? have
+    } finally {
+      extrasRunning.delete(key)
+    }
+  })().catch(() => have)
+  return have ?? (await fresh)
+}
+
+const periods = (o: Raw | undefined): Periods =>
+  Object.entries(o ?? {})
+    .filter(([k]) => /^\d+-\d+$/.test(k))
+    .map(([period, v]) => ({ period, value: Number((v as Raw)?.total ?? 0) }))
+const hat = (o: Raw | undefined) => ({ home: Number(o?.home ?? 0), away: Number(o?.away ?? 0), total: Number(o?.total ?? 0) })
+
+/** A team's season statistics in a league (one request, kept a day) */
+export async function apiTeamStats(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): Promise<TeamStats | undefined> {
+  const key = `football|teamstats|${leagueId}|${season}|${teamId}`
+  return cachedExtra(key, 86_400_000, (e) => e.teamStats, async () => {
+    const { response, error } = await call('football', `/teams/statistics?league=${leagueId}&season=${season}&team=${teamId}`, 8_000)
+    const r = (response as unknown as Raw | undefined) ?? undefined
+    if (error || !r || Array.isArray(r) || !r.fixtures) return undefined
+    const stats: TeamStats = {
+      played: hat(r.fixtures?.played),
+      wins: hat(r.fixtures?.wins),
+      draws: hat(r.fixtures?.draws),
+      loses: hat(r.fixtures?.loses),
+      goalsFor: { ...hat(r.goals?.for?.total), average: num(r.goals?.for?.average?.total), periods: periods(r.goals?.for?.minute) },
+      goalsAgainst: { ...hat(r.goals?.against?.total), average: num(r.goals?.against?.average?.total), periods: periods(r.goals?.against?.minute) },
+      cleanSheets: hat(r.clean_sheet),
+      failedToScore: hat(r.failed_to_score),
+      biggestWin: { home: r.biggest?.wins?.home ?? undefined, away: r.biggest?.wins?.away ?? undefined },
+      biggestLoss: { home: r.biggest?.loses?.home ?? undefined, away: r.biggest?.loses?.away ?? undefined },
+      streak: { wins: Number(r.biggest?.streak?.wins ?? 0), draws: Number(r.biggest?.streak?.draws ?? 0), loses: Number(r.biggest?.streak?.loses ?? 0) },
+      penalty: { scored: Number(r.penalty?.scored?.total ?? 0), missed: Number(r.penalty?.missed?.total ?? 0), total: Number(r.penalty?.total ?? 0) },
+      yellow: periods(r.cards?.yellow),
+      red: periods(r.cards?.red),
+      formations: ((r.lineups ?? []) as Raw[]).map((l) => ({ formation: String(l.formation ?? ''), played: Number(l.played ?? 0) })).filter((l) => l.formation),
+      form: r.form ?? undefined,
+    }
+    const store = extrasStore()
+    store.entries[key] = { fetchedAt: Date.now(), teamStats: stats }
+    saveExtrasSoon()
+    return stats
+  })
+}
+
+/** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
+export async function apiInjuries(leagueId: string, season = SEASON.slice(0, 4)): Promise<Injury[] | undefined> {
+  const key = `football|injuries|${leagueId}|${season}`
+  return cachedExtra(key, 6 * 3_600_000, (e) => e.injuries, async () => {
+    const { response, error } = await call('football', `/injuries?league=${leagueId}&season=${season}`, 10_000)
+    if (error || !Array.isArray(response)) return undefined
+    const from = Date.now() - 30 * 86_400_000
+    const injuries: Injury[] = response
+      .map((r) => ({
+        playerId: num(r.player?.id),
+        player: String(r.player?.name ?? ''),
+        photo: r.player?.photo ?? undefined,
+        teamId: num(r.team?.id),
+        team: String(r.team?.name ?? ''),
+        type: String(r.player?.type ?? ''),
+        reason: String(r.player?.reason ?? ''),
+        fixtureId: num(r.fixture?.id),
+        date: String(r.fixture?.date ?? ''),
+      }))
+      // Only the last month and what is ahead: the list covers the whole season
+      .filter((i) => i.player && Date.parse(i.date) >= from)
+    const store = extrasStore()
+    store.entries[key] = { fetchedAt: Date.now(), injuries }
+    saveExtrasSoon()
+    return injuries
+  })
+}
+
+/** A team's missing players for its next match (or the one being played), newest list of the source */
+export function injuriesForTeam(injuries: Injury[] | undefined, teamId: number | undefined, now = Date.now()): { date?: string; list: Injury[] } {
+  if (!injuries || !teamId) return { list: [] }
+  const own = injuries.filter((i) => i.teamId === teamId)
+  // The team's next match with a list (from 3 hours back, so a match being played counts)
+  const dates = [...new Set(own.map((i) => i.date))].filter((d) => Date.parse(d) >= now - 3 * 3_600_000).sort()
+  const date = dates[0]
+  return { date, list: date ? own.filter((i) => i.date === date) : [] }
 }
