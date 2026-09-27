@@ -85,6 +85,8 @@ function knownLeague(slug: string): (ExternalLeague & { title?: string }) | unde
   return externalLeague(slug) ?? (b && { key: slug, api: 'football', id: '', name: b.league.name, country: b.league.country, sport: b.league.sport, lastSeen: 0 })
 }
 
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 async function externalLeaguePage(slug: string) {
   const found = knownLeague(slug)
   if (!found) notFound()
@@ -100,7 +102,9 @@ async function externalLeaguePage(slug: string) {
     logo: keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean) ?? found.logo,
   }
   const cup = cupOfGame({ sport: found.sport, league: found })
-  const fromApi = found.id && !cup ? await apiLeagueTable(found) : undefined
+  // Friendlies: no table (the games have nothing to do with each other), results by day instead
+  const friendly = /friendl/i.test(`${found.name} ${found.title ?? ''}`)
+  const fromApi = found.id && !cup && !friendly ? await apiLeagueTable(found) : undefined
   const baseline = BASELINES[slug]
   const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
   // A team's logo from API-Sports' games, also when the table uses another name ("F.C. København" is "FC Copenhagen W")
@@ -120,11 +124,11 @@ async function externalLeaguePage(slug: string) {
     .slice(0, 12)
     .map(externalMatch)
   // A cup or a tournament with groups and knock-out rounds (Champions League): its rounds, newest first, and no table of our own
-  const tournament = !!cup || wholeSeason({ sport: found.sport, league: found })
+  const tournament = !!cup || friendly || wholeSeason({ sport: found.sport, league: found })
   const played = tournament ? games.filter((g) => g.state === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff)) : []
   const rounds: { name: string; matches: Match[] }[] = []
   for (const g of played) {
-    const name = danishRound(g.round) ?? 'Øvrige kampe'
+    const name = friendly ? capitalize(formatLong(isoDate(new Date(g.kickoff)))) : (danishRound(g.round) ?? 'Øvrige kampe')
     const round = rounds.find((r) => r.name === name) ?? (rounds.push({ name, matches: [] }), rounds.at(-1)!)
     round.matches.push(externalMatch(g))
   }
