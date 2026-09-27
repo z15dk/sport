@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
 import type { PlayerData, PlayerSeasonRow } from '../data/player'
-import { archiveEvents, archiveMissingEvents, archiveSeason } from './archive'
+import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -914,7 +914,23 @@ async function tick() {
         } catch {
           break
         }
+        savePlayerGames(response, ids, true)
         changed = true
+        await sleep(300)
+      }
+    }
+    // Every player's numbers for saved matches (the players' pages), 20 matches a request, down to the reserve
+    {
+      const s = mem.store.football
+      for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+        const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
+        if (remaining < PAID_RESERVE) break
+        const ids = archiveMissingPlayers(20)
+        if (!ids.length) break
+        const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
+        if (error) break
+        // Every match asked for is marked, also those the answer left out or had no players for
+        savePlayerGames(response, ids, true)
         await sleep(300)
       }
     }
@@ -1256,10 +1272,69 @@ function eventsDue(s: ApiState): string[] {
   return [...due]
 }
 
+/** Every player's numbers in one match, from a /fixtures?ids answer */
+function toPlayerGames(r: Raw): PlayerGame[] {
+  const eventId = `football-${r.fixture?.id}`
+  const homeId = num(r.teams?.home?.id)
+  const awayId = num(r.teams?.away?.id)
+  return ((r.players ?? []) as Raw[]).flatMap((t) =>
+    ((t.players ?? []) as Raw[])
+      .map((pl): PlayerGame | undefined => {
+        const st = pl.statistics?.[0] ?? {}
+        const id = num(pl.player?.id)
+        if (!id || !pl.player?.name) return undefined
+        const minutes = num(st.games?.minutes)
+        // Unused substitutes are left out
+        if (!minutes) return undefined
+        const teamId = num(t.team?.id)
+        return {
+          eventId,
+          playerId: id,
+          name: String(pl.player.name),
+          teamId,
+          team: String(t.team?.name ?? ''),
+          side: teamId === homeId ? 'home' : teamId === awayId ? 'away' : undefined,
+          position: st.games?.position ?? undefined,
+          minutes,
+          rating: num(st.games?.rating),
+          goals: num(st.goals?.total) ?? 0,
+          assists: num(st.goals?.assists) ?? 0,
+          yellow: num(st.cards?.yellow) ?? 0,
+          red: num(st.cards?.red) ?? 0,
+          shots: num(st.shots?.total),
+          shotsOn: num(st.shots?.on),
+          passes: num(st.passes?.total),
+          keyPasses: num(st.passes?.key),
+          saves: num(st.goals?.saves),
+          conceded: num(st.goals?.conceded),
+          substitute: !!st.games?.substitute,
+          captain: !!st.games?.captain,
+        }
+      })
+      .filter((x): x is PlayerGame => !!x),
+  )
+}
+
+/** Saves the players' numbers of the finished matches in an answer; failures only cost the extra */
+function savePlayerGames(response: Raw[] | undefined, checked: string[], saved = false) {
+  // Saved matches are finished; otherwise only the finished ones in the answer count (a live match is fetched again)
+  const done = (response ?? []).filter((r) => saved || ['FT', 'AET', 'PEN'].includes(String(r.fixture?.status?.short ?? '')))
+  try {
+    archivePlayerGames(
+      done.flatMap(toPlayerGames),
+      saved ? checked : checked.filter((id) => done.some((r) => `football-${r.fixture?.id}` === id)),
+    )
+  } catch {
+    // Fetched again with the backfill
+  }
+}
+
 async function fetchEvents(api: Api, ids: string[]) {
   const s = mem.store[api]!
   const { response, error } = await call(api, `/fixtures?ids=${ids.join('-')}&${TZ}`)
   if (error) return
+  // The players' numbers come with them: saved in the statistics bank for the players' pages
+  if (api === 'football') savePlayerGames(response, ids.map((x) => `football-${x}`))
   const store = extrasStore()
   let statsChanged = false
   for (const r of response ?? []) {

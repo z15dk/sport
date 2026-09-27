@@ -1624,3 +1624,25 @@ a.table__club:hover { text-decoration: underline; }
 .player-trophies li { padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
 a.leaders__name { color: inherit; text-decoration: none; }
 a.leaders__name:hover { text-decoration: underline; }
+.player-live, .player-games { margin-top: 16px; }
+.player-games__date { width: 130px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 13px; }
+.player-games__date span { display: block; font-size: 11px; color: var(--ink-3); max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) { .player-games__date span { max-width: 64px; } .player-games__table td, .player-games__table th { padding-left: 4px; padding-right: 4px; } }
+.player-games__match { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 2px; color: inherit; text-decoration: none; }
+.player-games__match span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.player-games__match:hover { text-decoration: underline; }
+.player-games__match .is-own { font-weight: 700; }
+.player-games__match b { font-variant-numeric: tabular-nums; }
+.rating-chip { display: inline-block; min-width: 34px; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+.rating-chip.is-top { background: #2f6fdb; color: #fff; }
+.rating-chip.is-good { background: #3f8f3a; color: #fff; }
+.rating-chip.is-ok { background: #f5c518; color: #16181a; }
+.rating-chip.is-low { background: #ff4a1f; color: #fff; }
+.rating-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2px; padding: 8px 18px 4px; height: 190px; }
+.rating-chart__col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; cursor: default; }
+.rating-chart__bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+.rating-chart__bar { width: min(22px, 80%); background: #2f6fdb; border-radius: 4px 4px 0 0; }
+.rating-chart__col:hover .rating-chart__bar { background: #1f55b8; }
+.rating-chart__value { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 14px; }
+.rating-chart__label { font-size: 11px; color: var(--ink-3); }
+@media (max-width: 600px) { .hide-phone { display: none; } }

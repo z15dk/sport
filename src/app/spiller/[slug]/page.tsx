@@ -5,14 +5,17 @@ import { apiPlayer } from '../../../lib/apisports'
 import { playerPath, type PlayerData, type PlayerSeasonRow } from '../../../data/player'
 import { ourClubByName } from '../../../data/cups'
 import { teamByName } from '../../../data/teams'
-import { clubMatches } from '../../../data/matches'
+import { clubMatches, getMatches } from '../../../data/matches'
+import { playerGames } from '../../../lib/archive'
+import { alike } from '../../../data/aliases'
+import { MatchRow } from '../../../components/MatchRow'
 import { clubNames, normalize } from '../../../data/aliases'
 import { seasonClubs } from '../../../data/season'
 import { sportOf } from '../../../data/leagues'
 import { danishCountry } from '../../../data/countries'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../../lib/jsonld'
 import { SITE_URL, paths } from '../../../lib/site'
-import { TZ, formatNumeric } from '../../../lib/time'
+import { TZ, formatNumeric, isoDate } from '../../../lib/time'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { Updated } from '../../../components/Updated'
 import { AdSlot } from '../../../components/AdSlot'
@@ -103,6 +106,35 @@ export default async function PlayerPage({ params }: { params: Params }) {
         .filter((g) => g.minutes.length)
         .reverse()
     : []
+
+  // Every match he has played that our statistics bank has, newest first
+  const played = playerGames(p.id)
+  const soccerOn = new Map<string, Match[]>()
+  const matchOn = (date: Date, home: string, away: string) => {
+    const day = isoDate(date)
+    if (!soccerOn.has(day)) soccerOn.set(day, getMatches(day, 'soccer', now))
+    return soccerOn.get(day)!.find((m) => alike([m.home.name], home) && alike([m.away.name], away))
+  }
+  const lastGames = played.slice(0, 15).map((g) => ({ ...g, match: matchOn(g.date, g.home, g.away) }))
+  // Average rating per month, the last 12 months
+  const months: { key: string; label: string; rating?: number; games: number }[] = []
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now)
+    d.setUTCDate(1)
+    d.setUTCMonth(d.getUTCMonth() - i)
+    const key = isoDate(d).slice(0, 7)
+    const inMonth = played.filter((g) => g.rating && isoDate(g.date).slice(0, 7) === key)
+    months.push({
+      key,
+      label: monthFmt.format(d).replace('.', ''),
+      rating: inMonth.length ? inMonth.reduce((n, g) => n + g.rating!, 0) / inMonth.length : undefined,
+      games: inMonth.length,
+    })
+  }
+  // His club's match right now
+  const live = main
+    ? getMatches(isoDate(now), 'soccer', now).find((m) => m.state === 'live' && [m.home.name, m.away.name].some((n) => alike([main.team, club?.name ?? main.team], n)))
+    : undefined
 
   const detail: { label: string; value: string }[] = keeper
     ? [
@@ -200,7 +232,95 @@ export default async function PlayerPage({ params }: { params: Params }) {
           </div>
         </section>
 
+        {live && (
+          <section className="panel player-live" aria-label="Spiller nu">
+            <h2 className="panel__title">
+              <span className="live-dot" aria-hidden="true" /> Spiller nu
+            </h2>
+            <ul className="league__matches">
+              <MatchRow match={live} />
+            </ul>
+          </section>
+        )}
+
+        {lastGames.length > 0 && (
+          <section className="panel player-games">
+            <h2 className="panel__title">Kampe</h2>
+            <div className="table-wrap table-wrap--flush">
+              <table className="table table--compact player-games__table">
+                <thead>
+                  <tr>
+                    <th>Dato</th>
+                    <th>Kamp</th>
+                    <th className="num" title="Resultat">Res.</th>
+                    <th className="num" title="Rating">Rating</th>
+                    <th className="num hide-phone" title="Minutter">Min</th>
+                    <th className="num" title="Mål">{keeper ? 'Redn.' : 'Mål'}</th>
+                    <th className="num hide-phone" title="Assists">Ass.</th>
+                    <th className="num hide-phone" title="Kort">Kort</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lastGames.map((g) => {
+                    const own = g.side === 'home' ? g.homeScore : g.awayScore
+                    const other = g.side === 'home' ? g.awayScore : g.homeScore
+                    const res = own > other ? 'V' : own < other ? 'T' : 'U'
+                    const text = (
+                      <>
+                        <span className={g.side === 'home' ? 'is-own' : undefined}>{clubOf(g.home)?.name ?? g.home}</span>
+                        <b>{g.homeScore}</b>
+                        <span className={g.side === 'away' ? 'is-own' : undefined}>{clubOf(g.away)?.name ?? g.away}</span>
+                        <b>{g.awayScore}</b>
+                      </>
+                    )
+                    return (
+                      <tr key={g.eventId}>
+                        <td className="player-games__date">
+                          {formatNumeric(g.date)}
+                          <span>{g.tournament}</span>
+                        </td>
+                        <td>
+                          {g.match ? (
+                            <Link className="player-games__match" href={`/kamp/${g.match.slug}`}>
+                              {text}
+                            </Link>
+                          ) : (
+                            <span className="player-games__match">{text}</span>
+                          )}
+                        </td>
+                        <td className="num">
+                          {g.side && (
+                            <span className={`form__chip form__chip--${res}`} title={res === 'V' ? 'Sejr' : res === 'U' ? 'Uafgjort' : 'Tab'}>
+                              {res}
+                            </span>
+                          )}
+                        </td>
+                        <td className="num">{g.rating ? <span className={`rating-chip ${ratingBand(g.rating)}`}>{g.rating.toFixed(1).replace('.', ',')}</span> : '–'}</td>
+                        <td className="num hide-phone">{g.minutes ?? '–'}&apos;</td>
+                        <td className="num pts">{keeper ? (g.saves ?? 0) : g.goals || '–'}</td>
+                        <td className="num hide-phone">{g.assists || '–'}</td>
+                        <td className="num hide-phone">
+                          {g.yellow ? <span className="card-mark card-mark--yellow" title="Gult kort" /> : null}
+                          {g.red ? <span className="card-mark card-mark--red" title="Rødt kort" /> : null}
+                          {!g.yellow && !g.red ? '–' : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         <div className="player-grid">
+          {months.some((m) => m.rating) && (
+            <section className="panel">
+              <h2 className="panel__title">Rating pr. måned</h2>
+              <RatingChart months={months} />
+              <p className="muted small pad">Gennemsnitlig kampkarakter (1–10) i hver af de seneste 12 måneder.</p>
+            </section>
+          )}
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Sæsonen {seasonLabel(season)}</h2>
@@ -333,6 +453,27 @@ export default async function PlayerPage({ params }: { params: Params }) {
   )
 }
 
+const monthFmt = new Intl.DateTimeFormat('da-DK', { month: 'short', timeZone: TZ })
+
+/** Bands for the rating chip: the number is always shown too */
+const ratingBand = (r: number) => (r >= 8 ? 'is-top' : r >= 7 ? 'is-good' : r >= 6 ? 'is-ok' : 'is-low')
+
+/** Bars of the average rating per month, 5 to 10 on the scale; empty months are gaps */
+function RatingChart({ months }: { months: { key: string; label: string; rating?: number; games: number }[] }) {
+  const h = (r: number) => Math.max(4, ((Math.min(10, r) - 5) / 5) * 100)
+  return (
+    <div className="rating-chart" role="img" aria-label={months.filter((m) => m.rating).map((m) => `${m.label}: ${m.rating!.toFixed(1)}`).join(', ')}>
+      {months.map((m) => (
+        <div key={m.key} className="rating-chart__col" title={m.rating ? `${m.label}: ${m.rating.toFixed(2).replace('.', ',')} i ${m.games} ${m.games === 1 ? 'kamp' : 'kampe'}` : `${m.label}: ingen kampe`}>
+          <span className="rating-chart__bar-wrap">{m.rating ? <span className="rating-chart__bar" style={{ height: `${h(m.rating)}%` }} /> : null}</span>
+          <span className="rating-chart__value">{m.rating ? m.rating.toFixed(1).replace('.', ',') : ''}</span>
+          <span className="rating-chart__label">{m.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const birthFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ })
 
 const transferType = (t: string) => (t === 'Loan' ? 'Leje' : t === 'Free' ? 'Fri transfer' : t === 'Back from Loan' ? 'Retur fra leje' : /€|\d/.test(t) ? t : 'Skifte')
@@ -362,11 +503,11 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
           <tr>
             <th>Turnering</th>
             <th className="num" title="Kampe">K</th>
-            <th className="num hide-sm" title="Minutter">Min</th>
+            <th className="num hide-phone" title="Minutter">Min</th>
             <th className="num" title={keeper ? 'Mål imod' : 'Mål'}>{keeper ? 'MI' : 'M'}</th>
             <th className="num" title={keeper ? 'Redninger' : 'Assists'}>{keeper ? 'R' : 'A'}</th>
-            <th className="num hide-sm" title="Gule kort">G</th>
-            <th className="num hide-sm" title="Røde kort">R</th>
+            <th className="num hide-phone" title="Gule kort">G</th>
+            <th className="num hide-phone" title="Røde kort">R</th>
             <th className="num" title="Rating">Rat.</th>
           </tr>
         </thead>
@@ -383,11 +524,11 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
                 </span>
               </td>
               <td className="num">{r.games}</td>
-              <td className="num hide-sm">{r.minutes ?? '–'}</td>
+              <td className="num hide-phone">{r.minutes ?? '–'}</td>
               <td className="num pts">{keeper ? (r.conceded ?? 0) : r.goals}</td>
               <td className="num">{keeper ? (r.saves ?? 0) : r.assists}</td>
-              <td className="num hide-sm">{r.yellow}</td>
-              <td className="num hide-sm">{r.red}</td>
+              <td className="num hide-phone">{r.yellow}</td>
+              <td className="num hide-phone">{r.red}</td>
               <td className="num">{r.rating ? r.rating.toFixed(1).replace('.', ',') : '–'}</td>
             </tr>
           ))}

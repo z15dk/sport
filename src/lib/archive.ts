@@ -60,6 +60,35 @@ const SCHEMA = `
     player TEXT
   );
   CREATE INDEX IF NOT EXISTS incidents_event ON incidents (event_id);
+  CREATE TABLE IF NOT EXISTS player_games (
+    event_id TEXT,
+    player_id INTEGER,
+    name TEXT,
+    team_id INTEGER,
+    team TEXT,
+    side TEXT,
+    position TEXT,
+    minutes INTEGER,
+    rating REAL,
+    goals INTEGER,
+    assists INTEGER,
+    yellow INTEGER,
+    red INTEGER,
+    shots INTEGER,
+    shots_on INTEGER,
+    passes INTEGER,
+    key_passes INTEGER,
+    saves INTEGER,
+    conceded INTEGER,
+    substitute INTEGER,
+    captain INTEGER,
+    PRIMARY KEY (event_id, player_id)
+  );
+  CREATE INDEX IF NOT EXISTS player_games_player ON player_games (player_id);
+  CREATE TABLE IF NOT EXISTS players_checked (
+    event_id TEXT PRIMARY KEY,
+    checked_at TEXT
+  );
   CREATE INDEX IF NOT EXISTS matches_date ON matches (start_date);
 `
 
@@ -398,4 +427,175 @@ export function archiveSeason(divisionId: string, tournament: string, season: st
     db.close()
   }
   return finished.length
+}
+
+// ---------------------------------------------------------------- players per match
+
+/** One player's numbers in one match (API-Sports' football matches) */
+export interface PlayerGame {
+  eventId: string
+  playerId: number
+  name: string
+  teamId?: number
+  team: string
+  side?: 'home' | 'away'
+  position?: string
+  minutes?: number
+  rating?: number
+  goals: number
+  assists: number
+  yellow: number
+  red: number
+  shots?: number
+  shotsOn?: number
+  passes?: number
+  keyPasses?: number
+  saves?: number
+  conceded?: number
+  substitute?: boolean
+  captain?: boolean
+}
+
+/** Every player's numbers for matches (replacing what was saved), and the matches checked that had none */
+export function archivePlayerGames(rows: PlayerGame[], checked: string[]) {
+  const lib = sqlite()
+  if (!lib || (!rows.length && !checked.length)) return
+  const db = new lib.DatabaseSync(archiveFile())
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec(SCHEMA)
+    const clear = db.prepare('DELETE FROM player_games WHERE event_id = ?')
+    const add = db.prepare(
+      `INSERT OR REPLACE INTO player_games (event_id, player_id, name, team_id, team, side, position, minutes, rating, goals, assists, yellow, red, shots, shots_on, passes, key_passes, saves, conceded, substitute, captain)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    const mark = db.prepare('INSERT OR REPLACE INTO players_checked (event_id, checked_at) VALUES (?, ?)')
+    const now = new Date().toISOString()
+    const v = (x: unknown) => (x === undefined ? null : x)
+    db.exec('BEGIN')
+    for (const id of new Set(rows.map((r) => r.eventId))) clear.run(id)
+    for (const r of rows) {
+      add.run(
+        r.eventId, r.playerId, r.name, v(r.teamId), r.team, v(r.side), v(r.position), v(r.minutes), v(r.rating), r.goals, r.assists, r.yellow, r.red,
+        v(r.shots), v(r.shotsOn), v(r.passes), v(r.keyPasses), v(r.saves), v(r.conceded), r.substitute ? 1 : 0, r.captain ? 1 : 0,
+      )
+    }
+    for (const id of checked) mark.run(id, now)
+    db.exec('COMMIT')
+  } finally {
+    db.close()
+  }
+}
+
+/** Saved finished football matches whose players have not been fetched yet, newest first */
+export function archiveMissingPlayers(limit: number): string[] {
+  const lib = sqlite()
+  if (!lib) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile())
+  } catch {
+    return []
+  }
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec(SCHEMA)
+    return db
+      .prepare(
+        `SELECT m.event_id FROM matches m
+          WHERE m.event_id LIKE 'football-%' AND m.status = 'finished'
+            AND NOT EXISTS (SELECT 1 FROM players_checked c WHERE c.event_id = m.event_id)
+          ORDER BY m.start_date DESC LIMIT ?`,
+      )
+      .all(limit)
+      .map((r) => String(r.event_id))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+/** A player's matches with the match itself, newest first */
+export function playerGames(playerId: number, limit = 400): (PlayerGame & { date: Date; tournament: string; home: string; away: string; homeScore: number; awayScore: number })[] {
+  const lib = sqlite()
+  if (!lib || !existsFile(archiveFile())) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return []
+  }
+  try {
+    return db
+      .prepare(
+        `SELECT p.*, m.start_date, m.tournament_name, m.home_name, m.away_name, m.home_score, m.away_score
+           FROM player_games p JOIN matches m ON m.event_id = p.event_id
+          WHERE p.player_id = ? ORDER BY m.start_date DESC LIMIT ?`,
+      )
+      .all(playerId, limit)
+      .map((r) => ({
+        eventId: String(r.event_id),
+        playerId: Number(r.player_id),
+        name: String(r.name ?? ''),
+        teamId: r.team_id === null ? undefined : Number(r.team_id),
+        team: String(r.team ?? ''),
+        side: (r.side ?? undefined) as 'home' | 'away' | undefined,
+        position: (r.position ?? undefined) as string | undefined,
+        minutes: r.minutes === null ? undefined : Number(r.minutes),
+        rating: r.rating === null ? undefined : Number(r.rating),
+        goals: Number(r.goals ?? 0),
+        assists: Number(r.assists ?? 0),
+        yellow: Number(r.yellow ?? 0),
+        red: Number(r.red ?? 0),
+        shots: r.shots === null ? undefined : Number(r.shots),
+        shotsOn: r.shots_on === null ? undefined : Number(r.shots_on),
+        passes: r.passes === null ? undefined : Number(r.passes),
+        keyPasses: r.key_passes === null ? undefined : Number(r.key_passes),
+        saves: r.saves === null ? undefined : Number(r.saves),
+        conceded: r.conceded === null ? undefined : Number(r.conceded),
+        substitute: !!r.substitute,
+        captain: !!r.captain,
+        date: new Date(String(r.start_date)),
+        tournament: String(r.tournament_name ?? ''),
+        home: String(r.home_name ?? ''),
+        away: String(r.away_name ?? ''),
+        homeScore: Number(r.home_score ?? 0),
+        awayScore: Number(r.away_score ?? 0),
+      }))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+/** How many player-match rows and checked matches the bank has (for /admin/data) */
+export function playerGamesStatus() {
+  const lib = sqlite()
+  if (!lib || !existsFile(archiveFile())) return { rows: 0, matches: 0 }
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return { rows: 0, matches: 0 }
+  }
+  try {
+    return {
+      rows: Number(db.prepare('SELECT COUNT(*) AS n FROM player_games').get()?.n ?? 0),
+      matches: Number(db.prepare('SELECT COUNT(*) AS n FROM players_checked').get()?.n ?? 0),
+    }
+  } catch {
+    return { rows: 0, matches: 0 }
+  } finally {
+    db.close()
+  }
+}
+
+function existsFile(file: string) {
+  try {
+    return statSync(file).isFile()
+  } catch {
+    return false
+  }
 }

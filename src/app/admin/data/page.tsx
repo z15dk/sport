@@ -5,7 +5,7 @@ import { isAdmin } from '../../../lib/admin'
 import Link from 'next/link'
 import { realDataStatus, tsdbDanishLeagues } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
-import { archiveStatus } from '../../../lib/archive'
+import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsStatus } from '../../../lib/apisports'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
@@ -27,6 +27,7 @@ export default async function DataStatusPage() {
   const s = realDataStatus()
   const h = historyStatus()
   const a = archiveStatus()
+  const pg = playerGamesStatus()
   const apis = apiSportsStatus()
   const danish = tsdbDanishLeagues()
   return (
@@ -124,6 +125,9 @@ export default async function DataStatusPage() {
             Fil: <code>{a.file}</code> · Senest gemt: {a.lastRun ?? 'ikke endnu'}
           </p>
           {a.lastError && <p className="unverified">Seneste fejl: {a.lastError}</p>}
+          <p>
+            Spillertal (spillersider): {pg.rows.toLocaleString('da-DK')} spiller-kampe fra {pg.matches.toLocaleString('da-DK')} kampe. Hentes 20 kampe pr. kald ned til reserven.
+          </p>
           <p>
             {a.total.toLocaleString('da-DK')} færdigspillede kampe gemt
             {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
