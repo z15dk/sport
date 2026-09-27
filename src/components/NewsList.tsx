@@ -22,12 +22,18 @@ export function NewsList({
   division,
   club,
   team,
+  badges,
+  fallback,
 }: {
   articles: Article[]
   division?: Division
   club?: Club
   /** A team outside our leagues (a women's team): its own logo on every article */
   team?: { name: string; logo?: string; colors?: [string, string] }
+  /** The badge for each article, by article key (feed|id), before the others */
+  badges?: Record<string, { name: string; logo?: string; colors?: [string, string] }>
+  /** The badge when nothing else fits (a tournament's logo) */
+  fallback?: { name: string; logo?: string; label?: string }
 }) {
   if (!articles.length) return null
   const now = Date.now()
@@ -38,15 +44,25 @@ export function NewsList({
       <ul className="news__list">
         {articles.map((a) => {
           const who = club ?? a.clubs.map((id) => byId.get(id)).find(Boolean)
+          const own = badges?.[`${a.feed}|${a.id}`] ?? team
           return (
             <li key={`${a.feed}|${a.id}`}>
               <a className="news__item" href={a.link} target="_blank" rel="noopener noreferrer">
-                {team ? (
-                  <TeamBadge link={false} name={team.name} src={team.logo} colors={team.colors} size={32} />
+                {own ? (
+                  <TeamBadge link={false} name={own.name} src={own.logo} colors={own.colors} size={32} />
                 ) : who ? (
                   <TeamBadge link={false} name={who.name} colors={who.colors} size={32} />
                 ) : (
-                  division && <TeamBadge link={false} name={division.name} label={division.short} colors={['#0f110c', '#c6f135']} size={32} />
+                  (division || fallback) && (
+                    <TeamBadge
+                      link={false}
+                      name={division?.name ?? fallback!.name}
+                      src={fallback?.logo}
+                      label={division?.short ?? fallback?.label}
+                      colors={['#0f110c', '#c6f135']}
+                      size={32}
+                    />
+                  )
                 )}
                 <span className="news__text">
                   <strong className="news__title">{a.title}</strong>

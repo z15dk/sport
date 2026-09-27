@@ -171,6 +171,30 @@ export function newsCoverage() {
   return { total, clubs, women, leagues }
 }
 
+/** An article's words (headline, standfirst), worked out once per stored article */
+const articleWords = new WeakMap<Article, string[]>()
+const wordsOf = (a: Article) => {
+  let w = articleWords.get(a)
+  if (!w) articleWords.set(a, (w = words(`${a.title} ${a.text ?? ''}`)))
+  return w
+}
+
+/**
+ * The newest articles for a tournament that is not one of our leagues (the
+ * women's league, the cup, the Champions League): those that name it, and
+ * those about the clubs given (for the women's league: our clubs' women's teams)
+ */
+export function newsMentioning(opts: { names: string[]; clubs?: string[]; women: boolean }, limit = 10): Article[] {
+  const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
+  const names = [...new Set(opts.names)].map(words).filter((t) => t.join('').length >= 2)
+  const clubs = new Set(opts.clubs)
+  return readStore()
+    .articles.filter(
+      (a) => enabled.has(a.feed) && !!a.women === opts.women && (a.clubs.some((c) => clubs.has(c)) || names.some((t) => mentions(wordsOf(a), t))),
+    )
+    .slice(0, limit)
+}
+
 /** The newest articles about a club or a league */
 export function newsFor(ref: { club?: string; league?: string; women?: boolean }, limit = 6): Article[] {
   const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
@@ -263,6 +287,17 @@ const NICKNAMES: Record<string, string[]> = {
   'es-atm': ['Atlético', 'Atletico'],
 }
 
+/** Other names the press uses for our leagues (sponsors, Danish forms), by division id */
+const LEAGUE_NAMES: Record<string, string[]> = {
+  superliga: ['3F Superliga'],
+  '1div': ['NordicBet Liga', '1. division', 'NordicBet Ligaen'],
+  '2div': ['2. division'],
+  '3div': ['3. division'],
+  premierleague: ['Premier League'],
+  laliga: ['LaLiga', 'La Liga'],
+  metalligaen: ['Metal Ligaen', 'Metalligaen'],
+}
+
 /** Cities that are also the short form of a club's name: alone they don't name the club ("halvmaraton i København") */
 const CITY_ONLY = new Set(['kobenhavn', 'aarhus', 'odense', 'aalborg', 'esbjerg', 'randers', 'viborg', 'silkeborg', 'vejle', 'horsens', 'kolding', 'herning'])
 
@@ -281,7 +316,7 @@ function allPatterns(): Pattern[] {
     if (tokens.length && tokens.join('').length >= 2) list.push({ tokens, ...ref })
   }
   for (const division of DIVISIONS) {
-    for (const n of new Set([division.name, division.originalName].filter((x): x is string => !!x))) add(n, { division })
+    for (const n of new Set([division.name, division.originalName, ...(LEAGUE_NAMES[division.id] ?? [])].filter((x): x is string => !!x))) add(n, { division })
     for (const club of division.clubs) {
       // Second teams are not the club
       if (/\b(ii|2)$/i.test(club.name)) continue

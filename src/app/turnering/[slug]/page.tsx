@@ -10,7 +10,8 @@ import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { NewsList } from '../../../components/NewsList'
-import { newsFor } from '../../../lib/news'
+import { newsFor, newsMentioning } from '../../../lib/news'
+import { allTeams, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
@@ -152,6 +153,23 @@ async function externalLeaguePage(slug: string) {
     })
   }
   const stats = gameStats([...statGames.values()])
+  // News: articles naming the tournament; for a women's league also those about its teams
+  const allNames = [league.name, found.name, found.title, cup?.name, cup?.key].filter((x): x is string => !!x)
+  const womenLeague = allNames.some((n) => /women|kvind|frauen|a-liga|damallsvenskan|toppserien|\bwsl\b|liga f\b/i.test(n))
+  const inLeague = womenLeague ? allTeams().filter((t) => t.leagueSlug && keys.includes(t.leagueSlug)) : []
+  const womenTeams = new Map(inLeague.map((t) => [womenOf(t), t] as const).filter((x): x is [string, (typeof inLeague)[number]] => !!x[0]))
+  const newsNames = [
+    ...allNames,
+    ...(cup ? ['Pokal', 'Pokalturnering', 'Pokalfinale', 'Pokalkamp', 'Landspokalturnering'] : []),
+    ...(womenLeague && found.country === 'Denmark' && !tournament ? ['Kvindeliga', 'Gjensidige Kvindeliga', 'A-Liga'] : []),
+  ]
+  const news = newsMentioning({ names: newsNames, clubs: [...womenTeams.keys()], women: womenLeague })
+  const newsBadges = Object.fromEntries(
+    news.flatMap((a) => {
+      const t = a.clubs.map((c) => womenTeams.get(c)).find(Boolean)
+      return t ? [[`${a.feed}|${a.id}`, { name: t.name, logo: t.logo ?? logoFor(t.name), colors: t.colors }]] : []
+    }),
+  )
   return (
     <ExternalLeaguePage
       league={league}
@@ -166,6 +184,7 @@ async function externalLeaguePage(slug: string) {
       upcoming={upcoming}
       stats={stats}
       now={now}
+      news={news.length ? <NewsList articles={news} badges={newsBadges} fallback={{ name: league.name, logo: league.logo }} /> : undefined}
     />
   )
 }
@@ -241,7 +260,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <StandingsTable division={division} rows={rows} />
         </section>
         <LeagueStats division={division} />
-        <NewsList articles={newsFor({ league: division.id })} division={division} />
+        <NewsList articles={newsFor({ league: division.id }, 10)} division={division} />
         {/* The rounds under the statistics, beside the players */}
         {byRound ? (
           <RoundResults rounds={byRound} now={now} />
