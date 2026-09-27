@@ -6,6 +6,7 @@ import { allFixtures, isFinished, standings, toMatch } from '../../../data/seaso
 import { externalMatch, getMatches } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
+import { LiveNow } from '../../../components/LiveNow'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
@@ -224,6 +225,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         </p>
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
+        <LiveNow matches={todays} />
 
         <div className={leaders ? 'table-duo' : 'table-solo'}>
         <div className="table-duo__main">

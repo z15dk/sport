@@ -5,6 +5,7 @@ import type { PastMatch } from '../data/matchInsights'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
+import { LiveNow } from './LiveNow'
 import { Updated } from './Updated'
 import { CalendarButton } from './CalendarButton'
 import { LeagueLeaders } from './LeagueLeaders'
@@ -93,6 +94,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         )}
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={league.key} name={league.name} />
+        <LiveNow matches={upcoming} />
 
         {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
         {rounds?.map((r) => (

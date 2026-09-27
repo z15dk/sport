@@ -1529,3 +1529,7 @@ h2.league__name { margin: 0; }
 
 /* Wide rows (the league tabs) scroll inside the page on phones instead of widening it (and Safari zooming the page out) */
 .clubs, .clubs__head, .division-tabs, .page { min-width: 0; max-width: 100%; }
+
+/* A league's live matches at the top of its page: phones only (larger screens show them under "Dagens kampe") */
+.league--live-top .league__name { display: inline-flex; align-items: center; gap: 8px; }
+@media (min-width: 761px) { .league--live-top { display: none; } }
