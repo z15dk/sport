@@ -143,7 +143,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           { name: `${match.home.name} – ${match.away.name}`, path: paths.match(match.slug) },
         ])}
       />
-      <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
+      <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
       <JsonLd data={faqLd(faq)} />
       <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} />
       <div className="match-page match-page--after">

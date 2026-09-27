@@ -15,6 +15,7 @@ import type { Incident, Match } from '../types'
 import { StatBar } from './StatBar'
 import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
+import { alike } from '../data/aliases'
 import { Updated } from './Updated'
 import { MatchExtrasPanel } from './MatchExtras'
 import { PartnerLogo } from './PartnerLogo'
@@ -128,7 +129,14 @@ function MatchBody({
   const form = extra?.form ?? seasonForm(match)
   // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
   // A cup has rounds, not a table
-  const table = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  const sourceTable = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  // The table under our clubs' own names ("Nykobing FC" from API-Sports is "Nykøbing FC"), so the report and the table say the same
+  const ourClubs = [...(homeStats?.division.clubs ?? []), ...(awayStats?.division.clubs ?? [])]
+  const ourName = (name: string) =>
+    ourClubs.some((c) => c.name === name)
+      ? name
+      : (ourClubs.find((c) => alike([c.name, c.originalName, c.apiName].filter((n): n is string => !!n), name))?.name ?? name)
+  const table = sourceTable && { ...sourceTable, rows: sourceTable.rows.map((r) => ({ ...r, name: ourName(r.name) })) }
 
   // The written report (after the match) or preview (before it), from the data above
   // A team's match right after this one: when it isn't played yet, this is the team's latest (so today's table and its next match fit)
@@ -241,7 +249,7 @@ function MatchBody({
       <h1 className="match-page__title">
         {home.name} – {away.name}
       </h1>
-      <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
+      <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
 
       {pairRow && (
