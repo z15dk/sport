@@ -4,7 +4,7 @@ import path from 'node:path'
 import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
 import type { Incident, MatchState, SportId } from '../types'
-import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
+import { alike, normalize, clubNames } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
@@ -83,7 +83,7 @@ function resolver(sport: SportId = 'soccer') {
   const ordered = [...same.filter((d) => d.countryCode === 'DK'), ...same.filter((d) => d.countryCode !== 'DK')]
   for (const d of ordered) {
     for (const club of d.clubs) {
-      for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
+      for (const n of clubNames(club)) {
         const key = n && normalize(n)
         if (key && !byName.has(key)) byName.set(key, club)
       }
@@ -104,7 +104,7 @@ function resolver(sport: SportId = 'soccer') {
     if (exact) return exact
     // Written differently ("AGF Aarhus" for AGF): one Danish club alone matches loosely. Second teams and youth sides never do
     if (/\b(ii|iii|2|u\s?\d{2}|reserve|ungdom)\b/i.test(name)) return undefined
-    const names = (c: Club) => [c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n)
+    const names = (c: Club) => clubNames(c)
     // Danish football first (football.db), then any of our clubs (past seasons of the other leagues in the statistics bank)
     const loose = danish.filter((c) => alike(names(c), name))
     if (loose.length === 1) return loose[0]

@@ -1,7 +1,7 @@
 import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
-import { SEARCH_NAMES, alike, normalize } from './aliases'
+import { alike, normalize, clubNames } from './aliases'
 import { DIVISIONS, renameClubs, renameLeagues, sportOf, type Club, type Division } from './leagues'
 import { hashString } from './fixtures'
 import { GAME_LENGTH_MIN, type Extra } from './scoring'
@@ -46,7 +46,7 @@ function clubResolver(div: Division, names: Record<string, string>) {
   const candidates = DIVISIONS.filter((d) => d.countryCode === div.countryCode && sportOf(d) === sportOf(div)).flatMap((d) => d.clubs)
   // The division's own clubs first, so they win a shared name
   for (const club of [...div.clubs, ...candidates]) {
-    for (const n of [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]]) {
+    for (const n of clubNames(club)) {
       const key = n && normalize(n)
       if (key && !byName.has(key)) byName.set(key, club)
     }
@@ -67,7 +67,7 @@ function clubResolver(div: Division, names: Record<string, string>) {
       [...byName.entries()].find(([n]) => ` ${key} `.includes(` ${n} `) || ` ${n} `.includes(` ${key} `))?.[1]
     if (found) return found
     // Written differently ("HV 71", "Djurgarden", "Linköpings HC"): one of the league's clubs alone matches loosely
-    const loose = [...new Set(div.clubs.filter((c) => alike([c.name, c.originalName, c.apiName, SEARCH_NAMES[c.id]].filter((n): n is string => !!n), name)))]
+    const loose = [...new Set(div.clubs.filter((c) => alike(clubNames(c), name)))]
     if (loose.length === 1) return loose[0]
     if (!unknown.has(name)) {
       // A club missing from our register (e.g. just promoted) still gets a page

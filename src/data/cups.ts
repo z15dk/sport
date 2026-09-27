@@ -1,7 +1,7 @@
 import type { SportId } from '../types'
 import type { ExternalGame } from './external'
 import { externalLeagueKey } from './external'
-import { SEARCH_NAMES, alike, nameWords, normalize } from './aliases'
+import { SEARCH_NAMES, alike, nameWords, normalize, clubNames } from './aliases'
 import { seasonClubs } from './season'
 import { sportOf } from './leagues'
 import { countryKey } from './channels'
@@ -58,9 +58,9 @@ export function ourClubInCup(name: string, cup: Cup) {
         ({ club, division }) =>
           sportOf(division) === cup.sport &&
           countryKey(division.country) === countryKey(cup.country) &&
-          alike([club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].filter((n): n is string => !!n), name) &&
+          alike(clubNames(club), name) &&
           // Every word of the name is one of the club's ("Aarhus Fremad" is not AGF, which also goes by "Aarhus")
-          nameWords(name).every((w) => [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].some((n) => n && nameWords(n).includes(w))),
+          nameWords(name).every((w) => clubNames(club).some((n) => nameWords(n).includes(w))),
       )
   // The same name wins ("Aarhus Fremad" is Aarhus Fremad, not also AGF, which goes by "Aarhus")
   const exact = found.filter(({ club }) => [club.name, club.originalName, club.apiName].some((n) => n && normalize(n) === normalize(name)))
@@ -99,7 +99,7 @@ export function ourClubByName(name: string, sport: SportId) {
   if (!exactMemo.byName) {
     exactMemo.byName = new Map()
     for (const entry of clubs) {
-      const names = new Set([entry.club.name, entry.club.originalName, entry.club.apiName].filter((x): x is string => !!x).map(normalize))
+      const names = new Set(clubNames(entry.club).filter((x) => x !== SEARCH_NAMES[entry.club.id]).map(normalize))
       for (const x of names) {
         const k = `${sportOf(entry.division)}|${x}`
         const list = exactMemo.byName.get(k)

@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
-import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
+import { alike, normalize, clubNames as namesOfClub } from '../data/aliases'
 import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
 import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
@@ -178,7 +178,7 @@ function clubNames(name: string): string[] {
   let names = clubNamesMemo.get(name)
   if (!names) {
     const club = DIVISIONS.flatMap((d) => d.clubs).find((c) => c.name === name || c.originalName === name || c.apiName === name)
-    names = [name, club?.name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
+    names = club ? [name, ...namesOfClub(club)] : [name]
     clubNamesMemo.set(name, names)
   }
   return names

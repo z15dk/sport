@@ -3,7 +3,7 @@ import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
-import { SEARCH_NAMES, alike } from './aliases'
+import { alike, clubNames } from './aliases'
 import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
@@ -51,7 +51,7 @@ const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball',
 /** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
 export function namesOf(name: string) {
   const club = seasonClub(name)?.club
-  return [name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
+  return club ? [...new Set([name, ...clubNames(club)])] : [name]
 }
 
 /**

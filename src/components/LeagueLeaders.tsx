@@ -1,13 +1,13 @@
 import type { LeaderRow, Leaders } from '../data/matchExtra'
 import { seasonClubs } from '../data/season'
 import { sportOf } from '../data/leagues'
-import { SEARCH_NAMES, normalize } from '../data/aliases'
+import { normalize, clubNames } from '../data/aliases'
 
 /** Our club's own name for API-Sports' team name ("FC Copenhagen" -> "FC København") */
 function ourName(team: string) {
   const n = normalize(team)
   const found = seasonClubs().filter(
-    ({ club, division }) => sportOf(division) === 'soccer' && [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].some((x) => x && normalize(x) === n),
+    ({ club, division }) => sportOf(division) === 'soccer' && clubNames(club).some((x) => normalize(x) === n),
   )
   return found.length === 1 ? found[0].club.name : team
 }

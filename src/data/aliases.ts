@@ -35,6 +35,23 @@ export const SEARCH_NAMES: Record<string, string> = {
   hikh: 'Hellerup IK',
 }
 
+/** Short names other sources use, which no loose match finds ("Wolves" is Wolverhampton Wanderers) */
+export const OTHER_NAMES: Record<string, string[]> = {
+  'e-wol': ['Wolves'],
+  'e-qpr': ['QPR'],
+  'e-wba': ['West Brom'],
+  'e-mci': ['Man City'],
+  'e-mun': ['Man United', 'Man Utd'],
+  'e-shu': ['Sheffield Utd'],
+  'e-nfo': ["Nott'm Forest", 'Nottingham'],
+  'e-tot': ['Spurs'],
+}
+
+/** Every name a club goes by: ours, the original, TheSportsDB's and the short ones */
+export function clubNames(club: { id: string; name: string; originalName?: string; apiName?: string }): string[] {
+  return [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id], ...(OTHER_NAMES[club.id] ?? [])].filter((n): n is string => !!n)
+}
+
 // normalize() runs for every name in every match lookup: remembered, as the same names come again and again
 const normalizeMemo = new Map<string, string>()
 
