@@ -243,17 +243,6 @@ function MatchBody({
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
       <Updated at={now} />
-      {story && (
-        <section className="story" aria-labelledby="story-title">
-          <h2 id="story-title" className="story__title">
-            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
-          </h2>
-          {story.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
-        </section>
-      )}
 
       {pairRow && (
         <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
@@ -488,6 +477,18 @@ function MatchBody({
           </ul>
         </section>
       </div>
+      {/* The written report or preview last: the facts, line-ups and statistics come first */}
+      {story && (
+        <section className="story" aria-labelledby="story-title">
+          <h2 id="story-title" className="story__title">
+            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
+          </h2>
+          {story.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
+        </section>
+      )}
     </article>
   )
 }
