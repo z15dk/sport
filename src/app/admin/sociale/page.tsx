@@ -134,6 +134,7 @@ function StoryCard({
   foot,
   logos,
   size = 13,
+  logoMark,
 }: {
   caption: string
   club?: Club
@@ -148,11 +149,17 @@ function StoryCard({
   logos: Logos
   /** Headline size in cqw (default 13) */
   size?: number
+  /** Matchly's green M as the watermark instead of `mark` */
+  logoMark?: boolean
 }) {
   return (
     <Card caption={caption} style={colourOf(club)} className={s.onColor}>
       {club ? (
         <Watermark club={club} logos={logos} style={{ width: '95cqw', height: '95cqw', right: '-30cqw', bottom: '-12cqw' }} />
+      ) : logoMark ? (
+        <span className={cx(s.wmM, s.wmMGreen)} aria-hidden>
+          M
+        </span>
       ) : (
         mark && (
           <span className={cx(s.wmText, s.num)} aria-hidden>
@@ -285,6 +292,7 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
           label={day}
           headline="Dagens kampe"
           size={10}
+          logoMark
           crests={[]}
           foot={`${picks.length} kampe`}
           logos={logos}

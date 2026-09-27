@@ -221,3 +221,6 @@
   -webkit-text-stroke: 0.7cqw rgba(15, 17, 12, 0.16);
   pointer-events: none;
 }
+
+/* the same M in Matchly's green on the dark programme card */
+.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; -webkit-text-stroke: 0.7cqw rgba(198, 241, 53, 0.22); }
