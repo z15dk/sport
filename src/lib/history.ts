@@ -585,6 +585,57 @@ export interface LeagueHistory {
 const leagueHistoryCache = new Map<string, { mtime: number; history?: LeagueHistory }>()
 
 /** A Danish division's finished seasons in the database: top three, all-time table and records */
+/**
+ * A season's league matches as the table counts them. Danish leagues play a
+ * regular season (everyone twice) and then split: the top six play for the
+ * title or promotion, the rest against relegation, with the points carried
+ * over. Play-offs (for a European place, or against another division's teams)
+ * are not in the table. Older formats (three rounds, no split) count as they are.
+ * Returns the counted matches and, for a split season, the upper group.
+ */
+function leagueMatchesOf<M extends { date: Date; homeScore: number; awayScore: number }>(
+  all: M[],
+  keyOf: (m: M, side: 'home' | 'away') => string,
+): { counted: M[]; upper?: Set<string> } {
+  const sorted = [...all].sort((a, b) => a.date.getTime() - b.date.getTime())
+  // The league's own teams: those with a season's worth of matches (a play-off opponent from another division has one or two)
+  const games = new Map<string, number>()
+  for (const m of sorted) for (const side of ['home', 'away'] as const) games.set(keyOf(m, side), (games.get(keyOf(m, side)) ?? 0) + 1)
+  const most = Math.max(0, ...games.values())
+  const core = new Set([...games].filter(([, n]) => n >= most / 2).map(([k]) => k))
+  const league = sorted.filter((m) => core.has(keyOf(m, 'home')) && core.has(keyOf(m, 'away')))
+  const n = core.size
+  if (n < 6 || league.length <= n * (n - 1)) return { counted: league }
+  // The regular season: each pair's first two meetings (a postponed match played late still belongs to it)
+  const met = new Map<string, number>()
+  const regularGames: M[] = []
+  const after: M[] = []
+  for (const m of league) {
+    const pair = [keyOf(m, 'home'), keyOf(m, 'away')].sort().join('|')
+    const times = (met.get(pair) ?? 0) + 1
+    met.set(pair, times)
+    ;(times <= 2 ? regularGames : after).push(m)
+  }
+  // The table after the regular season
+  const points = new Map<string, { p: number; gd: number; gf: number }>()
+  for (const m of regularGames) {
+    for (const side of ['home', 'away'] as const) {
+      const [f, a] = side === 'home' ? [m.homeScore, m.awayScore] : [m.awayScore, m.homeScore]
+      const r = points.get(keyOf(m, side)) ?? points.set(keyOf(m, side), { p: 0, gd: 0, gf: 0 }).get(keyOf(m, side))!
+      r.p += f > a ? 3 : f === a ? 1 : 0
+      r.gd += f - a
+      r.gf += f
+    }
+  }
+  const order = [...points.entries()].sort(([, x], [, y]) => y.p - x.p || y.gd - x.gd || y.gf - x.gf).map(([k]) => k)
+  const upper = new Set(order.slice(0, 6))
+  const across = after.filter((m) => upper.has(keyOf(m, 'home')) !== upper.has(keyOf(m, 'away')))
+  // Mostly across the halves: a third round for everyone, not a split
+  if (across.length > after.length / 4) return { counted: league }
+  const acrossSet = new Set(across)
+  return { counted: league.filter((m) => !acrossSet.has(m)), upper }
+}
+
 export function leagueHistory(divisionId: string): LeagueHistory | undefined {
   const pattern = DIVISION_TOURNAMENTS.find(([id]) => id === divisionId)?.[1]
   const d = data()
@@ -602,7 +653,8 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
     const bySeason = new Map<string, DbMatch[]>()
     for (const m of own) bySeason.set(m.season, [...(bySeason.get(m.season) ?? []), m])
     const seasons: LeagueSeason[] = []
-    for (const [season, list] of bySeason) {
+    for (const [season, all] of bySeason) {
+      const { counted: list, upper } = leagueMatchesOf(all, (m, side) => (side === 'home' ? keyOf(m.homeId, m.homeName) : keyOf(m.awayId, m.awayName)))
       const table = new Map<string, Row>()
       const add = (map: Map<string, Row>, id: number, name: string, f: number, a: number) => {
         const key = keyOf(id, name)
@@ -622,7 +674,12 @@ export function leagueHistory(divisionId: string): LeagueHistory | undefined {
         add(allTime, m.homeId, m.homeName, m.homeScore, m.awayScore)
         add(allTime, m.awayId, m.awayName, m.awayScore, m.homeScore)
       }
-      const ranked = [...table.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor)
+      // The championship (or promotion) group first: a team from the relegation group can't finish above it, whatever its points
+      const byPoints = (x: Row, y: Row) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor
+      const keyed = [...table.entries()]
+      const ranked = upper
+        ? [...keyed.filter(([k]) => upper.has(k)).map(([, r]) => r).sort(byPoints), ...keyed.filter(([k]) => !upper.has(k)).map(([, r]) => r).sort(byPoints)]
+        : keyed.map(([, r]) => r).sort(byPoints)
       seasons.push({
         season,
         matches: list.length,
