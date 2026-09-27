@@ -427,8 +427,7 @@ function MatchBody({
 
         </div>
       </div>
-      </div>
-      <div className="match-page__grid match-page__grid--wide">
+      {/* The teams' latest matches in the same two-column flow */}
         {form && (form.home.length > 0 || form.away.length > 0) && (
           <section className="sheet__section">
             <h2 className="sheet__title">Seneste kampe</h2>
@@ -438,7 +437,8 @@ function MatchBody({
             </div>
           </section>
         )}
-
+      </div>
+      <div className="match-page__grid match-page__grid--wide">
         <section className="sheet__section">
           <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
           {h2h.length > 0 && (

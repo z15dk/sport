@@ -1544,3 +1544,5 @@ h2.league__name { margin: 0; }
 .match-page__flow .match-page__col { display: contents; }
 .match-page__flow .sheet__section { break-inside: avoid; margin: 0 0 16px; }
 @media (max-width: 900px) { .match-page__flow { columns: 1; } }
+/* In the two-column flow the two teams' latest matches stack */
+.match-page__flow .form-cols { grid-template-columns: 1fr; }
