@@ -73,14 +73,6 @@ function Watermark({ club, logos, style }: { club: Club; logos: Logos; style: CS
   return <img className={s.wm} src={url} alt="" aria-hidden style={{ ...style, filter: dark ? 'brightness(0)' : 'brightness(0) invert(1)' }} />
 }
 
-function Team({ club, logos }: { club: Club; logos: Logos }) {
-  return (
-    <span className={s.team}>
-      <Crest club={club} logos={logos} /> {club.name}
-    </span>
-  )
-}
-
 /** A file-name friendly version of a text: "Randers FC–Viborg FF" -> "randers-fc-viborg-ff" */
 const fileSlug = (text: string) =>
   text
@@ -141,6 +133,7 @@ function StoryCard({
   children,
   foot,
   logos,
+  size = 13,
 }: {
   caption: string
   club?: Club
@@ -153,6 +146,8 @@ function StoryCard({
   children?: ReactNode
   foot: string
   logos: Logos
+  /** Headline size in cqw (default 13) */
+  size?: number
 }) {
   return (
     <Card caption={caption} style={colourOf(club)} className={s.onColor}>
@@ -167,7 +162,7 @@ function StoryCard({
       )}
       <Head left={label} />
       <div className={s.pad} style={{ marginTop: '8cqw' }}>
-        <div className={cx(s.big, s.num)} style={{ fontSize: '13cqw' }}>
+        <div className={cx(s.big, s.num)} style={{ fontSize: `${size}cqw` }}>
           {headline}
         </div>
       </div>
@@ -210,20 +205,37 @@ const BigScore = ({ f }: { f: Fixture }) => (
 /** The goals as one short line per goal, when the sources have them */
 function Scorers({ f, max }: { f: Fixture; max: number }) {
   const goals = goalsOf(f)
-  if (!goals.length) return null
+  if (!goals.some((i) => i.player)) return null
   const name = (i: (typeof goals)[number]) => `${i.player ?? 'Mål'}${i.kind === 'penalty' ? ' (str.)' : i.kind === 'own-goal' ? ' (selvmål)' : ''}`
   const side = (x: 'home' | 'away') =>
     goals
       .filter((i) => scoringSide(i) === x)
       .slice(0, max)
-      .map((i) => `${name(i)} ${i.minute}'`)
-      .join(', ')
+      .map((i, k) => (
+        <div key={k}>
+          <b>{i.minute}&apos;</b> {name(i)}
+        </div>
+      ))
   return (
     <div className={s.scorers}>
-      <span>{side('home')}</span>
-      <span>{side('away')}</span>
+      <div>{side('home')}</div>
+      <div>{side('away')}</div>
     </div>
   )
+}
+
+/** Goals on the 0-90 axis; a minute label close to the one before goes on the upper line so they don't overlap */
+function goalAxis(goals: ReturnType<typeof goalsOf>) {
+  let lastLow = -100
+  let lastHigh = -100
+  return goals.map((i) => {
+    const left = Math.min(100, (i.minute / 95) * 100)
+    let level = 0
+    if (left - lastLow < 8) level = left - lastHigh < 8 ? 0 : 1
+    if (level) lastHigh = left
+    else lastLow = left
+    return { i, left, level }
+  })
 }
 
 /** ISO week number of a date */
@@ -267,39 +279,35 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
   return (
     <>
       <div className={s.rail}>
-        <Card caption="Feed (4:5)">
-          <Head left="Kampprogram" />
-          <div className={s.pad} style={{ marginTop: '6cqw' }}>
-            <div className={s.big} style={{ fontSize: '8cqw' }}>
-              {day}
-            </div>
-          </div>
-          {/* Takes the room there is: long names never push the Matchly bar off the card */}
-          <div className={s.pad} style={{ marginTop: '4cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
-            <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
-              <tbody>
-                {picks.map((p) => (
-                  <tr key={p.fixture.id}>
-                    <td className={s.k} style={{ padding: '1.5cqw 0' }}>
-                      {formatTime(p.fixture.kickoff)}
-                    </td>
-                    <td style={{ padding: '1.5cqw 0' }}>
-                      <div className={s.sub} style={{ fontSize: '2.9cqw' }}>
-                        {p.league}
-                      </div>
-                      <div className={s.vs}>
-                        <Team club={p.fixture.home} logos={logos} />
-                        <span aria-hidden>–</span>
-                        <Team club={p.fixture.away} logos={logos} />
-                      </div>
-                    </td>
-                  </tr>
+        <StoryCard
+          caption="Feed (4:5)"
+          mark={String(new Date(`${date}T12:00:00Z`).getUTCDate())}
+          label={day}
+          headline="Dagens kampe"
+          size={10}
+          crests={[]}
+          foot={`${picks.length} kampe`}
+          logos={logos}
+        >
+          <div className={s.fixtures}>
+            {picks.map((p) => (
+              <div key={p.fixture.id} className={s.fixtureRow}>
+                {[p.fixture.home, p.fixture.away].map((club, i) => (
+                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+                    <Watermark club={club} logos={logos} style={{ width: '26cqw', height: '26cqw', top: '-8cqw', ...(i === 0 ? { right: '-8cqw' } : { left: '-8cqw' }) }} />
+                    {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
+                    <Crest club={club} logos={logos} plate />
+                    {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+                <div className={s.fixtureTime} style={{ gridColumn: 2, gridRow: 1 }}>
+                  <b>{formatTime(p.fixture.kickoff)}</b>
+                  <small>{p.league}</small>
+                </div>
+              </div>
+            ))}
           </div>
-          <Foot left={`${picks.length} kampe`} right="Dansk tid" />
-        </Card>
+        </StoryCard>
         <Card story caption="Story (9:16)">
           <Head left={day} />
           <div className={s.pad} style={{ marginTop: '4cqw' }}>
@@ -388,15 +396,27 @@ function Week({ week, logos }: { week: WeekNumbers; logos: Logos }) {
           >
             {goalsOf(g).length > 0 && (
               <div className={s.axis}>
-                {goalsOf(g).map((i, k) => (
-                  <i key={k} className={(scoringSide(i) === 'home' ? g.home : g.away) === winnerOf(g) ? s.dotOn : s.dotOff} style={{ left: `${Math.min(100, (i.minute / 95) * 100)}%` }} />
+                {goalAxis(goalsOf(g)).map(({ i, left, level }, k) => (
+                  <span key={k}>
+                    <i className={(scoringSide(i) === 'home' ? g.home : g.away) === winnerOf(g) ? s.dotOn : s.dotOff} style={{ left: `${left}%` }} />
+                    <b className={s.minute} style={{ left: `${Math.max(3, Math.min(97, left))}%`, top: level ? '0.5cqw' : '5cqw' }}>
+                      {i.minute}&apos;
+                    </b>
+                  </span>
                 ))}
-                <span style={{ left: 0 }}>0&apos;</span>
-                <span style={{ left: '47%' }}>45&apos;</span>
-                <span style={{ right: 0 }}>90&apos;</span>
+                <span className={s.scale} style={{ left: 0 }}>
+                  0&apos;
+                </span>
+                <span className={s.scale} style={{ left: '47%' }}>
+                  45&apos;
+                </span>
+                <span className={s.scale} style={{ right: 0 }}>
+                  90&apos;
+                </span>
               </div>
             )}
-            {late >= 3 && (
+            <Scorers f={g} max={6} />
+            {late >= 3 && !goalsOf(g).some((i) => i.player) && (
               <p className={s.serif} style={{ fontSize: '6cqw', marginTop: '3cqw' }}>
                 {late} af målene faldt efter det 70. minut.
               </p>
