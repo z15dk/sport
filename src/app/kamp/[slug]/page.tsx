@@ -6,7 +6,7 @@ import { findExternalGame, findMatch, namesOf } from '../../../data/matches'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
-import { apiGameFor, apiHeadToHead, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
+import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -74,12 +74,17 @@ export default async function MatchPage({ params }: { params: Params }) {
   const external = findExternalGame(match) ?? apiGameFor(match, { home: namesOf(match.home.name), away: namesOf(match.away.name) })
   const game = external && !external.id.startsWith('db-') ? external : undefined
   // API-Sports' lookups at once, and never more than a moment's wait: what isn't ready is cached for the next visit
-  const [fromApi, fromEventsApi, lineups, h2hGames] = await Promise.all([
+  const [fromApi, fromEventsApi, lineups, h2hGames, injuries] = await Promise.all([
     game ? within(apiMatchExtra(game)) : undefined,
     game && !match.incidents?.length ? within(apiMatchEvents(game)) : undefined,
     game ? within(apiMatchLineups(game)) : undefined,
     game && (dbH2h?.length ?? 0) < 5 ? within(apiHeadToHead(game)) : undefined,
+    game?.sport === 'soccer' && game.id.startsWith('football-') ? within(apiInjuries(String(game.league.id))) : undefined,
   ])
+  // Injured and suspended players listed for this very match
+  const fixtureId = game ? Number(game.id.split('-').pop()) : undefined
+  const forMatch = injuries?.filter((i) => i.fixtureId === fixtureId) ?? []
+  const absent = game && forMatch.length ? { home: forMatch.filter((i) => i.teamId === game.home.id), away: forMatch.filter((i) => i.teamId === game.away.id) } : undefined
   const fromEvents = fromEventsApi
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved
   const saved = game ? archiveGameExtras(game) : undefined
@@ -143,9 +148,9 @@ export default async function MatchPage({ params }: { params: Params }) {
           { name: `${match.home.name} – ${match.away.name}`, path: paths.match(match.slug) },
         ])}
       />
-      <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats))} />
+      <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
       <JsonLd data={faqLd(faq)} />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

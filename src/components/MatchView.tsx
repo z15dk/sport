@@ -9,12 +9,13 @@ import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
 import { clubMatches, findMatch } from '../data/matches'
 import { matchPreview, matchReport } from '../data/matchStory'
-import { teamByName } from '../data/teams'
+import { teamByName, teamInLeague } from '../data/teams'
 import { useNow } from '../hooks/useNow'
 import type { Incident, Match } from '../types'
 import { StatBar } from './StatBar'
 import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
+import { alike } from '../data/aliases'
 import { Updated } from './Updated'
 import { MatchExtrasPanel } from './MatchExtras'
 import { PartnerLogo } from './PartnerLogo'
@@ -24,6 +25,8 @@ import { TeamBadge } from './TeamBadge'
 import { MatchTimeline } from './MatchTimeline'
 import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
+import { InjuryList } from './InjuryList'
+import type { Injury } from '../data/teamStats'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -45,14 +48,16 @@ interface Props {
   cup?: boolean
   /** Line-ups, home team first (server) */
   lineups?: Lineup[]
+  /** Injured and suspended players for this match (server) */
+  absent?: { home: Injury[]; away: Injury[] }
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} />
+  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -99,6 +104,7 @@ function MatchBody({
   stats,
   cup,
   lineups,
+  absent,
 }: {
   match: Match
   now: number
@@ -107,6 +113,7 @@ function MatchBody({
   stats?: MatchStats
   cup?: boolean
   lineups?: Lineup[]
+  absent?: { home: Injury[]; away: Injury[] }
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -128,7 +135,14 @@ function MatchBody({
   const form = extra?.form ?? seasonForm(match)
   // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
   // A cup has rounds, not a table
-  const table = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  const sourceTable = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  // The table under our clubs' own names ("Nykobing FC" from API-Sports is "Nykøbing FC"), so the report and the table say the same
+  const ourClubs = [...(homeStats?.division.clubs ?? []), ...(awayStats?.division.clubs ?? [])]
+  const ourName = (name: string) =>
+    ourClubs.some((c) => c.name === name)
+      ? name
+      : (ourClubs.find((c) => alike([c.name, c.originalName, c.apiName].filter((n): n is string => !!n), name))?.name ?? name)
+  const table = sourceTable && { ...sourceTable, rows: sourceTable.rows.map((r) => ({ ...r, name: ourName(r.name) })) }
 
   // The written report (after the match) or preview (before it), from the data above
   // A team's match right after this one: when it isn't played yet, this is the team's latest (so today's table and its next match fit)
@@ -241,20 +255,11 @@ function MatchBody({
       <h1 className="match-page__title">
         {home.name} – {away.name}
       </h1>
-      <p className="match-page__summary">{summary(match, homeStats, awayStats)}</p>
+      <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
-      {story && (
-        <section className="story" aria-labelledby="story-title">
-          <h2 id="story-title" className="story__title">
-            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
-          </h2>
-          {story.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
-        </section>
-      )}
 
+      {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
+      <div className="match-page__flow">
       {pairRow && (
         <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
           {(stats || timeline) && (
@@ -373,10 +378,23 @@ function MatchBody({
                         <tr key={`${r.rank}-${r.name}`} className={ours ? 'is-highlight' : undefined}>
                           <td className="num pos">{r.rank}</td>
                           <td>
-                            <span className="table__club">
-                              <TeamBadge name={r.name} src={r.logo} size={20} />
-                              {r.name}
-                            </span>
+                            {(() => {
+                              // Badge and name link to the club's page
+                              const team = (match.leagueSlug && teamInLeague(match.leagueSlug, r.name, match.sport)) || teamByName(r.name)
+                              const cell = (
+                                <>
+                                  <TeamBadge link={false} name={r.name} src={r.logo} size={20} />
+                                  {r.name}
+                                </>
+                              )
+                              return team ? (
+                                <Link className="table__club club-cell" href={paths.club(team.slug)}>
+                                  {cell}
+                                </Link>
+                              ) : (
+                                <span className="table__club">{cell}</span>
+                              )
+                            })()}
                           </td>
                           <td className="num">{r.played}</td>
                           <td className="num">{r.won}</td>
@@ -395,6 +413,19 @@ function MatchBody({
                 </table>
               </div>
               {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Matchly ud fra sæsonens kampe.</p>}
+            </section>
+          )}
+          {absent && absent.home.length + absent.away.length > 0 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">Skader og karantæner</h2>
+              <div className="absent-cols">
+                {(['home', 'away'] as const).map((side) => (
+                  <div key={side}>
+                    <h3 className="absent-cols__team">{side === 'home' ? home.name : away.name}</h3>
+                    {absent[side].length ? <InjuryList list={absent[side]} compact /> : <p className="muted small">Ingen meldt ude</p>}
+                  </div>
+                ))}
+              </div>
             </section>
           )}
         </div>
@@ -428,7 +459,7 @@ function MatchBody({
 
         </div>
       </div>
-      <div className="match-page__grid match-page__grid--wide">
+      {/* The teams' latest matches in the same two-column flow */}
         {form && (form.home.length > 0 || form.away.length > 0) && (
           <section className="sheet__section">
             <h2 className="sheet__title">Seneste kampe</h2>
@@ -438,7 +469,7 @@ function MatchBody({
             </div>
           </section>
         )}
-
+      {/* The head-to-heads in the same flow: beside the other boxes where there is room, full width on phones */}
         <section className="sheet__section">
           <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
           {h2h.length > 0 && (
@@ -488,6 +519,18 @@ function MatchBody({
           </ul>
         </section>
       </div>
+      {/* The written report or preview last: the facts, line-ups and statistics come first */}
+      {story && (
+        <section className="story" aria-labelledby="story-title">
+          <h2 id="story-title" className="story__title">
+            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
+          </h2>
+          {story.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
+        </section>
+      )}
     </article>
   )
 }

@@ -25,6 +25,10 @@ export function Footer() {
     danishCountry(a.country).localeCompare(danishCountry(b.country), 'da') || a.name.localeCompare(b.name, 'da')
   return (
     <footer className="footer">
+      {/* The logo as in the top bar, in white */}
+      <Link className="logo footer__logo" href="/" aria-label="Matchly – til forsiden">
+        Matchly<span className="logo__dot">.</span>
+      </Link>
       <nav className="footer__cols" aria-label="Sidefod">
         {sports.map((sport) => {
           const leagues = divisions.filter((d) => sportOf(d) === sport)

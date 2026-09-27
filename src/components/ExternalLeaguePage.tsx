@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import type { ExternalLeague } from '../lib/apisports'
 import type { TableRow } from '../data/matchExtra'
@@ -5,6 +6,7 @@ import type { PastMatch } from '../data/matchInsights'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
+import { LiveNow } from './LiveNow'
 import { Updated } from './Updated'
 import { CalendarButton } from './CalendarButton'
 import { LeagueLeaders } from './LeagueLeaders'
@@ -40,10 +42,12 @@ interface Props {
   rounds?: { name: string; matches: Match[] }[]
   /** Top scorers, assists and cards */
   leaders?: Leaders
+  /** "Seneste nyheder" about the tournament */
+  news?: ReactNode
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats, news }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -93,6 +97,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         )}
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={league.key} name={league.name} />
+        <LiveNow matches={upcoming} />
 
         {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
         {rounds?.map((r) => (
@@ -188,6 +193,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
 
+        {news}
         <AdSlot placement="feed" />
 
         {recent.length > 0 && (

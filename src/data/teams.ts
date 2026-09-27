@@ -56,18 +56,20 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     if (taken.has(slug) || resemblesOurClub(name)) slug = `${slug}-${slugify(e.league)}`
     if (taken.has(slug)) slug = `${slug}-${slugify(e.country ?? '')}`
     taken.add(slug)
-    out.set(key, { slug, name, ...e, names: [name] })
+    const team: TeamEntry = { slug, name, ...e, names: [name] }
+    out.set(key, team)
+    if (e.leagueSlug) (inLeagueSlug.get(e.leagueSlug) ?? inLeagueSlug.set(e.leagueSlug, []).get(e.leagueSlug)!).push(team)
   }
+  // The teams by league, so a lookup doesn't go through every team
+  const inLeagueSlug = new Map<string, TeamEntry[]>()
   // A league API-Sports lists under two names (A-Liga / Kvindeliga) is one league
-  const byLeague = (leagueSlug: string) => {
-    const keys = new Set(sameLeagueKeys(leagueSlug))
-    return [...out.values()].filter((t) => t.leagueSlug && keys.has(t.leagueSlug))
-  }
+  const byLeague = (leagueSlug: string) => sameLeagueKeys(leagueSlug).flatMap((k) => inLeagueSlug.get(k) ?? [])
   // The starting tables first, with the leagues' own names for the teams (once, under the league's main key)
   const tables = new Set<object>()
   // The tables' other names for a team, only for recognising it in API-Sports' games
   const aliases = new Map<TeamEntry, string[]>()
   const known = (t: TeamEntry) => [...(t.names ?? [t.name]), ...(aliases.get(t) ?? [])]
+  const t0 = Date.now()
   for (const [key, b] of Object.entries(BASELINES)) {
     if (tables.has(b)) continue
     tables.add(b)
@@ -78,7 +80,17 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     }
   }
   // A team from API-Sports (a game or a table): our club, a team we have in that league, or a new one
+  // A team plays many games: each team (league and name) is placed once
+  const placed = new Set<string>()
   const place = (name: string, logo: string | undefined, e: { sport: SportId; league: string; leagueSlug: string; country?: string }, g?: ExternalGame) => {
+    const seen = `${e.leagueSlug}|${name}`
+    if (placed.has(seen)) {
+      // Only a logo the first game lacked
+      const t = logo && out.get(seen)
+      if (t) t.logo ??= logo
+      return
+    }
+    placed.add(seen)
     // Our own clubs in a cup or the Champions League keep their own page, as does a team with exactly one of our clubs' names
     if (ourClubInGame(g ?? { sport: e.sport, league: { id: '', name: e.league, country: e.country } }, name)) return
     // The same team in a starting table: API-Sports' name joins it ("Brondby W" -> "Brøndby IF")
@@ -99,15 +111,23 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     }
     add(name, { ...e, logo })
   }
+  const t1 = Date.now()
+  let games = 0
   for (const g of getRealData()?.external ?? []) {
+    games++
     if (divisionOfGame(g)) continue
     const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country }
     for (const side of [g.home, g.away]) place(side.name, side.logo, e, g)
   }
   // The rest of the leagues' tables: teams without a game in the fetched days
+  const t2 = Date.now()
   for (const [leagueSlug, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
     for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: l.league, leagueSlug, country: l.country })
   }
+  const t3 = Date.now()
+  // Where the time goes when the register is slow (server log, see realdata.ts warm())
+  if (typeof window === 'undefined' && t3 - t0 > 500)
+    console.log(`[data] klubregister: udgangspunkter ${t1 - t0} ms, ${games} kampe ${t2 - t1} ms, tabeller ${t3 - t2} ms, ${placed.size} hold`)
   return [...out.values()]
 }
 
@@ -143,6 +163,18 @@ function teams() {
 export const allTeams = () => teams().list
 export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 export const teamByName = (name: string) => teams().byName.get(name)
+
+/** For a women's team of one of our clubs ("FC Copenhagen W" in the A-Liga): that club's id */
+export function womenOf(team: TeamEntry): string | undefined {
+  if (team.season) return undefined
+  if (!/\b(w|women|kvinder|dame|damer)\b/i.test(team.name) && !/kvinde|women|frauen|a-liga|damallsvenskan|toppserien/i.test(team.league)) return undefined
+  return ourClubByName(clubPart(team.name), team.sport)?.club.id
+}
+
+/** The women's team of one of our clubs, by the club's id */
+export function womenTeamOf(clubId: string): TeamEntry | undefined {
+  return teams().list.find((t) => womenOf(t) === clubId)
+}
 
 /** A team in one of API-Sports' leagues, by a name from that league's data or table */
 export function teamInLeague(leagueSlug: string, name: string, sport?: SportId): TeamEntry | undefined {

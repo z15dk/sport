@@ -15,9 +15,23 @@ const partsFmt = new Intl.DateTimeFormat('en-US', {
   second: '2-digit',
 })
 
+// Danish time is a whole number of hours from UTC, so the date only changes
+// on the hour: one lookup per hour instead of a (slow) Intl call per date
+const HOUR = 3_600_000
+const isoByHour = new Map<number, string>()
+
 /** YYYY-MM-DD in Danish time */
 export function isoDate(d: Date | number): string {
-  return isoFmt.format(d)
+  const ms = typeof d === 'number' ? d : d.getTime()
+  if (Number.isNaN(ms)) return isoFmt.format(d)
+  const hour = Math.floor(ms / HOUR)
+  let date = isoByHour.get(hour)
+  if (date === undefined) {
+    date = isoFmt.format(hour * HOUR)
+    if (isoByHour.size > 200_000) isoByHour.clear()
+    isoByHour.set(hour, date)
+  }
+  return date
 }
 
 export function isValidIsoDate(s: string | undefined): s is string {

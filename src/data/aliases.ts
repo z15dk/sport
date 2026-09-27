@@ -35,8 +35,40 @@ export const SEARCH_NAMES: Record<string, string> = {
   hikh: 'Hellerup IK',
 }
 
+/** Short names other sources use, which no loose match finds ("Wolves" is Wolverhampton Wanderers) */
+export const OTHER_NAMES: Record<string, string[]> = {
+  // Akademisk Boldklub from Gladsaxe; "Copenhagen" alone would make it FC København
+  ab: ['AB Copenhagen', 'AB Gladsaxe', 'Akademisk Boldklub', 'Akademisk BK'],
+  'e-wol': ['Wolves'],
+  'e-qpr': ['QPR'],
+  'e-wba': ['West Brom'],
+  'e-mci': ['Man City'],
+  'e-mun': ['Man United', 'Man Utd'],
+  'e-shu': ['Sheffield Utd'],
+  'e-nfo': ["Nott'm Forest", 'Nottingham'],
+  'e-tot': ['Spurs'],
+}
+
+/** Every name a club goes by: ours, the original, TheSportsDB's and the short ones */
+export function clubNames(club: { id: string; name: string; originalName?: string; apiName?: string }): string[] {
+  return [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id], ...(OTHER_NAMES[club.id] ?? [])].filter((n): n is string => !!n)
+}
+
+// normalize() runs for every name in every match lookup: remembered, as the same names come again and again
+const normalizeMemo = new Map<string, string>()
+
 /** Lowercase, no accents or Danish letters, no punctuation or common club prefixes */
 export function normalize(name: string) {
+  let n = normalizeMemo.get(name)
+  if (n === undefined) {
+    n = normalizeOnce(name)
+    if (normalizeMemo.size > 50_000) normalizeMemo.clear()
+    normalizeMemo.set(name, n)
+  }
+  return n
+}
+
+function normalizeOnce(name: string) {
   return ` ${name
     .toLowerCase()
     .replace(/æ/g, 'ae')
@@ -79,11 +111,25 @@ export const nameWords = (name: string) => {
 const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)))
 
 /** Whether one of a club's names matches a name from another source ("HV 71" / "HV71", "Djurgarden" / "Djurgårdens IF") */
+/** Generic words that still tell two clubs of one city apart ("Manchester City" / "Manchester United") */
+const DISTINCT = new Set(['city', 'united', 'real', 'sporting', 'athletic', 'county', 'town', 'rovers', 'wanderers'])
+const distinctWords = (name: string) => fold(name).split(' ').filter((w) => DISTINCT.has(w))
+
+/** Names that only ever match exactly: their one long word is another club's ("AB Copenhagen" is not FC Copenhagen) */
+const EXACT_ONLY = new Set(['AB Copenhagen', 'AB Gladsaxe'].map((n) => fold(n)))
+
 export function alike(names: string[], other: string) {
-  const compact = fold(other).replace(/ /g, '')
+  const otherFold = fold(other)
+  if (EXACT_ONLY.has(otherFold)) return names.some((n) => fold(n) === otherFold)
+  names = names.filter((n) => !EXACT_ONLY.has(fold(n)) || fold(n) === otherFold)
+  const compact = otherFold.replace(/ /g, '')
   const theirs = nameWords(other)
+  const theirDistinct = distinctWords(other)
   return names.some((n) => {
     if (compact.length >= 3 && fold(n).replace(/ /g, '') === compact) return true
+    // Both named with such a word, and not the same one: two different clubs
+    const ourDistinct = distinctWords(n)
+    if (ourDistinct.length && theirDistinct.length && !ourDistinct.some((w) => theirDistinct.includes(w))) return false
     // Every word of the shorter name is in the other ("Hamburg" / "Hamburger SV", not "Deportivo Alavés" / "Deportivo de A Coruña")
     const ours = nameWords(n)
     const [few, many] = ours.length <= theirs.length ? [ours, theirs] : [theirs, ours]

@@ -57,6 +57,12 @@ export function MatchTimeline({ match }: { match: Match }) {
             style={{ left: at(i.minute) }}
             title={`${i.approx ? 'ca. ' : ''}${i.minute}' ${WORD[i.kind]}${i.player ? ` – ${i.player}` : ''}`}
           >
+            {/* The scorer's surname, when the sources have it (furthest from the line) */}
+            {i.player && i.kind !== 'yellow' && i.kind !== 'red' && (
+              <b className="timeline-graphic__player" aria-hidden>
+                {i.player.split(' ').at(-1)}
+              </b>
+            )}
             {i.kind === 'yellow' || i.kind === 'red' ? <span className={i.kind === 'red' ? 'red-card' : 'yellow-card'} aria-hidden /> : <span aria-hidden>{ICON[i.kind]}</span>}
             <em>
               {i.approx ? 'ca. ' : ''}

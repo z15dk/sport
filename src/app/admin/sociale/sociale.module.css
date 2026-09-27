@@ -200,3 +200,29 @@
 .fixtureTime { background: #0f110c; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1cqw; gap: 0.4cqw; }
 .fixtureTime b { font-family: var(--display); font-weight: 800; font-size: 5.4cqw; line-height: 1; }
 .fixtureTime small { font-size: 2.3cqw; opacity: 0.75; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* the same rows on the story: edge to edge and a little bigger */
+.storyRow { border-radius: 0; grid-template-columns: 1fr 17cqw 1fr; min-height: 20cqw; }
+.storyRow .fixtureTeam { font-size: 4.2cqw; padding: 2.4cqw 2.6cqw; }
+.storyRow .fixtureTime b { font-size: 6.2cqw; }
+.storyRow .fixtureTime small { font-size: 2.8cqw; }
+
+/* Matchly's M in neon lime outline, big, as the background of the day's story */
+.wmM {
+  position: absolute !important;
+  left: -12cqw;
+  bottom: 10cqw;
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 215cqw;
+  line-height: 0.8;
+  color: transparent;
+  -webkit-text-stroke: 0.8cqw #c6f135;
+  pointer-events: none;
+}
+
+/* the same neon M on the dark programme card, with a glow */
+.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; opacity: 0.35; filter: drop-shadow(0 0 1.2cqw rgba(198, 241, 53, 0.4)); }
+/* the story is taller: a bigger M */
+.story .wmMGreen { left: -12cqw; bottom: 14cqw; font-size: 215cqw; }

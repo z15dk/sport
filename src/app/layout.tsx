@@ -18,7 +18,8 @@ export const metadata: Metadata = {
   // Fictional data must not end up in search results or AI answers
   robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
   openGraph: { siteName: SITE_NAME, locale: 'da_DK', type: 'website' },
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
 }
 
 // Logos are found in the background after deploy, so pages are rendered per request to pick them up

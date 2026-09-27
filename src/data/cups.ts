@@ -1,7 +1,7 @@
 import type { SportId } from '../types'
 import type { ExternalGame } from './external'
 import { externalLeagueKey } from './external'
-import { SEARCH_NAMES, alike, nameWords, normalize } from './aliases'
+import { SEARCH_NAMES, alike, nameWords, normalize, clubNames } from './aliases'
 import { seasonClubs } from './season'
 import { sportOf } from './leagues'
 import { countryKey } from './channels'
@@ -58,12 +58,12 @@ export function ourClubInCup(name: string, cup: Cup) {
         ({ club, division }) =>
           sportOf(division) === cup.sport &&
           countryKey(division.country) === countryKey(cup.country) &&
-          alike([club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].filter((n): n is string => !!n), name) &&
+          alike(clubNames(club), name) &&
           // Every word of the name is one of the club's ("Aarhus Fremad" is not AGF, which also goes by "Aarhus")
-          nameWords(name).every((w) => [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id]].some((n) => n && nameWords(n).includes(w))),
+          nameWords(name).every((w) => clubNames(club).some((n) => nameWords(n).includes(w))),
       )
   // The same name wins ("Aarhus Fremad" is Aarhus Fremad, not also AGF, which goes by "Aarhus")
-  const exact = found.filter(({ club }) => [club.name, club.originalName, club.apiName].some((n) => n && normalize(n) === normalize(name)))
+  const exact = found.filter(({ club }) => clubNames(club).some((n) => normalize(n) === normalize(name)))
   const club = exact.length === 1 ? exact[0] : found.length === 1 ? found[0] : undefined
   memo.map.set(key, club)
   return club
@@ -86,16 +86,29 @@ export function wholeSeason(g: Pick<ExternalGame, 'sport' | 'league'>): boolean 
 export const NOT_FIRST_TEAM = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q|ii|iii|u\s?\d{2}|youth|junior|reserves?)\b|\s2$/i
 
 /** Our club with exactly this name (ours, TheSportsDB's or API-Sports'), in any country: "Real Madrid" in the Champions League is La Liga's Real Madrid */
-let exactMemo: { clubs: ReturnType<typeof seasonClubs>; map: Map<string, ReturnType<typeof seasonClubs>[number] | undefined> } | undefined
+let exactMemo:
+  | { clubs: ReturnType<typeof seasonClubs>; map: Map<string, ReturnType<typeof seasonClubs>[number] | undefined>; byName?: Map<string, ReturnType<typeof seasonClubs>> }
+  | undefined
 export function ourClubByName(name: string, sport: SportId) {
   const clubs = seasonClubs()
   if (exactMemo?.clubs !== clubs) exactMemo = { clubs, map: new Map() }
   const key = `${sport}|${name}`
   if (exactMemo.map.has(key)) return exactMemo.map.get(key)
   const n = normalize(name)
-  const found = n
-    ? clubs.filter(({ club, division }) => sportOf(division) === sport && [club.name, club.originalName, club.apiName].some((x) => x && normalize(x) === n))
-    : []
+  // Our clubs by their normalized names, built once per season (not every club's names again for every team)
+  if (!exactMemo.byName) {
+    exactMemo.byName = new Map()
+    for (const entry of clubs) {
+      const names = new Set(clubNames(entry.club).filter((x) => x !== SEARCH_NAMES[entry.club.id]).map(normalize))
+      for (const x of names) {
+        const k = `${sportOf(entry.division)}|${x}`
+        const list = exactMemo.byName.get(k)
+        if (list) list.push(entry)
+        else exactMemo.byName.set(k, [entry])
+      }
+    }
+  }
+  const found = n ? (exactMemo.byName.get(`${sport}|${n}`) ?? []) : []
   const club = found.length === 1 ? found[0] : undefined
   exactMemo.map.set(key, club)
   return club

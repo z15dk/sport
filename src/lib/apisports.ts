@@ -13,7 +13,9 @@ import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
-import { archiveEvents, archiveMissingEvents, archiveSeason } from './archive'
+import type { PlayerData, PlayerSeasonRow } from '../data/player'
+import type { Injury, Periods, TeamStats } from '../data/teamStats'
+import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -343,7 +345,7 @@ type Store = Record<string, ApiState>
 const file = (): string => process.env.APISPORTS_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'apisports.json')
 
 // On globalThis: the job and the pages load separate copies of this module
-const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[] } }
+const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string } }
 const mem = (holder.__scorelineApiSports ??= { store: {}, mtime: 0, readAt: 0 })
 
 function load() {
@@ -391,8 +393,26 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
       for (const d of fetched) for (const g of d.games) if (days.has(isoDate(new Date(g.kickoff)))) byId.set(g.id, g)
     }
     mem.games = [...byId.values()].sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    mem.gamesVersion = gamesVersion(mem.games)
   }
-  return { version: String(Math.round(mem.mtime)), games: mem.games }
+  // At least every 5 minutes anyway (the minute of live games outside our leagues)
+  return { version: `${mem.gamesVersion}|${Math.floor(Date.now() / 300_000)}`, games: mem.games }
+}
+
+/**
+ * What the pages show of the games, as one short string. The file is saved
+ * every 30 seconds by the live job even when nothing changed; a new version
+ * makes the server rebuild everything and every open page reload, so the
+ * version only changes with the games: kick-off, state, score, goals and cards,
+ * and the live minute only in our leagues and cups (the rest every 5 minutes).
+ */
+function gamesVersion(games: ExternalGame[]) {
+  const h = createHash('sha1')
+  for (const g of games) {
+    const ours = !!divisionOfGame(g) || !!cupOfGame(g) || wholeSeason(g)
+    h.update(`${g.id}|${g.kickoff}|${g.state}|${g.homeScore ?? ''}-${g.awayScore ?? ''}|${g.incidents?.length ?? 0}|${ours ? (g.label ?? '') : ''}\n`)
+  }
+  return h.digest('hex').slice(0, 16)
 }
 
 const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || wholeSeason(g))
@@ -895,7 +915,23 @@ async function tick() {
         } catch {
           break
         }
+        savePlayerGames(response, ids, true)
         changed = true
+        await sleep(300)
+      }
+    }
+    // Every player's numbers for saved matches (the players' pages), 20 matches a request, down to the reserve
+    {
+      const s = mem.store.football
+      for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
+        const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
+        if (remaining < PAID_RESERVE) break
+        const ids = archiveMissingPlayers(20)
+        if (!ids.length) break
+        const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
+        if (error) break
+        // Every match asked for is marked, also those the answer left out or had no players for
+        savePlayerGames(response, ids, true)
         await sleep(300)
       }
     }
@@ -983,7 +1019,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1237,10 +1273,69 @@ function eventsDue(s: ApiState): string[] {
   return [...due]
 }
 
+/** Every player's numbers in one match, from a /fixtures?ids answer */
+function toPlayerGames(r: Raw): PlayerGame[] {
+  const eventId = `football-${r.fixture?.id}`
+  const homeId = num(r.teams?.home?.id)
+  const awayId = num(r.teams?.away?.id)
+  return ((r.players ?? []) as Raw[]).flatMap((t) =>
+    ((t.players ?? []) as Raw[])
+      .map((pl): PlayerGame | undefined => {
+        const st = pl.statistics?.[0] ?? {}
+        const id = num(pl.player?.id)
+        if (!id || !pl.player?.name) return undefined
+        const minutes = num(st.games?.minutes)
+        // Unused substitutes are left out
+        if (!minutes) return undefined
+        const teamId = num(t.team?.id)
+        return {
+          eventId,
+          playerId: id,
+          name: String(pl.player.name),
+          teamId,
+          team: String(t.team?.name ?? ''),
+          side: teamId === homeId ? 'home' : teamId === awayId ? 'away' : undefined,
+          position: st.games?.position ?? undefined,
+          minutes,
+          rating: num(st.games?.rating),
+          goals: num(st.goals?.total) ?? 0,
+          assists: num(st.goals?.assists) ?? 0,
+          yellow: num(st.cards?.yellow) ?? 0,
+          red: num(st.cards?.red) ?? 0,
+          shots: num(st.shots?.total),
+          shotsOn: num(st.shots?.on),
+          passes: num(st.passes?.total),
+          keyPasses: num(st.passes?.key),
+          saves: num(st.goals?.saves),
+          conceded: num(st.goals?.conceded),
+          substitute: !!st.games?.substitute,
+          captain: !!st.games?.captain,
+        }
+      })
+      .filter((x): x is PlayerGame => !!x),
+  )
+}
+
+/** Saves the players' numbers of the finished matches in an answer; failures only cost the extra */
+function savePlayerGames(response: Raw[] | undefined, checked: string[], saved = false) {
+  // Saved matches are finished; otherwise only the finished ones in the answer count (a live match is fetched again)
+  const done = (response ?? []).filter((r) => saved || ['FT', 'AET', 'PEN'].includes(String(r.fixture?.status?.short ?? '')))
+  try {
+    archivePlayerGames(
+      done.flatMap(toPlayerGames),
+      saved ? checked : checked.filter((id) => done.some((r) => `football-${r.fixture?.id}` === id)),
+    )
+  } catch {
+    // Fetched again with the backfill
+  }
+}
+
 async function fetchEvents(api: Api, ids: string[]) {
   const s = mem.store[api]!
   const { response, error } = await call(api, `/fixtures?ids=${ids.join('-')}&${TZ}`)
   if (error) return
+  // The players' numbers come with them: saved in the statistics bank for the players' pages
+  if (api === 'football') savePlayerGames(response, ids.map((x) => `football-${x}`))
   const store = extrasStore()
   let statsChanged = false
   for (const r of response ?? []) {
@@ -1605,7 +1700,8 @@ export function apiLeagueIdOf(divisionId: string): string | undefined {
 /** A league's top scorers, assists and cards this season (four requests, kept 6 hours; paid plans) */
 export async function apiLeagueLeaders(leagueId: string, season = SEASON.slice(0, 4)): Promise<Leaders | undefined> {
   const entry = extrasStore().entries[`football|leaders|${leagueId}|${season}`]
-  if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000) return entry.leaders
+  // Lists saved before they had player ids are fetched again, so the names can link to the players' pages
+  if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000 && entry.leaders.scorers.every((r) => r.id)) return entry.leaders
   // Stale: shown while new lists are fetched in the background; nothing yet: fetched now
   const fresh = fetchLeaders(leagueId, season).catch(() => undefined)
   return entry?.leaders ?? (await fresh)
@@ -1639,6 +1735,7 @@ async function fetchLeadersNow(api: Api, key: string, leagueId: string, season: 
       .map((r) => {
         const st = r.statistics?.[0] ?? {}
         return {
+          id: num(r.player?.id),
           name: String(r.player?.name ?? ''),
           photo: r.player?.photo ?? undefined,
           team: String(st.team?.name ?? ''),
@@ -1685,4 +1782,245 @@ export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; h
   if (both) return both
   const either = [...new Map(same.filter((g) => alike(home, g.home.name) || alike(away, g.away.name)).map((g) => [g.id, g])).values()]
   return either.length === 1 ? either[0] : undefined
+}
+
+/**
+ * A football player's page: profile and statistics per competition for this
+ * season and the one before, transfers and trophies (4 requests, kept a day;
+ * shown old while new ones are fetched). Only on the paid plan, above the
+ * reserve kept for live games.
+ */
+export async function apiPlayer(id: number): Promise<PlayerData | undefined> {
+  const key = `football|player|${id}`
+  const entry = extrasStore().entries[key]
+  if (entry?.player && Date.now() - entry.fetchedAt < 86_400_000) return entry.player
+  const fresh = fetchPlayer(id).catch(() => undefined)
+  return entry?.player ?? (await fresh)
+}
+
+const playersRunning = new Set<number>()
+async function fetchPlayer(id: number): Promise<PlayerData | undefined> {
+  const api: Api = 'football'
+  const key = `${api}|player|${id}`
+  const store = extrasStore()
+  if (playersRunning.has(id)) return store.entries[key]?.player
+  playersRunning.add(id)
+  try {
+    load()
+    const s = mem.store[api]
+    if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.player
+    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+    if (remaining <= PAID_RESERVE) return store.entries[key]?.player
+    const season = Number(SEASON.slice(0, 4))
+    const [now, before, transfers, trophies] = await Promise.all([
+      call(api, `/players?id=${id}&season=${season}`, 8_000),
+      call(api, `/players?id=${id}&season=${season - 1}`, 8_000),
+      call(api, `/transfers?player=${id}`, 8_000),
+      call(api, `/trophies?player=${id}`, 8_000),
+    ])
+    const first = now.response?.[0] ?? before.response?.[0]
+    if (!first?.player) return store.entries[key]?.player
+    const p = first.player
+    const rows = (r: Raw | undefined): PlayerSeasonRow[] =>
+      (r?.statistics ?? [])
+        .map((st: Raw) => ({
+          team: String(st.team?.name ?? ''),
+          teamId: num(st.team?.id),
+          teamLogo: realLogo(st.team?.logo ?? undefined),
+          league: String(st.league?.name ?? ''),
+          leagueId: num(st.league?.id),
+          leagueLogo: st.league?.logo ?? undefined,
+          country: st.league?.country ?? undefined,
+          season: Number(st.league?.season ?? 0),
+          games: num(st.games?.appearences) ?? 0,
+          lineups: num(st.games?.lineups),
+          minutes: num(st.games?.minutes),
+          number: num(st.games?.number),
+          position: st.games?.position ?? undefined,
+          rating: num(st.games?.rating),
+          captain: !!st.games?.captain,
+          goals: num(st.goals?.total) ?? 0,
+          assists: num(st.goals?.assists) ?? 0,
+          conceded: num(st.goals?.conceded),
+          saves: num(st.goals?.saves),
+          shots: num(st.shots?.total),
+          shotsOn: num(st.shots?.on),
+          passes: num(st.passes?.total),
+          keyPasses: num(st.passes?.key),
+          passAccuracy: num(st.passes?.accuracy),
+          tackles: num(st.tackles?.total),
+          interceptions: num(st.tackles?.interceptions),
+          duels: num(st.duels?.total),
+          duelsWon: num(st.duels?.won),
+          dribbles: num(st.dribbles?.attempts),
+          dribblesWon: num(st.dribbles?.success),
+          foulsDrawn: num(st.fouls?.drawn),
+          foulsCommitted: num(st.fouls?.committed),
+          yellow: (num(st.cards?.yellow) ?? 0) + (num(st.cards?.yellowred) ?? 0),
+          red: (num(st.cards?.red) ?? 0) + (num(st.cards?.yellowred) ?? 0),
+          penScored: num(st.penalty?.scored),
+          penMissed: num(st.penalty?.missed),
+        }))
+        .filter((x: PlayerSeasonRow) => x.league && (x.games > 0 || x.minutes))
+    const player: PlayerData = {
+      id,
+      name: String(p.name ?? ''),
+      firstname: p.firstname ?? undefined,
+      lastname: p.lastname ?? undefined,
+      age: num(p.age),
+      birthDate: p.birth?.date ?? undefined,
+      birthPlace: p.birth?.place ?? undefined,
+      birthCountry: p.birth?.country ?? undefined,
+      nationality: p.nationality ?? undefined,
+      height: p.height ?? undefined,
+      weight: p.weight ?? undefined,
+      injured: !!p.injured,
+      photo: p.photo ?? undefined,
+      seasons: [...rows(now.response?.[0]), ...rows(before.response?.[0])],
+      transfers: ((transfers.response?.[0]?.transfers ?? []) as Raw[])
+        .map((t) => ({
+          date: String(t.date ?? ''),
+          type: t.type ?? undefined,
+          from: String(t.teams?.out?.name ?? ''),
+          fromLogo: realLogo(t.teams?.out?.logo ?? undefined),
+          to: String(t.teams?.in?.name ?? ''),
+          toLogo: realLogo(t.teams?.in?.logo ?? undefined),
+        }))
+        .filter((t) => t.date && t.to)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+      trophies: ((trophies.response ?? []) as Raw[])
+        .map((t) => ({ league: String(t.league ?? ''), country: t.country ?? undefined, season: String(t.season ?? ''), place: String(t.place ?? '') }))
+        .filter((t) => t.league && t.place),
+    }
+    store.entries[key] = { fetchedAt: Date.now(), player }
+    saveExtras()
+    return player
+  } finally {
+    playersRunning.delete(id)
+  }
+}
+
+// ---------------------------------------------------------------- team statistics and injuries
+
+/** The source's team id for one of our clubs in a league: from the league's saved games */
+export function apiTeamIdOf(leagueId: string, names: string[]): number | undefined {
+  load()
+  const s = mem.store.football
+  if (!s) return undefined
+  const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()].filter((g) => String(g.league.id) === String(leagueId))
+  for (const g of games) {
+    for (const t of [g.home, g.away]) if (t.id && alike(names, t.name)) return t.id
+  }
+  return undefined
+}
+
+/** Spends one request on an extra when the paid plan has calls above the reserve */
+function extraAllowed(api: Api) {
+  load()
+  const s = mem.store[api]
+  if (!keyFor(api) || !isPaid(s)) return false
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+  return remaining > PAID_RESERVE
+}
+
+function saveExtrasSoon() {
+  try {
+    saveExtras()
+  } catch {
+    // kept in memory
+  }
+}
+
+const extrasRunning = new Set<string>()
+/** A cached extra: fresh within `maxAge`; stale ones are shown while a new one is fetched in the background */
+async function cachedExtra<T>(key: string, maxAge: number, pick: (e: ExtraStore['entries'][string]) => T | undefined, fetchNow: () => Promise<T | undefined>): Promise<T | undefined> {
+  const entry = extrasStore().entries[key]
+  const have = entry ? pick(entry) : undefined
+  if (have !== undefined && Date.now() - entry!.fetchedAt < maxAge) return have
+  const fresh = (async () => {
+    if (extrasRunning.has(key) || !extraAllowed('football')) return have
+    extrasRunning.add(key)
+    try {
+      return (await fetchNow()) ?? have
+    } finally {
+      extrasRunning.delete(key)
+    }
+  })().catch(() => have)
+  return have ?? (await fresh)
+}
+
+const periods = (o: Raw | undefined): Periods =>
+  Object.entries(o ?? {})
+    .filter(([k]) => /^\d+-\d+$/.test(k))
+    .map(([period, v]) => ({ period, value: Number((v as Raw)?.total ?? 0) }))
+const hat = (o: Raw | undefined) => ({ home: Number(o?.home ?? 0), away: Number(o?.away ?? 0), total: Number(o?.total ?? 0) })
+
+/** A team's season statistics in a league (one request, kept a day) */
+export async function apiTeamStats(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): Promise<TeamStats | undefined> {
+  const key = `football|teamstats|${leagueId}|${season}|${teamId}`
+  return cachedExtra(key, 86_400_000, (e) => e.teamStats, async () => {
+    const { response, error } = await call('football', `/teams/statistics?league=${leagueId}&season=${season}&team=${teamId}`, 8_000)
+    const r = (response as unknown as Raw | undefined) ?? undefined
+    if (error || !r || Array.isArray(r) || !r.fixtures) return undefined
+    const stats: TeamStats = {
+      played: hat(r.fixtures?.played),
+      wins: hat(r.fixtures?.wins),
+      draws: hat(r.fixtures?.draws),
+      loses: hat(r.fixtures?.loses),
+      goalsFor: { ...hat(r.goals?.for?.total), average: num(r.goals?.for?.average?.total), periods: periods(r.goals?.for?.minute) },
+      goalsAgainst: { ...hat(r.goals?.against?.total), average: num(r.goals?.against?.average?.total), periods: periods(r.goals?.against?.minute) },
+      cleanSheets: hat(r.clean_sheet),
+      failedToScore: hat(r.failed_to_score),
+      biggestWin: { home: r.biggest?.wins?.home ?? undefined, away: r.biggest?.wins?.away ?? undefined },
+      biggestLoss: { home: r.biggest?.loses?.home ?? undefined, away: r.biggest?.loses?.away ?? undefined },
+      streak: { wins: Number(r.biggest?.streak?.wins ?? 0), draws: Number(r.biggest?.streak?.draws ?? 0), loses: Number(r.biggest?.streak?.loses ?? 0) },
+      penalty: { scored: Number(r.penalty?.scored?.total ?? 0), missed: Number(r.penalty?.missed?.total ?? 0), total: Number(r.penalty?.total ?? 0) },
+      yellow: periods(r.cards?.yellow),
+      red: periods(r.cards?.red),
+      formations: ((r.lineups ?? []) as Raw[]).map((l) => ({ formation: String(l.formation ?? ''), played: Number(l.played ?? 0) })).filter((l) => l.formation),
+      form: r.form ?? undefined,
+    }
+    const store = extrasStore()
+    store.entries[key] = { fetchedAt: Date.now(), teamStats: stats }
+    saveExtrasSoon()
+    return stats
+  })
+}
+
+/** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
+export async function apiInjuries(leagueId: string, season = SEASON.slice(0, 4)): Promise<Injury[] | undefined> {
+  const key = `football|injuries|${leagueId}|${season}`
+  return cachedExtra(key, 6 * 3_600_000, (e) => e.injuries, async () => {
+    const { response, error } = await call('football', `/injuries?league=${leagueId}&season=${season}`, 10_000)
+    if (error || !Array.isArray(response)) return undefined
+    const from = Date.now() - 30 * 86_400_000
+    const injuries: Injury[] = response
+      .map((r) => ({
+        playerId: num(r.player?.id),
+        player: String(r.player?.name ?? ''),
+        photo: r.player?.photo ?? undefined,
+        teamId: num(r.team?.id),
+        team: String(r.team?.name ?? ''),
+        type: String(r.player?.type ?? ''),
+        reason: String(r.player?.reason ?? ''),
+        fixtureId: num(r.fixture?.id),
+        date: String(r.fixture?.date ?? ''),
+      }))
+      // Only the last month and what is ahead: the list covers the whole season
+      .filter((i) => i.player && Date.parse(i.date) >= from)
+    const store = extrasStore()
+    store.entries[key] = { fetchedAt: Date.now(), injuries }
+    saveExtrasSoon()
+    return injuries
+  })
+}
+
+/** A team's missing players for its next match (or the one being played), newest list of the source */
+export function injuriesForTeam(injuries: Injury[] | undefined, teamId: number | undefined, now = Date.now()): { date?: string; list: Injury[] } {
+  if (!injuries || !teamId) return { list: [] }
+  const own = injuries.filter((i) => i.teamId === teamId)
+  // The team's next match with a list (from 3 hours back, so a match being played counts)
+  const dates = [...new Set(own.map((i) => i.date))].filter((d) => Date.parse(d) >= now - 3 * 3_600_000).sort()
+  const date = dates[0]
+  return { date, list: date ? own.filter((i) => i.date === date) : [] }
 }

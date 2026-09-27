@@ -18,10 +18,14 @@ const PAGE = 8
 type Tab = 'finished' | 'upcoming'
 
 /** Club fixtures and results, as a paged list or a month calendar */
-export function ClubMatches({ clubName, initialNow }: { clubName: string; initialNow: number }) {
+/**
+ * `matches` gives the list for teams outside our leagues (their games and the
+ * ones our statistics bank has saved); our clubs' come from the season.
+ */
+export function ClubMatches({ clubName, initialNow, matches: given }: { clubName: string; initialNow: number; matches?: Match[] }) {
   const now = useNow(30_000, initialNow)
   const dataVersion = getRealData()?.version
-  const all = useMemo(() => clubMatches(clubName, now), [clubName, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const all = useMemo(() => given ?? clubMatches(clubName, now), [given, clubName, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const competitions = useMemo(() => [...new Set(all.map((m) => m.league))], [all])
   const [competition, setCompetition] = useState('all')
   const [view, setView] = useState<'list' | 'calendar'>('list')
@@ -154,7 +158,8 @@ function ClubMatchRow({ match, clubName }: { match: Match; clubName: string }) {
   }
   return (
     <li className={`cm-row cm-row--${match.state}`}>
-      <Link className="stretched-link" href={paths.match(match.slug)} aria-label={`${match.home.name} – ${match.away.name}`} />
+      {/* Saved games from the statistics bank have no page of their own */}
+      {match.slug && <Link className="stretched-link" href={paths.match(match.slug)} aria-label={`${match.home.name} – ${match.away.name}`} />}
       <span className="cm-row__when">
         <time dateTime={match.kickoff.toISOString()}>{formatNumeric(match.kickoff)}</time>
         <span className={match.state === 'live' ? 'is-live' : ''}>

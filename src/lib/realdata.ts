@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
-import { SEARCH_NAMES, alike, normalize } from '../data/aliases'
+import { alike, normalize, clubNames as namesOfClub } from '../data/aliases'
 import { KNOWN_LEAGUE_IDS, getRealData, setRealData, setRealDataLoader, type RealData, type RealEvent } from '../data/real'
 import { incidentsOf, toKickoff, toScore, toState, type ApiEvent } from '../api/thesportsdb'
 import { hashString } from '../data/fixtures'
@@ -19,6 +19,7 @@ import { sameLeagueKeys } from '../data/baselines'
 import { CUPS, asCupGame, cupOfGame, ourClubInCup, wholeSeason } from '../data/cups'
 import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
+import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
@@ -99,7 +100,13 @@ function withCups(games: ExternalGame[], fromDb: ExternalGame[]): ExternalGame[]
 
 /** API-Sports' "image not available" pictures left out, so the teams get our neutral badge */
 function withoutPlaceholders<G extends { home: { logo?: string }; away: { logo?: string }; league: { logo?: string } }>(g: G): G {
-  const [home, away, league] = [realLogo(g.home.logo), realLogo(g.away.logo), realLogo(g.league.logo)]
+  // National teams without a logo (youth, women's, Olympic): the country's flag
+  const national = (g.league as { country?: string }).country === 'World'
+  const [home, away, league] = [
+    realLogo(g.home.logo) ?? nationalFlag((g.home as { name?: string }).name ?? '', national),
+    realLogo(g.away.logo) ?? nationalFlag((g.away as { name?: string }).name ?? '', national),
+    realLogo(g.league.logo),
+  ]
   if (home === g.home.logo && away === g.away.logo && league === g.league.logo) return g
   return { ...g, home: { ...g.home, logo: home }, away: { ...g.away, logo: away }, league: { ...g.league, logo: league } }
 }
@@ -178,7 +185,7 @@ function clubNames(name: string): string[] {
   let names = clubNamesMemo.get(name)
   if (!names) {
     const club = DIVISIONS.flatMap((d) => d.clubs).find((c) => c.name === name || c.originalName === name || c.apiName === name)
-    names = [name, club?.name, club?.originalName, club?.apiName, club && SEARCH_NAMES[club.id]].filter((n): n is string => !!n)
+    names = club ? [name, ...namesOfClub(club)] : [name]
     clubNamesMemo.set(name, names)
   }
   return names
@@ -550,6 +557,29 @@ export function startRealDataSync() {
   }
   archive()
   setInterval(archive, 5 * 60_000).unref()
+  // New data is built here, in the background, not by the first visitor after a change
+  setInterval(() => void warm(), 10_000).unref()
+}
+
+let warmedVersion: string | undefined
+/**
+ * Loads new data and builds what every page needs from it (the season, the
+ * team register) right away. Before, the first page view after a change paid
+ * for it (seconds on the front page). The time it takes goes in the log.
+ */
+async function warm() {
+  const started = Date.now()
+  loadFromDisk()
+  const version = getRealData()?.version
+  if (!version || version === warmedVersion) return
+  warmedVersion = version
+  const loaded = Date.now()
+  const [{ seasonClubs }, { allTeams }] = await Promise.all([import('../data/season'), import('../data/teams')])
+  seasonClubs()
+  const season = Date.now()
+  allTeams()
+  const done = Date.now()
+  console.log(`[data] ny version ${version}: indlæst ${loaded - started} ms, sæson ${season - loaded} ms, klubregister ${done - season} ms`)
 }
 
 /** Rebuilds the data now (after a change in the admin pages) */
