@@ -9,6 +9,13 @@ import { loadRealData } from '../lib/realdata'
 import { RealDataProvider } from '../components/RealDataProvider'
 import { clientRealData } from '../lib/clientData'
 import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
+// The site's fonts, served from our own domain (no request to Google that holds up the first paint)
+import '@fontsource/barlow-condensed/latin-600.css'
+import '@fontsource/barlow-condensed/latin-700.css'
+import '@fontsource/barlow-condensed/latin-800.css'
+import '@fontsource/barlow-condensed/latin-700-italic.css'
+import '@fontsource/barlow-condensed/latin-800-italic.css'
+import '@fontsource-variable/dm-sans/opsz.css'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -37,13 +44,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="da">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- loaded at runtime so builds work offline */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap"
-        />
       </head>
       <body>
         <JsonLd data={organizationLd()} />

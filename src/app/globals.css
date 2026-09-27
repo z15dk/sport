@@ -15,7 +15,7 @@
   --radius: 22px;
   --radius-sm: 14px;
   --display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
-  --body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --body: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   color-scheme: light;
   font-family: var(--body);
