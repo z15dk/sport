@@ -178,13 +178,13 @@ export function SiteNav() {
         </div>
         <nav className="topbar__nav" aria-label="Hovedmenu">
           <button type="button" className={`topbar__btn${open === 'tournaments' ? ' is-open' : ''}`} aria-expanded={open === 'tournaments'} onClick={() => toggle('tournaments')}>
-            Turneringer <span aria-hidden>▾</span>
+            <Icon name="trophy" /> Turneringer
           </button>
           <Link className={`topbar__btn topbar__live${live ? ' has-live' : ''}`} href="/?live=1">
-            <span className="live-dot" aria-hidden /> Live <span className="topbar__count">{live}</span>
+            <span className="live-dot" aria-hidden /> Live {live > 0 && <span className="topbar__count">{live}</span>}
           </Link>
           <button type="button" className={`topbar__btn${open === 'teams' ? ' is-open' : ''}`} aria-expanded={open === 'teams'} onClick={() => toggle('teams')}>
-            ★ Mine hold
+            <Icon name="star" /> Mine hold
           </button>
         </nav>
         {(open === 'tournaments' || open === 'teams') && (
