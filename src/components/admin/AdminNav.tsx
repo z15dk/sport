@@ -12,6 +12,7 @@ const SETTINGS = [
 ]
 const PAGES = [
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
+  { href: '/admin/artikler', label: 'Artikler' },
   { href: '/admin/klubber', label: 'Klubber' },
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },

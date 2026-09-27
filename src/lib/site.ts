@@ -20,4 +20,8 @@ export const paths = {
   club: (slug: string) => `/klub/${slug}`,
   league: (slug: string) => `/turnering/${slug}`,
   clubs: () => '/klubber',
+  articles: (page?: number) => (page && page > 1 ? `/artikler?side=${page}` : '/artikler'),
+  article: (slug: string) => `/artikler/${slug}`,
+  articleCategory: (slug: string) => `/artikler/kategori/${slug}`,
+  articleTag: (slug: string) => `/artikler/tag/${slug}`,
 }

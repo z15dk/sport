@@ -66,6 +66,9 @@ export function Footer() {
               <Link href={paths.clubs()}>Alle klubber</Link>
             </li>
             <li>
+              <Link href={paths.articles()}>Artikler</Link>
+            </li>
+            <li>
               <Link href={paths.about()}>Om {SITE_NAME}</Link>
             </li>
           </ul>

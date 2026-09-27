@@ -106,6 +106,26 @@ export function webPageLd(path: string, name: string, modified: Date, descriptio
   }
 }
 
+/** An article (NewsArticle) for search engines */
+export function articleLd(a: { title: string; description: string; path: string; image?: string; publishedAt?: string; updatedAt: string; author: string; tags: string[]; section?: string }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: a.title.slice(0, 110),
+    description: a.description,
+    url: `${SITE_URL}${a.path}`,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}${a.path}` },
+    ...(a.image && { image: [a.image.startsWith('/') ? `${SITE_URL}${a.image}` : a.image] }),
+    ...(a.publishedAt && { datePublished: a.publishedAt }),
+    dateModified: a.updatedAt,
+    author: a.author === SITE_NAME ? { '@type': 'Organization', name: SITE_NAME, url: SITE_URL } : { '@type': 'Person', name: a.author },
+    publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL, logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png` } },
+    ...(a.section && { articleSection: a.section }),
+    ...(a.tags.length && { keywords: a.tags.join(', ') }),
+    inLanguage: 'da-DK',
+  }
+}
+
 export function organizationLd() {
   return {
     '@context': 'https://schema.org',

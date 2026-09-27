@@ -4,6 +4,7 @@ import { allTeams } from '../data/teams'
 import { getMatches } from '../data/matches'
 import { addDays, isoDate } from '../lib/time'
 import { SITE_URL, paths } from '../lib/site'
+import { categories, publishedArticles } from '../lib/articles'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...shownDivisions().map((d) => ({ url: url(paths.league(d.slug)), changeFrequency: 'daily' as const, priority: 0.8 })),
     ...allTeams().map((t) => ({ url: url(paths.club(t.slug)), changeFrequency: 'daily' as const, priority: t.season ? 0.7 : 0.4 })),
     { url: url(paths.about()), changeFrequency: 'monthly' as const, priority: 0.3 },
+    { url: url(paths.articles()), changeFrequency: 'daily' as const, priority: 0.6 },
+    ...publishedArticles().articles.map((a) => ({ url: url(paths.article(a.slug)), lastModified: new Date(a.updatedAt), changeFrequency: 'weekly' as const, priority: 0.7 })),
+    ...categories().map((c) => ({ url: url(paths.articleCategory(c.slug)), changeFrequency: 'weekly' as const, priority: 0.4 })),
     ...matches.map((m) => ({
       url: url(paths.match(m.slug)),
       lastModified: m.kickoff,
