@@ -9,6 +9,7 @@ import { clubMatches, getMatches } from '../../../data/matches'
 import { playerGames } from '../../../lib/archive'
 import { alike } from '../../../data/aliases'
 import { MatchRow } from '../../../components/MatchRow'
+import { MoreRows } from '../../../components/MoreRows'
 import { clubNames, normalize } from '../../../data/aliases'
 import { seasonClubs } from '../../../data/season'
 import { sportOf } from '../../../data/leagues'
@@ -115,7 +116,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
     if (!soccerOn.has(day)) soccerOn.set(day, getMatches(day, 'soccer', now))
     return soccerOn.get(day)!.find((m) => alike([m.home.name], home) && alike([m.away.name], away))
   }
-  const lastGames = played.slice(0, 15).map((g) => ({ ...g, match: matchOn(g.date, g.home, g.away) }))
+  const lastGames = played.slice(0, 60).map((g) => ({ ...g, match: matchOn(g.date, g.home, g.away) }))
   // Average rating per month, the last 12 months
   const months: { key: string; label: string; rating?: number; games: number }[] = []
   for (let i = 11; i >= 0; i--) {
@@ -249,6 +250,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
             {lastGames.length > 0 && (
               <section className="panel player-games">
                 <h2 className="panel__title">Kampe</h2>
+                <MoreRows step={10} total={lastGames.length}>
                 <div className="table-wrap table-wrap--flush">
                   <table className="table table--compact player-games__table">
                     <thead>
@@ -264,7 +266,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {lastGames.map((g) => {
+                      {lastGames.map((g, i) => {
                         const own = g.side === 'home' ? g.homeScore : g.awayScore
                         const other = g.side === 'home' ? g.awayScore : g.homeScore
                         const res = own > other ? 'V' : own < other ? 'T' : 'U'
@@ -277,7 +279,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
                           </>
                         )
                         return (
-                          <tr key={g.eventId}>
+                          <tr key={g.eventId} hidden={i >= 10}>
                             <td className="player-games__date">
                               {formatNumeric(g.date)}
                               <span>{g.tournament}</span>
@@ -313,6 +315,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
                     </tbody>
                   </table>
                 </div>
+                </MoreRows>
               </section>
             )}
             {goalsInOurGames.length > 0 && (
