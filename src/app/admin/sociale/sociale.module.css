@@ -207,7 +207,7 @@
 .storyRow .fixtureTime b { font-size: 6.2cqw; }
 .storyRow .fixtureTime small { font-size: 2.8cqw; }
 
-/* Matchly's M in outline, big and faint, as the background of the day's story */
+/* Matchly's M in neon lime outline, big, as the background of the day's story */
 .wmM {
   position: absolute !important;
   left: -12cqw;
@@ -218,9 +218,9 @@
   font-size: 215cqw;
   line-height: 0.8;
   color: transparent;
-  -webkit-text-stroke: 0.7cqw rgba(15, 17, 12, 0.16);
+  -webkit-text-stroke: 0.8cqw #c6f135;
   pointer-events: none;
 }
 
-/* the same M in Matchly's green on the dark programme card */
-.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; -webkit-text-stroke: 0.7cqw rgba(198, 241, 53, 0.22); }
+/* the same neon M on the dark programme card, with a glow */
+.wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; filter: drop-shadow(0 0 1.6cqw rgba(198, 241, 53, 0.55)); }
