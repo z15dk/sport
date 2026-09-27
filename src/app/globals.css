@@ -1593,7 +1593,15 @@ a.table__club:hover { text-decoration: underline; }
 .goal-alert__btn { font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .goal-alert__btn.is-on { background: var(--lime); border-color: var(--lime); color: #0f110c; }
 .goal-alert__hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--ink-2); }
-.follow-wrap { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.follow-wrap { position: relative; z-index: 1; margin-left: auto; align-self: center; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.follow-wrap .follow-btn { margin-left: 0; align-self: auto; }
+.club-hero .goal-alert__note { background: none; padding: 0; color: rgba(255, 255, 255, 0.72); font-weight: 500; max-width: 240px; text-align: right; }
+@media (max-width: 700px) {
+  .follow-wrap { margin-left: 0; flex-basis: 100%; align-items: stretch; }
+  .follow-wrap .follow-btn { flex-basis: auto; }
+  .follow-wrap .goal-alert, .follow-wrap .goal-alert__btn { width: 100%; justify-content: center; }
+  .club-hero .goal-alert__note { max-width: none; text-align: center; }
+}
 .club-hero .goal-alert__btn { background: rgba(255, 255, 255, 0.9); color: #0f110c; border-color: transparent; }
 .club-hero .goal-alert__btn.is-on { background: var(--lime); }
 
