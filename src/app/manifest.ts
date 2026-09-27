@@ -1,12 +1,12 @@
 import type { MetadataRoute } from 'next'
 import { SITE_NAME } from '../lib/site'
 
-/** Lets Matchly be added to the home screen as an app (needed for goal alerts on iPhone) */
+/** Lets Matchly be added to the home screen as an app */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: `${SITE_NAME} – live resultater`,
     short_name: SITE_NAME,
-    description: 'Live resultater, stillinger og målalarm for dine hold.',
+    description: 'Live resultater, stillinger og statistik for dine hold.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

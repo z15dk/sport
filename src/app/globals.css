@@ -1588,22 +1588,6 @@ a.table__club:hover { text-decoration: underline; }
 .news-coverage__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .news-coverage__list li { background: var(--surface-2); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
 
-/* Målalarm (GoalAlertToggle) */
-.goal-alert { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.goal-alert__btn { font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
-.goal-alert__btn.is-on { background: var(--lime); border-color: var(--lime); color: #0f110c; }
-.goal-alert__hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--ink-2); }
-.follow-wrap { position: relative; z-index: 1; margin-left: auto; align-self: center; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.follow-wrap .follow-btn { margin-left: 0; align-self: auto; }
-.club-hero .goal-alert__note { background: none; padding: 0; color: rgba(255, 255, 255, 0.72); font-weight: 500; max-width: 240px; text-align: right; }
-@media (max-width: 700px) {
-  .follow-wrap { margin-left: 0; flex-basis: 100%; align-items: stretch; }
-  .follow-wrap .follow-btn { flex-basis: auto; }
-  .follow-wrap .goal-alert, .follow-wrap .goal-alert__btn { width: 100%; justify-content: center; }
-  .club-hero .goal-alert__note { max-width: none; text-align: center; }
-}
-.club-hero .goal-alert__btn { background: rgba(255, 255, 255, 0.9); color: #0f110c; border-color: transparent; }
-.club-hero .goal-alert__btn.is-on { background: var(--lime); }
 
 /* Player page (/spiller/<id>-<name>) */
 .player-hero__photo { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: #fff; flex: none; position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--club-bg); }
@@ -1712,4 +1696,3 @@ a.player-games__match:hover { text-decoration: underline; }
 .absent-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 600px) { .absent-cols { grid-template-columns: minmax(0, 1fr); } }
 .absent-cols__team { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
-.goal-alert__note { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.9); color: #0f110c; max-width: 220px; text-align: center; }

@@ -10,7 +10,6 @@ import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
 import { DIVISIONS } from '../../../data/leagues'
 import { womenTeamOf } from '../../../data/teams'
-import { pushStatus } from '../../../lib/push'
 import { paths } from '../../../lib/site'
 import { formatNumeric, formatTime } from '../../../lib/time'
 
@@ -59,16 +58,6 @@ export default async function AdminSettings() {
             ))}
           </section>
         ))}
-        <section className="panel prose__section">
-          <h2 className="panel__title">Målalarm</h2>
-          <p>
-            {(() => {
-              const p = pushStatus()
-              return `${p.subscribers} ${p.subscribers === 1 ? 'browser' : 'browsere'} har målalarm slået til for i alt ${p.teams} hold.`
-            })()}{' '}
-            De får besked ved mål (med målscorer, når en kilde har den), kampstart og slutresultat for de hold, de følger.
-          </p>
-        </section>
         <section className="panel prose__section">
           <h2 className="panel__title">Nyheder</h2>
           <p className="muted small">
