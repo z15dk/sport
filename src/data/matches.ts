@@ -58,10 +58,31 @@ export function namesOf(name: string) {
  * The day's matches: our leagues' season, updated with API-Sports' live score
  * where API-Sports has the same match, plus API-Sports' games in other leagues.
  */
+// API-Sports' games by Danish date, built once per data version: finding a
+// day's games no longer turns every game's kick-off into a date (that made
+// the front page, which asks for many days and sports, take seconds)
+const byDay = new WeakMap<ExternalGame[], Map<string, ExternalGame[]>>()
+/** API-Sports' games on a Danish date */
+export function externalOn(date: string): ExternalGame[] {
+  const all = getRealData()?.external ?? []
+  let days = byDay.get(all)
+  if (!days) {
+    days = new Map()
+    for (const g of all) {
+      const d = isoDate(new Date(g.kickoff))
+      const list = days.get(d)
+      if (list) list.push(g)
+      else days.set(d, [g])
+    }
+    byDay.set(all, days)
+  }
+  return days.get(date) ?? []
+}
+
 export function getMatches(date: string, sport: SportFilter, now: number): Match[] {
   if (sport === 'all') return ALL_SPORTS.flatMap((s) => getMatches(date, s, now))
   const ours = leagueMatches(date, sport, now)
-  const external = (getRealData()?.external ?? []).filter((g) => g.sport === sport && isoDate(new Date(g.kickoff)) === date)
+  const external = externalOn(date).filter((g) => g.sport === sport)
   if (!external.length) return ours
   const byKey = new Map<string, number>()
   ours.forEach((m, i) => {
@@ -170,14 +191,13 @@ export function findExternalGame(match: Match): ExternalGame | undefined {
   const direct = external.find((g) => g.id === match.id)
   if (direct) return direct
   const keys = new Set(namesOf(match.home.name).flatMap((h) => namesOf(match.away.name).map((a) => gameKey(match.kickoff, h, a))))
-  const exact = external.find((g) => g.sport === match.sport && keys.has(gameKey(g.kickoff, g.home.name, g.away.name)))
+  // The same game is played the same day: only that day's games are looked at
+  const sameDay = externalOn(isoDate(match.kickoff)).filter((g) => g.sport === match.sport)
+  const exact = sameDay.find((g) => keys.has(gameKey(g.kickoff, g.home.name, g.away.name)))
   if (exact) return exact
   // Looser: same day and sport, and each side shares a word with one of the club's names ("HIK" / "Hellerup IK")
-  const day = isoDate(match.kickoff)
   const home = namesOf(match.home.name)
   const away = namesOf(match.away.name)
-  const candidates = external.filter(
-    (g) => g.sport === match.sport && isoDate(new Date(g.kickoff)) === day && alike(home, g.home.name) && alike(away, g.away.name),
-  )
+  const candidates = sameDay.filter((g) => alike(home, g.home.name) && alike(away, g.away.name))
   return candidates.length === 1 ? candidates[0] : undefined
 }
