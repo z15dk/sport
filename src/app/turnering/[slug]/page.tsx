@@ -239,6 +239,25 @@ export default async function LeaguePage({ params }: { params: Params }) {
           <StandingsTable division={division} rows={rows} />
         </section>
         <LeagueStats division={division} />
+        {/* The rounds under the statistics, beside the players */}
+        {byRound ? (
+          <RoundResults rounds={byRound} now={now} />
+        ) : results.length > 0 && (
+          <section className="league">
+            <header className="league__header">
+              <div className="league__toggle">
+                <span className="league__titles">
+                  <h2 className="league__name">Seneste resultater</h2>
+                </span>
+              </div>
+            </header>
+            <ul className="league__matches">
+              {results.map((m) => (
+                <MatchRow key={m.id} match={m} showDate />
+              ))}
+            </ul>
+          </section>
+        )}
         </div>
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         </div>
@@ -269,24 +288,6 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </section>
         )}
 
-        {byRound ? (
-          <RoundResults rounds={byRound} now={now} />
-        ) : results.length > 0 && (
-          <section className="league">
-            <header className="league__header">
-              <div className="league__toggle">
-                <span className="league__titles">
-                  <h2 className="league__name">Seneste resultater</h2>
-                </span>
-              </div>
-            </header>
-            <ul className="league__matches">
-              {results.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
-          </section>
-        )}
 
         <AdSlot placement="content" />
         <Faq items={faq} />
