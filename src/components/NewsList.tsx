@@ -3,6 +3,15 @@ import type { Article } from '../lib/news'
 import { formatNumeric, formatTime, isoDate } from '../lib/time'
 import { TeamBadge } from './TeamBadge'
 
+/** The site an article is on: "dr.dk", "indkast.dk" */
+function siteOf(link: string) {
+  try {
+    return new URL(link).hostname.replace(/^www\./, '')
+  } catch {
+    return undefined
+  }
+}
+
 /** When an article came out: "14:32" today, "i går 14:32", else the date */
 function when(date: number, now: number) {
   const d = new Date(date)
@@ -67,7 +76,7 @@ export function NewsList({
                 <span className="news__text">
                   <strong className="news__title">{a.title}</strong>
                   <span className="news__meta">
-                    {a.source} · {when(a.date, now)} <span aria-hidden="true">↗</span>
+                    Nyhed fra {siteOf(a.link) ?? a.source} · {when(a.date, now)} <span aria-hidden="true">↗</span>
                   </span>
                 </span>
               </a>
