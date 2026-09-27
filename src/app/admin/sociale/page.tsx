@@ -302,7 +302,6 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
               <div key={p.fixture.id} className={s.fixtureRow}>
                 {[p.fixture.home, p.fixture.away].map((club, i) => (
                   <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
-                    <Watermark club={club} logos={logos} style={{ width: '26cqw', height: '26cqw', top: '-8cqw', ...(i === 0 ? { right: '-8cqw' } : { left: '-8cqw' }) }} />
                     {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
                     <Crest club={club} logos={logos} plate />
                     {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
@@ -333,7 +332,6 @@ function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos:
               <div key={p.fixture.id} className={cx(s.fixtureRow, s.storyRow)}>
                 {[p.fixture.home, p.fixture.away].map((club, i) => (
                   <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
-                    <Watermark club={club} logos={logos} style={{ width: '34cqw', height: '34cqw', top: '-10cqw', ...(i === 0 ? { right: '-10cqw' } : { left: '-10cqw' }) }} />
                     {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
                     <Crest club={club} logos={logos} plate />
                     {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
