@@ -407,37 +407,39 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                     </Link>
                   )}
                 </header>
-                <table className="table table--compact">
-                  <thead>
-                    <tr>
-                      <th className="num">#</th>
-                      <th>Hold</th>
-                      <th className="num">K</th>
-                      <th className="num">V</th>
-                      {hasDraws && <th className="num">U</th>}
-                      <th className="num">T</th>
-                      {hasPoints && <th className="num">P</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {nearby.map((r) => (
-                      <tr key={`${r.rank}-${r.name}`} className={r === row ? 'is-highlight' : undefined}>
-                        <td className="num pos">{r.rank}</td>
-                        <td>
-                          <span className="table__club">
-                            <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
-                            {r.name}
-                          </span>
-                        </td>
-                        <td className="num">{r.played}</td>
-                        <td className="num">{r.won}</td>
-                        {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
-                        <td className="num">{r.lost}</td>
-                        {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                <div className="table-wrap">
+                  <table className="table table--compact">
+                    <thead>
+                      <tr>
+                        <th className="num">#</th>
+                        <th>Hold</th>
+                        <th className="num">K</th>
+                        <th className="num">V</th>
+                        {hasDraws && <th className="num">U</th>}
+                        <th className="num">T</th>
+                        {hasPoints && <th className="num">P</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {nearby.map((r) => (
+                        <tr key={`${r.rank}-${r.name}`} className={r === row ? 'is-highlight' : undefined}>
+                          <td className="num pos">{r.rank}</td>
+                          <td>
+                            <span className="table__club">
+                              <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
+                              {r.name}
+                            </span>
+                          </td>
+                          <td className="num">{r.played}</td>
+                          <td className="num">{r.won}</td>
+                          {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
+                          <td className="num">{r.lost}</td>
+                          {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Matchly (se hele stillingen for grundlaget).</p>}
               </section>
             )}
