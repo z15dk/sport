@@ -197,7 +197,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 }
 
 /** A team's finished games: its matches around today and those our statistics bank has saved, newest first */
-function teamResults(names: string[], around: Match[], divisionId: string | undefined, leagueName: string): PastMatch[] {
+function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string): PastMatch[] {
   const keys = new Set(names.map(normalize))
   const logos = teamLogos()
   const fromMatches: PastMatch[] = around
@@ -216,7 +216,7 @@ function teamResults(names: string[], around: Match[], divisionId: string | unde
   const seen = new Set(fromMatches.map((m) => `${isoDate(m.date)}|${normalize(m.home)}`))
   const saved: PastMatch[] = readArchive()
     // In its own league when it has one (a women's team can share its name with the men's club)
-    .filter((a) => (divisionId ? a.divisionId === divisionId : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
+    .filter((a) => (divisionIds.length ? divisionIds.includes(a.divisionId) : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
     .filter((a) => keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))
     .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(a.homeName)}`))
     .map((a) => ({
@@ -242,12 +242,16 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const league = team.leagueSlug ? sameLeagueKeys(team.leagueSlug).map(externalLeague).find(Boolean) : undefined
   const api = league?.api.split('-')[0]
   const divisionId = league ? `ext-${api}-${league.id}` : undefined
+  // Every id the source lists the league under (the A-Liga is also "Kvindeliga")
+  const divisionIds = team.leagueSlug
+    ? [...new Set(sameLeagueKeys(team.leagueSlug).map(externalLeague).filter((l): l is NonNullable<typeof l> => !!l).map((l) => `ext-${l.api.split('-')[0]}-${l.id}`))]
+    : []
   // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games
   const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
   // A cup has rounds, not a table
   const cup = !!cupOfGame({ sport: team.sport, league: { id: '', name: team.league, country: team.country } })
   const fromApi = league && !cup ? await apiLeagueTable(league) : undefined
-  const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : []))
+  const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionIds, baseline).rows : []))
   const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
   const row =
     table.find((r) => own(r.name)) ??
@@ -267,7 +271,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   ].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
-  const results = teamResults(names, around, divisionId, team.league)
+  const results = teamResults(names, around, divisionIds, team.league)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)

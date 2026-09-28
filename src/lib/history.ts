@@ -862,22 +862,38 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
  * plan doesn't give.
  */
 /** A league's matches this season in the statistics bank: from the first match after the last break of more than 45 days */
-export function archiveSeasonGames(divisionId: string): ArchivedMatch[] {
-  const inLeague = readArchive()
-    .filter((a) => a.divisionId === divisionId)
+/**
+ * A league's saved matches, oldest first: under one id, or several when the
+ * source lists the league under more than one ("A-Liga" and "Kvindeliga").
+ * The same match under two of them counts once.
+ */
+function leagueGames(divisionId: string | string[]): ArchivedMatch[] {
+  const ids = new Set(Array.isArray(divisionId) ? divisionId : [divisionId])
+  const seen = new Set<string>()
+  return readArchive()
+    .filter((a) => ids.has(a.divisionId))
+    .filter((a) => {
+      if (ids.size === 1) return true
+      const key = `${isoDate(a.date)}|${normalize(a.homeName)}|${normalize(a.awayName)}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     .sort((x, y) => x.date.getTime() - y.date.getTime())
+}
+
+export function archiveSeasonGames(divisionId: string | string[]): ArchivedMatch[] {
+  const inLeague = leagueGames(divisionId)
   let start = 0
   for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
   return inLeague.slice(start)
 }
 
 export function archiveLeagueTable(
-  divisionId: string,
+  divisionId: string | string[],
   baseline?: Baseline,
 ): { rows: TableRow[]; matches: number; since?: Date; recent: PastMatch[] } {
-  const inLeague = readArchive()
-    .filter((a) => a.divisionId === divisionId)
-    .sort((x, y) => x.date.getTime() - y.date.getTime())
+  const inLeague = leagueGames(divisionId)
   let start = 0
   for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
   // With a starting table, only the matches after it count on top of it

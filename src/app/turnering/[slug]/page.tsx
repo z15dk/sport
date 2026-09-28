@@ -30,7 +30,7 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
-import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, teamLogos } from '../../../lib/apisports'
+import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable, archiveSeasonGames } from '../../../lib/history'
 import { archiveIncidents } from '../../../lib/archive'
 import { gameStats, type StatGame, type StatTeam } from '../../../data/stats'
@@ -101,7 +101,15 @@ async function externalLeaguePage(slug: string) {
   const friendly = isFriendly(`${found.name} ${found.title ?? ''}`)
   const fromApi = found.id && !cup && !friendly ? await apiLeagueTable(found) : undefined
   const baseline = BASELINES[slug]
-  const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
+  // The saved matches under every id the source lists the league under (the A-Liga is also "Kvindeliga")
+  const divisionIds = [
+    ...new Set(
+      [found, ...keys.map(externalLeague)]
+        .filter((l): l is NonNullable<typeof l> => !!l?.id && l.id !== 'db')
+        .map((l) => `ext-${l.api.split('-')[0]}-${l.id}`),
+    ),
+  ]
+  const own = archiveLeagueTable(divisionIds, baseline)
   // A team's logo from API-Sports' games, also when the table uses another name ("F.C. København" is "FC Copenhagen W")
   const logos = teamLogos()
   const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
@@ -130,7 +138,7 @@ async function externalLeaguePage(slug: string) {
   const leaders = found.api.startsWith('football') && found.id && found.id !== 'db' ? await apiLeagueLeaders(found.id).catch(() => undefined) : undefined
   const firstKept = played.at(-1) ? Date.parse(played.at(-1)!.kickoff) - 86_400_000 : Infinity
   // The season's statistics: the statistics bank's matches (with their goals and cards), and the fetched days' games on top
-  const archived = found.id && found.id !== 'db' ? archiveSeasonGames(`ext-${found.api.split('-')[0]}-${found.id}`) : []
+  const archived = divisionIds.length ? archiveSeasonGames(divisionIds) : []
   const archivedIncidents = archiveIncidents(archived.map((a) => a.id))
   const team = (name: string, logo?: string): StatTeam => ({ id: normalize(name) || name, name, logo: logo ?? logoFor(name) })
   const statGames = new Map<string, StatGame>()
@@ -151,7 +159,8 @@ async function externalLeaguePage(slug: string) {
       slug: m.slug,
     })
   }
-  const stats = gameStats([...statGames.values()])
+  // Not from a handful of matches ("100 % home wins" after one match says nothing)
+  const stats = statGames.size >= 5 ? gameStats([...statGames.values()]) : undefined
   // News: articles naming the tournament; for a women's league also those about its teams
   const allNames = [league.name, found.name, found.title, cup?.name, cup?.key].filter((x): x is string => !!x)
   const womenLeague = allNames.some((n) => /women|kvind|frauen|a-liga|damallsvenskan|toppserien|\bwsl\b|liga f\b/i.test(n))
