@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
-import { allTeams, teamBySlug, type TeamEntry } from '../../../data/teams'
+import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamMatches } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
@@ -19,6 +19,8 @@ import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
+import { NewsList } from '../../../components/NewsList'
+import { newsFor } from '../../../lib/news'
 import { archiveLeagueTable, clubHistory } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
 import { clubNames, normalize } from '../../../data/aliases'
@@ -175,6 +177,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 
         {/* The source's team statistics replace our own box where it has them */}
         {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
         {history && division.id !== 'superliga' && <ClubHistory name={club.name} history={history} />}
 
@@ -477,6 +480,10 @@ async function TeamPage({ team }: { team: TeamEntry }) {
           </section>
         )}
 
+        {(() => {
+          const clubId = womenOf(team)
+          return clubId ? <NewsList articles={newsFor({ club: clubId, women: true })} team={team} /> : null
+        })()}
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>
