@@ -91,6 +91,9 @@ const SAME_LEAGUE: Record<string, string> = {
   'x-denmark-kvindeliga': 'x-denmark-a-liga',
 }
 
+/** The one key a league goes by when API-Sports lists it under several ("x-denmark-kvindeliga" -> "x-denmark-a-liga") */
+export const mainLeagueKey = (key: string) => SAME_LEAGUE[key] ?? key
+
 /** A league's key and the other keys API-Sports lists it under */
 export function sameLeagueKeys(key: string): string[] {
   const main = SAME_LEAGUE[key] ?? key
