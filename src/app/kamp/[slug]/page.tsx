@@ -1,8 +1,8 @@
-import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { clubExternalGames, findExternalGame, findMatch, isFriendly, leagueGamesOn, namesOf } from '../../../data/matches'
+import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
+import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
@@ -13,7 +13,6 @@ import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
 import { archiveGameExtras, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
-import { findPastMatch } from '../../../lib/pastMatch'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
 import { PastMatchView } from '../../../components/PastMatchView'
@@ -22,7 +21,6 @@ import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { matchFaq } from '../../../lib/faq'
-import { dateFromMatchSlug } from '../../../lib/slug'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
@@ -32,16 +30,9 @@ export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
 
-/** The match, once per request (the metadata and the page both need it) */
-const load = cache((slug: string) => {
-  const date = dateFromMatchSlug(slug)
-  const now = Date.now()
-  const match = date ? findMatch(slug, date, now) : undefined
-  return match && date ? { match, date, now } : undefined
-})
-
-/** An older match the live data no longer has (match database and statistics bank) */
-const loadPast = cache((slug: string) => findPastMatch(slug))
+// The match, once per request (src/lib/matchLookup.ts; the layout checks it exists first)
+const load = loadMatch
+const loadPast = loadPastMatch
 
 async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
