@@ -12,6 +12,7 @@ export function dayAlias(date: string, today?: string): string | undefined {
 
 export const paths = {
   about: () => '/om',
+  privacy: () => '/privatliv',
   /** A day's matches: today on the front page, yesterday and tomorrow under their names, other days by date */
   home: (params?: { sport?: string; dato?: string; today?: string }) => {
     const q = new URLSearchParams()

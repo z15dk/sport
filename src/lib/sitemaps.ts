@@ -47,6 +47,7 @@ export function pageEntries(): SitemapEntry[] {
     { path: paths.clubs() },
     ...allTeams().map((t) => ({ path: paths.club(t.slug) })),
     { path: paths.about() },
+    { path: paths.privacy() },
     { path: paths.articles() },
     ...publishedArticles().articles.map((a) => ({ path: paths.article(a.slug), lastModified: new Date(a.updatedAt) })),
     ...categories().map((c) => ({ path: paths.articleCategory(c.slug) })),

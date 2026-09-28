@@ -2,12 +2,14 @@ import 'server-only'
 import type { Incident, Match, SportId } from '../types'
 import type { Club, Division } from '../data/leagues'
 import { DIVISIONS, sportOf } from '../data/leagues'
-import { allFixtures, fixturesOn, isFinished, type Fixture } from '../data/season'
+import { allFixtures, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
+import { leagueStats, type ScorerRow } from '../data/stats'
 import { alike } from '../data/aliases'
 import { getMatches } from '../data/matches'
 import { teamByName } from '../data/teams'
 import { addDays, isoDate } from './time'
 import { realHeadToHead } from './history'
+import { EXTERNAL_PRIORITIES, socialConfig } from './socialStore'
 
 // Test of posts for Facebook and Instagram (/admin/sociale): which matches a
 // day's posts would pick, and the numbers each card shows. Everything comes
@@ -18,7 +20,9 @@ const WEIGHT: Record<string, number> = {
   superliga: 100, premierleague: 85, '1div': 70, laliga: 65, bundesliga: 65, metalligaen: 60, basketligaen: 50,
   '2div': 45, ligaportugal: 45, allsvenskan: 45, eliteserien: 45, championship: 40, bundesliga2: 35, shl: 35, '3div': 30, liga3: 25,
 }
-const weight = (d?: Division) => (d ? (WEIGHT[d.id] ?? 20) : 0)
+/** The default weight of one of our leagues (the admin can change it in /admin/sociale/indstillinger) */
+export const defaultWeight = (id: string) => WEIGHT[id] ?? 20
+const weight = (d?: Division) => (d ? (socialConfig().weights[d.id] ?? defaultWeight(d.id)) : 0)
 
 type Result = 'V' | 'U' | 'T'
 export interface Played {
@@ -181,15 +185,21 @@ function factFor(f: Fixture, div?: Division): Fact | undefined {
   return runFact(f) ?? h2h ?? (div ? tableFact(f, div) : undefined)
 }
 
-/** How much a cup or an outside league weighs (API-Sports' games) */
-function externalWeight(m: Match) {
+/** The priority key of a cup or an outside league (API-Sports' games) */
+function externalKey(m: Match): string {
   const name = m.league.toLowerCase()
-  if (/champions league/.test(name)) return /women|kvinde/.test(name) ? 55 : 90
-  if (/europa league/.test(name)) return 70
-  if (/conference league/.test(name)) return 60
-  if (m.leagueId.startsWith('cup-')) return 75
-  if (m.country === 'Danmark') return 30
-  return 10
+  if (/champions league/.test(name)) return /women|kvinde/.test(name) ? 'x-clw' : 'x-cl'
+  if (/europa league/.test(name)) return 'x-el'
+  if (/conference league/.test(name)) return 'x-ecl'
+  if (m.leagueId.startsWith('cup-')) return 'x-cup'
+  if (m.country === 'Danmark') return 'x-dk'
+  return 'x-other'
+}
+
+/** How much a cup or an outside league weighs */
+function externalWeight(m: Match) {
+  const key = externalKey(m)
+  return socialConfig().weights[key] ?? EXTERNAL_PRIORITIES.find((p) => p.key === key)!.weight
 }
 
 /** A match from outside our leagues as a fixture, so it can be shown the same way */
@@ -220,7 +230,6 @@ function externalFixture(m: Match): Fixture {
 /** How many matches a day's programme shows (fewer only when fewer are played) */
 export const DAY_MATCHES = 5
 
-/** The day's 5 matches: league weight, table and goals; the best of each league first, then the next best */
 /** A finished match with a result */
 export const isFinishedMatch = (f: Fixture) => isFinished(f)
 
@@ -230,54 +239,64 @@ export const hasNamedScorers = (f: Fixture) => {
   return isFinished(f) && goals.length > 0 && goals.length === f.score[0] + f.score[1] && goals.every((i) => !!i.player)
 }
 
-export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true): Pick[] {
+type Scored = {
+  f: Fixture
+  div?: Division
+  league: string
+  sport: SportId
+  score: number
+  h?: { pos: number; points: number; played: number }
+  a?: { pos: number; points: number; played: number }
+  logos?: Record<string, string>
+}
+
+/** Every match of a day with its score: league weight (0 = never), table, goals and the admin's favourite clubs */
+function scoredMatches(date: string, now: number, only: (f: Fixture) => boolean): Scored[] {
   const ours = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed' && only(f))
   const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
   const known = new Set(ours.map((f) => f.id))
+  const favorites = socialConfig().favorites
+  const favorite = (f: Fixture) => favorites.some((n) => alike([n], f.home.name) || alike([n], f.away.name))
   // Cups, Champions League and API-Sports' other leagues, for days our leagues rest
   const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed')
-  const scored = [
-    ...ours.map((f) => {
+  const scored: Scored[] = [
+    ...ours.flatMap((f) => {
       const div = f.division!
+      let score = weight(div)
+      if (score <= 0) return []
       const table = sportOf(div) === 'soccer' ? tableAt(div, f.kickoff.getTime()) : undefined
       const h = table?.get(f.home.id)
       const a = table?.get(f.away.id)
-      let score = weight(div)
       if (h && a && h.played >= 3) {
         if (h.pos <= 4 && a.pos <= 4) score += 20
         if (Math.abs(h.pos - a.pos) <= 2) score += 10
         if (h.pos > h.of - 3 || a.pos > a.of - 3) score += 5
       }
       if (isFinished(f)) score += (f.score[0] + f.score[1]) * 2
-      return { f, div: div as Division | undefined, league: div.name, sport: sportOf(div), score, h, a, logos: undefined as Record<string, string> | undefined }
+      if (favorite(f)) score += 200
+      return [{ f, div, league: div.name, sport: sportOf(div), score, h, a }]
     }),
     ...others.flatMap((m) => {
       const f = externalFixture(m)
       if (!only(f)) return []
+      let score = externalWeight(m)
+      if (score <= 0) return []
       const logos: Record<string, string> = {}
       if (m.home.badge) logos[m.home.name] = m.home.badge
       if (m.away.badge) logos[m.away.name] = m.away.badge
-      const score = externalWeight(m) + (isFinished(f) ? (f.score[0] + f.score[1]) * 2 : 0)
-      return [{ f, div: undefined as Division | undefined, league: m.league, sport: m.sport, score, h: undefined, a: undefined, logos }]
+      score += isFinished(f) ? (f.score[0] + f.score[1]) * 2 : 0
+      if (favorite(f)) score += 200
+      return [{ f, league: m.league, sport: m.sport, score, logos }]
     }),
   ]
-  scored.sort((x, y) => y.score - x.score || x.f.kickoff.getTime() - y.f.kickoff.getTime())
-  // The best match of each league first, then the next best, until there are five
-  const chosen: typeof scored = []
-  const leagues = new Set<string>()
-  for (const s of scored) {
-    if (chosen.length >= DAY_MATCHES) break
-    if (leagues.has(s.league)) continue
-    chosen.push(s)
-    leagues.add(s.league)
-  }
-  for (const s of scored) {
-    if (chosen.length >= DAY_MATCHES) break
-    if (!chosen.includes(s)) chosen.push(s)
-  }
+  return scored.sort((x, y) => y.score - x.score || x.f.kickoff.getTime() - y.f.kickoff.getTime())
+}
+
+/** The picked matches as the cards show them, in kick-off order */
+function decorate(chosen: Scored[], scored: Scored[], now: number): Pick[] {
   // A league's other results go on its first card only, so the carousel doesn't repeat them
   const listed = new Set<string>()
-  return chosen
+  return [...chosen]
     .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
     .map(({ f, div, league, sport, h, a, logos: own }) => {
       const first = isFinished(f) && !listed.has(league)
@@ -308,6 +327,36 @@ export function pickMatches(date: string, now: number, only: (f: Fixture) => boo
         sameDay: others.map((x) => x.f),
       }
     })
+}
+
+/** The day's matches (5, or the number set in the admin): the best of each league first, then the next best */
+export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true, count = socialConfig().matches || DAY_MATCHES): Pick[] {
+  const scored = scoredMatches(date, now, only)
+  const chosen: Scored[] = []
+  const leagues = new Set<string>()
+  for (const s of scored) {
+    if (chosen.length >= count) break
+    if (leagues.has(s.league)) continue
+    chosen.push(s)
+    leagues.add(s.league)
+  }
+  for (const s of scored) {
+    if (chosen.length >= count) break
+    if (!chosen.includes(s)) chosen.push(s)
+  }
+  return decorate(chosen, scored, now)
+}
+
+/** Given matches of a day (the plan's, or picked by hand), as cards; matches no longer found (postponed) are left out */
+export function picksFor(date: string, now: number, ids: string[], only: (f: Fixture) => boolean = () => true): Pick[] {
+  const scored = scoredMatches(date, now, () => true)
+  const chosen = scored.filter((s) => ids.includes(s.f.id))
+  return decorate(chosen, scored, now).filter((p) => only(p.fixture))
+}
+
+/** Every match of a day that could be picked, best first (for picking by hand) */
+export function candidates(date: string, now: number): { fixture: Fixture; league: string; score: number }[] {
+  return scoredMatches(date, now, () => true).map((s) => ({ fixture: s.f, league: s.league, score: s.score }))
 }
 
 // ---------------------------------------------------------------- the week in numbers (Monday)
@@ -374,3 +423,80 @@ export function weekNumbers(date: string): WeekNumbers {
 }
 
 export const todayIso = (now: number) => isoDate(new Date(now))
+
+// ---------------------------------------------------------------- the day's topic (10–11)
+
+/** The league the one-league topics use: the admin's choice, else the Superliga */
+export function topicDivision(): Division | undefined {
+  const id = socialConfig().topicLeague
+  return DIVISIONS.find((d) => d.id === id) ?? DIVISIONS.find((d) => d.id === 'superliga')
+}
+
+/** The league's top scorers (at least 5 with goals) */
+export function scorersTopic(div: Division): { division: Division; rows: ScorerRow[] } | undefined {
+  const rows = leagueStats(div)?.scorers.filter((r) => r.goals > 0).slice(0, 10) ?? []
+  return rows.length >= 5 ? { division: div, rows } : undefined
+}
+
+export interface FormRow {
+  club: Club
+  pos: number
+  form: Result[]
+  points: number
+  goals: [number, number]
+}
+
+/** The league's teams by points in their latest 5 matches (every team with 5 played) */
+export function formTopic(div: Division, now: number): { division: Division; rows: FormRow[] } | undefined {
+  if (sportOf(div) !== 'soccer') return undefined
+  const table = standings(div, now)
+  const rows = table
+    .map((r, i) => {
+      const games = played(r.club, now + 1).slice(0, 5)
+      return {
+        club: r.club,
+        pos: i + 1,
+        form: games.map((g) => g.result).reverse(),
+        points: games.reduce((s, g) => s + (g.result === 'V' ? 3 : g.result === 'U' ? 1 : 0), 0),
+        goals: [games.reduce((s, g) => s + g.goalsFor, 0), games.reduce((s, g) => s + g.goalsAgainst, 0)] as [number, number],
+      }
+    })
+    .filter((r) => r.form.length === 5)
+    .sort((a, b) => b.points - a.points || b.goals[0] - b.goals[1] - (a.goals[0] - a.goals[1]) || a.pos - b.pos)
+  return rows.length >= 6 ? { division: div, rows } : undefined
+}
+
+/** The league table (every team with at least 3 played) */
+export function tableTopic(div: Division, now: number) {
+  const rows = standings(div, now)
+  return rows.length >= 6 && rows.every((r) => r.played >= 3) ? { division: div, rows } : undefined
+}
+
+/** The biggest match of the next 4 days that isn't played yet */
+export function bigMatchTopic(date: string, now: number): Pick | undefined {
+  let best: { scored: Scored[]; s: Scored } | undefined
+  for (let i = 0; i < 4; i++) {
+    const scored = scoredMatches(addDays(date, i), now, (f) => !isFinished(f) && f.kickoff.getTime() > now)
+    if (scored[0] && (!best || scored[0].score > best.s.score)) best = { scored, s: scored[0] }
+  }
+  return best ? decorate([best.s], best.scored, now)[0] : undefined
+}
+
+/** The coming Saturday and Sunday (today and tomorrow on a Saturday) */
+export function weekendDates(date: string): [string, string] {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
+  const sat = addDays(date, weekday === 0 ? -1 : (6 - weekday + 7) % 7)
+  return [sat, addDays(sat, 1)]
+}
+
+/** The picked matches of the weekend's two days */
+export function weekendTopic(date: string, now: number): { date: string; picks: Pick[] }[] | undefined {
+  const days = weekendDates(date).map((d) => ({ date: d, picks: pickMatches(d, now, (f) => !isFinished(f)) })).filter((d) => d.picks.length)
+  return days.length ? days : undefined
+}
+
+/** A fact about each of the day's matches (at least 2) */
+export function factsTopic(date: string, now: number, ids: string[]): Pick[] | undefined {
+  const picks = picksFor(date, now, ids).filter((p) => p.fact)
+  return picks.length >= 2 ? picks : undefined
+}

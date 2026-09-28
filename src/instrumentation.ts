@@ -28,4 +28,7 @@ export async function register() {
   startSitemapWarm()
   startRealDataSync()
   startLogoSync()
+  // Social media posts (does nothing until it is switched on in /admin/sociale)
+  const { startSocialEngine } = await import('./lib/socialEngine')
+  startSocialEngine()
 }

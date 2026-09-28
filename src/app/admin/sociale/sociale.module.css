@@ -233,3 +233,13 @@
 .shareGrid figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .shareGrid img { width: 100%; height: auto; aspect-ratio: 1200 / 630; border-radius: 12px; background: #1a1c1b; display: block; }
 .shareGrid figcaption { font-size: 13px; }
+
+/* the form table's results: one small square per match */
+.formDot { display: inline-grid; place-items: center; width: 5cqw; height: 5cqw; margin-left: 0.8cqw; border-radius: 0.8cqw; font-size: 2.6cqw; font-weight: 800; }
+
+/* the render page (/admin/sociale/kort): every card at 540 px, the engine takes the pictures at twice that */
+.render { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: #fff; }
+.render .rail { flex-wrap: wrap; overflow: visible; }
+.render .fig, .render .fig.story { width: 540px; }
+.render figcaption { display: none; }
+.render .card { border-radius: 0; box-shadow: none; }

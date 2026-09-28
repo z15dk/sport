@@ -81,6 +81,9 @@ export function Footer() {
             <li>
               <Link href={paths.about()}>Om {SITE_NAME}</Link>
             </li>
+            <li>
+              <Link href={paths.privacy()}>Privatliv og cookies</Link>
+            </li>
           </ul>
         </div>
       </nav>
