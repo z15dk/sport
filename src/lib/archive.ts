@@ -283,6 +283,30 @@ function readArchiveFile(): ArchivedMatch[] {
   }
 }
 
+// The matches with details of their own (named scorers or players' numbers), found once an hour
+let detailed: { at: number; ids: Set<string> } | undefined
+
+/** The statistics bank's matches that have named scorers or players' numbers: worth a search engine's time */
+export function archiveDetailedEvents(): Set<string> {
+  if (detailed && Date.now() - detailed.at < 3_600_000) return detailed.ids
+  const ids = new Set<string>()
+  const lib = sqlite()
+  if (lib && existsFile(archiveFile())) {
+    let db: Db | undefined
+    try {
+      db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+      for (const r of db.prepare("SELECT DISTINCT event_id FROM incidents WHERE player IS NOT NULL AND player != ''").all()) ids.add(String(r.event_id))
+      for (const r of db.prepare('SELECT DISTINCT event_id FROM player_games').all()) ids.add(String(r.event_id))
+    } catch {
+      // An older bank without a table: what was found so far
+    } finally {
+      db?.close()
+    }
+  }
+  detailed = { at: Date.now(), ids }
+  return ids
+}
+
 /** Numbers for the status page */
 /** The goals and cards the statistics bank has for these matches */
 export function archiveIncidents(ids: string[]): Map<string, import('../types').Incident[]> {

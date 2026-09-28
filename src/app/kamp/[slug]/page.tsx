@@ -12,7 +12,7 @@ import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { archiveGameExtras, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
+import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
 import { PastMatchView } from '../../../components/PastMatchView'
@@ -38,8 +38,8 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
   const { game: g, match } = past
-  // Short enough for the search results: teams, score, tournament and a numeric date
-  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore} · ${g.tournament} ${formatNumeric(g.date)}`
+  // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
+  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
   const description = `${g.home} mod ${g.away} i ${g.tournament} ${g.season} (${formatFull(g.date)}): ${result}.${match.incidents?.length ? ' Målscorere, kort' : ' Resultat'}, spillere og tidligere opgør mellem holdene.`
   return {
@@ -47,6 +47,8 @@ async function pastMetadata(slug: string): Promise<Metadata> {
     description,
     alternates: { canonical: paths.match(g.slug) },
     openGraph: { title, description, type: 'article' },
+    // An older match outside the big leagues, or without named scorers: kept out of the search results (src/lib/history.ts)
+    ...(!pastGameIndexable(g) && { robots: { index: false, follow: true } }),
   }
 }
 
@@ -82,7 +84,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { match } = found
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
-  const title = `${match.home.name} – ${match.away.name}${score} · ${match.league} ${formatNumeric(match.kickoff)}`
+  // As people search for it: "live" before and during the match, "resultat" (and "målscorere") after it
+  const scorers = match.incidents?.some((i) => i.player)
+  const title =
+    match.state === 'finished'
+      ? `${match.home.name} – ${match.away.name}${score}: resultat${scorers ? ' og målscorere' : ''} · ${formatNumeric(match.kickoff)}`
+      : `${match.home.name} – ${match.away.name} live · ${match.league} ${formatNumeric(match.kickoff)}`
   const description = summary(match, clubStats(match.home.name, found.now), clubStats(match.away.name, found.now))
   return {
     title: { absolute: title },

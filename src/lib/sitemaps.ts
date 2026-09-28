@@ -12,7 +12,7 @@ import { isoDate } from './time'
 import { SITE_URL, paths } from './site'
 import { categories, publishedArticles } from './articles'
 import { loadRealData } from './realdata'
-import { pastGames, pastSeasons } from './history'
+import { pastGameIndexable, pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
 import { tvLeagues } from './tv'
 import { divisionOfGame } from '../data/ourLeagues'
@@ -97,6 +97,8 @@ async function matchEntries(): Promise<SitemapEntry[]> {
     if (i % 5000 === 0) await breather()
     const g = past[i]
     if (seen.has(g.slug) || pairs.has(`${isoDate(g.date)}|${key(g.home)}|${key(g.away)}`)) continue
+    // Only the older matches worth a search engine's time (the big leagues, with named scorers)
+    if (!pastGameIndexable(g)) continue
     seen.add(g.slug)
     entries.push({ path: paths.match(g.slug), lastModified: new Date(g.date.getTime() + FULL_TIME_MS) })
   }

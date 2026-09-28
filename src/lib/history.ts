@@ -10,7 +10,7 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
+import { archiveDetailedEvents, archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
@@ -1046,6 +1046,46 @@ export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
 export function pastLeagueSlug(g: PastGame): string | undefined {
   const id = g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0]
   return DIVISIONS.find((d) => d.id === id)?.slug
+}
+
+// ---------------------------------------------------------------- which older matches search engines get
+
+/** The leagues whose older matches people search for (by our division ids) */
+const TOP_LEAGUES = new Set(['superliga', '1div', 'premierleague', 'bundesliga', 'laliga'])
+const TOP_TOURNAMENT = /champions league/i
+
+// football.db's matches with named scorers, found once an hour
+let dbDetailed: { at: number; ids: Set<number> } | undefined
+function dbDetailedIds(): Set<number> {
+  if (dbDetailed && Date.now() - dbDetailed.at < 3_600_000) return dbDetailed.ids
+  const ids = new Set<number>()
+  const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => { prepare(sql: string): { all(...p: unknown[]): Row[] }; close(): void } } | undefined
+  if (sqlite && existsSync(historyFile())) {
+    let db: { prepare(sql: string): { all(...p: unknown[]): Row[] }; close(): void } | undefined
+    try {
+      db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
+      for (const r of db.prepare("SELECT DISTINCT event_id FROM incidents WHERE player_name IS NOT NULL AND player_name != ''").all()) ids.add(Number(r.event_id))
+    } catch {
+      // No incidents table
+    } finally {
+      db?.close()
+    }
+  }
+  dbDetailed = { at: Date.now(), ids }
+  return ids
+}
+
+/**
+ * Whether an older match's page (one the season's data no longer has) is for
+ * search engines: only a match in one of the big leagues or the Champions
+ * League that has named scorers or players' numbers. The rest keep their page
+ * (links, visitors) but get noindex and stay out of the sitemap, so search
+ * engines spend their time on the pages that can rank.
+ */
+export function pastGameIndexable(g: PastGame): boolean {
+  const top = TOP_LEAGUES.has(g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0] || '') || TOP_TOURNAMENT.test(g.tournament)
+  if (!top) return false
+  return g.source.archive ? archiveDetailedEvents().has(g.source.archive) : g.source.db !== undefined && dbDetailedIds().has(g.source.db)
 }
 
 // ---------------------------------------------------------------- earlier seasons' own pages
