@@ -20,7 +20,8 @@ import { AdSlot } from '../../../components/AdSlot'
 import { LeagueStats } from '../../../components/LeagueStats'
 import { LeagueLeaders } from '../../../components/LeagueLeaders'
 import { LeagueHistory } from '../../../components/LeagueHistory'
-import { leagueHistory } from '../../../lib/history'
+import { leagueHistory, pastSeasons } from '../../../lib/history'
+import { SeasonLinks } from '../../../components/SeasonLinks'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { leagueFaq } from '../../../lib/faq'
@@ -284,6 +285,17 @@ export default async function LeaguePage({ params }: { params: Params }) {
           if (division.countryCode === 'DK') return null
           const history = leagueHistory(division.id)
           return history ? <LeagueHistory name={division.name} history={history} /> : null
+        })()}
+        {(() => {
+          // Earlier seasons with a page of their own (only those our partners' results cover in full)
+          const seasons = pastSeasons(division.id)
+          if (!seasons.length) return null
+          return (
+            <section className="panel">
+              <h2 className="panel__title">Tidligere sæsoner</h2>
+              <SeasonLinks divisionSlug={division.slug} seasons={seasons} />
+            </section>
+          )
         })()}
 
         <AdSlot placement="feed" />

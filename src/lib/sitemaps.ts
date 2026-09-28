@@ -9,7 +9,7 @@ import { isoDate } from './time'
 import { SITE_URL, paths } from './site'
 import { categories, publishedArticles } from './articles'
 import { loadRealData } from './realdata'
-import { pastGames } from './history'
+import { pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
@@ -31,6 +31,7 @@ export function pageEntries(): SitemapEntry[] {
   return [
     { path: '/' },
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
+    ...shownDivisions().flatMap((d) => pastSeasons(d.id).map((s) => ({ path: `${paths.league(d.slug)}/${s.slug}`, lastModified: s.games.at(-1)?.date }))),
     ...tournaments.map((k) => ({ path: paths.league(k) })),
     { path: paths.clubs() },
     ...allTeams().map((t) => ({ path: paths.club(t.slug) })),

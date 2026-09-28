@@ -1,7 +1,7 @@
 import 'server-only'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { DIVISIONS, SEASON, sportOf, type Club } from '../data/leagues'
+import { DIVISIONS, SEASON, seasonOf, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
 import type { Incident, MatchState, SportId } from '../types'
 import { alike, normalize, clubNames } from '../data/aliases'
@@ -1028,3 +1028,125 @@ export function pastLeagueSlug(g: PastGame): string | undefined {
   const id = g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0]
   return DIVISIONS.find((d) => d.id === id)?.slug
 }
+
+// ---------------------------------------------------------------- earlier seasons' own pages
+
+/** API-Sports' ids in the statistics bank ("football-123", "hockey-45", ...): only their seasons get pages */
+const API_SPORTS_ID = /^(football|hockey|basketball|nba|handball|volleyball|nfl)-\d+$/
+
+export interface SeasonTableRow {
+  rank: number
+  name: string
+  slug?: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  points: number
+}
+
+export interface SeasonGame {
+  id: string
+  date: Date
+  home: string
+  away: string
+  homeScore: number
+  awayScore: number
+  spectators?: number
+  /** Its page, when it has one */
+  slug?: string
+}
+
+export interface PastSeason {
+  divisionId: string
+  /** As saved: "2019/2020", or "2019" for calendar-year leagues */
+  season: string
+  /** In the address: "2019-2020" */
+  slug: string
+  /** Shown: "2019/20" */
+  label: string
+  games: SeasonGame[]
+  table: SeasonTableRow[]
+  /** Split season: how many teams played in the championship group (ranked first whatever their points) */
+  upper?: number
+  hasDraws: boolean
+}
+
+const seasonSlug = (season: string) => season.replace('/', '-')
+export const seasonLabel = (season: string) => {
+  const m = /^(\d{4})\/(\d{2})(\d{2})$/.exec(season)
+  return m ? `${m[1]}/${m[3]}` : season
+}
+
+const pastSeasonsCache = new Map<string, { rows: ArchivedMatch[]; seasons: PastSeason[] }>()
+
+/**
+ * A league's finished earlier seasons with API-Sports' results in the
+ * statistics bank, newest first. Only seasons with (nearly) every match: a
+ * team plays everyone at least twice.
+ */
+export function pastSeasons(divisionId: string): PastSeason[] {
+  const division = DIVISIONS.find((d) => d.id === divisionId)
+  if (!division) return []
+  const rowsAll = readArchive()
+  const hit = pastSeasonsCache.get(divisionId)
+  if (hit && hit.rows === rowsAll) return hit.seasons
+  const sport = sportOf(division)
+  const find = resolver(sport)
+  const current = [seasonOf(division), SEASON].map((s) => {
+    const m = /^(\d{4})\/(\d{2})$/.exec(s)
+    return m ? `${m[1]}/${m[1].slice(0, 2)}${m[2]}` : s
+  })
+  const bySeason = new Map<string, ArchivedMatch[]>()
+  for (const a of rowsAll) {
+    if (a.divisionId !== divisionId || !API_SPORTS_ID.test(a.id) || current.includes(a.season)) continue
+    bySeason.set(a.season, [...(bySeason.get(a.season) ?? []), a])
+  }
+  const shown = (name: string) => find(name)?.name ?? name
+  const seasons: PastSeason[] = []
+  for (const [season, all] of bySeason) {
+    const { counted, upper } = leagueMatchesOf(all, (m, side) => normalize(shown(side === 'home' ? m.homeName : m.awayName)))
+    const teams = new Map<string, SeasonTableRow>()
+    const add = (name: string, f: number, a: number) => {
+      const key = normalize(name)
+      const r = teams.get(key) ?? teams.set(key, { rank: 0, name, slug: find(name)?.slug, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }).get(key)!
+      r.played++
+      r.goalsFor += f
+      r.goalsAgainst += a
+      if (f > a) r.won++
+      else if (f < a) r.lost++
+      else r.drawn++
+      r.points += f > a ? 3 : f === a ? 1 : 0
+    }
+    for (const m of counted) {
+      add(shown(m.homeName), m.homeScore, m.awayScore)
+      add(shown(m.awayName), m.awayScore, m.homeScore)
+    }
+    const n = teams.size
+    // Not a whole season in the bank: no page (its table would be wrong)
+    if (n < 4 || counted.length < n * (n - 1) * 0.95) continue
+    const hasDraws = [...teams.values()].some((r) => r.drawn > 0)
+    const byPoints = (x: SeasonTableRow, y: SeasonTableRow) =>
+      (hasDraws ? y.points - x.points : y.won - x.won) || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor
+    const keyed = [...teams.entries()]
+    const ranked = upper
+      ? [...keyed.filter(([k]) => upper.has(k)).map(([, r]) => r).sort(byPoints), ...keyed.filter(([k]) => !upper.has(k)).map(([, r]) => r).sort(byPoints)]
+      : keyed.map(([, r]) => r).sort(byPoints)
+    const games = [...all]
+      .sort((x, y) => x.date.getTime() - y.date.getTime())
+      .map((a): SeasonGame => {
+        const home = shown(a.homeName)
+        const away = shown(a.awayName)
+        const slug = matchSlug(home, away, isoDate(a.date))
+        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined }
+      })
+    seasons.push({ divisionId, season, slug: seasonSlug(season), label: seasonLabel(season), games, table: ranked.map((r, i) => ({ ...r, rank: i + 1 })), upper: upper?.size, hasDraws })
+  }
+  seasons.sort((a, b) => b.season.localeCompare(a.season))
+  pastSeasonsCache.set(divisionId, { rows: rowsAll, seasons })
+  return seasons
+}
+
+export const pastSeason = (divisionId: string, slug: string) => pastSeasons(divisionId).find((s) => s.slug === slug)
