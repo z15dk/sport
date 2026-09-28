@@ -11,6 +11,7 @@ import { categories, publishedArticles } from './articles'
 import { loadRealData } from './realdata'
 import { pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
+import { tvLeagues } from './tv'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
 // tournaments, clubs, articles) and /sitemaps/kampe-<n>.xml (every match with a
@@ -32,6 +33,9 @@ export function pageEntries(): SitemapEntry[] {
     { path: '/' },
     { path: '/kampe/i-gaar' },
     { path: '/kampe/i-morgen' },
+    // The TV guide: today, and each league's coming matches on TV
+    { path: paths.tv() },
+    ...tvLeagues().map((l) => ({ path: paths.tv(l.slug) })),
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
     ...shownDivisions().flatMap((d) => pastSeasons(d.id).map((s) => ({ path: `${paths.league(d.slug)}/${s.slug}`, lastModified: s.games.at(-1)?.date }))),
     ...tournaments.map((k) => ({ path: paths.league(k) })),

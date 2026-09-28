@@ -24,6 +24,8 @@ export const paths = {
   club: (slug: string) => `/klub/${slug}`,
   league: (slug: string) => `/turnering/${slug}`,
   clubs: () => '/klubber',
+  /** The TV guide: today's matches on TV, or one league's coming matches on TV */
+  tv: (league?: string) => (league ? `/tv/${league}` : '/tv'),
   articles: (page?: number) => (page && page > 1 ? `/artikler?side=${page}` : '/artikler'),
   article: (slug: string) => `/artikler/${slug}`,
   articleCategory: (slug: string) => `/artikler/kategori/${slug}`,

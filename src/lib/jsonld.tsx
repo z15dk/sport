@@ -169,3 +169,19 @@ export function teamPageLd(team: TeamEntry) {
     ...(team.country && { location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressCountry: team.country } } }),
   }
 }
+
+/** A list of matches (the TV guide), each as its page and name */
+export function matchListLd(name: string, matches: Match[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: matches.length,
+    itemListElement: matches.map((m, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${SITE_URL}${paths.match(m.slug)}`,
+      name: `${m.home.name} – ${m.away.name}`,
+    })),
+  }
+}

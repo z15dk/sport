@@ -70,6 +70,9 @@ export function Footer() {
               <Link href="/kampe/i-morgen">Kampe i morgen</Link>
             </li>
             <li>
+              <Link href={paths.tv()}>Fodbold i TV i dag</Link>
+            </li>
+            <li>
               <Link href={paths.clubs()}>Alle klubber</Link>
             </li>
             <li>
