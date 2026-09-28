@@ -10,6 +10,10 @@ import type { Club } from '../../../data/leagues'
 import type { Fixture } from '../../../data/season'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 import s from './sociale.module.css'
+import { getMatches } from '../../../data/matches'
+import { teamByName } from '../../../data/teams'
+import { shownDivisions } from '../../../data/leagues'
+import { paths } from '../../../lib/site'
 import { CardDownload, RailDownload } from './CardDownload'
 import { FitRows } from './FitRows'
 
@@ -734,6 +738,44 @@ function Results({ date, overview, picks, logos }: { date: string; overview: Pic
 
 // ---------------------------------------------------------------- the page
 
+/**
+ * The pictures shown when a page is shared (Facebook, X, Messenger, Slack, Google):
+ * the real ones from the pages' opengraph-image routes, for the front page, one of
+ * the day's matches, a league and a club.
+ */
+function ShareImages({ date, now }: { date: string; now: number }) {
+  const matches = getMatches(date, 'all', now)
+  const match = matches.find((m) => m.state === 'finished') ?? matches[0]
+  const club = matches.map((m) => teamByName(m.home.name)).find(Boolean)
+  const league = shownDivisions()[0]
+  const pictures = [
+    { title: 'Forsiden', page: '/', image: '/opengraph-image' },
+    ...(match ? [{ title: `Kamp: ${match.home.name} – ${match.away.name}`, page: paths.match(match.slug), image: `${paths.match(match.slug)}/opengraph-image` }] : []),
+    ...(league ? [{ title: `Liga: ${league.name}`, page: paths.league(league.slug), image: `${paths.league(league.slug)}/opengraph-image` }] : []),
+    ...(club ? [{ title: `Klub: ${club.name}`, page: paths.club(club.slug), image: `${paths.club(club.slug)}/opengraph-image` }] : []),
+  ]
+  return (
+    <section className={s.share}>
+      <h2>Delingsbilleder (Open Graph)</h2>
+      <p className="muted small">
+        Billedet, der vises, når en side deles på Facebook, Messenger, X og Slack, og som Google får med kampene: 1200×630, lavet af sidens rigtige data
+        og logoer. Hver side har sit eget.
+      </p>
+      <div className={s.shareGrid}>
+        {pictures.map((p) => (
+          <figure key={p.image}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the page's own share picture, as it is served */}
+            <img src={p.image} alt={`Delingsbillede for ${p.title}`} width={1200} height={630} loading="lazy" />
+            <figcaption>
+              <Link href={p.page}>{p.title}</Link> · <a href={p.image}>åbn billedet</a>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default async function SocialPage({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect('/admin')
   const now = Date.now()
@@ -795,6 +837,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Searc
           </>
         )}
         <p className="muted small">Kortene vises formindsket: 4:5 til feed (1080×1350) og 9:16 til stories (1080×1920).</p>
+        <ShareImages date={date} now={now} />
       </div>
     </div>
   )
