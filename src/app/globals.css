@@ -1815,5 +1815,17 @@ a.player-games__match:hover { text-decoration: underline; }
 
 /* Text about a club or league, and a club's earlier seasons */
 .about-text p { margin: 0 0 10px; line-height: 1.6; }
-.club-seasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.club-seasons summary { cursor: pointer; padding: 6px 0; }
+.club-seasons { list-style: none; margin: 0; padding: 0 10px 12px; display: grid; gap: 6px; }
+.club-seasons details { border-radius: var(--radius-sm); background: var(--surface-2); }
+.club-seasons summary { cursor: pointer; display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 14px; list-style: none; }
+.club-seasons summary::-webkit-details-marker { display: none; }
+.club-seasons__year { font-weight: 800; }
+.club-seasons__league { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club-seasons__place { font-weight: 700; }
+.club-seasons__link { padding: 0 14px 8px; font-size: 14px; }
+.club-seasons__link a { color: var(--ink); font-weight: 600; }
+.tile__value--text { font-size: 22px; line-height: 1.1; }
+.season-links { padding: 0 18px 18px; }
+.season-links a, .season-links strong { color: var(--ink); text-decoration: none; }
+.season-links a:hover { background: var(--lime); }
+.season-links em { color: var(--ink-3); opacity: 1; }

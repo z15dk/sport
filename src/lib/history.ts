@@ -3,7 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, seasonOf, sportOf, type Club } from '../data/leagues'
 import type { RealEvent } from '../data/real'
-import type { Incident, MatchState, SportId } from '../types'
+import type { Incident, Match, MatchState, SportId } from '../types'
 import { alike, normalize, clubNames } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
 import type { ExternalGame } from '../data/external'
@@ -14,7 +14,7 @@ import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from '
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
-import { checkSeason } from './seasonCheck'
+import { NOT_LEAGUE_ROUND, checkSeason } from './seasonCheck'
 import { historyOfficial, type HistoryScorer } from './apisports'
 import { isoDate } from './time'
 
@@ -1173,3 +1173,21 @@ export function pastSeasons(divisionId: string): PastSeason[] {
 }
 
 export const pastSeason = (divisionId: string, slug: string) => pastSeasons(divisionId).find((s) => s.slug === slug)
+
+/** A past season's match as a row for the match lists (MatchRow) */
+export function seasonGameAsMatch(g: SeasonGame, division: { id: string; name: string; slug: string; sport?: SportId }): Match {
+  return {
+    id: g.id,
+    slug: g.slug ?? '',
+    sport: division.sport ?? 'soccer',
+    league: division.name,
+    leagueId: division.id,
+    leagueSlug: division.slug,
+    kickoff: g.date,
+    state: 'finished',
+    statusLabel: NOT_LEAGUE_ROUND.test(g.round ?? '') ? 'Slutspil' : 'Slut',
+    home: { name: g.home, score: g.homeScore },
+    away: { name: g.away, score: g.awayScore },
+    real: true,
+  }
+}
