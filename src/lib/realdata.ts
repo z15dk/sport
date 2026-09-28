@@ -21,6 +21,7 @@ import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
+import { danishLeagueName } from '../data/external'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
 
@@ -162,7 +163,7 @@ function apply() {
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
       const keys = [...sameLeagueKeys(key), ...(cupOfGame(g) ? [externalLeagueKey({ ...g.league, originalName: undefined })] : [])]
-      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name
+      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name ?? danishLeagueName(g.league.name)
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
     }),

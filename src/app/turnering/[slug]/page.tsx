@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
 import { allFixtures, isFinished, standings, toMatch } from '../../../data/season'
-import { externalMatch, getMatches } from '../../../data/matches'
+import { externalMatch, getMatches, isFriendly } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { LiveNow } from '../../../components/LiveNow'
@@ -98,7 +98,7 @@ async function externalLeaguePage(slug: string) {
   }
   const cup = cupOfGame({ sport: found.sport, league: found })
   // Friendlies: no table (the games have nothing to do with each other), results by day instead
-  const friendly = /friendl/i.test(`${found.name} ${found.title ?? ''}`)
+  const friendly = isFriendly(`${found.name} ${found.title ?? ''}`)
   const fromApi = found.id && !cup && !friendly ? await apiLeagueTable(found) : undefined
   const baseline = BASELINES[slug]
   const own = archiveLeagueTable(`ext-${found.api.split('-')[0]}-${found.id}`, baseline)
