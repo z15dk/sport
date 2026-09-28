@@ -8,7 +8,8 @@ import { getBadges } from '../lib/badges'
 import { loadRealData } from '../lib/realdata'
 import { RealDataProvider } from '../components/RealDataProvider'
 import { clientRealData } from '../lib/clientData'
-import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site'
+import { SITE_NAME, SITE_URL } from '../lib/site'
+import { indexable } from '../lib/settings'
 // The site's fonts, served from our own domain (no request to Google that holds up the first paint)
 import '@fontsource/barlow-condensed/latin-600.css'
 import '@fontsource/barlow-condensed/latin-700.css'
@@ -18,17 +19,19 @@ import '@fontsource/barlow-condensed/latin-800-italic.css'
 import '@fontsource-variable/dm-sans/opsz.css'
 import './globals.css'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE_NAME} – live resultater og dagens kampe`, template: `%s | ${SITE_NAME}` },
-  description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
-  applicationName: SITE_NAME,
-  // Fictional data must not end up in search results or AI answers
-  robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
-  openGraph: { siteName: SITE_NAME, locale: 'da_DK', type: 'website' },
-  twitter: { card: 'summary_large_image' },
-  icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: { default: `${SITE_NAME} – live resultater og dagens kampe`, template: `%s | ${SITE_NAME}` },
+    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
+    applicationName: SITE_NAME,
+    // Hidden from search engines until indexing is switched on (/admin/indstillinger or SITE_INDEXABLE)
+    robots: indexable() ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
+    openGraph: { siteName: SITE_NAME, locale: 'da_DK', type: 'website' },
+    twitter: { card: 'summary_large_image' },
+    icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
+    appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
+  }
 }
 
 // Logos are found in the background after deploy, so pages are rendered per request to pick them up

@@ -1,11 +1,6 @@
 export const SITE_NAME = 'Matchly'
 export const SITE_URL = (process.env.SITE_URL || 'http://localhost:5173').replace(/\/$/, '')
 
-/**
- * Only allow search engines once the site shows real results. While matches
- * are fictional every page is marked noindex and robots.txt blocks crawling.
- */
-export const INDEXABLE = process.env.SITE_INDEXABLE === 'true'
 
 export const paths = {
   about: () => '/om',

@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
 import { DIVISIONS } from '../../../data/leagues'
 import { womenTeamOf } from '../../../data/teams'
-import { paths } from '../../../lib/site'
+import { SITE_URL, paths } from '../../../lib/site'
 import { formatNumeric, formatTime } from '../../../lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -56,6 +56,12 @@ export default async function AdminSettings() {
                 <p className="muted small">{s.description}</p>
               </div>
             ))}
+            {group === 'Søgemaskiner' && (
+              <p className="muted small">
+                Adressen søgemaskinerne får (SITE_URL): <strong>{SITE_URL}</strong>
+                {!SITE_URL.startsWith('https://matchly.dk') && ' – bør være https://matchly.dk, ellers peger Google på en forkert adresse. Rettes i /opt/scoreline/env på serveren.'}
+              </p>
+            )}
           </section>
         ))}
         <section className="panel prose__section">

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { shownDivisions, sportOf } from '../data/leagues'
-import { INDEXABLE, SITE_NAME, paths } from '../lib/site'
+import { SITE_NAME, paths } from '../lib/site'
+import { indexable } from '../lib/settings'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { sportById } from '../sports'
 import { Flag } from './Flag'
@@ -74,7 +75,7 @@ export function Footer() {
           </ul>
         </div>
       </nav>
-      {!INDEXABLE && <p className="footer__note">Under udvikling.</p>}
+      {!indexable() && <p className="footer__note">Under udvikling.</p>}
       <p className="footer__note">
         Odds vises for spillere over 18 år.{' '}
         <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">

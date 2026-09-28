@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { SEASON, shownDivisions } from '../../data/leagues'
 import { JsonLd, breadcrumbLd, organizationLd } from '../../lib/jsonld'
-import { INDEXABLE, SITE_NAME, paths } from '../../lib/site'
+import { SITE_NAME, paths } from '../../lib/site'
+import { indexable } from '../../lib/settings'
 
 export const metadata: Metadata = {
   title: 'Om Matchly – hvem vi er og hvor tallene kommer fra',
@@ -21,7 +22,7 @@ export default function AboutPage() {
       <article className="clubs prose">
         <h1 className="feed__title">Om {SITE_NAME}</h1>
 
-        {!INDEXABLE && (
+        {!indexable() && (
           <p className="banner">
             Matchly er under udvikling. Odds er eksempler.
           </p>
@@ -49,9 +50,7 @@ export default function AboutPage() {
             Stillinger regnes ud fra alle spillede kampe i rækken, og hver side viser, hvornår den sidst er opdateret.
           </p>
           <p>
-            {INDEXABLE
-              ? 'Resultaterne kommer fra vores datapartnere og kontrolleres automatisk, før de vises.'
-              : 'I udviklingsfasen genereres kampe og resultater automatisk, så vi kan teste siden. Når vi går live, skiftes de ud med officielle resultater.'}
+            Resultaterne kommer fra vores datapartnere og kontrolleres automatisk, før de vises.
           </p>
         </section>
 

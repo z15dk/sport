@@ -33,6 +33,9 @@ export function siteSettings(): { version: string; settings: SiteSettings } {
   return { version: String(Math.round(cache.mtime)), settings: cache.settings }
 }
 
+/** Whether search engines may index the site: SITE_INDEXABLE=true on the server, or the switch in /admin/indstillinger */
+export const indexable = () => process.env.SITE_INDEXABLE === 'true' || siteSettings().settings.indexable
+
 /** Changes one setting */
 export function setSetting(key: string, value: unknown): { error?: string } {
   if (!isSettingKey(key) || typeof value !== 'boolean') return { error: 'Ukendt indstilling' }
