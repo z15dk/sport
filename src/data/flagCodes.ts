@@ -31,6 +31,7 @@ export const FLAG_CODES: Record<string, string> = {
   "bermuda": 'bm',
   "bhutan": 'bt',
   "bolivia": 'bo',
+  "bonaire": 'bq',
   "bosnia": 'ba',
   "bosnia and herzegovina": 'ba',
   "botswana": 'bw',
@@ -39,10 +40,12 @@ export const FLAG_CODES: Record<string, string> = {
   "british indian ocean territory": 'io',
   "british virgin islands": 'vg',
   "brunei": 'bn',
+  "brunei darussalam": 'bn',
   "bulgaria": 'bg',
   "burkina faso": 'bf',
   "burma": 'mm',
   "burundi": 'bi',
+  "cabo verde": 'cv',
   "cambodia": 'kh',
   "cameroon": 'cm',
   "canada": 'ca',
@@ -94,8 +97,10 @@ export const FLAG_CODES: Record<string, string> = {
   "finland": 'fi',
   "france": 'fr',
   "french guiana": 'gf',
+  "french guyana": 'gf',
   "french polynesia": 'pf',
   "french southern territories": 'tf',
+  "fyr macedonia": 'mk',
   "gabon": 'ga',
   "gambia": 'gm',
   "georgia": 'ge',
@@ -110,6 +115,7 @@ export const FLAG_CODES: Record<string, string> = {
   "guatemala": 'gt',
   "guernsey": 'gg',
   "guinea": 'gn',
+  "guinea bissau": 'gw',
   "guinea-bissau": 'gw',
   "guyana": 'gy',
   "haiti": 'ht',
@@ -213,8 +219,10 @@ export const FLAG_CODES: Record<string, string> = {
   "romania": 'ro',
   "russia": 'ru',
   "rwanda": 'rw',
+  "saint barthelemy": 'bl',
   "saint kitts and nevis": 'kn',
   "saint lucia": 'lc',
+  "saint martin": 'mf',
   "saint vincent and the grenadines": 'vc',
   "samoa": 'ws',
   "san marino": 'sm',
@@ -258,6 +266,7 @@ export const FLAG_CODES: Record<string, string> = {
   "tajikistan": 'tj',
   "tanzania": 'tz',
   "thailand": 'th',
+  "the bahamas": 'bs',
   "the gambia": 'gm',
   "timor-leste": 'tl',
   "togo": 'tg',
@@ -310,5 +319,7 @@ export function flagCode(name: string, national = false): string | undefined {
   if (!m) return undefined
   const suffixed = m[1].length < name.trim().length
   if (!suffixed && !national) return undefined
-  return FLAG_CODES[foldCountry(m[1])]
+  const country = foldCountry(m[1])
+  // "Saint Lucia" and "St. Lucia" are the same country
+  return FLAG_CODES[country] ?? FLAG_CODES[country.replace(/^saint /, 'st. ')] ?? FLAG_CODES[country.replace(/^st\.? /, 'saint ')]
 }
