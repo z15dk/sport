@@ -24,6 +24,8 @@ export interface OfficialRow {
   goalsFor?: number
   goalsAgainst?: number
   points?: number
+  /** The team's logo in the official table (the source's address) */
+  logo?: string
 }
 
 export interface SeasonCheck {
@@ -96,6 +98,7 @@ export function finalTable(groups: TableRow[][]): { table: OfficialRow[]; upper?
     goalsFor: r.for,
     goalsAgainst: r.against,
     points: r.points,
+    logo: r.logo,
   })
   const size = Math.max(...named.map((g) => g.length))
   const whole = named.find((g) => g.length === size)!
@@ -117,6 +120,7 @@ export function finalTable(groups: TableRow[][]): { table: OfficialRow[]; upper?
       table.push({
         rank: table.length + 1,
         name: r.name,
+        logo: r.logo ?? base.logo,
         played: r.played + (add ? base.played : 0),
         won: r.won + (add ? base.won : 0),
         drawn: (r.drawn ?? 0) + (add ? (base.drawn ?? 0) : 0),

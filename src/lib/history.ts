@@ -17,6 +17,7 @@ import { matchSlug } from './slug'
 import { NOT_LEAGUE_ROUND, allSeasonGames, checkSeason, savedSeasons } from './seasonCheck'
 import { historyOfficial, type HistoryScorer } from './apisports'
 import { isoDate } from './time'
+import { realLogo } from './logoCheck'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
 // the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
@@ -1053,6 +1054,8 @@ export interface SeasonTableRow {
   rank: number
   name: string
   slug?: string
+  /** The logo from the official table (teams no longer in the league have no other) */
+  logo?: string
   played: number
   won: number
   drawn: number
@@ -1074,6 +1077,8 @@ export interface SeasonGame {
   slug?: string
   /** The source's round ("Regular Season - 7", "Europe Play-off") */
   round?: string
+  homeLogo?: string
+  awayLogo?: string
 }
 
 export interface PastSeason {
@@ -1149,6 +1154,7 @@ export function pastSeasons(divisionId: string): PastSeason[] {
         rank: o.rank,
         name: shown(o.name),
         slug: find(o.name)?.slug,
+        logo: realLogo(o.logo),
         played: o.played,
         won: r.won,
         drawn: r.drawn,
@@ -1159,13 +1165,15 @@ export function pastSeasons(divisionId: string): PastSeason[] {
       }
     })
     // Every saved match of the season (play-offs too), for the list and the links
+    // The teams' logos from the official table, for the match list too
+    const logos = new Map(check.table.map((o) => [o.name, realLogo(o.logo)]))
     const games = [...allSeasonGames(divisionId, season)]
       .sort((x, y) => x.date.getTime() - y.date.getTime())
       .map((a): SeasonGame => {
         const home = shown(a.homeName)
         const away = shown(a.awayName)
         const slug = matchSlug(home, away, isoDate(a.date))
-        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined, round: a.round }
+        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined, round: a.round, homeLogo: logos.get(a.homeName), awayLogo: logos.get(a.awayName) }
       })
     seasons.push({
       divisionId,
@@ -1199,8 +1207,8 @@ export function seasonGameAsMatch(g: SeasonGame, division: { id: string; name: s
     kickoff: g.date,
     state: 'finished',
     statusLabel: NOT_LEAGUE_ROUND.test(g.round ?? '') ? 'Slutspil' : 'Slut',
-    home: { name: g.home, score: g.homeScore },
-    away: { name: g.away, score: g.awayScore },
+    home: { name: g.home, score: g.homeScore, badge: g.homeLogo },
+    away: { name: g.away, score: g.awayScore, badge: g.awayLogo },
     real: true,
   }
 }
