@@ -101,7 +101,10 @@ export function ogImage(opts: { label?: string; title: string; sub?: string; tea
         {/* The green M behind everything, partly off the picture */}
         <img src={M_OUTLINE} width={900} height={648} alt="" style={{ position: 'absolute', left: -120, top: -40, opacity: 0.32 }} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '48px 72px 36px' }}>
-          <div style={{ display: 'flex', fontSize: 32, fontWeight: 700, color: '#b8bdb0', letterSpacing: 1 }}>{opts.label ?? opts.sub ?? 'Live resultater, kampprogram og stillinger'}</div>
+          {/* The top line: the league, and for a match its status and date */}
+          <div style={{ display: 'flex', fontSize: 32, fontWeight: 700, color: '#b8bdb0', letterSpacing: 1 }}>
+            {opts.match ? [opts.label, opts.sub].filter(Boolean).join(' · ') : (opts.label ?? opts.sub ?? 'Live resultater, kampprogram og stillinger')}
+          </div>
           {opts.match ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Side side={opts.match.home} />
@@ -127,7 +130,10 @@ export function ogImage(opts: { label?: string; title: string; sub?: string; tea
           <div style={{ display: 'flex', fontSize: 64, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, letterSpacing: -0.5 }}>
             MATCHLY<span style={{ color: ACCENT, marginLeft: -10 }}>.</span>
           </div>
-          <div style={{ display: 'flex', fontSize: 30, fontWeight: 700, color: '#a3a89b' }}>{opts.match && opts.sub ? `${opts.sub} · matchly.dk` : 'matchly.dk'}</div>
+          {/* What Matchly is, on every picture */}
+          <div style={{ display: 'flex', fontSize: 32, fontWeight: 700, color: '#a3a89b' }}>
+            <span style={{ color: '#c6f135', marginRight: 12 }}>Live score og stats</span>· matchly.dk
+          </div>
         </div>
       </div>
     ),
