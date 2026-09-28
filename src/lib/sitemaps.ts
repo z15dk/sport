@@ -108,7 +108,14 @@ export function buildSitemaps(): Promise<void> {
       const matches = await matchEntries()
       await breather()
       const out = new Map<string, string>()
-      out.set('sider.xml', urlsetXml(pageEntries()))
+      // The pages; should one part fail, the rest of the sitemap is still made
+      let pages: SitemapEntry[]
+      try {
+        pages = pageEntries()
+      } catch {
+        pages = [{ path: '/' }, { path: paths.clubs() }, { path: paths.tv() }]
+      }
+      out.set('sider.xml', urlsetXml(pages))
       const count = Math.max(1, Math.ceil(matches.length / PER_FILE))
       for (let i = 0; i < count; i++) out.set(`kampe-${i + 1}.xml`, urlsetXml(matches.slice(i * PER_FILE, (i + 1) * PER_FILE)))
       out.set(INDEX, indexXml([...out.keys()]))
@@ -156,7 +163,8 @@ const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
 
 export function urlsetXml(entries: SitemapEntry[]): string {
   const rows = entries.map(
-    (e) => `<url><loc>${escape(SITE_URL + e.path)}</loc>${e.lastModified ? `<lastmod>${e.lastModified.toISOString()}</lastmod>` : ''}</url>`,
+    // A date that can't be read is left out (toISOString would throw and take the whole file down)
+    (e) => `<url><loc>${escape(SITE_URL + e.path)}</loc>${e.lastModified && !Number.isNaN(e.lastModified.getTime()) ? `<lastmod>${e.lastModified.toISOString()}</lastmod>` : ''}</url>`,
   )
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join('\n')}\n</urlset>\n`
 }
