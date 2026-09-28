@@ -771,7 +771,7 @@ h2.league__name { margin: 0; }
 .form-chart__bar { position: absolute; left: 3px; right: 3px; min-height: 4px; }
 .form-chart__bar.is-up { bottom: 50%; border-radius: 4px 4px 0 0; }
 .form-chart__bar.is-down { top: 50%; border-radius: 0 0 4px 4px; }
-.form-chart__bar--V { background: #3f8f3a; }
+.form-chart__bar--V { background: var(--lime-deep); }
 .form-chart__bar--U { background: #9ba096; }
 .form-chart__bar--T { background: #c8421e; }
 .form-chart__label { font-size: 11px; font-weight: 800; color: var(--ink-2); }
@@ -969,7 +969,7 @@ h2.league__name { margin: 0; }
 .rank-list__cards { display: inline-flex; align-items: center; gap: 4px; }
 
 /* Goals per quarter-hour: blue up (scored / goals), orange down (conceded) */
-.ichart { margin: 0; --ichart-up: #2f6fdb; --ichart-down: #ff4a1f; }
+.ichart { margin: 0; --ichart-up: var(--lime-deep); --ichart-down: var(--ink); }
 .ichart__legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
 .ichart__key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
 .ichart__key--up { background: var(--ichart-up); }
@@ -1641,15 +1641,15 @@ a.player-games__match:hover { text-decoration: underline; }
 .player-games__match .is-own { font-weight: 700; }
 .player-games__match b { font-variant-numeric: tabular-nums; }
 .rating-chip { display: inline-block; min-width: 34px; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
-.rating-chip.is-top { background: #2f6fdb; color: #fff; }
+.rating-chip.is-top { background: var(--lime); color: var(--ink); }
 .rating-chip.is-good { background: #3f8f3a; color: #fff; }
 .rating-chip.is-ok { background: #f5c518; color: #16181a; }
 .rating-chip.is-low { background: #ff4a1f; color: #fff; }
 .rating-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2px; padding: 8px 18px 4px; height: 190px; }
 .rating-chart__col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; cursor: default; }
 .rating-chart__bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
-.rating-chart__bar { width: min(22px, 80%); background: var(--lime); border-radius: 4px 4px 0 0; }
-.rating-chart__col:hover .rating-chart__bar { background: var(--lime-deep); }
+.rating-chart__bar { width: min(22px, 80%); background: var(--lime-deep); border-radius: 4px 4px 0 0; }
+.rating-chart__col:hover .rating-chart__bar { background: var(--ink); }
 .rating-chart__value { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 14px; }
 .rating-chart__label { font-size: 11px; color: var(--ink-3); }
 @media (max-width: 600px) { .hide-phone { display: none; } }
