@@ -195,6 +195,25 @@ export function teamGames(team: { name: string; names?: string[]; sport: SportId
   return [...new Map([...league, ...tournaments].map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 }
 
+/**
+ * The other matches of a match's round (its league, three days either side), or
+ * of its day when the round isn't known: links from one match page to the next.
+ */
+export function relatedMatches(match: Match, now: number, limit = 10): Match[] {
+  if (!match.leagueSlug) return []
+  const day = isoDate(match.kickoff)
+  const span = match.round !== undefined ? 3 : 0
+  const out: Match[] = []
+  for (let i = -span; i <= span; i++) {
+    for (const m of getMatches(addDays(day, i), match.sport, now)) {
+      if (m.id === match.id || m.leagueSlug !== match.leagueSlug) continue
+      if (match.round !== undefined && m.round !== match.round) continue
+      out.push(m)
+    }
+  }
+  return out.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, limit)
+}
+
 /** Matches for any team (any sport) over a range of days from `fromDate` */
 export function teamMatches(teamName: string | string[], sport: SportId, fromDate: string, days: number, now: number, leagueSlug?: string): Match[] {
   const names = new Set(Array.isArray(teamName) ? teamName : [teamName])

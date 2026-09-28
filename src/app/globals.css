@@ -541,6 +541,9 @@ button.score-card:hover { transform: translateY(-2px); }
   grid-area: score; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px;
   padding: 2px 10px; border-radius: 10px; background: var(--surface); font-variant-numeric: tabular-nums;
 }
+/* The score links to the earlier match's own page */
+.h2h__score a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.h2h__score a:hover { text-decoration-color: currentColor; }
 
 @media (max-width: 600px) {
   .sheet__panel { padding-inline: 16px; }

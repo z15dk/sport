@@ -1042,6 +1042,15 @@ export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
   return out
 }
 
+/** Earlier meetings with the address of their own match page, where one exists (links between match pages) */
+export function withMatchLinks(list: PastMatch[]): PastMatch[] {
+  return list.map((m) => {
+    if (m.slug) return m
+    const slug = matchSlug(m.home, m.away, isoDate(m.date))
+    return pastGame(slug) ? { ...m, slug } : m
+  })
+}
+
 /** The page of the league a past match belongs to, when it is one of ours */
 export function pastLeagueSlug(g: PastGame): string | undefined {
   const id = g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0]

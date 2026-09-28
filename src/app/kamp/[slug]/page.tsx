@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
-import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf } from '../../../data/matches'
+import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
@@ -12,7 +12,7 @@ import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
+import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, withMatchLinks, type PastGame } from '../../../lib/history'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
 import { PastMatchView } from '../../../components/PastMatchView'
@@ -54,7 +54,7 @@ async function pastMetadata(slug: string): Promise<Metadata> {
 
 function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
   const now = Date.now()
-  const h2h = pastMeetings(g)
+  const h2h = withMatchLinks(pastMeetings(g))
   const teamPath = Object.fromEntries([g.home, g.away].map((n) => [n, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined]))
   const report = matchReport({ match, now, h2h })
   const players = g.source.archive ? eventPlayers(g.source.archive) : []
@@ -190,6 +190,9 @@ export default async function MatchPage({ params }: { params: Params }) {
     realH2h = saved.h2h
     h2hSource = 'database'
   }
+  // The meetings link to their own match pages; the round's other matches too (at the foot)
+  if (realH2h) realH2h = withMatchLinks(realH2h)
+  const related = isFriendly(match.league) ? [] : relatedMatches(match, now)
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 
@@ -216,7 +219,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} related={related} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

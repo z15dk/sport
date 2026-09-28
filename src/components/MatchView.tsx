@@ -51,14 +51,39 @@ interface Props {
   lineups?: Lineup[]
   /** Injured and suspended players for this match (server) */
   absent?: { home: Injury[]; away: Injury[] }
+  /** The round's other matches in the league (server): links to their pages */
+  related?: Match[]
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+  return (
+    <>
+      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+      {related && related.length > 0 && (
+        <section className="league" aria-labelledby="related-title">
+          <header className="league__header">
+            <div className="league__toggle">
+              <span className="league__titles">
+                <h2 id="related-title" className="league__name">
+                  {match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>Flere kampe i {match.league}</Link> : `Flere kampe i ${match.league}`}
+                </h2>
+                {match.round !== undefined && <span className="league__country">{match.round}. runde</span>}
+              </span>
+            </div>
+          </header>
+          <ul className="league__matches">
+            {related.map((m) => (
+              <MatchRow key={m.id} match={m} showDate />
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  )
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -528,7 +553,15 @@ function MatchBody({
                     <TeamBadge name={m.home} src={m.homeLogo ?? (m.home === home.name ? home.badge : m.home === away.name ? away.badge : undefined)} colors={colorsOf(m.home)} size={22} />
                   </span>
                   <span className="h2h__score">
-                    {m.homeScore}–{m.awayScore}
+                    {m.slug ? (
+                      <Link href={paths.match(m.slug)} title={`${m.home} – ${m.away} ${m.homeScore}-${m.awayScore}`}>
+                        {m.homeScore}–{m.awayScore}
+                      </Link>
+                    ) : (
+                      <>
+                        {m.homeScore}–{m.awayScore}
+                      </>
+                    )}
                   </span>
                   <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
                     <TeamBadge name={m.away} src={m.awayLogo ?? (m.away === home.name ? home.badge : m.away === away.name ? away.badge : undefined)} colors={colorsOf(m.away)} size={22} />
