@@ -1916,3 +1916,10 @@ a.player-games__match:hover { text-decoration: underline; }
 .social-table td, .social-table th { font-size: 13px; }
 .social-inline { display: inline; }
 .social-pre { white-space: pre-wrap; font: inherit; font-size: 14px; background: var(--surface-2); padding: 10px 12px; border-radius: 8px; margin: 0; }
+.social-tags-list { list-style: none; margin: 0; padding: 0 18px 14px; display: flex; flex-direction: column; gap: 6px; }
+.social-tagrow { display: grid; grid-template-columns: minmax(140px, 1.3fr) repeat(4, minmax(0, 1fr)) auto; gap: 8px; align-items: center; font-size: 14px; }
+.social-tagrow input { width: 100%; min-width: 0; font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); box-sizing: border-box; }
+@media (max-width: 760px) { .social-tagrow { grid-template-columns: 1fr 1fr; } .social-tagrow strong { grid-column: 1 / -1; } }
+.social-preview summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.social-preview dl { margin: 6px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+.social-preview dd { margin: 0; white-space: pre-wrap; }

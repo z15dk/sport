@@ -537,3 +537,98 @@ export function ApprovalForm({ approval }: { approval: { always: boolean; until?
     </ActionForm>
   )
 }
+
+// ---------------------------------------------------------------- tags
+
+export interface TagRow {
+  name: string
+  group: string
+  handles: Record<string, string>
+}
+
+/** One club's (or league's) @names, one field per platform */
+function TagEditor({ row, platforms }: { row: TagRow; platforms: Record<string, string> }) {
+  const [values, setValues] = useState(row.handles)
+  const { busy, msg, run } = useAction()
+  const changed = Object.keys(platforms).some((p) => (values[p] ?? '') !== (row.handles[p] ?? ''))
+  return (
+    <li className="social-tagrow">
+      <strong>{row.name}</strong>
+      {Object.entries(platforms).map(([p, label]) => (
+        <input
+          key={p}
+          aria-label={`${row.name} på ${label}`}
+          placeholder={`@ ${label}`}
+          value={values[p] ?? ''}
+          onChange={(e) => setValues({ ...values, [p]: e.target.value })}
+        />
+      ))}
+      <span className="social-action">
+        <button type="button" className="text-btn" disabled={busy || !changed} onClick={() => run({ action: 'handles', name: row.name, handles: values })}>
+          Gem
+        </button>
+        <Msg msg={msg} />
+      </span>
+    </li>
+  )
+}
+
+/** Every club and league with its tags; filter by name, or only the ones with/without tags */
+export function TagsAdmin({ rows, platforms }: { rows: TagRow[]; platforms: Record<string, string> }) {
+  const [q, setQ] = useState('')
+  const [only, setOnly] = useState<'all' | 'with' | 'without'>('all')
+  const [extra, setExtra] = useState('')
+  const [added, setAdded] = useState<TagRow[]>([])
+  const all = [...added, ...rows]
+  const shown = all.filter((r) => {
+    const has = Object.values(r.handles).some(Boolean)
+    return r.name.toLowerCase().includes(q.trim().toLowerCase()) && (only === 'all' || (only === 'with') === has)
+  })
+  const groups = [...new Set(shown.map((r) => r.group))]
+  return (
+    <>
+      <div className="admin-filter">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Søg klub eller liga" />
+        {(['all', 'with', 'without'] as const).map((o) => (
+          <button key={o} type="button" className={`pill${only === o ? ' is-active' : ''}`} onClick={() => setOnly(o)}>
+            {o === 'all' ? 'Alle' : o === 'with' ? 'Med tags' : 'Uden tags'}
+          </button>
+        ))}
+      </div>
+      {groups.map((g) => (
+        <section key={g} className="panel prose__section">
+          <h2 className="panel__title">{g}</h2>
+          <ul className="social-tags-list">
+            {shown
+              .filter((r) => r.group === g)
+              .map((r) => (
+                <TagEditor key={r.name} row={r} platforms={platforms} />
+              ))}
+          </ul>
+        </section>
+      ))}
+      <section className="panel prose__section">
+        <h2 className="panel__title">Tilføj et andet navn</h2>
+        <div className="social-pad">
+          <p className="muted small">Fx en klub fra en udenlandsk liga eller en turnering, præcis som navnet står i opslagene (&quot;Real Madrid&quot;, &quot;Champions League&quot;).</p>
+          <span className="social-add">
+            <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="Navn" />
+            <button
+              type="button"
+              className="pill"
+              disabled={!extra.trim() || all.some((r) => r.name === extra.trim())}
+              onClick={() => {
+                setAdded([{ name: extra.trim(), group: 'Andre navne', handles: {} }, ...added])
+                setExtra('')
+                setQ('')
+                setOnly('all')
+              }}
+            >
+              Tilføj
+            </button>
+          </span>
+        </div>
+      </section>
+    </>
+  )
+}

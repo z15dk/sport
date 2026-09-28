@@ -333,3 +333,48 @@ export const findPost = (id: string) => readPosts().posts.find((p) => p.id === i
 export function needsApproval(date: string, config = socialConfig()) {
   return config.approval.always || (!!config.approval.until && date <= config.approval.until)
 }
+
+// ---------------------------------------------------------------- tags
+
+/**
+ * The clubs' (and leagues') own profiles, by the name the posts write
+ * ("Brøndby IF"): each platform has its own @name. When a post mentions the
+ * name, the first time it is written is swapped for the tag on the platform the
+ * post goes to (src/lib/socialPlatforms.ts, `withTags`). Set on /admin/sociale/tags.
+ */
+export type Handles = Partial<Record<Platform, string>>
+
+const handlesFile = () => path.join(/*turbopackIgnore: true*/ socialDir(), 'handles.json')
+let handlesCache: { mtime: number; handles: Record<string, Handles> } | undefined
+
+export function socialHandles(): Record<string, Handles> {
+  const mtime = mtimeOf(handlesFile())
+  if (!handlesCache || handlesCache.mtime !== mtime) handlesCache = { mtime, handles: readJson<Record<string, Handles>>(handlesFile()) ?? {} }
+  return handlesCache.handles
+}
+
+/** A tag as the platform writes it, without "@" and spaces; Facebook also takes a Page's number */
+export function cleanHandle(platform: Platform, value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  // A profile link works too: "https://www.instagram.com/brondbyif/" or "threads.net/@brondbyif"
+  const v = value
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.)?[a-z.]+\.(com|net)\//i, '')
+    .replace(/^@/, '')
+    .replace(/[/?#].*$/, '')
+  if (!v) return undefined
+  const ok = platform === 'facebook' ? /^[A-Za-z0-9.\-_]{1,80}$/ : platform === 'x' ? /^[A-Za-z0-9_]{1,15}$/ : /^[A-Za-z0-9._]{1,30}$/
+  return ok.test(v) ? v : undefined
+}
+
+export function saveHandles(name: string, handles: Handles | undefined) {
+  const all = { ...socialHandles() }
+  const clean: Handles = {}
+  for (const p of PLATFORMS) {
+    const h = cleanHandle(p, handles?.[p])
+    if (h) clean[p] = h
+  }
+  if (Object.keys(clean).length) all[name] = clean
+  else delete all[name]
+  writeJson(handlesFile(), all)
+}

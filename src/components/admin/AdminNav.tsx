@@ -13,6 +13,7 @@ const SETTINGS = [
 const SOCIAL = [
   { href: '/admin/sociale', label: 'Plan og kø' },
   { href: '/admin/sociale/historik', label: 'Historik og tal' },
+  { href: '/admin/sociale/tags', label: 'Tags' },
   { href: '/admin/sociale/indstillinger', label: 'Indstillinger' },
   { href: '/admin/sociale/skabeloner', label: 'Skabeloner' },
 ]

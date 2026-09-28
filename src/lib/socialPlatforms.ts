@@ -3,7 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SITE_URL } from './site'
-import { imageDir, saveSecrets, socialSecrets, type Metrics, type Platform, type SocialSecrets, type Surface } from './socialStore'
+import { imageDir, saveSecrets, socialHandles, socialSecrets, type Metrics, type Platform, type SocialSecrets, type Surface } from './socialStore'
 
 // Posting to Facebook (a Page), Instagram (a Business/Creator account linked to
 // the Page), Threads and X through their official APIs, with the keys typed in
@@ -48,8 +48,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 // ---------------------------------------------------------------- captions
 
 /** The post's text as each platform takes it: the link, "link i profilen" on Instagram, hashtags and X's 280 characters */
-export function platformCaption(platform: Platform, caption: string, link: string, hashtags: string): string {
+export function platformCaption(platform: Platform, raw: string, link: string, hashtags: string): string {
   const tags = hashtags.trim()
+  const caption = withTags(platform, raw)
   switch (platform) {
     case 'instagram':
       return [caption, 'Alle kampe, tabeller og tal: link i profilen.', tags].filter(Boolean).join('\n\n').slice(0, 2200)
@@ -65,6 +66,31 @@ export function platformCaption(platform: Platform, caption: string, link: strin
       return `${caption.length <= room ? caption : cut(caption, room)}\n\n${link}`
     }
   }
+}
+
+const LETTER = 'A-Za-z0-9ÆØÅæøåÄÖÜäöüÉéÁáÍíÓóÚúÑñÇç'
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * The clubs' own tags (/admin/sociale/tags): the first time a name is written
+ * it becomes the club's @name on this platform. Longest names first, so "FC
+ * København" is tagged before "København" could be; only whole names.
+ * Facebook: a Page's number becomes @[number] (a tag the API links), a name stays "@name".
+ */
+export function withTags(platform: Platform, text: string, handles = socialHandles()): string {
+  const names = Object.keys(handles)
+    .filter((n) => handles[n][platform])
+    .sort((a, b) => b.length - a.length)
+  if (!names.length) return text
+  // One pass over the text: at each place the longest name wins, so "København" is never found inside "FC København"
+  const re = new RegExp(`(?<![${LETTER}@])(${names.map(escape).join('|')})(?![${LETTER}])`, 'g')
+  const done = new Set<string>()
+  return text.replace(re, (name: string) => {
+    if (done.has(name)) return name
+    done.add(name)
+    const h = handles[name][platform]!
+    return platform === 'facebook' && /^\d+$/.test(h) ? `@[${h}]` : `@${h}`
+  })
 }
 
 /** A text shortened to whole lines (or words) with "…" */

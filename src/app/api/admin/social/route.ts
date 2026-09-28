@@ -3,7 +3,10 @@ import {
   KINDS,
   PLATFORMS,
   STATUS_NAMES,
+  cleanHandle,
   findPost,
+  saveHandles,
+  type Handles,
   isTopic,
   saveConfig,
   saveSecrets,
@@ -171,6 +174,15 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       saveConfig({ ...c, manual })
       planDay(date, Date.now(), true)
       return { message: list.length ? 'Kampene er valgt, og dagen er planlagt igen' : 'Automatisk valg igen' }
+    }
+    case 'handles': {
+      const name = str(b.name, 80)
+      if (!name) throw new Error('Navnet mangler')
+      const h = (b.handles ?? {}) as Record<string, unknown>
+      const bad = PLATFORMS.filter((p) => typeof h[p] === 'string' && (h[p] as string).trim() && !cleanHandle(p, h[p]))
+      if (bad.length) throw new Error(`Ugyldigt navn på ${bad.join(', ')}`)
+      saveHandles(name, Object.fromEntries(PLATFORMS.map((p) => [p, h[p]])) as Handles)
+      return { message: 'Gemt' }
     }
     case 'tick':
       await socialTick()

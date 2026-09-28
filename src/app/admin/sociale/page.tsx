@@ -6,7 +6,7 @@ import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker } from '../../..
 import { isAdmin } from '../../../lib/admin'
 import { candidates, picksFor, todayIso } from '../../../lib/social'
 import { targetsOf } from '../../../lib/socialEngine'
-import { connected } from '../../../lib/socialPlatforms'
+import { connected, platformCaption } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
 import { mailReady } from '../../../lib/mail'
 import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
@@ -25,6 +25,7 @@ const clock = (ms: number) => formatTime(new Date(ms))
 
 function Post({ p, now }: { p: SocialPost; now: number }) {
   const targets = targetsOf(p)
+  const cfg = socialConfig()
   const out = p.status === 'published' || p.status === 'partly' || p.status === 'publishing'
   const state =
     p.status === 'waiting' && p.approval === 'pending' ? 'Venter på godkendelse' : p.status === 'waiting' && !p.images.length ? 'Laver billeder' : STATUS_NAMES[p.status]
@@ -56,6 +57,21 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         </div>
       )}
       {p.kind !== 'story' && p.status !== 'empty' && <CaptionEditor id={p.id} caption={p.caption} edited={p.captionEdited} locked={out} />}
+      {p.kind !== 'story' && p.status !== 'empty' && targets.some((t) => t.surface === 'feed') && (
+        <details className="social-preview">
+          <summary>Teksten pr. platform (med tags)</summary>
+          <dl>
+            {targets
+              .filter((t) => t.surface === 'feed')
+              .map((t) => (
+                <div key={t.platform} style={{ display: 'contents' }}>
+                  <dt>{PLATFORM_NAMES[t.platform]}</dt>
+                  <dd>{platformCaption(t.platform, p.caption, p.link, cfg.hashtags)}</dd>
+                </div>
+              ))}
+          </dl>
+        </details>
+      )}
       {Object.values(p.results).length > 0 && (
         <ul className="social-results">
           {Object.values(p.results).map((r) => (
