@@ -43,6 +43,7 @@ import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
 import { knownLeague } from '../../../lib/knownLeague'
+import { divisionOfGame } from '../../../data/ourLeagues'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,6 +89,10 @@ async function externalLeaguePage(slug: string) {
   // A cup under a sponsor's name: its page is under the cup's own key
   const cupKey = cupOfGame({ sport: found.sport, league: found }) && externalLeagueKey({ ...found, originalName: cupOfGame({ sport: found.sport, league: found })!.key })
   if (cupKey && cupKey !== slug) permanentRedirect(paths.league(cupKey))
+  // One of our own leagues under another source's name ("x-denmark-metal-ligaen"): its page is ours
+  const ownGame = (loadRealData() ?? getRealData())?.external?.find((g) => externalLeagueKey(g.league) === slug && divisionOfGame(g))
+  const ownDivision = ownGame && divisionOfGame(ownGame)
+  if (ownDivision) permanentRedirect(paths.league(ownDivision.d.slug))
   const now = Date.now()
   const real = loadRealData() ?? getRealData()
   const keys = sameLeagueKeys(slug)

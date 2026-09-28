@@ -15,6 +15,7 @@ import { loadRealData } from './realdata'
 import { pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
 import { tvLeagues } from './tv'
+import { divisionOfGame } from '../data/ourLeagues'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
 // tournaments, clubs, articles) and /sitemaps/kampe-<n>.xml (every match with a
@@ -31,7 +32,8 @@ const FULL_TIME_MS = 3 * 3_600_000
 
 export function pageEntries(): SitemapEntry[] {
   const ours = new Set(shownDivisions().map((d) => d.slug))
-  const tournaments = [...new Set((loadRealData()?.external ?? []).map((g) => externalLeagueKey(g.league)))].filter((k) => !ours.has(k))
+  // The other tournaments; a game in one of our leagues ("Metal Ligaen" from another source) is that league's page, not one of its own
+  const tournaments = [...new Set((loadRealData()?.external ?? []).filter((g) => !divisionOfGame(g)).map((g) => externalLeagueKey(g.league)))].filter((k) => !ours.has(k))
   return [
     { path: '/' },
     { path: '/kampe/i-gaar' },
