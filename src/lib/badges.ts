@@ -1,4 +1,5 @@
 import 'server-only'
+import { proxyImage } from './imageProxy'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
@@ -304,6 +305,8 @@ export async function getBadges(): Promise<Record<string, string>> {
   for (const { club } of everyClub()) {
     if (club.originalName && club.originalName !== club.name && !all[club.name] && all[club.originalName]) all[club.name] = all[club.originalName]
   }
+  // TheSportsDB's pictures through our own domain (the source can't be seen in the page)
+  for (const [k, v] of Object.entries(all)) all[k] = proxyImage(v)
   return all
 }
 

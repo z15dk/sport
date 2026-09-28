@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { LeaderRow, Leaders } from '../data/matchExtra'
 import { playerPath } from '../data/player'
+import { sizedImage } from '../lib/imageSize'
 import { seasonClubs } from '../data/season'
 import { sportOf } from '../data/leagues'
 import { normalize, clubNames } from '../data/aliases'
@@ -29,7 +30,7 @@ function List({ title, unit, rows }: { title: string; unit: string; rows: Leader
         {rows.map((r, i) => (
           <li key={`${r.name}-${r.team}`}>
             <span className="leaders__rank">{i + 1}</span>
-            {r.photo ? <img className="leaders__photo" src={r.photo} alt="" width={28} height={28} loading="lazy" /> : <span className="leaders__photo" />}
+            {r.photo ? <img className="leaders__photo" src={sizedImage(r.photo, 28)} alt="" width={28} height={28} loading="lazy" /> : <span className="leaders__photo" />}
             <span className="leaders__who">
               {r.id ? (
                 <Link className="leaders__name" href={playerPath(r.id, r.name)}>
@@ -39,7 +40,7 @@ function List({ title, unit, rows }: { title: string; unit: string; rows: Leader
                 <strong>{r.name}</strong>
               )}
               <em>
-                {r.teamLogo && <img src={r.teamLogo} alt="" width={14} height={14} loading="lazy" />} {ourName(r.team)}
+                {r.teamLogo && <img src={sizedImage(r.teamLogo, 14)} alt="" width={14} height={14} loading="lazy" />} {ourName(r.team)}
                 {r.games ? ` · ${r.games} kampe` : ''}
               </em>
             </span>

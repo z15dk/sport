@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useBadge } from './BadgeProvider'
+import { sizedImage } from '../lib/imageSize'
 
 /** A club's logo, large and faint, as a watermark in the club page's header circle */
 export function BadgeWatermark({ name, src }: { name: string; src?: string }) {
@@ -10,5 +11,5 @@ export function BadgeWatermark({ name, src }: { name: string; src?: string }) {
   const [failed, setFailed] = useState(false)
   if (!url || failed) return null
   // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
-  return <img className="club-hero__mark" src={url} alt="" aria-hidden onError={() => setFailed(true)} />
+  return <img className="club-hero__mark" src={sizedImage(url, 200)} alt="" aria-hidden onError={() => setFailed(true)} />
 }

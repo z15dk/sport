@@ -8,6 +8,7 @@ import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, t
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
+import { proxyImage } from './imageProxy'
 import { cupOfGame, wholeSeason } from '../data/cups'
 import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
@@ -1435,7 +1436,7 @@ export function teamLogos(): Map<string, string> {
   const map = new Map<string, string>()
   for (const s of Object.values(mem.store)) {
     const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
-    for (const g of games) for (const t of [g.home, g.away]) if (realLogo(t.logo) && !map.has(t.name)) map.set(t.name, t.logo!)
+    for (const g of games) for (const t of [g.home, g.away]) if (!map.has(t.name)) { const logo = realLogo(t.logo); if (logo) map.set(t.name, logo) }
   }
   holder.logos = { version, map }
   return map
@@ -1698,7 +1699,13 @@ export function apiLeagueIdOf(divisionId: string): string | undefined {
 }
 
 /** A league's top scorers, assists and cards this season (four requests, kept 6 hours; paid plans) */
+/** Player photos and team logos through our own domain (also for lists saved before) */
+const proxiedRow = (r: LeaderRow): LeaderRow => ({ ...r, photo: proxyImage(r.photo), teamLogo: realLogo(r.teamLogo) })
 export async function apiLeagueLeaders(leagueId: string, season = SEASON.slice(0, 4)): Promise<Leaders | undefined> {
+  const l = await apiLeagueLeadersRaw(leagueId, season)
+  return l && { scorers: l.scorers.map(proxiedRow), assists: l.assists.map(proxiedRow), yellow: l.yellow.map(proxiedRow), red: l.red.map(proxiedRow) }
+}
+async function apiLeagueLeadersRaw(leagueId: string, season: string): Promise<Leaders | undefined> {
   const entry = extrasStore().entries[`football|leaders|${leagueId}|${season}`]
   // Lists saved before they had player ids are fetched again, so the names can link to the players' pages
   if (entry?.leaders && Date.now() - entry.fetchedAt < 6 * 3_600_000 && entry.leaders.scorers.every((r) => r.id)) return entry.leaders
@@ -1791,6 +1798,17 @@ export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; h
  * reserve kept for live games.
  */
 export async function apiPlayer(id: number): Promise<PlayerData | undefined> {
+  const p = await apiPlayerRaw(id)
+  return (
+    p && {
+      ...p,
+      photo: proxyImage(p.photo),
+      seasons: p.seasons.map((s) => ({ ...s, teamLogo: realLogo(s.teamLogo), leagueLogo: realLogo(s.leagueLogo) })),
+      transfers: p.transfers.map((t) => ({ ...t, fromLogo: realLogo(t.fromLogo), toLogo: realLogo(t.toLogo) })),
+    }
+  )
+}
+async function apiPlayerRaw(id: number): Promise<PlayerData | undefined> {
   const key = `football|player|${id}`
   const entry = extrasStore().entries[key]
   if (entry?.player && Date.now() - entry.fetchedAt < 86_400_000) return entry.player
@@ -1989,6 +2007,9 @@ export async function apiTeamStats(leagueId: string, teamId: number, season = SE
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
 export async function apiInjuries(leagueId: string, season = SEASON.slice(0, 4)): Promise<Injury[] | undefined> {
+  return (await apiInjuriesRaw(leagueId, season))?.map((i) => ({ ...i, photo: proxyImage(i.photo) }))
+}
+async function apiInjuriesRaw(leagueId: string, season: string): Promise<Injury[] | undefined> {
   const key = `football|injuries|${leagueId}|${season}`
   return cachedExtra(key, 6 * 3_600_000, (e) => e.injuries, async () => {
     const { response, error } = await call('football', `/injuries?league=${leagueId}&season=${season}`, 10_000)

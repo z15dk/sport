@@ -14,7 +14,8 @@ import { clubNames, normalize } from '../../../data/aliases'
 import { seasonClubs } from '../../../data/season'
 import { sportOf } from '../../../data/leagues'
 import { danishCountry } from '../../../data/countries'
-import { JsonLd, breadcrumbLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, absoluteImage, breadcrumbLd, webPageLd } from '../../../lib/jsonld'
+import { sizedImage } from '../../../lib/imageSize'
 import { SITE_URL, paths } from '../../../lib/site'
 import { TZ, formatNumeric, isoDate } from '../../../lib/time'
 import { TeamBadge } from '../../../components/TeamBadge'
@@ -168,7 +169,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
     ...(p.birthDate && { birthDate: p.birthDate }),
     ...(p.nationality && { nationality: p.nationality }),
     ...(p.height && { height: p.height }),
-    ...(p.photo && { image: p.photo }),
+    ...(p.photo && { image: absoluteImage(p.photo) }),
     url: `${SITE_URL}${path}`,
     ...(main && { memberOf: { '@type': 'SportsTeam', name: club?.name ?? main.team, ...(club && { url: `${SITE_URL}${paths.club(club.slug)}` }) } }),
   }
@@ -185,7 +186,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
       />
       <div className="clubs">
         <header className="club-hero player-hero" style={{ '--club-bg': colors[0], '--club-fg': colors[1] } as React.CSSProperties}>
-          {p.photo ? <img className="player-hero__photo" src={p.photo} alt={p.name} width={112} height={112} /> : <span className="player-hero__photo" />}
+          {p.photo ? <img className="player-hero__photo" src={sizedImage(p.photo, 112)} alt={p.name} width={112} height={112} /> : <span className="player-hero__photo" />}
           <div className="club-hero__text">
             <span className="club-hero__eyebrow">
               {club ? <Link href={paths.club(club.slug)}>{club.name}</Link> : main?.team}
@@ -204,7 +205,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
                 .join(' · ')}
             </span>
           </div>
-          {main?.teamLogo && <img className="player-hero__club" src={main.teamLogo} alt="" width={56} height={56} />}
+          {main?.teamLogo && <img className="player-hero__club" src={sizedImage(main.teamLogo, 56)} alt="" width={56} height={56} />}
         </header>
 
         <p className="lead">
@@ -517,7 +518,7 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
             <tr key={`${r.league}-${r.team}-${r.season}`}>
               <td>
                 <span className="table__club">
-                  {r.leagueLogo ? <img src={r.leagueLogo} alt="" width={20} height={20} loading="lazy" /> : null}
+                  {r.leagueLogo ? <img src={sizedImage(r.leagueLogo, 20)} alt="" width={20} height={20} loading="lazy" /> : null}
                   <span>
                     {r.league}
                     <span className="player-table__team">{clubOf(r.team)?.name ?? r.team}</span>

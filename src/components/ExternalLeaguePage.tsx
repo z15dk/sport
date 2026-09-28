@@ -18,7 +18,7 @@ import { danishCountry } from '../data/countries'
 import { sportById } from '../sports'
 import { formatShortYear } from '../lib/time'
 import { paths } from '../lib/site'
-import { JsonLd, breadcrumbLd, webPageLd } from '../lib/jsonld'
+import { JsonLd, breadcrumbLd, webPageLd, absoluteImage } from '../lib/jsonld'
 import { SITE_URL } from '../lib/site'
 import type { Baseline } from '../data/baselines'
 import { teamInLeague } from '../data/teams'
@@ -64,7 +64,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           name: league.name,
           sport,
           url: `${SITE_URL}${path}`,
-          ...(league.logo && { logo: league.logo }),
+          ...(league.logo && { logo: absoluteImage(league.logo) }),
         }}
       />
       <JsonLd data={webPageLd(path, league.name, new Date(now))} />

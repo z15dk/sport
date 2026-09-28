@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { teamByName } from '../data/teams'
 import { paths } from '../lib/site'
 import { useBadge } from './BadgeProvider'
+import { sizedImage } from '../lib/imageSize'
 import { Flag, hasFlag } from './Flag'
 import { danishCountry } from '../data/countries'
 
@@ -88,7 +89,7 @@ function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
         className={light ? 'badge badge--light' : 'badge'}
         // The plate's inner space in pixels (a percentage would follow the surrounding box, not the logo)
         style={light ? { padding: Math.max(2, Math.round(size * 0.12)), borderRadius: Math.round(size * 0.22) } : undefined}
-        src={url}
+        src={sizedImage(url, size)}
         alt=""
         width={size}
         height={size}

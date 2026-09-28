@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
+import { proxyImage } from './imageProxy'
 
 // API-Sports gives every team and league a logo address, also when it has no
 // logo: the address then shows a grey "image not available" picture. We can't
@@ -72,8 +73,8 @@ export function isPlaceholderLogo(url: string | undefined): boolean {
   return !!e && mem.placeholders.has(e.hash)
 }
 
-/** The logo, or nothing when it is a placeholder */
-export const realLogo = (url: string | undefined): string | undefined => (url && !isPlaceholderLogo(url) ? url : undefined)
+/** The logo through our own domain (src/lib/imageProxy.ts), or nothing when it is a placeholder */
+export const realLogo = (url: string | undefined): string | undefined => (url && !isPlaceholderLogo(url) ? proxyImage(url) : undefined)
 
 /** Changes when a check changes which logos are placeholders */
 export function logoCheckVersion(): string {

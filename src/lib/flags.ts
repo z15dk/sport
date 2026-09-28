@@ -1,3 +1,5 @@
+import { proxyImage } from './imageProxy'
+
 // A national team's flag when its source has no logo: API-Sports often has
 // only "image not available" for youth, women's and Olympic teams ("France U21",
 // "Denmark W"). The country's flag from flagcdn.com, by its English name.
@@ -81,5 +83,5 @@ export function nationalFlag(name: string, national = false): string | undefined
   const suffixed = m[1].length < name.trim().length
   if (!suffixed && !national) return undefined
   const code = countryCodes().get(fold(m[1]))
-  return code ? `https://flagcdn.com/w160/${code}.png` : undefined
+  return code ? proxyImage(`https://flagcdn.com/w160/${code}.png`) : undefined
 }

@@ -1,3 +1,4 @@
+import { sizedImage } from './imageSize'
 import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
 import type { TeamEntry } from '../data/teams'
@@ -55,6 +56,9 @@ export function clubLd(club: Club, division: Division) {
   }
 }
 
+/** A picture's full address for search engines (our own pictures in 256 px) */
+export const absoluteImage = (url: string) => (url.startsWith('/') ? `${SITE_URL}${sizedImage(url, 128)}` : url)
+
 export function leagueLd(division: Division, logo?: string) {
   return {
     '@context': 'https://schema.org',
@@ -62,7 +66,7 @@ export function leagueLd(division: Division, logo?: string) {
     name: division.name,
     sport: sportById(division.sport ?? 'soccer').label,
     url: `${SITE_URL}${paths.league(division.slug)}`,
-    ...(logo && { logo: logo.startsWith('/') ? `${SITE_URL}${logo}` : logo }),
+    ...(logo && { logo: absoluteImage(logo) }),
     member: division.clubs.map((c) => teamLd(c.name, c.slug, sportById(division.sport ?? 'soccer').label)),
   }
 }
