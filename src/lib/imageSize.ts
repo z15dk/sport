@@ -14,3 +14,10 @@ export function sizedImage(src: string | undefined, shownPx: number): string | u
   const width = WIDTHS.find((w) => w >= want) ?? WIDTHS[WIDTHS.length - 1]
   return `${src}-${width}.webp`
 }
+
+/** A country's flag from our own domain in the width it is shown at (src/app/flag/[file]/route.ts) */
+export function flagImage(code: string, shownPx: number): string {
+  const want = shownPx * 2
+  const width = WIDTHS.find((w) => w >= want) ?? WIDTHS[WIDTHS.length - 1]
+  return `/flag/${code}-${width}.webp`
+}
