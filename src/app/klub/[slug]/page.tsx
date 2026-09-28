@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
-import { clubExternalGames, clubMatches, teamMatches } from '../../../data/matches'
+import { clubExternalGames, clubMatches, teamMatches, teamTournamentMatches } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
@@ -255,7 +255,13 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const hasDraws = table.some((r) => r.drawn !== undefined)
   const hasPoints = table.some((r) => r.points !== undefined)
 
-  const around = teamMatches(names, team.sport, addDays(today, -10), 30, now, team.names ? team.leagueSlug : undefined)
+  // Its league's games around today, and its games in the cups and the Champions League (women's teams in the women's tournaments)
+  const womenTeam = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga/i.test(team.league) || /\b(w|women)\b/i.test(team.name)
+  const around = [
+    ...new Map(
+      [...teamMatches(names, team.sport, addDays(today, -10), 30, now, team.names ? team.leagueSlug : undefined), ...(team.sport === 'soccer' ? teamTournamentMatches(names, womenTeam) : [])].map((m) => [m.id, m]),
+    ).values(),
+  ].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
   const results = teamResults(names, around, divisionId, team.league)
@@ -282,7 +288,8 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const next = upcoming[0]
 
   // The team's games for the match list (as on our clubs' pages): the saved results and the coming games, the team under its page name
-  const asTeam = (name: string) => (own(name) ? team.name : name)
+  // Also its plain name in a women's tournament ("HB Køge" in the women's Champions League is HB Køge Women)
+  const asTeam = (name: string) => (own(name) || names.some((x) => normalize(women(x)) === normalize(women(name))) ? team.name : name)
   const matches: Match[] = [
     ...mine.map(({ m }, k): Match => ({
       id: `r${k}-${isoDate(m.date)}`,

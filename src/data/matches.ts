@@ -3,7 +3,7 @@ import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { externalToMatch, gameKey, type ExternalGame } from './external'
-import { alike, clubNames } from './aliases'
+import { alike, clubNames, normalize } from './aliases'
 import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
@@ -162,6 +162,24 @@ export function clubMatches(clubName: string, now: number): Match[] {
     .map(externalMatch)
     .filter((m) => m.home.name === club.club.name || m.away.name === club.club.name)
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
+}
+
+/** A women's tournament (or team league) by its name */
+const WOMEN = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga/i
+
+/**
+ * A team's games in the tournaments we keep for the whole season (our cups,
+ * the Champions League) outside its own league: HB Køge Women in the women's
+ * Champions League. A women's team only in women's tournaments and the other
+ * way round, so the club with the same name never gets them.
+ */
+export function teamTournamentMatches(names: string[], women: boolean): Match[] {
+  const bare = (n: string) => normalize(n.replace(/\b(w|women|q|kvinder)\b\.?/gi, '').trim())
+  const keys = new Set(names.map(bare))
+  return (getRealData()?.external ?? [])
+    .filter((g) => !divisionOfGame(g) && wholeSeason(g) && WOMEN.test(g.league.originalName ?? g.league.name) === women)
+    .filter((g) => keys.has(bare(g.home.name)) || keys.has(bare(g.away.name)))
+    .map(externalMatch)
 }
 
 /** Matches for any team (any sport) over a range of days from `fromDate` */
