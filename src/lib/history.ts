@@ -14,6 +14,8 @@ import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from '
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
+import { checkSeason } from './seasonCheck'
+import { historyOfficial, type HistoryScorer } from './apisports'
 import { isoDate } from './time'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
@@ -1057,6 +1059,8 @@ export interface SeasonGame {
   spectators?: number
   /** Its page, when it has one */
   slug?: string
+  /** The source's round ("Regular Season - 7", "Europe Play-off") */
+  round?: string
 }
 
 export interface PastSeason {
@@ -1072,6 +1076,10 @@ export interface PastSeason {
   /** Split season: how many teams played in the championship group (ranked first whatever their points) */
   upper?: number
   hasDraws: boolean
+  /** Points deducted (negative) or added by the league, from the official table */
+  adjustments: { name: string; points: number }[]
+  /** The official top scorers, when fetched */
+  scorers?: HistoryScorer[]
 }
 
 const seasonSlug = (season: string) => season.replace('/', '-')
@@ -1080,72 +1088,87 @@ export const seasonLabel = (season: string) => {
   return m ? `${m[1]}/${m[3]}` : season
 }
 
-const pastSeasonsCache = new Map<string, { rows: ArchivedMatch[]; seasons: PastSeason[] }>()
+const pastSeasonsCache = new Map<string, { rows: ArchivedMatch[]; tables: string; seasons: PastSeason[] }>()
 
 /**
- * A league's finished earlier seasons with API-Sports' results in the
- * statistics bank, newest first. Only seasons with (nearly) every match: a
- * team plays everyone at least twice.
+ * A league's earlier seasons with a page of their own, newest first: only
+ * seasons whose saved matches (API-Sports') agree with the league's official
+ * final table, team by team (src/lib/seasonCheck.ts). The table is the
+ * official one (its order and points, deductions included).
  */
 export function pastSeasons(divisionId: string): PastSeason[] {
   const division = DIVISIONS.find((d) => d.id === divisionId)
   if (!division) return []
   const rowsAll = readArchive()
-  const hit = pastSeasonsCache.get(divisionId)
-  if (hit && hit.rows === rowsAll) return hit.seasons
   const sport = sportOf(division)
-  const find = resolver(sport)
   const current = [seasonOf(division), SEASON].map((s) => {
     const m = /^(\d{4})\/(\d{2})$/.exec(s)
     return m ? `${m[1]}/${m[1].slice(0, 2)}${m[2]}` : s
   })
-  const bySeason = new Map<string, ArchivedMatch[]>()
-  for (const a of rowsAll) {
-    if (a.divisionId !== divisionId || !API_SPORTS_ID.test(a.id) || current.includes(a.season)) continue
-    bySeason.set(a.season, [...(bySeason.get(a.season) ?? []), a])
-  }
+  const labels = [...new Set(rowsAll.filter((a) => a.divisionId === divisionId && API_SPORTS_ID.test(a.id) && !current.includes(a.season)).map((a) => a.season))]
+  const officials = labels.map((l) => historyOfficial(divisionId, l))
+  const tablesKey = officials.map((o) => o?.fetchedAt ?? 0).join('|')
+  const hit = pastSeasonsCache.get(divisionId)
+  if (hit && hit.rows === rowsAll && hit.tables === tablesKey) return hit.seasons
+  const find = resolver(sport)
   const shown = (name: string) => find(name)?.name ?? name
   const seasons: PastSeason[] = []
-  for (const [season, all] of bySeason) {
-    const { counted, upper } = leagueMatchesOf(all, (m, side) => normalize(shown(side === 'home' ? m.homeName : m.awayName)))
-    const teams = new Map<string, SeasonTableRow>()
-    const add = (name: string, f: number, a: number) => {
-      const key = normalize(name)
-      const r = teams.get(key) ?? teams.set(key, { rank: 0, name, slug: find(name)?.slug, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }).get(key)!
-      r.played++
-      r.goalsFor += f
-      r.goalsAgainst += a
-      if (f > a) r.won++
-      else if (f < a) r.lost++
-      else r.drawn++
-      r.points += f > a ? 3 : f === a ? 1 : 0
+  labels.forEach((season, i) => {
+    const check = checkSeason(divisionId, season, sport, officials[i]?.groups)
+    if (check.status !== 'ok') return
+    // Our numbers per team (they agree with the official ones) in the official order and points
+    const mine = new Map<string, { won: number; drawn: number; lost: number; gf: number; ga: number; played: number }>()
+    for (const g of check.games) {
+      for (const [name, f, a] of [[g.homeName, g.homeScore, g.awayScore], [g.awayName, g.awayScore, g.homeScore]] as const) {
+        const r = mine.get(name) ?? mine.set(name, { won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, played: 0 }).get(name)!
+        r.played++
+        r.gf += f
+        r.ga += a
+        if (f > a) r.won++
+        else if (f < a) r.lost++
+        else r.drawn++
+      }
     }
-    for (const m of counted) {
-      add(shown(m.homeName), m.homeScore, m.awayScore)
-      add(shown(m.awayName), m.awayScore, m.homeScore)
-    }
-    const n = teams.size
-    // Not a whole season in the bank: no page (its table would be wrong)
-    if (n < 4 || counted.length < n * (n - 1) * 0.95) continue
-    const hasDraws = [...teams.values()].some((r) => r.drawn > 0)
-    const byPoints = (x: SeasonTableRow, y: SeasonTableRow) =>
-      (hasDraws ? y.points - x.points : y.won - x.won) || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor
-    const keyed = [...teams.entries()]
-    const ranked = upper
-      ? [...keyed.filter(([k]) => upper.has(k)).map(([, r]) => r).sort(byPoints), ...keyed.filter(([k]) => !upper.has(k)).map(([, r]) => r).sort(byPoints)]
-      : keyed.map(([, r]) => r).sort(byPoints)
+    const table = check.table.map((o): SeasonTableRow => {
+      const r = mine.get(o.name) ?? { won: o.won, drawn: o.drawn, lost: o.lost, gf: o.goalsFor ?? 0, ga: o.goalsAgainst ?? 0, played: o.played }
+      return {
+        rank: o.rank,
+        name: shown(o.name),
+        slug: find(o.name)?.slug,
+        played: o.played,
+        won: r.won,
+        drawn: r.drawn,
+        lost: r.lost,
+        goalsFor: o.goalsFor ?? r.gf,
+        goalsAgainst: o.goalsAgainst ?? r.ga,
+        points: o.points ?? r.won * 3 + r.drawn,
+      }
+    })
+    // Every saved match of the season (play-offs too), for the list and the links
+    const all = rowsAll.filter((a) => a.divisionId === divisionId && a.season === season && API_SPORTS_ID.test(a.id))
     const games = [...all]
       .sort((x, y) => x.date.getTime() - y.date.getTime())
       .map((a): SeasonGame => {
         const home = shown(a.homeName)
         const away = shown(a.awayName)
         const slug = matchSlug(home, away, isoDate(a.date))
-        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined }
+        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined, round: a.round }
       })
-    seasons.push({ divisionId, season, slug: seasonSlug(season), label: seasonLabel(season), games, table: ranked.map((r, i) => ({ ...r, rank: i + 1 })), upper: upper?.size, hasDraws })
-  }
+    seasons.push({
+      divisionId,
+      season,
+      slug: seasonSlug(season),
+      label: seasonLabel(season),
+      games,
+      table,
+      upper: check.upper,
+      hasDraws: sport === 'soccer',
+      adjustments: check.adjustments.map((x) => ({ name: shown(x.name), points: x.points })),
+      scorers: officials[i]?.scorers?.map((x) => ({ ...x, team: shown(x.team) })),
+    })
+  })
   seasons.sort((a, b) => b.season.localeCompare(a.season))
-  pastSeasonsCache.set(divisionId, { rows: rowsAll, seasons })
+  pastSeasonsCache.set(divisionId, { rows: rowsAll, tables: tablesKey, seasons })
   return seasons
 }
 

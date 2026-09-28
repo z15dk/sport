@@ -5,6 +5,7 @@ import { isAdmin } from '../../../lib/admin'
 import Link from 'next/link'
 import { leagueQuality, sourceQuality, type Check, type Level } from '../../../lib/dataQuality'
 import { formatFull, formatTime } from '../../../lib/time'
+import { historyOverview } from '../../../lib/apisports'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Datakvalitet', robots: { index: false, follow: false } }
@@ -84,6 +85,47 @@ export default async function DataQualityPage() {
                 <Checks checks={l.checks} />
               </div>
             ))}
+        </section>
+
+        <section className="panel prose__section">
+          <h2 className="panel__title">Tidligere sæsoner</h2>
+          <p className="muted small">
+            Hver sæson hentes fra API-Sports og tjekkes hold for hold mod den officielle slutstilling (kampe, sejre/uafgjorte/nederlag og målscore; ishockey og
+            basketball kun antal kampe). Kun sæsoner i orden får en side. Stemmer en sæson ikke, hentes den igen (op til 3 gange, med 3 dages mellemrum).
+          </p>
+          {(() => {
+            const rows = historyOverview()
+            if (!rows.length) return <p className="muted small">Ingen sæsoner hentet endnu.</p>
+            const ok = rows.filter((r) => r.check?.status === 'ok').length
+            return (
+              <>
+                <p>
+                  <strong>
+                    {ok} af {rows.length}
+                  </strong>{' '}
+                  sæsoner er i orden og vises.
+                </p>
+                {rows.map((r) => {
+                  const level: Level = r.check?.status === 'ok' ? 'ok' : !r.saved || r.check?.status === 'no-official' ? 'warn' : 'error'
+                  const text = !r.saved
+                    ? 'Ikke tilgængelig på planen (eller ingen kampe)'
+                    : r.check?.status === 'ok'
+                      ? `I orden: ${r.check.games.length} kampe stemmer med slutstillingen${r.check.adjustments.length ? ` (pointjusteringer: ${r.check.adjustments.map((a) => `${a.name} ${a.points > 0 ? '+' : ''}${a.points}`).join(', ')})` : ''}${r.table?.scorers?.length ? ', officielle topscorere hentet' : ''}`
+                      : r.check?.status === 'no-official'
+                        ? `${r.saved} kampe gemt – ${r.check.issues[0]}${r.table?.error ? ` (${r.table.error})` : ''}`
+                        : `${r.check?.games.length ?? 0} kampe gemt – stemmer ikke med slutstillingen${r.table?.refetches ? ` (hentet igen ${r.table.refetches} gang${r.table.refetches > 1 ? 'e' : ''})` : ''}`
+                  return (
+                    <div key={`${r.division.id}|${r.year}`} className={`quality quality--${level}`}>
+                      <h3 className="quality__name">
+                        <span className={`quality__badge quality__badge--${level}`}>{WORD[level]}</span> {r.division.name} {r.season}
+                      </h3>
+                      <Checks checks={[{ level, text, items: level === 'error' ? r.check?.issues.slice(0, 12) : undefined }]} />
+                    </div>
+                  )
+                })}
+              </>
+            )
+          })()}
         </section>
       </div>
     </div>

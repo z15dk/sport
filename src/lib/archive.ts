@@ -217,6 +217,8 @@ export interface ArchivedMatch {
   awayScore: number
   ht?: [number, number]
   spectators?: number
+  /** The source's round ("Regular Season - 7", "Championship Round - 3", "Europe Play-off"), when saved */
+  round?: string
 }
 
 /**
@@ -255,7 +257,7 @@ function readArchiveFile(): ArchivedMatch[] {
   try {
     return db
       .prepare(
-        `SELECT event_id, division_id, tournament_name, season_year, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators
+        `SELECT event_id, division_id, tournament_name, season_year, round, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators
            FROM matches WHERE status = 'finished' ORDER BY start_date DESC`,
       )
       .all()
@@ -271,6 +273,7 @@ function readArchiveFile(): ArchivedMatch[] {
         awayScore: Number(r.away_score),
         ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
         spectators: r.spectators == null ? undefined : Number(r.spectators),
+        round: r.round == null ? undefined : String(r.round),
       }))
   } catch {
     return []
@@ -415,12 +418,15 @@ export function archiveSeason(divisionId: string, tournament: string, season: st
     const upsert = db.prepare(`
       INSERT INTO matches (event_id, source, division_id, tournament_name, season_year, round, start_date, home_name, away_name,
                            home_score, away_score, home_score_ht, away_score_ht, spectators, status, saved_at)
-      VALUES (?, 'API-Sports historik', ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NULL, 'finished', ?)
-      ON CONFLICT(event_id) DO NOTHING`)
+      VALUES (?, 'API-Sports historik', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'finished', ?)
+      ON CONFLICT(event_id) DO UPDATE SET
+        division_id = excluded.division_id, season_year = excluded.season_year, round = excluded.round, start_date = excluded.start_date,
+        home_name = excluded.home_name, away_name = excluded.away_name, home_score = excluded.home_score, away_score = excluded.away_score,
+        home_score_ht = excluded.home_score_ht, away_score_ht = excluded.away_score_ht, status = 'finished', saved_at = excluded.saved_at`)
     const now = new Date().toISOString()
     db.exec('BEGIN')
     for (const g of finished) {
-      upsert.run(g.id, divisionId, tournament, season, g.kickoff, g.home.name, g.away.name, g.homeScore, g.awayScore, g.ht?.[0] ?? null, g.ht?.[1] ?? null, now)
+      upsert.run(g.id, divisionId, tournament, season, g.round == null ? null : String(g.round), g.kickoff, g.home.name, g.away.name, g.homeScore, g.awayScore, g.ht?.[0] ?? null, g.ht?.[1] ?? null, now)
     }
     db.exec('COMMIT')
   } finally {

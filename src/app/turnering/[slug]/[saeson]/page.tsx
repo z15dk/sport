@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { divisionBySlug } from '../../../../data/leagues'
 import { pastSeason, pastSeasons, type PastSeason } from '../../../../lib/history'
 import { archiveIncidents } from '../../../../lib/archive'
+import { NOT_LEAGUE_ROUND } from '../../../../lib/seasonCheck'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../../../lib/jsonld'
 import { paths } from '../../../../lib/site'
 import { formatShortYear } from '../../../../lib/time'
@@ -26,8 +27,10 @@ function load(slug: string, saeson: string) {
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
 
-/** The season's top scorers from the goals the statistics bank has (own goals not counted) */
+/** The season's top scorers: the official list, else from the goals the statistics bank has (own goals not counted) */
 function scorers(season: PastSeason) {
+  if (season.scorers?.length)
+    return { list: season.scorers.slice(0, 10).map((x) => ({ name: x.name, team: x.team, goals: x.goals, penalties: x.penalties })), withGoals: season.games.length }
   const incidents = archiveIncidents(season.games.map((g) => g.id))
   const byPlayer = new Map<string, { name: string; team: string; goals: number; penalties: number }>()
   for (const g of season.games) {
@@ -150,8 +153,9 @@ export default async function SeasonPage({ params }: { params: Params }) {
             </table>
           </div>
           <p className="muted small">
-            Beregnet af Matchly ud fra sæsonens kampe{season.hasDraws ? ' (3 point for sejr)' : ''}
-            {season.upper ? `; de ${season.upper} øverste spillede i mesterskabsspillet` : ''}. Fratrukne point og slutspil er ikke med.
+            Den officielle slutstilling – tjekket kamp for kamp mod sæsonens {season.games.length} kampe
+            {season.upper ? `. De ${season.upper} øverste spillede i mesterskabsspillet` : ''}.
+            {season.adjustments.map((a) => ` ${a.name} ${a.points < 0 ? `fik ${-a.points} point fratrukket` : `fik ${a.points} point tildelt`}.`).join('')}
           </p>
         </section>
 
@@ -232,6 +236,7 @@ export default async function SeasonPage({ params }: { params: Params }) {
                     )}
                     <strong>
                       {g.homeScore}-{g.awayScore}
+                      {NOT_LEAGUE_ROUND.test(g.round ?? '') && <span className="muted small"> (slutspil)</span>}
                     </strong>
                   </li>
                 ))}

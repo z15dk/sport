@@ -17,6 +17,7 @@ import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
 import type { PlayerData, PlayerSeasonRow } from '../data/player'
 import type { Injury, Periods, TeamStats } from '../data/teamStats'
 import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
+import { checkSeason } from './seasonCheck'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -321,6 +322,10 @@ interface ApiState {
   leagueIds?: Record<string, string>
   /** Past seasons saved in the statistics bank: "division|year" -> matches saved (0: none or refused) */
   history?: Record<string, number>
+  /** 2: seasons saved with their rounds and awarded matches (older ones are fetched again) */
+  historyVersion?: number
+  /** Past seasons' official final tables and top scorers, for checking the saved matches: "division|year" -> */
+  historyTables?: Record<string, HistoryTable>
   /** API-Sports' leagues that are not ours, by externalLeagueKey, for their league pages */
   leagues?: Record<string, ExternalLeague>
   /** Goals seen from the score changing between two fetches, by game id (the minute is approximate) */
@@ -647,6 +652,23 @@ function backfillDay(api: Api, now: number): string | undefined {
 /** Which API has each sport's leagues */
 const API_FOR_SPORT: Partial<Record<SportId, Api>> = { soccer: 'football', ice_hockey: 'hockey', basketball: 'basketball', handball: 'handball' }
 /** API-Football's ids for our football leagues (the rest are learned from the games) */
+export interface HistoryScorer {
+  id?: number
+  name: string
+  team: string
+  goals: number
+  penalties: number
+}
+interface HistoryTable {
+  fetchedAt: number
+  groups?: TableRow[][]
+  scorers?: HistoryScorer[]
+  error?: string
+  /** Times the season's matches were fetched again because they didn't match the table */
+  refetches?: number
+  refetchedAt?: number
+}
+
 const FOOTBALL_IDS: Record<string, string> = {
   superliga: '119', '1div': '120', premierleague: '39', championship: '40', laliga: '140', ligaportugal: '94',
   bundesliga: '78', bundesliga2: '79', liga3: '80', allsvenskan: '113', eliteserien: '103',
@@ -677,13 +699,102 @@ function historyDue(api: Api): { division: Division; league: string; year: numbe
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (remaining <= 40) return undefined
   learnLeagueIds(api)
+  // Seasons saved before rounds and awarded matches were kept: fetched again once
+  if ((s.historyVersion ?? 1) < 2) {
+    for (const [key, n] of Object.entries(s.history ?? {})) if (n > 0) delete s.history![key]
+    s.historyVersion = 2
+  }
   for (const division of DIVISIONS) {
     if (API_FOR_SPORT[sportOf(division)] !== api) continue
-    const league = (api === 'football' ? FOOTBALL_IDS[division.id] : undefined) ?? s.leagueIds?.[division.id]
+    const league = leagueIdOf(api, s, division)
     if (!league) continue
     for (const year of historyYears(s)) if (s.history?.[`${division.id}|${year}`] === undefined) return { division, league, year }
   }
   return undefined
+}
+
+const leagueIdOf = (api: Api, s: ApiState, division: Division) => (api === 'football' ? FOOTBALL_IDS[division.id] : undefined) ?? s.leagueIds?.[division.id]
+
+/** A saved past season without its official table yet (or with a failed attempt a day ago) */
+function historyTableDue(api: Api): { division: Division; league: string; year: number; key: string } | undefined {
+  const s = mem.store[api]
+  if (!s) return undefined
+  for (const [key, n] of Object.entries(s.history ?? {})) {
+    if (!n) continue
+    const t = s.historyTables?.[key]
+    if (t && !(t.error && Date.now() - t.fetchedAt > 86_400_000)) continue
+    const [divisionId, year] = key.split('|')
+    const division = DIVISIONS.find((d) => d.id === divisionId)
+    const league = division && leagueIdOf(api, s, division)
+    if (division && league) return { division, league, year: Number(year), key }
+  }
+  return undefined
+}
+
+/** The official final table (and, for football, the top scorers) of a saved past season */
+async function fetchHistoryTable(api: Api, due: { division: Division; league: string; year: number; key: string }) {
+  const s = mem.store[api]!
+  const { param } = seasonNames(api, due.division, due.year)
+  const entry: HistoryTable = { ...s.historyTables?.[due.key], fetchedAt: Date.now(), error: undefined }
+  const { response, error } = await call(api, `/standings?league=${due.league}&season=${param}`)
+  if (error || !response?.length) entry.error = error ?? 'Ingen slutstilling'
+  else entry.groups = readTable(response).filter((g) => g.length > 1)
+  if (api === 'football' && isPaid(s)) {
+    const top = await call(api, `/players/topscorers?league=${due.league}&season=${param}`)
+    entry.scorers = (top.response ?? []).map((r): HistoryScorer => {
+      const st = r.statistics?.[0] ?? {}
+      return { id: num(r.player?.id), name: String(r.player?.name ?? ''), team: String(st.team?.name ?? ''), goals: Number(st.goals?.total ?? 0), penalties: Number(st.penalty?.scored ?? 0) }
+    }).filter((x: HistoryScorer) => x.name && x.goals > 0)
+  }
+  ;(s.historyTables ??= {})[due.key] = entry
+}
+
+/**
+ * Past seasons whose saved matches don't match the official table: their
+ * matches are fetched again (at most three times, three days apart).
+ */
+function historyRecheck(api: Api) {
+  const s = mem.store[api]
+  if (!s) return
+  for (const [key, t] of Object.entries(s.historyTables ?? {})) {
+    if (!t.groups?.length || !s.history?.[key]) continue
+    if ((t.refetches ?? 0) >= 3 || Date.now() - (t.refetchedAt ?? 0) < 3 * 86_400_000) continue
+    const [divisionId, year] = key.split('|')
+    const division = DIVISIONS.find((d) => d.id === divisionId)
+    if (!division) continue
+    const check = checkSeason(division.id, seasonNames(api, division, Number(year)).label, sportOf(division), t.groups)
+    if (check.status !== 'missing' && check.status !== 'mismatch') continue
+    delete s.history[key]
+    t.refetches = (t.refetches ?? 0) + 1
+    t.refetchedAt = Date.now()
+  }
+}
+
+/** A past season's official table and top scorers, when fetched ("2019/2020" or "2019") */
+export function historyOfficial(divisionId: string, season: string): { groups?: TableRow[][]; scorers?: HistoryScorer[]; fetchedAt: number } | undefined {
+  load()
+  const division = DIVISIONS.find((d) => d.id === divisionId)
+  const api = division && API_FOR_SPORT[sportOf(division)]
+  const t = api ? mem.store[api]?.historyTables?.[`${divisionId}|${season.slice(0, 4)}`] : undefined
+  return t && { groups: t.groups, scorers: t.scorers, fetchedAt: t.fetchedAt }
+}
+
+/** Every past season we have fetched, with its check, for /admin/kvalitet */
+export function historyOverview() {
+  load()
+  const out: { api: string; division: Division; year: number; season: string; saved: number; table?: HistoryTable; check?: ReturnType<typeof checkSeason> }[] = []
+  for (const api of Object.keys(APIS) as Api[]) {
+    const s = mem.store[api]
+    for (const [key, saved] of Object.entries(s?.history ?? {})) {
+      const [divisionId, year] = key.split('|')
+      const division = DIVISIONS.find((d) => d.id === divisionId)
+      if (!division) continue
+      const season = seasonNames(api, division, Number(year)).label
+      const table = s?.historyTables?.[key]
+      out.push({ api, division, year: Number(year), season, saved, table, check: saved ? checkSeason(division.id, season, sportOf(division), table?.groups) : undefined })
+    }
+  }
+  return out.sort((a, b) => DIVISIONS.indexOf(a.division) - DIVISIONS.indexOf(b.division) || b.year - a.year)
 }
 
 /** Season as the API writes it and as we label it ("2022/2023", or "2022" for calendar-year leagues) */
@@ -706,7 +817,14 @@ async function fetchHistory(api: Api, due: { division: Division; league: string;
     if (/plan|access|season/i.test(error)) (s.history ??= {})[key] = 0
     return
   }
-  const games = (response ?? []).map((r) => APIS[api].toGame(r, api)).filter((g): g is ExternalGame => !!g)
+  const games = (response ?? [])
+    .map((r) => {
+      const g = APIS[api].toGame(r, api)
+      // A match awarded at the green table (AWD, WO) counts in the table with its awarded score
+      const short = String(r.fixture?.status?.short ?? r.status?.short ?? '')
+      return g && (short === 'AWD' || short === 'WO') && g.homeScore !== undefined && g.awayScore !== undefined ? { ...g, state: 'finished' as const } : g
+    })
+    .filter((g): g is ExternalGame => !!g)
   let saved = 0
   try {
     saved = archiveSeason(due.division.id, due.division.name, label, games)
@@ -939,6 +1057,26 @@ async function tick() {
     // Past seasons of our leagues for the club pages' history, with requests left over, one per API per run
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api) || dueDay(api, now)) continue
+      // Each saved season's official table (to check the matches against), then the seasons that don't match are fetched again
+      for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
+        const s = mem.store[api]!
+        const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
+        if (remaining <= 40) break
+        const due = historyTableDue(api)
+        if (!due) break
+        try {
+          await fetchHistoryTable(api, due)
+        } catch {
+          ;(s.historyTables ??= {})[due.key] = { fetchedAt: Date.now(), error: 'Uventet svar' }
+        }
+        changed = true
+        await sleep(isPaid(s) ? 300 : 2_000)
+      }
+      try {
+        historyRecheck(api)
+      } catch {
+        // the statistics bank could not be read: checked next run
+      }
       // A paid plan fetches several seasons a run
       for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
         const due = historyDue(api)
