@@ -1,4 +1,7 @@
 import 'server-only'
+import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { cacheDir } from './tsdb'
 import { shownDivisions } from '../data/leagues'
 import { allTeams } from '../data/teams'
 import { getMatches } from '../data/matches'
@@ -49,46 +52,22 @@ export function pageEntries(): SitemapEntry[] {
 }
 
 // Worked out once per data version and at most once an hour (it walks every match day)
-let cache: { at: number; entries: SitemapEntry[] } | undefined
-let refreshing = false
+// ---------------------------------------------------------------- the files, made ahead
+// The sitemap's files are made in the background (after start and every hour)
+// and kept in memory and on disk, so a search engine always gets its answer at
+// once, also right after a restart. Working them out walks the whole season and
+// every saved match: done in small steps, so the server keeps answering meanwhile.
 
-/**
- * Every match page, newest first. Working them out goes through the whole
- * season and every saved match, which takes long: done at most once an hour
- * (the data's version changes with every live score, so it can't be the key),
- * in the background once there is a list, so a search engine never waits.
- */
-export function matchEntries(): SitemapEntry[] {
-  if (cache) {
-    if (Date.now() - cache.at >= 3_600_000 && !refreshing) {
-      refreshing = true
-      setTimeout(() => {
-        try {
-          computeMatchEntries()
-        } finally {
-          refreshing = false
-        }
-      }, 0)
-    }
-    return cache.entries
-  }
-  return computeMatchEntries()
-}
+const dir = () => process.env.SITEMAP_DIR ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'sitemaps')
+const INDEX = 'sitemap.xml'
+let files = new Map<string, string>()
+let building: Promise<void> | undefined
 
-/** Works the list out ahead of the first visit, and again every hour */
-export function startSitemapWarm() {
-  const warm = () => {
-    try {
-      computeMatchEntries()
-    } catch {
-      // Tried again in an hour, or by the next visit
-    }
-  }
-  setTimeout(warm, 90_000).unref?.()
-  setInterval(warm, 3_600_000).unref?.()
-}
+/** Lets the server answer other requests between the steps */
+const breather = () => new Promise<void>((r) => setImmediate(r))
 
-function computeMatchEntries(): SitemapEntry[] {
+/** Every match page, newest first */
+async function matchEntries(): Promise<SitemapEntry[]> {
   const now = Date.now()
   const days = new Set<string>()
   for (const f of allFixtures()) days.add(isoDate(f.kickoff))
@@ -98,7 +77,9 @@ function computeMatchEntries(): SitemapEntry[] {
   const keys = new Map<string, string>()
   const key = (name: string) => keys.get(name) ?? keys.set(name, teamKey(name)).get(name)!
   const pairs = new Set<string>()
+  let step = 0
   for (const day of [...days].sort().reverse()) {
+    if (++step % 10 === 0) await breather()
     for (const m of getMatches(day, 'all', now)) {
       if (seen.has(m.slug)) continue
       seen.add(m.slug)
@@ -107,18 +88,69 @@ function computeMatchEntries(): SitemapEntry[] {
       entries.push({ path: paths.match(m.slug), ...(done && { lastModified: new Date(m.kickoff.getTime() + FULL_TIME_MS) }) })
     }
   }
+  await breather()
   // Older matches from the match database and the statistics bank (their own pages), unless this season's data has them
-  for (const g of pastGames()) {
+  const past = pastGames()
+  for (let i = 0; i < past.length; i++) {
+    if (i % 5000 === 0) await breather()
+    const g = past[i]
     if (seen.has(g.slug) || pairs.has(`${isoDate(g.date)}|${key(g.home)}|${key(g.away)}`)) continue
     seen.add(g.slug)
     entries.push({ path: paths.match(g.slug), lastModified: new Date(g.date.getTime() + FULL_TIME_MS) })
   }
-  cache = { at: now, entries }
   return entries
 }
 
-export const matchFileCount = () => Math.max(1, Math.ceil(matchEntries().length / PER_FILE))
-export const matchFile = (n: number) => matchEntries().slice(n * PER_FILE, (n + 1) * PER_FILE)
+/** Makes every file of the sitemap and keeps them (memory and disk) */
+export function buildSitemaps(): Promise<void> {
+  building ??= (async () => {
+    try {
+      const matches = await matchEntries()
+      await breather()
+      const out = new Map<string, string>()
+      out.set('sider.xml', urlsetXml(pageEntries()))
+      const count = Math.max(1, Math.ceil(matches.length / PER_FILE))
+      for (let i = 0; i < count; i++) out.set(`kampe-${i + 1}.xml`, urlsetXml(matches.slice(i * PER_FILE, (i + 1) * PER_FILE)))
+      out.set(INDEX, indexXml([...out.keys()]))
+      files = out
+      try {
+        mkdirSync(dir(), { recursive: true })
+        for (const [name, xml] of out) {
+          writeFileSync(path.join(dir(), `${name}.tmp`), xml)
+          renameSync(path.join(dir(), `${name}.tmp`), path.join(dir(), name))
+        }
+        // Files from a bigger list before
+        for (const f of readdirSync(dir())) if (/^kampe-\d+\.xml$/.test(f) && !out.has(f)) unlinkSync(path.join(dir(), f))
+      } catch {
+        // Kept in memory; written again next hour
+      }
+    } finally {
+      building = undefined
+    }
+  })()
+  return building
+}
+
+/** A file of the sitemap ("sitemap.xml", "sider.xml", "kampe-1.xml"): as made last, from memory or disk, else made now */
+export async function sitemapFile(name: string): Promise<string | undefined> {
+  if (!/^(sitemap|sider|kampe-\d+)\.xml$/.test(name)) return undefined
+  const kept = files.get(name)
+  if (kept) return kept
+  try {
+    return readFileSync(path.join(dir(), name), 'utf8')
+  } catch {
+    // Not made yet (the first start)
+  }
+  await buildSitemaps()
+  return files.get(name)
+}
+
+/** Makes the files a minute after start, and again every hour */
+export function startSitemapWarm() {
+  const build = () => void buildSitemaps().catch(() => undefined)
+  setTimeout(build, 60_000).unref?.()
+  setInterval(build, 3_600_000).unref?.()
+}
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -134,7 +166,6 @@ export function indexXml(files: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join('\n')}\n</sitemapindex>\n`
 }
 
-export const sitemapFiles = () => ['sider.xml', ...Array.from({ length: matchFileCount() }, (_, i) => `kampe-${i + 1}.xml`)]
 
 export const xmlResponse = (body: string) =>
   new Response(body, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=900' } })
