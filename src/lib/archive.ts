@@ -85,6 +85,7 @@ const SCHEMA = `
     PRIMARY KEY (event_id, player_id)
   );
   CREATE INDEX IF NOT EXISTS player_games_player ON player_games (player_id);
+  CREATE INDEX IF NOT EXISTS player_games_name ON player_games (name);
   CREATE TABLE IF NOT EXISTS players_checked (
     event_id TEXT PRIMARY KEY,
     checked_at TEXT
@@ -574,6 +575,46 @@ export function playerGames(playerId: number, limit = 400): (PlayerGame & { date
   } finally {
     db.close()
   }
+}
+
+// Players by the name the sources write ("E. Haaland"), kept a while: a list's names are looked up on every page view
+const idsByName = new Map<string, { at: number; players: { id: number; team: string }[] }>()
+
+/** The players saved under each name, with the team they played for (for photos and links in lists that only have names) */
+export function playersByName(names: string[]): Map<string, { id: number; team: string }[]> {
+  const out = new Map<string, { id: number; team: string }[]>()
+  const wanted = [...new Set(names)].filter((n) => {
+    const hit = idsByName.get(n)
+    if (hit && Date.now() - hit.at < 6 * 3_600_000) {
+      out.set(n, hit.players)
+      return false
+    }
+    return true
+  })
+  if (!wanted.length) return out
+  const lib = sqlite()
+  if (!lib || !existsFile(archiveFile())) return out
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return out
+  }
+  try {
+    const rows = db
+      .prepare(`SELECT DISTINCT player_id, name, team FROM player_games WHERE name IN (${wanted.map(() => '?').join(',')})`)
+      .all(...wanted)
+    for (const n of wanted) {
+      const players = rows.filter((r) => r.name === n).map((r) => ({ id: Number(r.player_id), team: String(r.team ?? '') }))
+      idsByName.set(n, { at: Date.now(), players })
+      out.set(n, players)
+    }
+  } catch {
+    // An older bank without the table
+  } finally {
+    db.close()
+  }
+  return out
 }
 
 /** The players' numbers in one match (best rated first) */

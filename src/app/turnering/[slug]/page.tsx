@@ -258,7 +258,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>
-        <LeagueStats division={division} />
+        <LeagueStats division={division} leaders={leaders} />
         <NewsList articles={newsFor({ league: division.id }, 10)} division={division} />
         {/* The rounds under the statistics, beside the players */}
         {byRound ? (

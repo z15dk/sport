@@ -1351,6 +1351,7 @@ h2.league__name { margin: 0; }
 .leaders__list li { display: grid; grid-template-columns: 18px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: var(--surface-2); }
 .leaders__rank { font-size: 12px; font-weight: 700; color: var(--ink-3); text-align: right; }
 .leaders__photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface); }
+.player-photo { border-radius: 50%; object-fit: cover; background: var(--surface); flex-shrink: 0; }
 .leaders__who { display: flex; flex-direction: column; min-width: 0; }
 .leaders__who strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leaders__who em { font-style: normal; font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { divisionBySlug } from '../../../../data/leagues'
+import { divisionBySlug, sportOf } from '../../../../data/leagues'
 import { pastSeason, pastSeasons, seasonGameAsMatch, type PastSeason, type SeasonGame } from '../../../../lib/history'
 import { MatchRow } from '../../../../components/MatchRow'
 import type { Match } from '../../../../types'
@@ -12,6 +12,8 @@ import { TeamBadge } from '../../../../components/TeamBadge'
 import { AdSlot } from '../../../../components/AdSlot'
 import { playerPath } from '../../../../data/player'
 import { SeasonLinks } from '../../../../components/SeasonLinks'
+import { PlayerPhoto } from '../../../../components/PlayerPhoto'
+import { playerFaces } from '../../../../lib/playerPhotos'
 
 // An earlier season of one of our leagues (only seasons our partners' results
 // cover in full): final table, top scorers, every match and the season in numbers.
@@ -81,6 +83,8 @@ export default async function SeasonPage({ params }: { params: Params }) {
   const [first, second] = season.table
   const f = facts(season)
   const top = scorers(season)
+  // Photos (and pages) for the scorers we know; otherwise the club's logo
+  const faces = sportOf(division) === 'soccer' ? playerFaces(top.list) : []
   const others = pastSeasons(division.id)
   const lead = [
     `${first.name} vandt ${division.name} ${season.label}${season.hasDraws ? ` med ${first.points} point` : ` med ${first.won} sejre`}${second ? `, ${season.hasDraws ? `${first.points - second.points} point` : `${first.won - second.won} sejre`} foran ${second.name}` : ''}.`,
@@ -207,10 +211,10 @@ export default async function SeasonPage({ params }: { params: Params }) {
                     {top.list.map((p, i) => (
                       <li key={`${p.name}|${p.team}`}>
                         <span className="leaders__rank">{i + 1}</span>
-                        <TeamBadge link={false} name={p.team} size={28} />
+                        <PlayerPhoto photo={faces[i]?.photo} team={p.team} size={28} />
                         <span className="leaders__who">
-                          {p.id ? (
-                            <Link className="leaders__name" href={playerPath(p.id, p.name)}>
+                          {(p.id ?? faces[i]?.id) ? (
+                            <Link className="leaders__name" href={playerPath((p.id ?? faces[i]?.id)!, p.name)}>
                               <strong>{p.name}</strong>
                             </Link>
                           ) : (
