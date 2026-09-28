@@ -4,6 +4,7 @@ import path from 'node:path'
 import { DIVISIONS, type Club, type Division } from '../data/leagues'
 import { normalize } from '../data/aliases'
 import { cacheDir } from './tsdb'
+import { siteSettings } from './settings'
 
 // News from RSS feeds (Indkast, DR, ...) on the club and league pages: the
 // headline, the source and the time, linking to the article on the source's
@@ -51,9 +52,9 @@ interface Store {
 }
 
 const DEFAULT_FEEDS: Feed[] = [
-  { id: 'indkast', name: 'Indkast', url: 'https://indkast.dk/feed/', enabled: true },
-  { id: 'dr-sporten', name: 'DR', url: 'https://www.dr.dk/nyheder/service/feeds/sporten', enabled: true },
-  { id: 'dr-senestesport', name: 'DR', url: 'https://www.dr.dk/nyheder/service/feeds/senestesport', enabled: true },
+  { id: 'indkast', name: 'Indkast', url: 'https://indkast.dk/feed/', enabled: false },
+  { id: 'dr-sporten', name: 'DR', url: 'https://www.dr.dk/nyheder/service/feeds/sporten', enabled: false },
+  { id: 'dr-senestesport', name: 'DR', url: 'https://www.dr.dk/nyheder/service/feeds/senestesport', enabled: false },
 ]
 
 const EVERY_MS = 15 * 60_000
@@ -151,13 +152,19 @@ function saveStore(store: Store) {
   cached = undefined
 }
 
+/** The main switch "Nyheder på siden" in /admin/indstillinger (off: no boxes, nothing fetched) */
+export const newsOn = () => siteSettings().settings.news
+
+/** The feeds whose articles are shown: the enabled ones, when news is on at all */
+const shownFeeds = () => new Set(newsOn() ? newsFeeds().filter((f) => f.enabled).map((f) => f.id) : [])
+
 export function newsStatus() {
   return readStore().status
 }
 
 /** How many articles each club and league has, for the admin page */
 export function newsCoverage() {
-  const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
+  const enabled = shownFeeds()
   const clubs = new Map<string, number>()
   const women = new Map<string, number>()
   const leagues = new Map<string, number>()
@@ -185,7 +192,7 @@ const wordsOf = (a: Article) => {
  * those about the clubs given (for the women's league: our clubs' women's teams)
  */
 export function newsMentioning(opts: { names: string[]; clubs?: string[]; women: boolean }, limit = 10): Article[] {
-  const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
+  const enabled = shownFeeds()
   const names = [...new Set(opts.names)].map(words).filter((t) => t.join('').length >= 2)
   const clubs = new Set(opts.clubs)
   return readStore()
@@ -197,7 +204,7 @@ export function newsMentioning(opts: { names: string[]; clubs?: string[]; women:
 
 /** The newest articles about a club or a league */
 export function newsFor(ref: { club?: string; league?: string; women?: boolean }, limit = 6): Article[] {
-  const enabled = new Set(newsFeeds().filter((f) => f.enabled).map((f) => f.id))
+  const enabled = shownFeeds()
   // A league's news: the league itself or any of its clubs
   const clubs = new Set(DIVISIONS.find((d) => d.id === ref.league)?.clubs.map((c) => c.id))
   const about = (a: Article) =>
@@ -390,7 +397,7 @@ async function fetchFeed(feed: Feed): Promise<Item[]> {
 
 let running = false
 export async function syncNews() {
-  if (running) return
+  if (running || !newsOn()) return
   running = true
   try {
     const store = readStore()

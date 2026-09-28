@@ -27,6 +27,14 @@ export const SETTINGS = [
       'Fra: ingen reklamepladser nogen steder (heller ikke pladsholdere). Til: pladserne vises, altid mærket "Annonce" – med annoncen, hvis der er en, ellers en pladsholder i den reserverede størrelse.',
     default: false,
   },
+  {
+    key: 'news',
+    group: 'Nyheder',
+    label: 'Nyheder på siden',
+    description:
+      'Fra: ingen "Seneste nyheder" på klub- og turneringssider, og der hentes ingen RSS-feeds. Til: de feeds, der er slået til herunder, hentes hvert 15. minut og vises.',
+    default: false,
+  },
 ] as const satisfies readonly SettingDef[]
 
 export type SettingKey = (typeof SETTINGS)[number]['key']
