@@ -3,7 +3,7 @@ import { MatchesView } from '../components/MatchesView'
 import { RealDataExtra } from '../components/RealDataExtra'
 import { externalOn, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { addDays, formatFull, isoDate, isValidIsoDate } from '../lib/time'
-import { paths } from '../lib/site'
+import { SITE_NAME, paths } from '../lib/site'
 import { sportFilterBySlug } from '../sports'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,11 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   const s = sportFilterBySlug(sport)
   const date = isValidIsoDate(dato) ? dato : undefined
   return {
-    title: date ? `${s.label} ${formatFull(date)} – resultater og kampe` : s.id === 'all' ? 'Live resultater og dagens kampe' : `${s.label} i dag – live resultater og kampe`,
+    title: date
+      ? `${s.label} ${formatFull(date)} – resultater og kampe`
+      : s.id === 'all'
+        ? { absolute: `${SITE_NAME} – live resultater, kampprogram og stillinger` }
+        : `${s.label} i dag – live resultater og kampe`,
     alternates: { canonical: paths.home({ sport: s.slug, dato: date }) },
   }
 }

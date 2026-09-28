@@ -30,7 +30,7 @@ export default function AboutPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Hvad er Matchly?</h2>
           <p>
-            Matchly samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge. Vi dækker alle{' '}
+            Matchly samler resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Spanien, Portugal, Sverige og Norge. Vi dækker alle{' '}
             {clubs} klubber i{' '}
             {divisions.map((d, i) => (
               <span key={d.id}>

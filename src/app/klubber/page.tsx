@@ -17,7 +17,7 @@ export function generateMetadata(): Metadata {
   const divisions = shownDivisions()
   return {
     title: `Klubber ${SEASON} – fodbold, ishockey og basketball`,
-    description: `Alle ${seasonClubs().length} klubber i ${divisions.map((d) => d.name).join(', ')} ${SEASON}.`,
+    description: `Find din klub blandt ${seasonClubs().length} klubber i ${divisions.length} ligaer${divisions.length ? ` – bl.a. ${divisions.slice(0, 4).map((d) => d.name).join(', ')}` : ''}. Resultater, kampprogram og stilling ${SEASON} for hver klub.`,
     alternates: { canonical: paths.clubs() },
   }
 }

@@ -27,7 +27,7 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
-import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos, type ExternalLeague } from '../../../lib/apisports'
+import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable, archiveSeasonGames } from '../../../lib/history'
 import { archiveIncidents } from '../../../lib/archive'
 import { gameStats, type StatGame, type StatTeam } from '../../../data/stats'
@@ -39,6 +39,7 @@ import { danishRound, externalLeagueKey } from '../../../data/external'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
+import { knownLeague } from '../../../lib/knownLeague'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,15 +77,6 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 /** A page for one of API-Sports' other leagues: their table when the plan allows it, else ours from the statistics bank */
-/** A league we know from API-Sports' games, or from a starting table entered before any of its games came */
-function knownLeague(slug: string): (ExternalLeague & { title?: string }) | undefined {
-  const b = BASELINES[slug]
-  // A cup: under its own key from the games (API-Sports and our match database)
-  const g = (loadRealData() ?? getRealData())?.external?.find((x) => cupOfGame(x) && externalLeagueKey(x.league) === slug)
-  if (g) return { key: slug, api: g.id.split('-')[0], id: g.league.id, name: g.league.originalName ?? g.league.name, title: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, lastSeen: 0 }
-  return externalLeague(slug) ?? (b && { key: slug, api: 'football', id: '', name: b.league.name, country: b.league.country, sport: b.league.sport, lastSeen: 0 })
-}
-
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 async function externalLeaguePage(slug: string) {

@@ -130,15 +130,27 @@ export function articleLd(a: { title: string; description: string; path: string;
   }
 }
 
+/** The site itself, so Google shows "Matchly" as the site name in results */
+export function websiteLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    alternateName: ['matchly.dk', 'Matchly.dk'],
+    url: `${SITE_URL}/`,
+    inLanguage: 'da-DK',
+  }
+}
+
 export function organizationLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
-    logo: `${SITE_URL}/favicon.svg`,
-    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, Tyskland, England, Sverige og Norge.',
-    areaServed: ['DK', 'DE', 'GB', 'SE', 'NO'],
+    logo: `${SITE_URL}/icon-512.png`,
+    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
+    areaServed: ['DK', 'DE', 'GB', 'ES', 'PT', 'SE', 'NO'],
     knowsLanguage: 'da',
   }
 }
