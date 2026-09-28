@@ -5,9 +5,9 @@
   --line: #e1e4da;
   --ink: #0f110c;
   --ink-2: #5a5f55;
-  --ink-3: #999e92;
+  --ink-3: #676c60; /* 4.6:1 or more on every background (WCAG AA) */
   --lime: #c6f135;
-  --lime-deep: #8fb800;
+  --lime-deep: #6f8f00; /* 3.4:1 or more: large numbers and chart bars */
   --live: #ff4a1f;
   --live-soft: #ffe7e0;
   --blush: #f3d3d6;
