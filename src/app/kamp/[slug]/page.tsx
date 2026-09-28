@@ -2,7 +2,7 @@ import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { clubExternalGames, findExternalGame, findMatch, namesOf } from '../../../data/matches'
+import { clubExternalGames, findExternalGame, findMatch, isFriendly, leagueGamesOn, namesOf } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
@@ -159,7 +159,7 @@ export default async function MatchPage({ params }: { params: Params }) {
     ...facts,
     form: facts.form ?? saved?.form,
     // A tournament with groups (Champions League): only API-Sports' table for the group, never one we compute
-    table: cup ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
+    table: cup || isFriendly(match.league) ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = h2hGames
@@ -208,7 +208,13 @@ export default async function MatchPage({ params }: { params: Params }) {
       <JsonLd data={faqLd(faq)} />
       <RealDataExtra
         {...realExtras(
-          [...new Map([...(external ? [external] : []), ...clubExternalGames(match.home.name), ...clubExternalGames(match.away.name)].map((g) => [g.id, g])).values()],
+          [...new Map([
+            ...(external ? [external] : []),
+            ...clubExternalGames(match.home.name),
+            ...clubExternalGames(match.away.name),
+            // A friendly shows the day's other friendlies instead of a table
+            ...(isFriendly(match.league) ? leagueGamesOn(isoDate(match.kickoff), match.league, match.sport) : []),
+          ].map((g) => [g.id, g])).values()],
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />

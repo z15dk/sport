@@ -62,6 +62,14 @@ export function namesOf(name: string) {
 // day's games no longer turns every game's kick-off into a date (that made
 // the front page, which asks for many days and sports, take seconds)
 const byDay = new WeakMap<ExternalGame[], Map<string, ExternalGame[]>>()
+/** Friendlies (national teams, clubs, youth): no table, only the day's matches */
+export const isFriendly = (league: string) => /friendl|venskab/i.test(league)
+
+/** The other games of a league on a Danish date ("Friendlies" today), as sent to the browser */
+export function leagueGamesOn(date: string, league: string, sport: Match['sport']): ExternalGame[] {
+  return externalOn(date).filter((g) => g.sport === sport && externalMatch(g).league === league)
+}
+
 /** API-Sports' games on a Danish date */
 export function externalOn(date: string): ExternalGame[] {
   const all = getRealData()?.external ?? []

@@ -7,7 +7,7 @@ import { paths } from '../lib/site'
 import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
-import { clubMatches, findMatch } from '../data/matches'
+import { clubMatches, findMatch, getMatches, isFriendly } from '../data/matches'
 import { matchPreview, matchReport } from '../data/matchStory'
 import { teamByName, teamInLeague } from '../data/teams'
 import { useNow } from '../hooks/useNow'
@@ -22,6 +22,7 @@ import { PartnerLogo } from './PartnerLogo'
 import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
+import { MatchRow } from './MatchRow'
 import { MatchTimeline } from './MatchTimeline'
 import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
@@ -135,7 +136,14 @@ function MatchBody({
   const form = extra?.form ?? seasonForm(match)
   // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
   // A cup has rounds, not a table
-  const sourceTable = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  // Friendlies have no table: the day's friendlies instead (sent by the page with RealDataExtra)
+  const friendly = isFriendly(match.league)
+  const dayGames = friendly
+    ? getMatches(isoDate(match.kickoff), match.sport, now)
+        .filter((m) => m.league === match.league)
+        .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    : []
+  const sourceTable = cup || friendly ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
   // The table under our clubs' own names ("Nykobing FC" from API-Sports is "Nykøbing FC"), so the report and the table say the same
   const ourClubs = [...(homeStats?.division.clubs ?? []), ...(awayStats?.division.clubs ?? [])]
   const ourName = (name: string) =>
@@ -347,6 +355,19 @@ function MatchBody({
           </section>
 
           {!pairRow && timeline}
+
+          {dayGames.length > 1 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">
+                {isoDate(match.kickoff) === isoDate(new Date(now)) ? 'I dag' : formatDayMonth(isoDate(match.kickoff))} · {match.league}
+              </h2>
+              <ul className="league__matches league__matches--flush">
+                {dayGames.map((m) => (
+                  <MatchRow key={m.id} match={m} />
+                ))}
+              </ul>
+            </section>
+          )}
 
           {table && table.rows.length > 1 && (
             <section className="sheet__section">

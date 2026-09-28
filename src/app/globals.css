@@ -240,6 +240,7 @@ table.visually-hidden { display: block; }
 .star { border: 0; background: none; font-size: 20px; color: var(--ink-3); padding: 8px 10px; }
 .star:hover, .star.is-on { color: var(--star); }
 .league__matches { list-style: none; margin: 0; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+.league__matches--flush { padding: 0; }
 
 /* Match row */
 .match {
