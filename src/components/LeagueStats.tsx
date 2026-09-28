@@ -21,7 +21,9 @@ export function LeagueStats(props: ({ division: Division } | { stats: LeagueStat
   const sport = 'division' in props ? sportOf(props.division) : props.sport
   const soccer = sport === 'soccer'
   // The scorers' photos (and pages) when we know them; otherwise the club's logo
-  const faces = soccer ? playerFaces(s.scorers.map((r) => ({ name: r.player, team: r.club.name })), props.leaders) : []
+  // The league's player lists (LeagueLeaders, beside this box) already have the top scorers: not twice on the page
+  const scorers = props.leaders?.scorers.length ? [] : s.scorers
+  const faces = soccer ? playerFaces(scorers.map((r) => ({ name: r.player, team: r.club.name })), props.leaders) : []
   const word = soccer || sport === 'ice_hockey' ? 'Mål' : 'Point'
   const tiles: [string, string][] = [
     [`${word} pr. kamp`, one(s.goalsPerMatch)],
@@ -79,11 +81,11 @@ export function LeagueStats(props: ({ division: Division } | { stats: LeagueStat
             />
           </div>
         )}
-        {s.scorers.length > 0 && (
+        {scorers.length > 0 && (
           <div>
             <h3 className="stats-sub">Topscorere</h3>
             <ol className="rank-list">
-              {s.scorers.map((r, i) => (
+              {scorers.map((r, i) => (
                 <li key={`${r.club.id}-${r.player}`}>
                   <PlayerPhoto photo={faces[i]?.photo} team={r.club.name} teamLogo={r.club.logo} colors={r.club.colors} size={22} />
                   <span className="rank-list__name">
