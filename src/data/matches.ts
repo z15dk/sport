@@ -182,6 +182,19 @@ export function teamTournamentMatches(names: string[], women: boolean): Match[] 
     .map(externalMatch)
 }
 
+/**
+ * The games of a team outside our leagues around today: its league's (ten days
+ * back, thirty ahead) and its cup and Champions League games (a women's team
+ * in the women's tournaments), in date order. For its club page and "Mine hold".
+ */
+export function teamGames(team: { name: string; names?: string[]; sport: SportId; league: string; leagueSlug?: string }, now: number): Match[] {
+  const names = team.names ?? [team.name]
+  const women = WOMEN.test(team.league) || /\b(w|women)\b/i.test(team.name)
+  const league = teamMatches(names, team.sport, addDays(isoDate(now), -10), 40, now, team.names ? team.leagueSlug : undefined)
+  const tournaments = team.sport === 'soccer' ? teamTournamentMatches(names, women) : []
+  return [...new Map([...league, ...tournaments].map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+}
+
 /** Matches for any team (any sport) over a range of days from `fromDate` */
 export function teamMatches(teamName: string | string[], sport: SportId, fromDate: string, days: number, now: number, leagueSlug?: string): Match[] {
   const names = new Set(Array.isArray(teamName) ? teamName : [teamName])

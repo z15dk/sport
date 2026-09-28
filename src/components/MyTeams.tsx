@@ -2,6 +2,7 @@
 
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useFavoriteTeams } from '../hooks/useFavoriteTeams'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { teamBySlug } from '../data/teams'
@@ -26,26 +27,59 @@ function until(kickoff: Date, now: number): string {
   return `${formatWeekday(day)} ${formatNumeric(kickoff).replace(/\.\d{2,4}$/, '')} kl. ${formatTime(kickoff)}`
 }
 
-/** A followed team's matches: the season for our clubs, API-Sports' games for the rest */
-function matchesOf(slug: string, now: number): { name: string; matches: Match[]; place?: string } | undefined {
+/** What the server gives for a team outside our leagues (/api/mine-hold) */
+type Followed = Record<string, { logo?: string; matches: Match[] }>
+
+/** A followed team's matches: the season for our clubs, the server's list for the rest (the browser has only today's games) */
+function matchesOf(slug: string, now: number, followed: Followed): { name: string; matches: Match[]; place?: string; logo?: string } | undefined {
   const team = teamBySlug(slug)
   if (!team) return undefined
   if (team.season) {
     const stats = clubStats(team.name, now)
     return { name: team.name, matches: clubMatches(team.name, now), place: stats ? `${stats.position}. plads i ${stats.division.name}` : undefined }
   }
+  const fromServer = followed[slug]
+  if (fromServer) return { name: team.name, matches: fromServer.matches, place: team.league, logo: fromServer.logo ?? team.logo }
+  // Until the server answers: today's games
   const names = new Set(team.names ?? [team.name])
   const matches = (getRealData()?.external ?? [])
     .map(externalMatch)
     .filter((m) => (names.has(m.home.name) || names.has(m.away.name)) && (!team.names || !team.leagueSlug || m.leagueSlug === team.leagueSlug))
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
-  return { name: team.name, matches, place: team.league }
+  return { name: team.name, matches, place: team.league, logo: team.logo }
 }
 
-function TeamCard({ slug, now, onUnfollow }: { slug: string; now: number; onUnfollow: () => void }) {
-  const data = matchesOf(slug, now)
+/** The server's list for the followed teams outside our leagues, fetched again every minute */
+function useFollowed(slugs: string[]): Followed {
+  const [followed, setFollowed] = useState<Followed>({})
+  const others = slugs.filter((s) => !teamBySlug(s)?.season).join(',')
+  useEffect(() => {
+    if (!others) return
+    let stop = false
+    const load = () =>
+      fetch(`/api/mine-hold?hold=${encodeURIComponent(others)}`)
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((data: Followed) => {
+          if (stop) return
+          // Dates come as text
+          for (const t of Object.values(data)) for (const m of t.matches) m.kickoff = new Date(m.kickoff)
+          setFollowed(data)
+        })
+        .catch(() => undefined)
+    load()
+    const timer = setInterval(load, 60_000)
+    return () => {
+      stop = true
+      clearInterval(timer)
+    }
+  }, [others])
+  return followed
+}
+
+function TeamCard({ slug, now, followed, onUnfollow }: { slug: string; now: number; followed: Followed; onUnfollow: () => void }) {
+  const data = matchesOf(slug, now, followed)
   if (!data) return null
-  const { name, matches, place } = data
+  const { name, matches, place, logo } = data
   const live = matches.find((m) => m.state === 'live')
   const next = matches.find((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
   const last = [...matches].reverse().find((m) => m.state === 'finished')
@@ -54,7 +88,7 @@ function TeamCard({ slug, now, onUnfollow }: { slug: string; now: number; onUnfo
   return (
     <li className={`my-team${live ? ' is-live' : ''}`}>
       <div className="my-team__head">
-        <TeamBadge name={name} size={36} />
+        <TeamBadge name={name} src={logo} size={36} />
         <span className="my-team__name">
           <Link href={paths.club(slug)}>{name}</Link>
           {place && <em>{place}</em>}
@@ -96,6 +130,7 @@ function TeamCard({ slug, now, onUnfollow }: { slug: string; now: number; onUnfo
 /** The front page's "Mine hold": a card for each team the visitor follows, or suggestions to follow some */
 export function MyTeams({ now }: { now: number }) {
   const { teams, loaded, toggle } = useFavoriteTeams()
+  const followed = useFollowed(teams)
   const [hintHidden, setHintHidden] = usePersistentState('myTeamsHintHidden', false)
   // Before the browser's list is read (and on the server) the suggestions show, as for a new visitor,
   // so the page doesn't jump down when they appear
@@ -140,7 +175,7 @@ export function MyTeams({ now }: { now: number }) {
       </header>
       <ul className="my-teams__list">
         {teams.map((slug) => (
-          <TeamCard key={slug} slug={slug} now={now} onUnfollow={() => toggle(slug)} />
+          <TeamCard key={slug} slug={slug} now={now} followed={followed} onUnfollow={() => toggle(slug)} />
         ))}
       </ul>
     </section>

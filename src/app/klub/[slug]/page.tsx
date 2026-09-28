@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
-import { clubExternalGames, clubMatches, teamMatches, teamTournamentMatches } from '../../../data/matches'
+import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
@@ -41,7 +41,7 @@ import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { FollowButton } from '../../../components/FollowButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
-import { addDays, formatLong, formatShortYear, isoDate } from '../../../lib/time'
+import { formatLong, formatShortYear, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 
@@ -235,7 +235,6 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
 /** Page for any other team: built from its matches, the games we have saved and its league's table */
 async function TeamPage({ team }: { team: TeamEntry }) {
   const now = Date.now()
-  const today = isoDate(now)
   const names = team.names ?? [team.name]
   const keys = new Set(names.map(normalize))
   const own = (name: string) => keys.has(normalize(name))
@@ -262,13 +261,8 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const hasDraws = table.some((r) => r.drawn !== undefined)
   const hasPoints = table.some((r) => r.points !== undefined)
 
-  // Its league's games around today, and its games in the cups and the Champions League (women's teams in the women's tournaments)
-  const womenTeam = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga/i.test(team.league) || /\b(w|women)\b/i.test(team.name)
-  const around = [
-    ...new Map(
-      [...teamMatches(names, team.sport, addDays(today, -10), 30, now, team.names ? team.leagueSlug : undefined), ...(team.sport === 'soccer' ? teamTournamentMatches(names, womenTeam) : [])].map((m) => [m.id, m]),
-    ).values(),
-  ].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+  // Its league's games around today, and its games in the cups and the Champions League
+  const around = teamGames(team, now)
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
   const results = teamResults(names, around, divisionIds, team.league)
