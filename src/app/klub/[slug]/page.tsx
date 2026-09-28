@@ -29,7 +29,9 @@ import { readArchive } from '../../../lib/archive'
 import { clubNames, normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
-import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
+import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../../../data/baselines'
+import { getRealData } from '../../../data/real'
+import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
@@ -287,6 +289,18 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const last = mine[0]
   const next = upcoming[0]
 
+  // The saved results' tournaments under the names and logos the rest of the site uses ("Kvindeliga" is the A-Liga)
+  const tournaments = new Map<string, { name: string; logo?: string }>()
+  for (const g of getRealData()?.external ?? []) {
+    for (const n of [g.league.name, g.league.originalName]) if (n && !tournaments.get(normalize(n))?.logo) tournaments.set(normalize(n), { name: g.league.name, logo: g.league.logo })
+  }
+  const tournament = (name: string) => {
+    const known = tournaments.get(normalize(name))
+    if (known) return known
+    const main = mainLeagueKey(externalLeagueKey({ name, country: team.country }))
+    const other = BASELINES[main]?.league.name
+    return other ? (tournaments.get(normalize(other)) ?? { name: other }) : { name }
+  }
   // The team's games for the match list (as on our clubs' pages): the saved results and the coming games, the team under its page name
   // Also its plain name in a women's tournament ("HB Køge" in the women's Champions League is HB Køge Women)
   const asTeam = (name: string) => (own(name) || names.some((x) => normalize(women(x)) === normalize(women(name))) ? team.name : name)
@@ -295,8 +309,9 @@ async function TeamPage({ team }: { team: TeamEntry }) {
       id: `r${k}-${isoDate(m.date)}`,
       slug: m.slug ?? '',
       sport: team.sport,
-      league: m.competition,
-      leagueId: m.competition,
+      league: tournament(m.competition).name,
+      leagueId: tournament(m.competition).name,
+      leagueBadge: tournament(m.competition).logo,
       kickoff: m.date,
       state: 'finished',
       statusLabel: 'Slut',

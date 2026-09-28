@@ -45,12 +45,15 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
   const back = () => setPage((p) => (tab === 'finished' ? p + 1 : p - 1))
   const forward = () => setPage((p) => (tab === 'finished' ? p - 1 : p + 1))
 
-  // Group consecutive matches of the same competition
+  // One group per competition (in the order they first come), so a cup game between league games doesn't split the league
   const groups: { league: string; country?: string; badge?: string; matches: Match[] }[] = []
   for (const m of shown) {
-    const last = groups.at(-1)
-    if (last && last.league === m.league) last.matches.push(m)
-    else groups.push({ league: m.league, country: m.country, badge: m.leagueBadge, matches: [m] })
+    const group = groups.find((g) => g.league === m.league)
+    if (!group) groups.push({ league: m.league, country: m.country, badge: m.leagueBadge, matches: [m] })
+    else {
+      group.matches.push(m)
+      group.badge ??= m.leagueBadge
+    }
   }
 
   return (
