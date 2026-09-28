@@ -1843,6 +1843,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .club-seasons__link { padding: 0 14px 8px; font-size: 14px; }
 .club-seasons__link a { color: var(--ink); font-weight: 600; }
 .tile__value--text { font-size: 22px; line-height: 1.1; }
+.tile__sub { font-size: 12px; font-weight: 600; opacity: 0.75; }
 .season-links { padding: 0 18px 18px; }
 .season-links a, .season-links strong { color: var(--ink); text-decoration: none; }
 .season-links a:hover { background: var(--lime); }

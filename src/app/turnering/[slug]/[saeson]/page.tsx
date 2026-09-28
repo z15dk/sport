@@ -150,10 +150,11 @@ export default async function SeasonPage({ params }: { params: Params }) {
             <strong className="tile__value">{one(f.perMatch)}</strong>
           </div>
           <div className="tile tile--lime">
-            <span className="tile__label">Hjemme · uafgjort · ude</span>
-            <strong className="tile__value">
-              {f.homeWins}·{f.draws}·{f.awayWins}
-            </strong>
+            <span className="tile__label">Hjemmesejre</span>
+            <strong className="tile__value">{season.games.length ? Math.round((f.homeWins / season.games.length) * 100) : 0} %</strong>
+            <span className="tile__sub">
+              {f.homeWins} hjemme{season.hasDraws ? ` · ${f.draws} uafgjort` : ''} · {f.awayWins} ude
+            </span>
           </div>
         </section>
 
