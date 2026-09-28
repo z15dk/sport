@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import Link from 'next/link'
 import type { ExternalLeague } from '../lib/apisports'
 import type { TableRow } from '../data/matchExtra'
@@ -42,12 +41,10 @@ interface Props {
   rounds?: { name: string; matches: Match[] }[]
   /** Top scorers, assists and cards */
   leaders?: Leaders
-  /** "Seneste nyheder" about the tournament */
-  news?: ReactNode
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats, news }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -193,7 +190,6 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
 
-        {news}
         <AdSlot placement="feed" />
 
         {recent.length > 0 && (
