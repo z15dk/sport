@@ -20,11 +20,10 @@ import { AboutText } from '../../../components/AboutText'
 import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
 import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
-import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
 import { NewsList } from '../../../components/NewsList'
 import { newsFor } from '../../../lib/news'
-import { archiveLeagueTable, clubHistory } from '../../../lib/history'
+import { archiveLeagueTable } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
 import { clubNames, normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
@@ -89,7 +88,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
   const recent = season.filter((m) => m.state === 'finished').reverse()
   const upcoming = season.filter((m) => m.state !== 'finished')
   const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
-  const history = clubHistory(club)
   const table = standings(division, now)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
@@ -185,7 +183,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
-        {history && division.id !== 'superliga' && <ClubHistory name={club.name} history={history} />}
         <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />
         <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
