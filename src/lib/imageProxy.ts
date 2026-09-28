@@ -70,6 +70,8 @@ export function proxyImage(url: string | undefined): string | undefined {
   if (r.byId.get(id) !== url) {
     r.byId.set(id, url)
     saveSoon()
+    // Made ready in the background, so no visitor waits for the source
+    warm(id)
   }
   return `/billede/${id}`
 }
@@ -128,4 +130,36 @@ export async function proxiedPicture(id: string, width: number): Promise<Buffer 
   } catch {
     return undefined
   }
+}
+
+// ---------------------------------------------------------------- made ready ahead
+
+/** The sizes pages use most (logos in lists and headers) */
+const WARM_WIDTHS = [64, 128]
+const queue: string[] = []
+let active = 0
+function warm(id: string) {
+  queue.push(id)
+  pump()
+}
+function pump() {
+  while (active < 4 && queue.length) {
+    const id = queue.shift()!
+    active++
+    void (async () => {
+      try {
+        for (const w of WARM_WIDTHS) await proxiedPicture(id, w)
+      } catch {
+        // Made when first asked for instead
+      } finally {
+        active--
+        pump()
+      }
+    })()
+  }
+}
+
+/** Pictures known but not made yet (after a restart or a new server): made in the background */
+export function warmKnownPictures() {
+  for (const id of registry().byId.keys()) warm(id)
 }

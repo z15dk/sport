@@ -19,6 +19,9 @@ export async function register() {
   startTvSync()
   const { startNewsSync } = await import('./lib/news')
   startNewsSync()
+  // Logos and photos made ready ahead, so no page waits for a source
+  const { warmKnownPictures } = await import('./lib/imageProxy')
+  warmKnownPictures()
   startIndexNow()
   startRealDataSync()
   startLogoSync()
