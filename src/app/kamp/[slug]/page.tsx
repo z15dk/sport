@@ -22,9 +22,9 @@ import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
-import { formatFull, isoDate } from '../../../lib/time'
+import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
 import { paths } from '../../../lib/site'
-import { JsonLd, breadcrumbLd, faqLd, matchLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +38,8 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
   const { game: g, match } = past
-  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore} | ${g.tournament} ${formatFull(g.date)}`
+  // Short enough for the search results: teams, score, tournament and a numeric date
+  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore} · ${g.tournament} ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
   const description = `${g.home} mod ${g.away} i ${g.tournament} ${g.season} (${formatFull(g.date)}): ${result}.${match.incidents?.length ? ' Målscorere, kort' : ' Resultat'}, spillere og tidligere opgør mellem holdene.`
   return {
@@ -58,7 +59,7 @@ function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
   const title = `${g.home} – ${g.away}`
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, (name) => teamByName(name)?.slug)} />
+      <JsonLd data={matchLd(match, (name) => teamByName(name)?.slug, report?.[0])} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
@@ -81,7 +82,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { match } = found
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
-  const title = `${match.home.name} – ${match.away.name}${score} | ${match.league} ${formatFull(match.kickoff)}`
+  const title = `${match.home.name} – ${match.away.name}${score} · ${match.league} ${formatNumeric(match.kickoff)}`
   const description = summary(match, clubStats(match.home.name, found.now), clubStats(match.away.name, found.now))
   return {
     title: { absolute: title },
@@ -187,7 +188,7 @@ export default async function MatchPage({ params }: { params: Params }) {
 
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, clubSlug)} />
+      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
@@ -196,7 +197,6 @@ export default async function MatchPage({ params }: { params: Params }) {
         ])}
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
-      <JsonLd data={faqLd(faq)} />
       <RealDataExtra
         {...realExtras(
           [...new Map([

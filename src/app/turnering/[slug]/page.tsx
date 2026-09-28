@@ -13,7 +13,7 @@ import { NewsList } from '../../../components/NewsList'
 import { newsFor, newsMentioning } from '../../../lib/news'
 import { allTeams, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
-import { JsonLd, breadcrumbLd, faqLd, leagueLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
@@ -229,7 +229,6 @@ export default async function LeaguePage({ params }: { params: Params }) {
     <div className="page">
       <JsonLd data={leagueLd(division, badges[division.name])} />
       <JsonLd data={webPageLd(paths.league(division.slug), division.name, new Date(now))} />
-      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Turneringer', path: paths.league('superliga') },

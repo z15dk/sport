@@ -44,7 +44,7 @@ export async function generateMetadata({ params, searchParams }: { params: Param
   const dateText = formatFull(date)
   const alias = dayAlias(date, today)
   return {
-    title: `${w.heading}${w.when === dateText ? '' : ` (${dateText})`} – ${w.past ? 'alle resultater' : 'kampprogram og TV'}`,
+    title: `${w.heading}${w.when === dateText ? '' : ` (${dateText})`}${w.past ? '' : ' – kampprogram og TV'}`,
     description: w.past
       ? `${count ? `Alle ${count} resultater` : 'Resultaterne'} ${w.when}${w.when === dateText ? '' : `, ${dateText}`}: ${s.id === 'all' ? 'fodbold, ishockey, basketball og mere' : s.label.toLowerCase()} fra Danmark og Europas store ligaer, med målscorere og stillinger.`
       : `${count ? `Alle ${count} kampe` : 'Kampene'} ${w.when}${w.when === dateText ? '' : `, ${dateText}`}: kampprogram med tidspunkter og TV-kanaler for ${s.id === 'all' ? 'fodbold, ishockey, basketball og mere' : s.label.toLowerCase()}.`,

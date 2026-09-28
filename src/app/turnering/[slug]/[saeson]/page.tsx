@@ -67,7 +67,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const [first, second] = season.table
   const f = facts(season)
   return {
-    title: `${division.name} ${season.label} – slutstilling, resultater og topscorere`,
+    title: `${division.name} ${season.label}: slutstilling og resultater`,
     description: `Slutstillingen i ${division.name} ${season.label}: ${first.name} vandt${season.hasDraws ? ` med ${first.points} point` : ''}${second ? ` foran ${second.name}` : ''}. Alle ${season.games.length} kampe, ${f.goals} mål (${one(f.perMatch)} pr. kamp) og sæsonens topscorere.`,
     alternates: { canonical: `${paths.league(division.slug)}/${season.slug}` },
   }

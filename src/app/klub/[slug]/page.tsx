@@ -14,7 +14,7 @@ import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
-import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AboutText } from '../../../components/AboutText'
 import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
@@ -57,16 +57,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!team) return { title: 'Klubben findes ikke' }
   if (!team.season) {
     const sport = sportById(team.sport).label.toLowerCase()
+    // A team with no games at all (coming or saved) is a thin page: kept out of the search results
+    const names = new Set((team.names ?? [team.name]).map(normalize))
+    const empty = !teamGames(team, Date.now()).length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
     return {
-      title: `${team.name} – resultater og kampprogram (${team.league})`,
+      title: `${team.name} – resultater og kampprogram`,
       description: `Seneste resultater og kommende kampe for ${team.name} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
       alternates: { canonical: paths.club(team.slug) },
+      ...(empty && { robots: { index: false, follow: true } }),
     }
   }
   const { club, division } = team.season
   const stats = clubStats(club.name, Date.now())!
   return {
-    title: `${club.name} – resultater, kampprogram og stilling ${seasonOf(division)}`,
+    title: `${club.name} – kampe og stilling ${seasonOf(division)}`,
     description: `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
     alternates: { canonical: paths.club(club.slug) },
   }
@@ -104,7 +108,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
       <RealDataExtra games={clubExternalGames(club.name)} />
       <JsonLd data={clubLd(club, division)} />
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
-      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Klubber', path: paths.clubs() },
@@ -327,7 +330,6 @@ async function TeamPage({ team }: { team: TeamEntry }) {
     <div className="page">
       <JsonLd data={teamPageLd(team)} />
       <JsonLd data={webPageLd(paths.club(team.slug), team.name, new Date(now))} />
-      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Klubber', path: paths.clubs() },

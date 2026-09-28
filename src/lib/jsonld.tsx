@@ -24,26 +24,41 @@ const teamLd = (name: string, slug?: string, sport = 'Fodbold') => ({
   ...(slug && { url: `${SITE_URL}${paths.club(slug)}` }),
 })
 
-export function matchLd(match: Match, clubSlug: (name: string) => string | undefined) {
+/** How long a match takes, for endDate (kick-off to full time with the break) */
+const DURATION_MS: Partial<Record<Match['sport'], number>> = { soccer: 115 * 60_000, ice_hockey: 150 * 60_000, basketball: 120 * 60_000 }
+
+export function matchLd(match: Match, clubSlug: (name: string) => string | undefined, description?: string) {
   const status =
     match.state === 'postponed' ? 'https://schema.org/EventPostponed' : 'https://schema.org/EventScheduled'
+  const sport = sportById(match.sport).label
+  const url = `${SITE_URL}${paths.match(match.slug)}`
+  const league = match.leagueSlug ? `${SITE_URL}${paths.league(match.leagueSlug)}` : undefined
+  const end = new Date(match.kickoff.getTime() + (DURATION_MS[match.sport] ?? 120 * 60_000))
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: `${match.home.name} – ${match.away.name}`,
-    url: `${SITE_URL}${paths.match(match.slug)}`,
+    url,
+    ...(description && { description }),
+    // The match's own sharing picture (teams, logos, score or time)
+    image: `${url}/opengraph-image`,
     startDate: match.kickoff.toISOString(),
+    endDate: end.toISOString(),
     eventStatus: status,
-    sport: sportById(match.sport).label,
-    superEvent: { '@type': 'SportsEvent', name: match.league },
-    homeTeam: teamLd(match.home.name, clubSlug(match.home.name), sportById(match.sport).label),
-    awayTeam: teamLd(match.away.name, clubSlug(match.away.name), sportById(match.sport).label),
-    competitor: [
-      teamLd(match.home.name, clubSlug(match.home.name), sportById(match.sport).label),
-      teamLd(match.away.name, clubSlug(match.away.name), sportById(match.sport).label),
-    ],
-    ...(match.venue && { location: { '@type': 'Place', name: match.venue, address: match.venue } }),
-    organizer: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    sport,
+    superEvent: { '@type': 'SportsEvent', name: match.league, ...(league && { url: league }) },
+    homeTeam: teamLd(match.home.name, clubSlug(match.home.name), sport),
+    awayTeam: teamLd(match.away.name, clubSlug(match.away.name), sport),
+    competitor: [teamLd(match.home.name, clubSlug(match.home.name), sport), teamLd(match.away.name, clubSlug(match.away.name), sport)],
+    // Where it is played: the stadium, or else the home team's ground
+    location: {
+      '@type': 'Place',
+      name: match.venue ?? `${match.home.name}s hjemmebane`,
+      address: { '@type': 'PostalAddress', ...(match.venue && { streetAddress: match.venue }), ...(match.country && { addressCountry: match.country }) },
+    },
+    // The league or tournament runs the match (not us)
+    organizer: { '@type': 'SportsOrganization', name: match.league, ...(league && { url: league }) },
   }
 }
 
@@ -80,18 +95,6 @@ export function breadcrumbLd(items: { name: string; path: string }[]) {
       position: i + 1,
       name: it.name,
       item: `${SITE_URL}${it.path}`,
-    })),
-  }
-}
-
-export function faqLd(items: { q: string; a: string }[]) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: items.map((it) => ({
-      '@type': 'Question',
-      name: it.q,
-      acceptedAnswer: { '@type': 'Answer', text: it.a },
     })),
   }
 }

@@ -6,7 +6,7 @@ import { SITE_NAME, paths } from '../../lib/site'
 import { indexable } from '../../lib/settings'
 
 export const metadata: Metadata = {
-  title: 'Om Matchly – hvem vi er og hvor tallene kommer fra',
+  title: { absolute: 'Om Matchly – hvem vi er og hvor tallene kommer fra' },
   description:
     'Matchly dækker fodbold, ishockey og basketball: Superligaen, Bundesliga, Premier League, Allsvenskan og Eliteserien med flere, Metal Ligaen, SHL og Basketligaen. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
   alternates: { canonical: paths.about() },

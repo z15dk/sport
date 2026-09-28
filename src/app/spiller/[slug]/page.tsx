@@ -67,6 +67,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: `${p.name}${club ? ` · ${club}` : ''} – statistik`,
     description: `${p.name}${club ? ` spiller i ${club}` : ''}: ${sum(rows, 'goals')} mål og ${sum(rows, 'assists')} assists i ${sum(rows, 'games')} kampe denne sæson. Kampe, minutter, skud, afleveringer, kort, klubskifter og trofæer.`,
     alternates: { canonical: playerPath(p.id, p.name) },
+    // Nothing this season ("0 mål i 0 kampe"): not worth a place in the search results
+    ...(sum(rows, 'games') === 0 && { robots: { index: false, follow: true } }),
   }
 }
 
