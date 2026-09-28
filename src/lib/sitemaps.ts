@@ -45,13 +45,47 @@ export function pageEntries(): SitemapEntry[] {
 }
 
 // Worked out once per data version and at most once an hour (it walks every match day)
-let cache: { key: string; at: number; entries: SitemapEntry[] } | undefined
+let cache: { at: number; entries: SitemapEntry[] } | undefined
+let refreshing = false
 
-/** Every match page, newest first */
+/**
+ * Every match page, newest first. Working them out goes through the whole
+ * season and every saved match, which takes long: done at most once an hour
+ * (the data's version changes with every live score, so it can't be the key),
+ * in the background once there is a list, so a search engine never waits.
+ */
 export function matchEntries(): SitemapEntry[] {
+  if (cache) {
+    if (Date.now() - cache.at >= 3_600_000 && !refreshing) {
+      refreshing = true
+      setTimeout(() => {
+        try {
+          computeMatchEntries()
+        } finally {
+          refreshing = false
+        }
+      }, 0)
+    }
+    return cache.entries
+  }
+  return computeMatchEntries()
+}
+
+/** Works the list out ahead of the first visit, and again every hour */
+export function startSitemapWarm() {
+  const warm = () => {
+    try {
+      computeMatchEntries()
+    } catch {
+      // Tried again in an hour, or by the next visit
+    }
+  }
+  setTimeout(warm, 90_000).unref?.()
+  setInterval(warm, 3_600_000).unref?.()
+}
+
+function computeMatchEntries(): SitemapEntry[] {
   const now = Date.now()
-  const version = `${getRealData()?.version ?? ''}|${pastGames().length}`
-  if (cache && cache.key === version && now - cache.at < 3_600_000) return cache.entries
   const days = new Set<string>()
   for (const f of allFixtures()) days.add(isoDate(f.kickoff))
   for (const g of getRealData()?.external ?? []) days.add(isoDate(new Date(g.kickoff)))
@@ -75,7 +109,7 @@ export function matchEntries(): SitemapEntry[] {
     seen.add(g.slug)
     entries.push({ path: paths.match(g.slug), lastModified: new Date(g.date.getTime() + FULL_TIME_MS) })
   }
-  cache = { key: version, at: now, entries }
+  cache = { at: now, entries }
   return entries
 }
 
