@@ -148,6 +148,7 @@ export default async function DataStatusPage() {
                   ? 'ingen nøgle'
                   : `${x.games} kampe i ${x.leagues.length} turneringer · kald tilbage i dag: ${x.remaining ?? '?'}${x.limit ? ` af ${x.limit}` : ''} · i dag hentet ${x.todayFetchedAt ?? 'ikke endnu'}`}
                 {x.lastError && <span className="unverified"> · Fejl: {x.lastError}</span>}
+                {x.pausedUntil && <span className="unverified"> · Hentning (også live) sat på pause til {new Date(x.pausedUntil).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen' })}</span>}
                 {x.leagues.length > 0 && <span className="muted small"> · {x.leagues.join(', ')}</span>}
                 {x.history.length > 0 && (
                   <span className="muted small">

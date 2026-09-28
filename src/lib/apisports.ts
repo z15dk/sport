@@ -463,7 +463,9 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
     }
     if (limit !== undefined) s.limit = limit
     onPaidPlan(s)
-    const body = (await res.json()) as { response?: Raw[]; errors?: unknown }
+    // An error page instead of JSON (a 502 from the source): its status, so it counts as a passing error
+    const body = (await res.json().catch(() => undefined)) as { response?: Raw[]; errors?: unknown } | undefined
+    if (!body) return { error: `${res.status} ${res.statusText || 'svar uden JSON'}` }
     const errors: string[] = !body.errors ? [] : (Array.isArray(body.errors) ? body.errors : Object.values(body.errors as object)).map(String)
     if (!res.ok || errors.length) return { error: `${res.status} ${errors.join('; ') || res.statusText}` }
     return { response: body.response ?? [] }
@@ -520,6 +522,17 @@ function onPaidPlan(s: ApiState) {
   for (const [k, v] of Object.entries(s.history ?? {})) if (v === 0) delete s.history![k]
 }
 
+/**
+ * How long the day fetches wait after an error. A wrong key or the plan's
+ * limits would only repeat: an hour. A passing one (a timeout, the network,
+ * too many requests in a minute, the source's own server error) must not stop
+ * the live scores for an hour: a minute.
+ */
+const TRANSIENT = /too many requests|rate ?limit|per minute|timeout|timed out|abort|fetch failed|network|socket|ECONN|ENOTFOUND|EAI_AGAIN|^5\d\d\b/i
+export const errorPause = (error: string | undefined) => (error && TRANSIENT.test(error) && !/for the day/i.test(error) ? 60_000 : 3_600_000)
+const pausedByError = (s: ApiState, api: Api, now: number) =>
+  !!s.lastErrorAt && now - s.lastErrorAt < errorPause(s.lastError) && s.keyFingerprint === fingerprint(keyFor(api))
+
 /** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
 const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
@@ -546,6 +559,7 @@ async function fetchDay(api: Api, date: string) {
   logGoals(s, s.days[date]?.games ?? [], games)
   s.days[date] = { fetchedAt: Date.now(), games: keepEvents(s.days[date]?.games ?? [], games) }
   s.lastError = undefined
+  s.lastErrorAt = undefined
   // The other leagues, remembered for their league pages
   for (const g of games) {
     if (divisionOfGame(g) || !g.league.id) continue
@@ -609,8 +623,8 @@ function dueDay(api: Api, now: number): string | undefined {
     s.lastError = undefined
     s.lastErrorAt = undefined
   }
-  // Wait an hour after an error (a plan restriction or a wrong key would repeat), unless the key has changed since
-  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
+  // Wait after an error (an hour for a plan restriction or a wrong key, a minute for a passing one), unless the key has changed since
+  if (pausedByError(s, api, now)) return undefined
   const today = isoDate(now)
   const age = (d: string) => now - (s.days[d]?.fetchedAt ?? 0)
   const todays = s.days[today]?.games ?? []
@@ -637,7 +651,7 @@ function backfillDay(api: Api, now: number): string | undefined {
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (remaining <= 40) return undefined
-  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
+  if (pausedByError(s, api, now)) return undefined
   const today = isoDate(now)
   for (let i = 2; i <= BACKFILL_DAYS; i++) {
     const d = addDays(today, -i)
@@ -1146,6 +1160,8 @@ export function apiSportsStatus() {
       leagues: [...new Set(games.map((g) => `${g.league.name}${g.league.country ? ` (${g.league.country})` : ''}`))].sort(),
       todayFetchedAt: fetchedToday ? new Date(fetchedToday).toISOString() : null,
       lastError: s?.lastError ?? null,
+      // Until when the day fetches (and the live scores) wait because of the error
+      pausedUntil: s && pausedByError(s, api, Date.now()) ? new Date(s.lastErrorAt! + errorPause(s.lastError)).toISOString() : null,
       allowedDays: s?.allowedDays ?? null,
       history: Object.entries(s?.history ?? {}).map(([k, n]) => ({ key: k, matches: n })),
     }
