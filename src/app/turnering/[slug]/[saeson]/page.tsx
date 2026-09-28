@@ -201,12 +201,13 @@ export default async function SeasonPage({ params }: { params: Params }) {
                   Topscorere
                 </h2>
               </header>
-              <div className="leaders__grid">
+              <div className="leaders__grid leaders__grid--one">
                 <div className="leaders__list">
                   <ol>
                     {top.list.map((p, i) => (
                       <li key={`${p.name}|${p.team}`}>
                         <span className="leaders__rank">{i + 1}</span>
+                        <TeamBadge link={false} name={p.team} size={28} />
                         <span className="leaders__who">
                           {p.id ? (
                             <Link className="leaders__name" href={playerPath(p.id, p.name)}>
@@ -234,8 +235,9 @@ export default async function SeasonPage({ params }: { params: Params }) {
         <AdSlot placement="feed" />
 
         {[...months].map(([month, matches]) => (
-          <section key={month} className="league">
-            <header className="league__header">
+          // Folded by default (a long season is a long page); the matches stay in the page for search engines
+          <details key={month} className="league season-fold">
+            <summary className="league__header">
               <div className="league__toggle">
                 <span className="league__titles">
                   <span className="league__country">
@@ -243,14 +245,18 @@ export default async function SeasonPage({ params }: { params: Params }) {
                   </span>
                   <h2 className="league__name season-month">{month}</h2>
                 </span>
+                <span className="league__count">{matches.length} kampe</span>
+                <span className="chevron" aria-hidden="true">
+                  ›
+                </span>
               </div>
-            </header>
+            </summary>
             <ul className="league__matches">
               {matches.map((m) => (
                 <MatchRow key={m.id} match={m} showDate />
               ))}
             </ul>
-          </section>
+          </details>
         ))}
 
         {others.length > 1 && (

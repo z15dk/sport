@@ -1343,6 +1343,8 @@ h2.league__name { margin: 0; }
 /* ---- League leaders ---- */
 .leaders__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; padding: 4px 16px 16px; }
 @media (max-width: 640px) { .leaders__grid { grid-template-columns: minmax(0, 1fr); } }
+/* One list only (a past season's top scorers) */
+.leaders__grid--one, .table-duo .leaders__grid--one { grid-template-columns: minmax(0, 1fr); }
 .leaders__list h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; color: var(--ink-3); }
 .leaders__list ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .leaders__list li { display: grid; grid-template-columns: 18px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; background: var(--surface-2); }
@@ -1810,6 +1812,15 @@ a.player-games__match:hover { text-decoration: underline; }
 .season-links a, .season-links strong { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, rgba(0, 0, 0, 0.04)); }
 .season-links em { font-style: normal; font-size: 0.8rem; opacity: 0.7; }
 .season-month { margin: 16px 0 6px; font-size: 0.95rem; text-transform: capitalize; }
+/* A past season's months fold open and shut */
+.season-fold { display: block; }
+.season-fold > summary { cursor: pointer; list-style: none; }
+.season-fold > summary::-webkit-details-marker { display: none; }
+.season-fold > summary:hover .league__name { text-decoration: underline; text-underline-offset: 3px; }
+.season-fold[open] > summary .chevron { transform: rotate(90deg); }
+.season-fold .league__toggle { flex-wrap: nowrap; }
+.season-fold .league__count { display: inline; }
+.season-fold .chevron { margin-left: 8px; }
 .season-games { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .season-games li { display: grid; grid-template-columns: 90px 1fr auto; gap: 8px; align-items: baseline; }
 
