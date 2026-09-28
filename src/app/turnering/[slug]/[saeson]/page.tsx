@@ -104,9 +104,15 @@ export default async function SeasonPage({ params }: { params: Params }) {
     months.set(key, [...(months.get(key) ?? []), asMatch(g)])
   }
   const Club = ({ name, slug }: { name: string; slug?: string }) => (
-    <span className="table__club">
+    <span className="table__club table__club--fit">
       <TeamBadge link={false} name={name} size={20} />
-      {slug ? <Link href={paths.club(slug)}>{name}</Link> : name}
+      {slug ? (
+        <Link className="table__clubname" href={paths.club(slug)} title={name}>
+          {name}
+        </Link>
+      ) : (
+        <span className="table__clubname">{name}</span>
+      )}
     </span>
   )
   return (
@@ -175,7 +181,7 @@ export default async function SeasonPage({ params }: { params: Params }) {
                     {season.table.map((r) => (
                       <tr key={r.name} className={season.upper === r.rank ? 'is-split' : undefined}>
                         <td className="num pos">{r.rank}</td>
-                        <td>
+                        <td className="table__grow">
                           <Club name={r.name} slug={r.slug} />
                         </td>
                         <td className="num">{r.played}</td>

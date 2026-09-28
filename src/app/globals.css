@@ -1137,6 +1137,11 @@ h2.league__name { margin: 0; }
 .table-wrap--flush { padding: 0; }
 .table tr.is-highlight td { background: var(--lime); color: #111; }
 .table__club { display: inline-flex; align-items: center; gap: 8px; }
+/* The club column takes the room left over and shortens long names ("Tottenham Hot…"), so the table fits a phone */
+.table td.table__grow { width: 100%; max-width: 0; }
+.table__club--fit { display: flex; min-width: 0; }
+.table__club--fit .badge { flex-shrink: 0; }
+.table__clubname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet__section--wide { grid-column: 1 / -1; }
 
 /* Phones: the match list first, full team names, odds under the teams */
