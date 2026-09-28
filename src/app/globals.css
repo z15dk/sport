@@ -1799,3 +1799,8 @@ a.player-games__match:hover { text-decoration: underline; }
 .admin-article__state { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--surface); }
 .admin-article__state.is-live { background: var(--lime); color: #0f110c; }
 .admin-article__state.is-planned { background: #f5c518; color: #16181a; }
+
+/* Older matches' pages: the players with their rating */
+.past-players { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.past-players li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: baseline; }
+.past-players__rating { font-variant-numeric: tabular-nums; }

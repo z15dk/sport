@@ -570,6 +570,50 @@ export function playerGames(playerId: number, limit = 400): (PlayerGame & { date
   }
 }
 
+/** The players' numbers in one match (best rated first) */
+export function eventPlayers(eventId: string): PlayerGame[] {
+  const lib = sqlite()
+  if (!lib || !existsFile(archiveFile())) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return []
+  }
+  try {
+    return db
+      .prepare('SELECT * FROM player_games WHERE event_id = ? ORDER BY rating DESC')
+      .all(eventId)
+      .map((r) => ({
+        eventId: String(r.event_id),
+        playerId: Number(r.player_id),
+        name: String(r.name ?? ''),
+        teamId: r.team_id === null ? undefined : Number(r.team_id),
+        team: String(r.team ?? ''),
+        side: (r.side ?? undefined) as 'home' | 'away' | undefined,
+        position: (r.position ?? undefined) as string | undefined,
+        minutes: r.minutes === null ? undefined : Number(r.minutes),
+        rating: r.rating === null ? undefined : Number(r.rating),
+        goals: Number(r.goals ?? 0),
+        assists: Number(r.assists ?? 0),
+        yellow: Number(r.yellow ?? 0),
+        red: Number(r.red ?? 0),
+        shots: r.shots === null ? undefined : Number(r.shots),
+        shotsOn: r.shots_on === null ? undefined : Number(r.shots_on),
+        passes: r.passes === null ? undefined : Number(r.passes),
+        keyPasses: r.key_passes === null ? undefined : Number(r.key_passes),
+        saves: r.saves === null ? undefined : Number(r.saves),
+        conceded: r.conceded === null ? undefined : Number(r.conceded),
+        substitute: !!r.substitute,
+        captain: !!r.captain,
+      }))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
 /** How many player-match rows and checked matches the bank has (for /admin/data) */
 export function playerGamesStatus() {
   const lib = sqlite()

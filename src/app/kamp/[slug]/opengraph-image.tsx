@@ -1,5 +1,6 @@
 import { OG_SIZE, logoData, ogImage, type OgSide } from '../../../lib/ogImage'
 import { findMatch } from '../../../data/matches'
+import { findPastMatch, pastAsMatch } from '../../../lib/pastMatch'
 import { teamByName } from '../../../data/teams'
 import { getBadges } from '../../../lib/badges'
 import { dateFromMatchSlug } from '../../../lib/slug'
@@ -14,7 +15,10 @@ export const contentType = 'image/png'
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug
   const date = dateFromMatchSlug(slug)
-  const match = date ? findMatch(slug, date, Date.now()) : undefined
+  const current = date ? findMatch(slug, date, Date.now()) : undefined
+  // An older match: its own page from the match database or the statistics bank
+  const past = current ? undefined : findPastMatch(slug)
+  const match = current ?? (past && 'game' in past ? pastAsMatch(past.game, false) : undefined)
   if (!match) return ogImage({ title: 'Kampen findes ikke' })
   const badges = await getBadges()
   const side = async (t: Team): Promise<OgSide> => ({ name: t.name, colors: t.colors, logo: await logoData(t.badge ?? badges[t.name] ?? teamByName(t.name)?.logo) })

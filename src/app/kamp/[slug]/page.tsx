@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { clubExternalGames, findExternalGame, findMatch, namesOf } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
@@ -12,7 +12,12 @@ import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { archiveGameExtras, realHeadToHead } from '../../../lib/history'
+import { archiveGameExtras, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
+import { findPastMatch } from '../../../lib/pastMatch'
+import { eventPlayers } from '../../../lib/archive'
+import { matchReport } from '../../../data/matchStory'
+import { PastMatchView } from '../../../components/PastMatchView'
+import type { Match } from '../../../types'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
@@ -35,9 +40,53 @@ const load = cache((slug: string) => {
   return match && date ? { match, date, now } : undefined
 })
 
+/** An older match the live data no longer has (match database and statistics bank) */
+const loadPast = cache((slug: string) => findPastMatch(slug))
+
+async function pastMetadata(slug: string): Promise<Metadata> {
+  const past = loadPast(slug)
+  if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
+  const { game: g, match } = past
+  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore} | ${g.tournament} ${formatFull(g.date)}`
+  const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
+  const description = `${g.home} mod ${g.away} i ${g.tournament} ${g.season} (${formatFull(g.date)}): ${result}.${match.incidents?.length ? ' Målscorere, kort' : ' Resultat'}, spillere og tidligere opgør mellem holdene.`
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: paths.match(g.slug) },
+    openGraph: { title, description, type: 'article' },
+  }
+}
+
+function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
+  const now = Date.now()
+  const h2h = pastMeetings(g)
+  const teamPath = Object.fromEntries([g.home, g.away].map((n) => [n, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined]))
+  const report = matchReport({ match, now, h2h })
+  const players = g.source.archive ? eventPlayers(g.source.archive) : []
+  const title = `${g.home} – ${g.away}`
+  return (
+    <div className="page">
+      <JsonLd data={matchLd(match, (name) => teamByName(name)?.slug)} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: 'Kampe', path: '/' },
+          ...(match.leagueSlug ? [{ name: match.league, path: paths.league(match.leagueSlug) }] : []),
+          { name: title, path: paths.match(g.slug) },
+        ])}
+      />
+      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} />
+      <div className="match-page match-page--after">
+        <AdSlot placement="content" />
+      </div>
+    </div>
+  )
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const found = load((await params).slug)
-  if (!found) return { title: 'Kampen findes ikke' }
+  const slug = (await params).slug
+  const found = load(slug)
+  if (!found) return pastMetadata(slug)
   const { match } = found
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
@@ -59,7 +108,12 @@ function within<T>(p: Promise<T>, ms = 1500): Promise<T | undefined> {
 export default async function MatchPage({ params }: { params: Params }) {
   const { slug } = await params
   const found = load(slug)
-  if (!found) notFound()
+  if (!found) {
+    const past = loadPast(slug)
+    if (!past) notFound()
+    if ('redirect' in past) permanentRedirect(paths.match(past.redirect))
+    return <PastMatchPage {...past} />
+  }
   const { match, date, now } = found
   const clubSlug = (name: string) => teamByName(name)?.slug
   const homeStats = clubStats(match.home.name, now)

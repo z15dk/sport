@@ -10,9 +10,11 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveFile, readArchive, type ArchivedMatch } from './archive'
+import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
+import { matchSlug } from './slug'
+import { isoDate } from './time'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
 // the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
@@ -41,6 +43,8 @@ interface DbMatch {
   sport: SportId
   /** The statistics bank's league id (ours, or "ext-<api>-<id>"); football.db's matches have none */
   divisionId?: string
+  /** The statistics bank's event id (its goals and cards); football.db's matches use `id` */
+  eventId?: string
 }
 
 /** The sport of a league id in the statistics bank: one of ours, or API-Sports' ("ext-basketball-12") */
@@ -175,6 +179,7 @@ function read(file: string | undefined, mtime: number): Loaded {
       spectators: a.spectators,
       sport,
       divisionId: a.divisionId,
+      eventId: a.id,
     }))
   const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
 
@@ -923,4 +928,103 @@ export function archiveLeagueTable(
       .reverse()
       .map((a) => ({ date: a.date, competition: a.tournament, home: a.homeName, away: a.awayName, homeScore: a.homeScore, awayScore: a.awayScore })),
   }
+}
+
+// ---------------------------------------------------------------- older matches' own pages
+
+/** A played match from the match database or the statistics bank, with a page of its own (/kamp/<slug>) */
+export interface PastGame {
+  slug: string
+  sport: SportId
+  date: Date
+  tournament: string
+  season: string
+  divisionId?: string
+  /** Our club names where the team is one of ours */
+  home: string
+  away: string
+  homeScore: number
+  awayScore: number
+  spectators?: number
+  /** Where its goals and cards are */
+  source: { db?: number; archive?: string }
+}
+
+let pastCache: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] } | undefined
+
+function pastIndex() {
+  const d = data()
+  if (!d) return undefined
+  if (pastCache?.loaded === d) return pastCache
+  const bySlug = new Map<string, PastGame>()
+  for (const m of d.matches) {
+    const home = nameOf(d, m.homeId, m.homeName)
+    const away = nameOf(d, m.awayId, m.awayName)
+    const slug = matchSlug(home, away, isoDate(m.date))
+    // The same match twice (both sources): the first, football.db's, wins
+    if (bySlug.has(slug) || !home || !away) continue
+    bySlug.set(slug, {
+      slug,
+      sport: m.sport,
+      date: m.date,
+      tournament: m.tournament,
+      season: m.season,
+      divisionId: m.divisionId,
+      home,
+      away,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      spectators: m.spectators,
+      source: m.eventId ? { archive: m.eventId } : { db: m.id },
+    })
+  }
+  pastCache = { loaded: d, bySlug, list: [...bySlug.values()] }
+  return pastCache
+}
+
+/** Every played match we know of, newest first */
+export const pastGames = (): PastGame[] => pastIndex()?.list ?? []
+
+export const pastGame = (slug: string): PastGame | undefined => pastIndex()?.bySlug.get(slug)
+
+/** A past match's goals and cards, from the source it came from */
+export function pastGameIncidents(g: PastGame): Incident[] {
+  if (g.source.archive) {
+    return archiveIncidents([g.source.archive]).get(g.source.archive) ?? []
+  }
+  const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => { prepare(sql: string): { all(...p: unknown[]): Row[] }; close(): void } } | undefined
+  if (!sqlite || g.source.db === undefined || !existsSync(historyFile())) return []
+  const db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
+  try {
+    return db
+      .prepare('SELECT type, subtype, minute, player_name, is_home FROM incidents WHERE event_id = ? ORDER BY minute')
+      .all(g.source.db)
+      .flatMap((r): Incident[] => {
+        const kind = incidentKind(String(r.type ?? ''), String(r.subtype ?? ''))
+        if (!kind || r.minute == null) return []
+        return [{ minute: Number(r.minute), side: Number(r.is_home) ? 'home' : 'away', kind, player: r.player_name ? String(r.player_name) : undefined }]
+      })
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+/** Earlier meetings of the two teams (any tournament), newest first */
+export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
+  const pair = new Set([g.home, g.away])
+  const out: PastMatch[] = []
+  for (const m of pastGames()) {
+    if (m.date >= g.date || m.sport !== g.sport || !pair.has(m.home) || !pair.has(m.away) || m.home === m.away) continue
+    out.push({ date: m.date, competition: m.tournament, home: m.home, away: m.away, homeScore: m.homeScore, awayScore: m.awayScore })
+    if (out.length >= count) break
+  }
+  return out
+}
+
+/** The page of the league a past match belongs to, when it is one of ours */
+export function pastLeagueSlug(g: PastGame): string | undefined {
+  const id = g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0]
+  return DIVISIONS.find((d) => d.id === id)?.slug
 }
