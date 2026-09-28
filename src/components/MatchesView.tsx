@@ -24,7 +24,7 @@ import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
 import Link from 'next/link'
 import { paths } from '../lib/site'
-import { addDays, danishTime, formatDayMonth, formatLong, formatTime, isoDate } from '../lib/time'
+import { addDays, danishTime, formatDayMonth, formatLong, isoDate } from '../lib/time'
 import { ALL_SPORTS, sportById } from '../sports'
 import type { LeagueGroup, Match, SportFilter, StateFilter } from '../types'
 
@@ -194,9 +194,6 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const prevDay = useMemo(() => (nearDays ? nearDays.prev : nearestMatchDay(date, sport, -1, now)), [nearDays, date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
-  // Only the top leagues are named when they have no matches, to keep the note short
-  const noMatchLeagues = real.filter((l) => l.division.id === 'superliga' && !matches.some((m) => m.leagueSlug === l.division.slug))
-
   return (
     <div className="page">
       {/* On phones the sports come first, above the live strip */}
@@ -204,23 +201,9 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
       <LiveStrip matches={searched} upcoming={league ? upcoming.filter((m) => m.leagueId === league) : upcoming} now={now} />
 
-      {(((sport === 'soccer' || sport === 'all') && real.length === 0) || noMatchLeagues.length > 0) && (
+      {(sport === 'soccer' || sport === 'all') && real.length === 0 && (
         <div className="banner" role="status">
-          {real.length === 0 ? (
-            'Kampene hentes – kom tilbage om lidt.'
-          ) : (
-            <>
-              Ingen kampe denne dag i{' '}
-              {noMatchLeagues.map(({ division, next }, i) => (
-                <span key={division.id}>
-                  {i > 0 && (i === noMatchLeagues.length - 1 ? ' og ' : ', ')}
-                  <Link href={paths.league(division.slug)}>{division.name}</Link>
-                  {next && ` (næste: ${next.home.name} – ${next.away.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)})`}
-                </span>
-              ))}
-              .
-            </>
-          )}
+          Kampene hentes – kom tilbage om lidt.
         </div>
       )}
 
