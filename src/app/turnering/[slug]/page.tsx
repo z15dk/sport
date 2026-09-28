@@ -22,6 +22,8 @@ import { LeagueLeaders } from '../../../components/LeagueLeaders'
 import { LeagueHistory } from '../../../components/LeagueHistory'
 import { leagueHistory, pastSeasons } from '../../../lib/history'
 import { SeasonLinks } from '../../../components/SeasonLinks'
+import { AboutText } from '../../../components/AboutText'
+import { leagueAbout } from '../../../lib/seoText'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { leagueFaq } from '../../../lib/faq'
@@ -319,6 +321,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         )}
 
 
+        <AboutText title={`Om ${division.name}`} paragraphs={leagueAbout(division, now)} />
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>

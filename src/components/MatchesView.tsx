@@ -70,6 +70,8 @@ function isFeedAdSpot(i: number, total: number): boolean {
 }
 
 interface Props {
+  /** The page's heading instead of the sport's name ("Resultater i går") */
+  heading?: string
   /** The nearest days with matches before and after `date` (server) */
   nearDays?: { prev?: string; next?: string }
   /** The next matches over the coming ten days (server) */
@@ -82,7 +84,7 @@ interface Props {
   initialFilter?: StateFilter
 }
 
-export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading }: Props) {
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
@@ -230,7 +232,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
           <SportTabs active={sport} className="sport-tabs--desktop" />
           <div className="feed__head">
             <h1 className="feed__title">
-              {sportDef.label}
+              {heading ?? sportDef.label}
               <span>{order === 'time' && DAYS_AHEAD > 0 ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
             </h1>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
@@ -251,12 +253,12 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
               {!query && (nextDay || prevDay) && (
                 <p className="empty__links">
                   {nextDay && (
-                    <Link className="pill is-active" href={paths.home({ sport: sportDef.slug, dato: nextDay })}>
+                    <Link className="pill is-active" href={paths.home({ sport: sportDef.slug, dato: nextDay, today })}>
                       Næste kampdag: {formatLong(nextDay)} →
                     </Link>
                   )}
                   {prevDay && (
-                    <Link className="pill" href={paths.home({ sport: sportDef.slug, dato: prevDay })}>
+                    <Link className="pill" href={paths.home({ sport: sportDef.slug, dato: prevDay, today })}>
                       ← Seneste resultater: {formatLong(prevDay)}
                     </Link>
                   )}

@@ -30,6 +30,8 @@ export function pageEntries(): SitemapEntry[] {
   const tournaments = [...new Set((loadRealData()?.external ?? []).map((g) => externalLeagueKey(g.league)))].filter((k) => !ours.has(k))
   return [
     { path: '/' },
+    { path: '/kampe/i-gaar' },
+    { path: '/kampe/i-morgen' },
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
     ...shownDivisions().flatMap((d) => pastSeasons(d.id).map((s) => ({ path: `${paths.league(d.slug)}/${s.slug}`, lastModified: s.games.at(-1)?.date }))),
     ...tournaments.map((k) => ({ path: paths.league(k) })),

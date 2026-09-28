@@ -64,6 +64,12 @@ export function Footer() {
               <Link href="/">Dagens kampe</Link>
             </li>
             <li>
+              <Link href="/kampe/i-gaar">Resultater i går</Link>
+            </li>
+            <li>
+              <Link href="/kampe/i-morgen">Kampe i morgen</Link>
+            </li>
+            <li>
               <Link href={paths.clubs()}>Alle klubber</Link>
             </li>
             <li>

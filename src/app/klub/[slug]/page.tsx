@@ -16,6 +16,9 @@ import { danishCountry } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
+import { AboutText } from '../../../components/AboutText'
+import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
+import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
@@ -180,6 +183,8 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
         {history && division.id !== 'superliga' && <ClubHistory name={club.name} history={history} />}
+        <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />
+        <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
         <AdSlot placement="content" />
         <Faq items={faq} />

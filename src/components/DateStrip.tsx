@@ -22,7 +22,7 @@ export function DateStrip({ selected, today, sport }: Props) {
     if (active && days.current) days.current.scrollLeft = active.offsetLeft - days.current.clientWidth / 2 + active.clientWidth / 2
   }, [selected])
 
-  const href = (date: string) => paths.home({ sport, dato: date === today ? undefined : date })
+  const href = (date: string) => paths.home({ sport, dato: date, today })
   const label = (d: string) =>
     d === today ? 'I dag' : d === addDays(today, -1) ? 'I går' : d === addDays(today, 1) ? 'I morgen' : formatWeekday(d)
 
