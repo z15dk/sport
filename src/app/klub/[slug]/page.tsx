@@ -31,6 +31,7 @@ import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
 import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../../../data/baselines'
 import { getRealData } from '../../../data/real'
+import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
@@ -290,16 +291,18 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const next = upcoming[0]
 
   // The saved results' tournaments under the names and logos the rest of the site uses ("Kvindeliga" is the A-Liga)
-  const tournaments = new Map<string, { name: string; logo?: string }>()
+  const tournaments = new Map<string, { name: string; logo?: string; slug?: string }>()
   for (const g of getRealData()?.external ?? []) {
-    for (const n of [g.league.name, g.league.originalName]) if (n && !tournaments.get(normalize(n))?.logo) tournaments.set(normalize(n), { name: g.league.name, logo: g.league.logo })
+    if (divisionOfGame(g)) continue
+    const slug = externalLeagueKey(g.league)
+    for (const n of [g.league.name, g.league.originalName]) if (n && !tournaments.get(normalize(n))?.logo) tournaments.set(normalize(n), { name: g.league.name, logo: g.league.logo, slug })
   }
   const tournament = (name: string) => {
     const known = tournaments.get(normalize(name))
     if (known) return known
     const main = mainLeagueKey(externalLeagueKey({ name, country: team.country }))
     const other = BASELINES[main]?.league.name
-    return other ? (tournaments.get(normalize(other)) ?? { name: other }) : { name }
+    return other ? (tournaments.get(normalize(other)) ?? { name: other, slug: main }) : { name }
   }
   // The team's games for the match list (as on our clubs' pages): the saved results and the coming games, the team under its page name
   // Also its plain name in a women's tournament ("HB Køge" in the women's Champions League is HB Køge Women)
@@ -312,6 +315,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
       league: tournament(m.competition).name,
       leagueId: tournament(m.competition).name,
       leagueBadge: tournament(m.competition).logo,
+      leagueSlug: tournament(m.competition).slug,
       kickoff: m.date,
       state: 'finished',
       statusLabel: 'Slut',

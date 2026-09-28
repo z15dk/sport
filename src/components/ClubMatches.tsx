@@ -46,13 +46,14 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
   const forward = () => setPage((p) => (tab === 'finished' ? p - 1 : p + 1))
 
   // One group per competition (in the order they first come), so a cup game between league games doesn't split the league
-  const groups: { league: string; country?: string; badge?: string; matches: Match[] }[] = []
+  const groups: { league: string; country?: string; badge?: string; slug?: string; matches: Match[] }[] = []
   for (const m of shown) {
     const group = groups.find((g) => g.league === m.league)
-    if (!group) groups.push({ league: m.league, country: m.country, badge: m.leagueBadge, matches: [m] })
+    if (!group) groups.push({ league: m.league, country: m.country, badge: m.leagueBadge, slug: m.leagueSlug, matches: [m] })
     else {
       group.matches.push(m)
       group.badge ??= m.leagueBadge
+      group.slug ??= m.leagueSlug
     }
   }
 
@@ -124,7 +125,7 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
                 <div className="cm-group__head">
                   <TeamBadge link={false} name={g.league} src={g.badge} size={32} label={competitionLabel(g.league)} />
                   <span>
-                    <strong>{g.league}</strong>
+                    <strong>{g.slug ? <Link href={paths.league(g.slug)}>{g.league}</Link> : g.league}</strong>
                     <span className="cm-group__country">
                       <Flag country={g.country && danishCountry(g.country)} /> {g.country && danishCountry(g.country)}
                     </span>
