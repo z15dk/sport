@@ -331,6 +331,8 @@ interface ApiState {
   /** Goals seen from the score changing between two fetches, by game id (the minute is approximate) */
   goalLog?: Record<string, { at: number; goals: Incident[] }>
   remaining?: number
+  /** When `remaining` was last read from a response */
+  remainingAt?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
   quotaDay?: string
@@ -362,6 +364,8 @@ function load() {
     const mtime = statSync(file()).mtimeMs
     if (mtime !== mem.mtime) {
       mem.store = JSON.parse(readFileSync(file(), 'utf8')) as Store
+      // A count below 0 saved before the check above: unknown, not used up
+      for (const st of Object.values(mem.store)) if (st && typeof st.remaining === 'number' && st.remaining < 0) st.remaining = undefined
       mem.mtime = mtime
       mem.games = undefined
     }
@@ -457,9 +461,11 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
     })
     const remaining = num(res.headers.get('x-ratelimit-requests-remaining'))
     const limit = num(res.headers.get('x-ratelimit-requests-limit'))
-    if (remaining !== undefined) {
+    // API-Sports answers -1 around the daily reset: not a real count (it once stopped football for a whole day)
+    if (remaining !== undefined && remaining >= 0) {
       s.remaining = remaining
       s.quotaDay = utcDay()
+      s.remainingAt = Date.now()
     }
     if (limit !== undefined) s.limit = limit
     onPaidPlan(s)
@@ -615,7 +621,8 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
 function dueDay(api: Api, now: number): string | undefined {
   const s = mem.store[api] ?? { days: {} }
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 2) return undefined
+  // Used up: wait, except that a paid plan asks again after half an hour in case the count was wrong (one call reads it anew)
+  if (remaining <= 2 && !(isPaid(s) && now - (s.remainingAt ?? 0) > 30 * 60_000)) return undefined
   // An earlier plan-limit error is not one to wait out
   if (s.lastError && /try from \d{4}-\d{2}-\d{2} to/.test(s.lastError)) {
     // The days are relative to when the error came, so only trust one from today
