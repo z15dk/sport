@@ -347,6 +347,8 @@ interface ApiState {
   seasonSynced?: Record<string, number>
   /** The league filter (`keep`) the stored days were fetched with */
   keepVersion?: string
+  /** Today's requests (UTC day) by kind of request and by UTC hour, for /admin/data */
+  usage?: { day: string; kinds: Record<string, number>; hours: number[] }
 }
 type Store = Record<string, ApiState>
 
@@ -448,9 +450,20 @@ const msUntilReset = () => {
 }
 
 /** One request to an API; keeps the quota from the response headers */
+/** The kind of a request, from its path and first parameter ("/fixtures?date", "/players/topscorers") */
+const usageKind = (pathAndQuery: string) => pathAndQuery.split('&')[0].replace(/=.*/, '')
+function countUsage(s: ApiState, pathAndQuery: string) {
+  const day = utcDay()
+  if (s.usage?.day !== day) s.usage = { day, kinds: {}, hours: Array(24).fill(0) }
+  const kind = usageKind(pathAndQuery)
+  s.usage.kinds[kind] = (s.usage.kinds[kind] ?? 0) + 1
+  s.usage.hours[new Date().getUTCHours()]++
+}
+
 async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise<{ response?: Raw[]; error?: string }> {
   const s = (mem.store[api] ??= { days: {} })
   s.requests = (s.requests ?? 0) + 1
+  countUsage(s, pathAndQuery)
   try {
     // API_SPORTS_BASE points every API elsewhere (for tests)
     const base = process.env.API_SPORTS_BASE ? `${process.env.API_SPORTS_BASE}/${api}` : APIS[api].base
@@ -541,7 +554,9 @@ const pausedByError = (s: ApiState, api: Api, now: number) =>
   !!s.lastErrorAt && now - s.lastErrorAt < errorPause(s.lastError) && s.keyFingerprint === fingerprint(keyFor(api))
 
 /** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
-const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
+const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, Math.min(EXTRAS_MAX, Math.round((s!.limit ?? 100) * 0.2))) : 30)
+/** At most this many a day for what visitors (and search engines) open: match, team, league and player pages */
+const EXTRAS_MAX = 1_500
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
 const PAID_RESERVE = 300
 /**
@@ -649,12 +664,16 @@ function dueDay(api: Api, now: number): string | undefined {
   const today = isoDate(now)
   const age = (d: string) => now - (s.days[d]?.fetchedAt ?? 0)
   const todays = s.days[today]?.games ?? []
-  const busy = todays.some((g) => {
+  const on = (g: ExternalGame) => {
     const t = Date.parse(g.kickoff)
     return g.state === 'live' || (g.state === 'upcoming' && t < now + 20 * 60_000 && t > now - 4 * 3_600_000)
-  })
-  // While games are on, today gets the requests left over after the other days
-  const todayEvery = busy ? Math.max(isPaid(s) ? 25_000 : 5 * 60_000, msUntilReset() / Math.max(1, remaining - 14)) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
+  }
+  const busy = todays.some(on)
+  // Our leagues, cups and the Champions League every 30 seconds; games only in the other leagues every 2 minutes
+  const ours = todays.some((g) => on(g) && (!!divisionOfGame(g) || wholeSeason(g)))
+  // While games are on, today gets at most half the requests left above the reserve (a paid plan), so the rest of the day's work always has some
+  const share = isPaid(s) ? Math.max(1, (remaining - PAID_RESERVE) / 2) : Math.max(1, remaining - 14)
+  const todayEvery = busy ? Math.max(isPaid(s) ? (ours ? 30_000 : 120_000) : 5 * 60_000, msUntilReset() / share) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
   if (age(today) > todayEvery) return today
   const yesterday = addDays(today, -1)
   if (allowed(s, yesterday, today) && age(yesterday) > 6 * 3_600_000) return yesterday
@@ -892,10 +911,10 @@ function seasonDue(api: Api, now: number): { league: string } | undefined {
   for (const id of ['2', '525']) wanted.add(id)
   // The cups and the tournaments kept for the whole season (the Champions League), by the league id their games have
   for (const g of seen) if (wholeSeason(g) && g.league.id) wanted.add(g.league.id)
-  // Every other league we follow: its season's results for the statistics bank (team pages' results), every 6 hours
+  // Every other league we follow: its season's results for the statistics bank (team pages' results), once a day with calls to spare
   const others = new Set<string>()
-  for (const g of seen) if (g.league.id && !wanted.has(g.league.id)) others.add(g.league.id)
-  const every = (l: string) => (others.has(l) ? 6 * 3_600_000 : 3_600_000)
+  if (remaining > backgroundReserve(s)) for (const g of seen) if (g.league.id && !wanted.has(g.league.id)) others.add(g.league.id)
+  const every = (l: string) => (others.has(l) ? 24 * 3_600_000 : 3_600_000)
   const league = [...wanted, ...others]
     .filter((l) => now - (s.seasonSynced?.[l] ?? 0) > every(l))
     .sort((a, b) => (s.seasonSynced?.[a] ?? 0) - (s.seasonSynced?.[b] ?? 0))[0]
@@ -1022,12 +1041,13 @@ async function tick() {
     // The tables of the other leagues we follow (paid plans), so every team in them has a page, five a run
     {
       const s = mem.store.football
-      if (s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now())) {
+      const left = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+      if (s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && left > backgroundReserve(s)) {
         const store = extrasStore()
         const followed = new Set(Object.values(s.days).flatMap((d) => d.games.map((g) => g.league.id)))
         const due = externalLeagues()
           .filter((l) => l.api === 'football' && followed.has(l.id))
-          .filter((l) => Date.now() - (store.entries[`football|table|${l.id}|${l.season ?? ''}`]?.fetchedAt ?? 0) > 6 * 3_600_000)
+          .filter((l) => Date.now() - (store.entries[`football|table|${l.id}|${l.season ?? ''}`]?.fetchedAt ?? 0) > 12 * 3_600_000)
           .slice(0, 5)
         for (const l of due) {
           await apiLeagueTable(l)
@@ -1185,6 +1205,13 @@ export function apiSportsStatus() {
       pausedUntil: s && pausedByError(s, api, Date.now()) ? new Date(s.lastErrorAt! + errorPause(s.lastError)).toISOString() : null,
       allowedDays: s?.allowedDays ?? null,
       history: Object.entries(s?.history ?? {}).map(([k, n]) => ({ key: k, matches: n })),
+      usage: s?.usage?.day === utcDay() ? s.usage : null,
+      extrasSpent: (() => {
+        const e = extrasStore().spent[api]
+        return e?.day === utcDay() ? e.count : 0
+      })(),
+      extrasMax: extrasPerDay(s),
+      reserveNow: backgroundReserve(s),
     }
   })
 }
@@ -1200,6 +1227,22 @@ interface ExtraStore {
   spent: Record<string, { day: string; count: number }>
 }
 const EXTRAS_KEEP_REMAINING = 20
+/**
+ * Takes `cost` requests from the day's budget for extras (what a page view
+ * fetches), or false when it is spent or the day's live scores need the rest:
+ * on a paid plan extras stop at the same reserve as the background work.
+ */
+function spendExtra(api: Api, cost = 1): boolean {
+  load()
+  const s = mem.store[api]
+  const store = extrasStore()
+  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
+  const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
+  const floor = isPaid(s) ? backgroundReserve(s) : EXTRAS_KEEP_REMAINING
+  if (remaining - cost < floor || spent + cost > extrasPerDay(s)) return false
+  store.spent[api] = { day: utcDay(), count: spent + cost }
+  return true
+}
 const extrasFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
 const extrasHolder = globalThis as { __scorelineH2h?: ExtraStore }
 function extrasStore(): ExtraStore {
@@ -1228,12 +1271,7 @@ async function cached<T extends 'games' | 'table'>(
   const entry = store.entries[key]
   if (entry && Date.now() - entry.fetchedAt < ttlMs) return entry[kind]
   if (!pathAndQuery || !keyFor(api)) return entry?.[kind]
-  load()
-  const s = mem.store[api]
-  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
-  const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= extrasPerDay(s)) return entry?.[kind]
-  store.spent[api] = { day: utcDay(), count: spent + 1 }
+  if (!spendExtra(api)) return entry?.[kind]
   const { response, error } = await call(api, pathAndQuery, 5_000)
   if (error) return entry?.[kind]
   const fresh = { fetchedAt: Date.now(), [kind]: read(response ?? []) }
@@ -1364,12 +1402,7 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
   const fresh = entry && counted === goals && (game.state !== 'finished' || entry.final)
   if (fresh || (entry && Date.now() - entry.fetchedAt < 60_000)) return entry.incidents
   if (!keyFor(api)) return entry?.incidents
-  load()
-  const s = mem.store[api]
-  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
-  const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-  if (remaining <= EXTRAS_KEEP_REMAINING || spent >= extrasPerDay(s)) return entry?.incidents
-  store.spent[api] = { day: utcDay(), count: spent + 1 }
+  if (!spendExtra(api)) return entry?.incidents
   const id = game.id.split('-').pop()
   const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
   if (error) return entry?.incidents
@@ -1440,7 +1473,7 @@ function eventsDue(s: ApiState): string[] {
   const due = new Set<string>()
   // Live games first, then the newest finished ones
   const wanted = games
-    .filter((g) => (g.state === 'live' || g.state === 'finished') && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
+    .filter((g) => (g.state === 'live' || (g.state === 'finished' && remaining > backgroundReserve(s))) && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
     .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)
@@ -1757,12 +1790,7 @@ export async function apiMatchStats(game: ExternalGame, incidents?: Incident[]):
   let entry = store.entries[key]
   const fresh = entry && (entry.final || (game.state !== 'finished' && Date.now() - entry.fetchedAt < 5 * 60_000))
   if (!fresh && keyFor(api) && !(entry && Date.now() - entry.fetchedAt < 60_000)) {
-    load()
-    const s = mem.store[api]
-    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
-    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-    if (remaining > EXTRAS_KEEP_REMAINING && spent < extrasPerDay(s)) {
-      store.spent[api] = { day: utcDay(), count: spent + 1 }
+    if (spendExtra(api)) {
       const { response, error } = await call(api, `/fixtures/statistics?fixture=${game.id.split('-').pop()}`, 5_000)
       if (!error) {
         const stats: NonNullable<typeof entry>['stats'] = { home: {}, away: {} }
@@ -1847,12 +1875,7 @@ export async function apiMatchLineups(game: ExternalGame): Promise<Lineup[] | un
   const soon = Date.parse(game.kickoff) - Date.now() < 90 * 60_000
   const due = !entry?.lineups?.length && soon && !(entry && Date.now() - entry.fetchedAt < 10 * 60_000)
   if (due && keyFor(api)) {
-    load()
-    const s = mem.store[api]
-    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
-    const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
-    if (remaining > EXTRAS_KEEP_REMAINING && spent < extrasPerDay(s)) {
-      store.spent[api] = { day: utcDay(), count: spent + 1 }
+    if (spendExtra(api)) {
       const { response, error } = await call(api, `/fixtures/lineups?fixture=${game.id.split('-').pop()}`, 5_000)
       if (!error) {
         entry = store.entries[key] = { fetchedAt: Date.now(), lineups: toLineups(response ?? []) }
@@ -1910,8 +1933,7 @@ async function fetchLeadersNow(api: Api, key: string, leagueId: string, season: 
   load()
   const s = mem.store[api]
   if (!keyFor(api) || !isPaid(s)) return entry?.leaders
-  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
-  if (remaining <= PAID_RESERVE) return entry?.leaders
+  if (!spendExtra(api, 4)) return entry?.leaders
   const read = (response: Raw[], value: (st: Raw) => number): LeaderRow[] =>
     response
       .map((r) => {
@@ -2002,8 +2024,7 @@ async function fetchPlayer(id: number): Promise<PlayerData | undefined> {
     load()
     const s = mem.store[api]
     if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.player
-    const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
-    if (remaining <= PAID_RESERVE) return store.entries[key]?.player
+    if (!spendExtra(api, 4)) return store.entries[key]?.player
     const season = Number(SEASON.slice(0, 4))
     const [now, before, transfers, trophies] = await Promise.all([
       call(api, `/players?id=${id}&season=${season}`, 8_000),
@@ -2110,10 +2131,8 @@ export function apiTeamIdOf(leagueId: string, names: string[]): number | undefin
 /** Spends one request on an extra when the paid plan has calls above the reserve */
 function extraAllowed(api: Api) {
   load()
-  const s = mem.store[api]
-  if (!keyFor(api) || !isPaid(s)) return false
-  const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
-  return remaining > PAID_RESERVE
+  if (!keyFor(api) || !isPaid(mem.store[api])) return false
+  return spendExtra(api)
 }
 
 function saveExtrasSoon() {
