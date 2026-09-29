@@ -16,6 +16,7 @@ import { pastGameIndexable, pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
 import { tvLeagues } from './tv'
 import { divisionOfGame } from '../data/ourLeagues'
+import { SPORTS } from '../sports'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
 // tournaments, clubs, articles) and /sitemaps/kampe-<n>.xml (every match with a
@@ -49,6 +50,7 @@ export function pageEntries(): SitemapEntry[] {
     { path: paths.about() },
     { path: paths.privacy() },
     { path: paths.women() },
+    ...SPORTS.filter((s) => s.id !== 'american_football').map((s) => ({ path: paths.women({ sport: s.slug }) })),
     { path: paths.articles() },
     ...publishedArticles().articles.map((a) => ({ path: paths.article(a.slug), lastModified: new Date(a.updatedAt) })),
     ...categories().map((c) => ({ path: paths.articleCategory(c.slug) })),

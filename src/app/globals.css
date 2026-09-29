@@ -1962,3 +1962,70 @@ a.player-games__match:hover { text-decoration: underline; }
 .pitch__no { position: absolute; right: -6px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .pitch__half--away .pitch__no { background: var(--ink); color: #fff; }
 .lineups__face { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: top; vertical-align: middle; background: var(--surface-2); margin-right: 2px; }
+
+/* Women's sport (/kvindesport, /kvindefodbold): the big top, the sports' tabs and the tournaments */
+.women-hero {
+  position: relative; overflow: hidden; border-radius: var(--radius); color: #fff;
+  background: radial-gradient(120% 140% at 100% 0%, #3a2466 0%, #15101f 55%, #0f0b17 100%);
+  padding: 44px 40px 34px; min-height: 340px; display: flex; align-items: flex-end;
+}
+.women-hero__m {
+  position: absolute; right: -2%; bottom: -18%; pointer-events: none; user-select: none;
+  font-family: var(--display); font-style: italic; font-weight: 800; font-size: 560px; line-height: 0.8;
+  color: transparent; -webkit-text-stroke: 3px #b69cff; opacity: 0.55;
+  filter: drop-shadow(0 0 18px rgba(182, 156, 255, 0.35));
+}
+.women-hero__inner { position: relative; max-width: 720px; }
+.women-hero__kicker {
+  margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #cdbdff;
+}
+.women-hero__title {
+  margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase;
+  font-size: clamp(46px, 7vw, 92px); line-height: 0.9; letter-spacing: -0.01em;
+}
+.women-hero__title em { font-style: italic; color: var(--lime); }
+.women-hero__lead { margin: 16px 0 0; max-width: 560px; font-size: 17px; line-height: 1.5; color: rgba(255, 255, 255, 0.82); }
+.women-hero__cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.women-hero__btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px;
+  font-weight: 700; font-size: 15px; color: #fff; text-decoration: none; border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.women-hero__btn:hover { background: rgba(255, 255, 255, 0.1); }
+.women-hero__btn.is-live { background: var(--lime); color: var(--ink); border-color: var(--lime); }
+.women-hero__btn.is-live:hover { background: #d4f75f; }
+.women-hero__numbers { display: flex; flex-wrap: wrap; gap: 10px 32px; margin: 28px 0 0; }
+.women-hero__numbers div { display: flex; flex-direction: column-reverse; }
+.women-hero__numbers dt { font-size: 12px; color: rgba(255, 255, 255, 0.65); }
+.women-hero__numbers dd { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 40px; line-height: 1; }
+
+.women-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; }
+.women-tabs::-webkit-scrollbar { display: none; }
+.women-tabs__tab {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 9px 16px; border-radius: 999px;
+  background: var(--surface); color: var(--ink); font-weight: 700; font-size: 14px; text-decoration: none;
+}
+.women-tabs__tab span { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.women-tabs__tab.is-active { background: #15101f; color: #fff; }
+.women-tabs__tab.is-active span { background: #b69cff; color: #15101f; }
+
+.women-more { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.women-leagues ul { list-style: none; margin: 0; padding: 0 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px; }
+.women-leagues li > a, .women-leagues li > div {
+  display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: var(--radius-sm); color: inherit; text-decoration: none;
+}
+.women-leagues li > a:hover { background: var(--surface-2); }
+.women-leagues b { display: block; font-size: 14px; }
+.women-leagues small { display: block; font-size: 12px; color: var(--ink-2); }
+.women-about p { padding: 0 18px; }
+
+@media (max-width: 900px) {
+  .women-more { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .women-hero { padding: 28px 20px 24px; min-height: 0; }
+  .women-hero__m { font-size: 380px; right: -34%; bottom: -8%; opacity: 0.25; }
+  .women-hero__lead { font-size: 15px; }
+  .women-hero__btn { padding: 11px 16px; font-size: 14px; }
+  .women-hero__numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .women-hero__numbers dd { font-size: 32px; }
+}

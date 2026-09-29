@@ -165,7 +165,7 @@ export function captionFor(c: Content): string {
 
 /** The page the post points to on our site */
 export function linkFor(c: Content): string {
-  if ('women' in c && c.women) return `${SITE_URL}${paths.women()}`
+  if ('women' in c && c.women) return `${SITE_URL}${paths.women({ sport: 'soccer' })}`
   if (c.kind === 'topic' && 'division' in c) return `${SITE_URL}${paths.league(c.division.slug)}`
   if (c.kind === 'topic' && c.topic === 'bigmatch') return `${SITE_URL}${paths.match(c.pick.fixture.slug)}`
   if (c.kind === 'story' && c.picks.length === 1) return `${SITE_URL}${paths.match(c.picks[0].fixture.slug)}`

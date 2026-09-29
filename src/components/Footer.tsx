@@ -73,7 +73,10 @@ export function Footer() {
               <Link href={paths.tv()}>Fodbold i TV i dag</Link>
             </li>
             <li>
-              <Link href={paths.women()}>Kvindefodbold</Link>
+              <Link href={paths.women()}>Kvindesport</Link>
+            </li>
+            <li>
+              <Link href={paths.women({ sport: 'soccer' })}>Kvindefodbold</Link>
             </li>
             <li>
               <Link href={paths.clubs()}>Alle klubber</Link>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
 import { FilterBar } from './FilterBar'
@@ -82,13 +82,19 @@ interface Props {
   initialNow: number
   /** "Live" in the menu opens the page on the matches being played */
   initialFilter?: StateFilter
-  /** Women's football only (the /kvindefodbold page) */
+  /** Women's games only (/kvindesport, /kvindefodbold): of `sport`, or of every sport */
   women?: boolean
+  /** First on the page (the women's pages' big top) */
+  top?: ReactNode
+  /** Above the list instead of the sports' tabs (the women's pages' own tabs) */
+  tabs?: ReactNode
+  /** Under the list and the sidebar */
+  below?: ReactNode
 }
 
-export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
-  const dayMatches = (d: string, n: number) => (women ? getMatches(d, 'soccer', n).filter(isWomenMatch) : getMatches(d, sport, n))
+  const dayMatches = (d: string, n: number) => (women ? getMatches(d, sport, n).filter(isWomenMatch) : getMatches(d, sport, n))
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
@@ -185,7 +191,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const featured = useMemo(() => {
     const from = hour * 3_600_000 + 12 * 3_600_000
     const start = hour * 3_600_000
-    return upcomingMatches(women ? 'soccer' : sport, isoDate(start), start, 2, 10_000)
+    return upcomingMatches(sport, isoDate(start), start, 2, 10_000)
       .filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
       .filter((m) => !women || isWomenMatch(m))
   }, [sport, hour, dataVersion, women]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -200,9 +206,12 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const prevDay = useMemo(() => (nearDays ? nearDays.prev : nearestMatchDay(date, sport, -1, now)), [nearDays, date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
-  const dayHref = (d: string) => (women ? paths.women({ dato: d, today }) : paths.home({ sport: sportDef.slug, dato: d, today }))
+  const dayHref = (d: string) => (women ? paths.women({ sport: sportDef.slug, dato: d, today }) : paths.home({ sport: sportDef.slug, dato: d, today }))
+  // The women's pages have their heading in the top above
+  const Title = women ? 'h2' : 'h1'
   return (
     <div className="page">
+      {top}
       {/* On phones the sports come first, above the live strip */}
       {!women && <SportTabs active={sport} className="sport-tabs--mobile" />}
 
@@ -220,11 +229,12 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
         <main className="feed" id="kampe">
           {!women && <MyTeams now={now} />}
           {!women && <SportTabs active={sport} className="sport-tabs--desktop" />}
+          {tabs}
           <div className="feed__head">
-            <h1 className="feed__title">
+            <Title className="feed__title">
               {heading ?? sportDef.label}
               <span>{order === 'time' && DAYS_AHEAD > 0 ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
-            </h1>
+            </Title>
             <FilterBar value={filter} onChange={setFilter} counts={counts} />
             <div className="switch switch--order" role="group" aria-label="Sortering">
               <button className={order === 'time' ? 'is-active' : ''} aria-pressed={order === 'time'} onClick={() => setOrder('time')}>
@@ -310,6 +320,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
           <AdSlot placement="side" />
         </aside>
       </div>
+      {below}
     </div>
   )
 }

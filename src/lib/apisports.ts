@@ -945,7 +945,7 @@ async function fetchSeason(api: Api, due: { league: string }) {
 }
 
 /** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
-const KEEP_VERSION = '2026-09-29-women'
+const KEEP_VERSION = '2026-09-30-women-all-sports'
 
 /**
  * The fast lane for paid plans: while games are on, today is fetched every 30

@@ -265,7 +265,7 @@ function scoredMatches(date: string, now: number, only: (f: Fixture) => boolean,
   const favorites = socialConfig().favorites
   const favorite = (f: Fixture) => favorites.some((n) => alike([n], f.home.name) || alike([n], f.away.name))
   // Cups, Champions League and API-Sports' other leagues, for days our leagues rest
-  const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed' && (!women || isWomenMatch(m)))
+  const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed' && (!women || (m.sport === 'soccer' && isWomenMatch(m))))
   const scored: Scored[] = [
     ...ours.flatMap((f) => {
       const div = f.division!

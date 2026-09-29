@@ -170,7 +170,6 @@ export function clubMatches(clubName: string, now: number): Match[] {
 const WOMEN = WOMEN_LEAGUE
 /** The same for a match as the pages show it */
 export function isWomenMatch(m: Match): boolean {
-  if (m.sport !== 'soccer') return false
   return WOMEN.test(m.league) || (WOMEN_TEAM.test(m.home.name) && WOMEN_TEAM.test(m.away.name))
 }
 
