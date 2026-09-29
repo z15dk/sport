@@ -1334,6 +1334,11 @@ h2.league__name { margin: 0; }
 .pitch__half { display: flex; flex-direction: column; justify-content: space-around; gap: 14px; padding: 10px 0; position: relative; z-index: 1; min-height: 260px; }
 .pitch__line { display: flex; justify-content: space-around; }
 .pitch__player { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 70px; text-align: center; }
+a.pitch__player { color: inherit; text-decoration: none; border-radius: 12px; }
+a.pitch__player:hover .pitch__name { text-decoration: underline; }
+a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lime); }
+.lineups__list a.is-link { color: inherit; text-decoration: none; }
+.lineups__list a.is-link:hover { text-decoration: underline; }
 .pitch__shirt { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-weight: 800; font-size: 13px; background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
 .pitch__half--away .pitch__shirt { background: var(--ink); color: #fff; }
 .pitch__name { font-size: 11px; font-weight: 600; line-height: 1.15; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70px; }

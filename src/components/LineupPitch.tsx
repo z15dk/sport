@@ -2,10 +2,25 @@
 
 import { useState } from 'react'
 import type { Lineup } from '../data/matchExtra'
+import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { sizedImage } from '../lib/imageSize'
+import { playerPath } from '../data/player'
 
 // The two line-ups drawn on a pitch: the away team from the top, the home
 // team from the bottom, each row of the formation as a line of players.
+// A player with a photo links to his page (nofollow: each page costs requests
+// to the source, so search engines are not sent through every line-up).
+
+/** The player's page around `children` when he has one and a photo, else just `children` */
+function PlayerLink({ id, name, photo, className, children }: { id?: number; name: string; photo?: string; className?: string; children: ReactNode }) {
+  if (!id || !photo) return className ? <span className={className}>{children}</span> : <>{children}</>
+  return (
+    <Link className={className ? `${className} is-link` : 'is-link'} href={playerPath(id, name)} rel="nofollow" prefetch={false} title={`${name} – spillerside`}>
+      {children}
+    </Link>
+  )
+}
 
 const short = (name: string) => {
   const parts = name.split(' ')
@@ -14,11 +29,11 @@ const short = (name: string) => {
 
 /** A team's starting players by formation row (1 is the goalkeeper), each row left to right */
 function rows(lineup: Lineup) {
-  const byRow = new Map<number, { name: string; number?: number; photo?: string; col: number }[]>()
+  const byRow = new Map<number, { name: string; number?: number; photo?: string; id?: number; col: number }[]>()
   for (const p of lineup.startXI) {
     const [r, c] = (p.grid ?? '').split(':').map(Number)
     if (!r) return undefined
-    byRow.set(r, [...(byRow.get(r) ?? []), { name: p.name, number: p.number, photo: p.photo, col: c || 0 }])
+    byRow.set(r, [...(byRow.get(r) ?? []), { name: p.name, number: p.number, photo: p.photo, id: p.id, col: c || 0 }])
   }
   return [...byRow.entries()].sort(([a], [b]) => a - b).map(([, players]) => players.sort((a, b) => a.col - b.col))
 }
@@ -54,10 +69,10 @@ function Half({ lineup, side }: { lineup: Lineup; side: 'home' | 'away' }) {
       {ordered.map((line, i) => (
         <div key={i} className="pitch__line">
           {(side === 'away' ? [...line].reverse() : line).map((p) => (
-            <span key={`${p.number}-${p.name}`} className="pitch__player">
+            <PlayerLink key={`${p.number}-${p.name}`} className="pitch__player" id={p.id} name={p.name} photo={p.photo}>
               <Shirt number={p.number} photo={p.photo} />
               <span className="pitch__name">{short(p.name)}</span>
-            </span>
+            </PlayerLink>
           ))}
         </div>
       ))}
@@ -92,7 +107,10 @@ export function LineupPitch({ lineups }: { lineups: [Lineup, Lineup] }) {
               <ol className="lineups__list">
                 {t.startXI.map((p) => (
                   <li key={`${p.number}-${p.name}`}>
-                    <span className="lineups__no">{p.number}</span> <Face photo={p.photo} /> {p.name}
+                    <span className="lineups__no">{p.number}</span>{' '}
+                    <PlayerLink id={p.id} name={p.name} photo={p.photo}>
+                      <Face photo={p.photo} /> {p.name}
+                    </PlayerLink>
                   </li>
                 ))}
               </ol>
@@ -103,7 +121,10 @@ export function LineupPitch({ lineups }: { lineups: [Lineup, Lineup] }) {
                 <ol className="lineups__list lineups__list--subs">
                   {t.substitutes.map((p) => (
                     <li key={`${p.number}-${p.name}`}>
-                      <span className="lineups__no">{p.number}</span> <Face photo={p.photo} /> {p.name}
+                      <span className="lineups__no">{p.number}</span>{' '}
+                    <PlayerLink id={p.id} name={p.name} photo={p.photo}>
+                      <Face photo={p.photo} /> {p.name}
+                    </PlayerLink>
                     </li>
                   ))}
                 </ol>
