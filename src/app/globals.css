@@ -1951,3 +1951,5 @@ a.player-games__match:hover { text-decoration: underline; }
 .api-check__list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .api-check__list .is-ok strong { color: var(--lime-deep); }
 .api-check__list .is-error { color: #c0341d; }
+/* A live match's statistics right under the score */
+.match-page__live-stats { margin: 12px 0 16px; }

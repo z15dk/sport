@@ -241,7 +241,33 @@ function MatchBody({
               </ol>
             </section>
           ) : null
-  const pairRow = !!stats || lineups?.length === 2
+  // The match statistics: at the top, right under the score, while the match is live; else in the flow with the line-ups
+  const statsTop = match.state === 'live' && !!stats
+  const flowStats = statsTop ? undefined : stats
+  const statsBox = stats ? (
+    <section className="sheet__section">
+      <h2 className="sheet__title">Kampstatistik</h2>
+      {stats.xg && (
+        <StatBar
+          label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
+          home={stats.xg.home}
+          away={stats.xg.away}
+          homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        />
+      )}
+      {stats.rows.map((r) => (
+        <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
+      ))}
+      {stats.xg?.source === 'scoreline' && (
+        <p className="muted small">
+          Chance-tal er Matchlys estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
+          Det er ikke rigtig xG, som vurderer hvert skud for sig.
+        </p>
+      )}
+    </section>
+  ) : null
+  const pairRow = !!flowStats || lineups?.length === 2
 
   return (
     <article className="match-page">
@@ -282,6 +308,8 @@ function MatchBody({
         </div>
       </header>
 
+      {statsTop && <div className="match-page__live-stats">{statsBox}</div>}
+
       <MatchTimeline match={match} />
       <MatchExtrasPanel match={match} withChannels={false} />
 
@@ -307,32 +335,10 @@ function MatchBody({
       {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
       <div className="match-page__flow">
       {pairRow && (
-        <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
-          {(stats || timeline) && (
+        <div className={`match-page__cols${(flowStats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
+          {(flowStats || timeline) && (
           <div className="match-page__col">
-            {stats && (
-              <section className="sheet__section">
-                <h2 className="sheet__title">Kampstatistik</h2>
-                {stats.xg && (
-                  <StatBar
-                    label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
-                    home={stats.xg.home}
-                    away={stats.xg.away}
-                    homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  />
-                )}
-                {stats.rows.map((r) => (
-                  <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
-                ))}
-                {stats.xg?.source === 'scoreline' && (
-                  <p className="muted small">
-                    Chance-tal er Matchlys estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
-                    Det er ikke rigtig xG, som vurderer hvert skud for sig.
-                  </p>
-                )}
-              </section>
-            )}
+            {flowStats && statsBox}
 
             {timeline}
           </div>
