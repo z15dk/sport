@@ -389,7 +389,16 @@ export function archiveIncidents(ids: string[]): Map<string, import('../types').
   return out
 }
 
+/** The statistics bank's numbers for /admin/data; counting a big archive takes seconds, so it is kept ten minutes */
 export function archiveStatus() {
+  const holder = globalThis as typeof globalThis & { __scorelineArchiveStatus?: { at: number; value: ReturnType<typeof archiveStatusNow> } }
+  const c = holder.__scorelineArchiveStatus
+  if (c && Date.now() - c.at < 10 * 60_000) return { ...c.value, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }
+  const value = timed('Statistikbankens tal (admin)', archiveStatusNow)
+  holder.__scorelineArchiveStatus = { at: Date.now(), value }
+  return value
+}
+function archiveStatusNow() {
   const lib = sqlite()
   let byDivision: { division: string; matches: number; incidents: number }[] = []
   let total = state.saved

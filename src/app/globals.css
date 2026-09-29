@@ -2064,3 +2064,64 @@ a.player-games__match:hover { text-decoration: underline; }
 
 /* "Følg dine hold" closed once: hidden from the first paint (script in the layout) */
 [data-teams-hint='hidden'] .my-teams--hint { display: none; }
+
+/* /admin/data: an overview on one screen – numbers at the top, compact cards, the long lists folded away */
+.dash { max-width: 1480px; }
+.dash-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.dash-head p { margin: 0; }
+.dash-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.dash-tile {
+  display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--surface); border-left: 4px solid var(--lime-deep); min-width: 0;
+}
+.dash-tile.is-warn { border-left-color: var(--star); }
+.dash-tile.is-bad { border-left-color: var(--live); background: var(--live-soft); }
+.dash-tile__label { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-tile__label b {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px;
+  background: var(--lime-deep); color: #fff; margin-right: 2px;
+}
+.dash-tile.is-warn .dash-tile__label b { background: var(--star); color: var(--ink); }
+.dash-tile.is-bad .dash-tile__label b { background: var(--live); }
+.dash-tile__value { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1.05; }
+.dash-tile__sub { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.dash-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.dash-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.dash-card { padding-bottom: 14px; min-width: 0; }
+.dash-card > :not(.panel__title) { margin-left: 18px; margin-right: 18px; }
+.dash-card .panel__title { font-size: 18px; padding-bottom: 8px; }
+.dash-sub { font-size: 13px; margin: 14px 18px 6px; }
+.dash-table { width: calc(100% - 36px); border-collapse: collapse; font-size: 13px; }
+.dash-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+.dash-table td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.dash-table tr:last-child td { border-bottom: 0; }
+.dash-table td:first-child { overflow-wrap: normal; white-space: nowrap; }
+.dash-table .is-bad { color: var(--live); font-weight: 600; }
+.dash-table .is-warn { color: #9a6a00; font-weight: 600; }
+
+.dash-bars { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line); }
+.dash-bars__bar { flex: 1; min-width: 2px; background: var(--lime-deep); border-radius: 4px 4px 0 0; }
+.dash-bars__bar:hover { filter: brightness(0.8); }
+.dash-bars__bar.is-over { background: var(--live); }
+.dash-bars__limit { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--ink-3); pointer-events: none; }
+.dash-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.dash-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-top: 10px; margin-bottom: 10px; }
+.dash-chips li { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
+
+.dash-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; align-items: start; }
+.dash-details details { padding: 10px 18px; }
+.dash-details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.dash-details details[open] { grid-column: 1 / -1; }
+
+@media (max-width: 1200px) {
+  .dash-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .dash-grid, .dash-details { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .dash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash-tile__value { font-size: 22px; }
+}

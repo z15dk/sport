@@ -37,17 +37,56 @@ const USAGE_NAMES: Record<string, string> = {
 }
 
 export const dynamic = 'force-dynamic'
-export const metadata: Metadata = { title: 'Data-status', robots: { index: false, follow: false } }
+export const metadata: Metadata = { title: 'Data & API · Admin', robots: { index: false, follow: false } }
 
-const known = new Set(
-  allClubs().flatMap(({ club }) => [club.name, club.apiName, SEARCH_NAMES[club.id]].filter((n): n is string => !!n).map(normalize)),
-)
+// Every name we know, as whole words: a team is "known" when one of them is a word run of its name
+const knownNames = (() => {
+  const set = new Set<string>()
+  for (const { club } of allClubs()) for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) if (n) set.add(normalize(n))
+  return set
+})()
 const isKnown = (team: string) => {
-  const n = normalize(team)
-  return [...known].some((k) => k === n || ` ${n} `.includes(` ${k} `) || ` ${k} `.includes(` ${n} `))
+  const words = normalize(team).split(' ')
+  for (let i = 0; i < words.length; i++) for (let j = i + 1; j <= words.length; j++) if (knownNames.has(words.slice(i, j).join(' '))) return true
+  return false
 }
 
-/** Shows what the real-data job has fetched from TheSportsDB */
+const clock = (at: number | string | null | undefined) =>
+  at ? new Date(at).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit', minute: '2-digit' }) : '–'
+const ago = (at: string | null | undefined) => {
+  if (!at) return 'aldrig'
+  const min = Math.round((Date.now() - Date.parse(at)) / 60_000)
+  return min < 1 ? 'lige nu' : min < 60 ? `for ${min} min. siden` : min < 48 * 60 ? `for ${Math.round(min / 60)} t. siden` : `for ${Math.round(min / 1440)} dage siden`
+}
+const num = (n: number) => n.toLocaleString('da-DK')
+type Level = 'ok' | 'warn' | 'bad'
+const MARK: Record<Level, string> = { ok: '✓', warn: '!', bad: '✕' }
+
+function Tile({ label, value, sub, level }: { label: string; value: string; sub?: string; level: Level }) {
+  return (
+    <div className={`dash-tile is-${level}`}>
+      <span className="dash-tile__label">
+        <b aria-label={level === 'ok' ? 'I orden' : level === 'warn' ? 'Hold øje' : 'Problem'}>{MARK[level]}</b> {label}
+      </span>
+      <strong className="dash-tile__value">{value}</strong>
+      {sub && <span className="dash-tile__sub">{sub}</span>}
+    </div>
+  )
+}
+
+/** A row of thin bars, one per value; the title of each is its tooltip */
+function Bars({ values, labels, unit, limit }: { values: number[]; labels: string[]; unit: string; limit?: number }) {
+  const max = Math.max(1, limit ?? 0, ...values)
+  return (
+    <div className="dash-bars" role="img" aria-label={values.map((v, i) => `${labels[i]}: ${v} ${unit}`).join(', ')}>
+      {limit !== undefined && <span className="dash-bars__limit" style={{ bottom: `${(limit / max) * 100}%` }} />}
+      {values.map((v, i) => (
+        <span key={i} className={`dash-bars__bar${limit !== undefined && v >= limit ? ' is-over' : ''}`} style={{ height: `${Math.max(2, (v / max) * 100)}%` }} title={`${labels[i]}: ${num(v)} ${unit}`} />
+      ))}
+    </div>
+  )
+}
+
 export default async function DataStatusPage() {
   if (!(await isAdmin())) redirect('/admin')
   const s = realDataStatus()
@@ -56,197 +95,267 @@ export default async function DataStatusPage() {
   const pg = playerGamesStatus()
   const apis = apiSportsStatus()
   const danish = tsdbDanishLeagues()
+  const slow = slowStatus()
+  const mem = memoryStatus({ ...apiSportsFiles(), 'scoreline-arkiv.db': archiveFile(), 'real-data.json': realDataFile() })
+  const football = apis.find((x) => x.api === 'football')
+  const keyed = apis.filter((x) => x.hasKey)
+  const lastHour = slow.recent.length ? Math.max(...slow.recent.map((m) => m.max)) : 0
+  const fbLeft = football?.remaining ?? 0
+  const fbShare = football?.limit ? fbLeft / football.limit : 1
+  const fbUsed = football?.usage ? football.usage.hours.reduce((n, x) => n + x, 0) : 0
+  const dataAge = s.fetchedAt ? (Date.now() - Date.parse(s.fetchedAt)) / 60_000 : Infinity
+  const leagues = s.leagues.map((l) => ({ ...l, unknown: l.teams.filter((t) => !isKnown(t)) }))
+  // The UTC hours of today's calls, shown in Danish time
+  const hourLabel = (hh: number) => new Date(Date.UTC(2026, 0, 1, hh)).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit' })
+
   return (
     <div className="page">
-      <div className="clubs prose admin">
+      <div className="clubs admin dash">
         <AdminNav current="/admin/data" />
-        <h1 className="feed__title">Data-status</h1>
-        <p>
-          Er dataene rigtige? Se <Link href="/admin/kvalitet">datakvalitet</Link>.
-        </p>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Rigtige data fra TheSportsDB</h2>
-          <p>
-            {s.running ? 'Henter lige nu' : 'Hentning er ikke i gang'} · Senest opdateret: {s.fetchedAt ?? 'endnu ikke'} ·
-            Fuld hentning: {s.lastFull ?? 'ikke færdig endnu'} · Løbende opdatering: {s.lastHot ?? '–'} · Forespørgsler: {s.requests}
+        <div className="dash-head">
+          <h1 className="feed__title">Data &amp; API</h1>
+          <p className="muted small">
+            Opdateret {clock(Date.now())} · <Link href="/admin/kvalitet">Datakvalitet</Link> · <Link href="/admin/logoer">Logo-job</Link>
           </p>
-          <p>
-            Fil: <code>{s.file}</code>
-          </p>
-          {s.lastError && <p className="unverified">Seneste fejl: {s.lastError}</p>}
-        </section>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Danske ligaer hos TheSportsDB</h2>
-          {danish.leagues.length === 0 ? (
-            <p>Listen hentes – genindlæs om et øjeblik.</p>
-          ) : (
-            <>
-              <p className="muted small">
-                Alle danske ligaer, TheSportsDB har (hentet {danish.fetchedAt}). Om der også er kampe i dem, ses under hver af vores ligaer længere nede –
-                gratisnøglen giver kun de seneste og næste kampe, en betalt nøgle hele sæsonen.
-              </p>
-              <ul>
-                {danish.leagues.map((l) => (
-                  <li key={l.id}>
-                    <strong>{l.name}</strong> ({l.sport}, id {l.id}){l.alternate ? ` · også kaldt ${l.alternate}` : ''} ·{' '}
-                    {l.ours ? `bruges til ${l.ours}` : <span className="muted">bruges ikke</span>}
-                  </li>
+        </div>
+
+        <div className="dash-tiles">
+          <Tile
+            label="Svartid"
+            value={slow.minutes ? `${(lastHour / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} sek.` : 'måles'}
+            sub={slow.minutes ? `længste ventetid, sidste 15 min. · ${slow.stalls} min. over 1 sek. (3 t.)` : 'fra serverstart'}
+            level={lastHour >= 3000 ? 'bad' : lastHour >= 1000 ? 'warn' : 'ok'}
+          />
+          <Tile label="Hukommelse" value={`${num(mem.rss)} MB`} sub={`JavaScript ${num(mem.heap)} MB`} level={mem.rss > 1500 ? 'bad' : mem.rss > 900 ? 'warn' : 'ok'} />
+          <Tile
+            label="Fodbold-kald tilbage"
+            value={football?.hasKey ? `${num(fbLeft)}${football.limit ? ` / ${num(football.limit)}` : ''}` : 'ingen nøgle'}
+            sub={football?.hasKey ? `brugt i dag ${num(fbUsed)} · opslag ${num(football.extrasSpent)}/${num(football.extrasMax)}` : undefined}
+            level={!football?.hasKey || football.lastError ? 'bad' : fbShare < 0.15 ? 'bad' : fbShare < 0.35 ? 'warn' : 'ok'}
+          />
+          <Tile
+            label="Kampdata"
+            value={ago(s.fetchedAt)}
+            sub={s.lastError ? `Fejl: ${s.lastError}` : s.running ? 'henter nu' : `fuld hentning ${ago(s.lastFull)}`}
+            level={s.lastError ? 'bad' : dataAge > 60 ? 'warn' : 'ok'}
+          />
+          <Tile label="Statistikbank" value={`${num(a.total)} kampe`} sub={`${num(pg.rows)} spillertal · gemt ${clock(a.lastRun)}`} level={a.lastError ? 'bad' : 'ok'} />
+          <Tile label="Historik" value={h.error ? 'fejl' : `${num(h.matches)} kampe`} sub={h.error ?? `${h.clubs} klubber · ${h.from ?? ''}–${h.to ?? ''}`} level={h.error ? 'warn' : 'ok'} />
+        </div>
+
+        <div className="dash-grid">
+          <div className="dash-col">
+          <section className="panel dash-card">
+            <h2 className="panel__title">Serverens svartid</h2>
+            {slow.recent.length > 0 ? (
+              <>
+                <Bars values={slow.recent.map((m) => m.max)} labels={slow.recent.map((m) => clock(m.at))} unit="ms længste ventetid" limit={1000} />
+                <p className="dash-axis muted small">
+                  <span>{clock(slow.recent[0].at)}</span>
+                  <span>Længste ventetid pr. minut · streg = 1 sek.</span>
+                  <span>{clock(slow.recent.at(-1)!.at)}</span>
+                </p>
+              </>
+            ) : (
+              <p className="muted small">Måles fra serverstart – kom tilbage om et par minutter.</p>
+            )}
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Opgave over 0,2 sek.</th>
+                  <th>Længste</th>
+                  <th>Gange</th>
+                  <th>Senest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slow.tasks.slice(0, 8).map((x) => (
+                  <tr key={x.label}>
+                    <td>{x.label}</td>
+                    <td className={x.max >= 1000 ? 'is-bad' : undefined}>{num(x.max)} ms</td>
+                    <td>{x.count}</td>
+                    <td>{clock(x.last)}</td>
+                  </tr>
                 ))}
-              </ul>
-            </>
-          )}
-        </section>
-        {s.leagues.map((l) => {
-          const unknown = l.teams.filter((t) => !isKnown(t))
-          return (
-            <section key={l.id} className="panel prose__section">
-              <h2 className="panel__title">{l.name}</h2>
-              <p>
-                {l.events > 0
-                  ? `${l.events} kampe, heraf ${l.finished} spillet (fra ${l.source}).`
-                  : 'Ingen kampe hos TheSportsDB eller i kampdatabasen (eller ikke hentet endnu) – ligaen vises ikke på siden.'}
-              </p>
-              {l.lookup && <p className="muted small">TheSportsDB: {l.lookup}</p>}
-              {l.teams.length > 0 && <p>Hold: {l.teams.join(', ')}</p>}
-              {unknown.length > 0 && (
-                <p className="unverified">
-                  Ikke fundet i klubregistret (får en side uden farver og by): {unknown.join(', ')}. Tilføj dem i src/data/leagues.ts
-                  eller som apiName.
+                {!slow.tasks.length && (
+                  <tr>
+                    <td colSpan={4} className="muted">
+                      Ingen endnu.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="panel dash-card">
+            <h2 className="panel__title">Filer og kilder</h2>
+            <table className="dash-table">
+              <tbody>
+                {mem.files
+                  .filter((f) => f.mb !== undefined)
+                  .map((f) => (
+                    <tr key={f.name}>
+                      <td>{f.name}</td>
+                      <td>{num(f.mb!)} MB</td>
+                    </tr>
+                  ))}
+                <tr>
+                  <td>TheSportsDB</td>
+                  <td>
+                    {s.requests} forespørgsler · løbende {ago(s.lastHot)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Kampdatabase</td>
+                  <td>{h.error ? <span className="is-bad">{h.error}</span> : `${h.tournaments.length} turneringer · ${h.unmatched.length} hold uden klub`}</td>
+                </tr>
+                <tr>
+                  <td>Denne sæson (database)</td>
+                  <td>{h.season.length ? h.season.map((x) => `${x.id} ${x.events}`).join(', ') : 'ingen danske rækker'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          </div>
+          <section className="panel dash-card">
+            <h2 className="panel__title">API-Sports</h2>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Sport</th>
+                  <th>Kampe</th>
+                  <th>Kald tilbage</th>
+                  <th>Brugt i dag</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apis.map((x) => (
+                  <tr key={x.api}>
+                    <td>{x.label}</td>
+                    <td>{x.hasKey ? num(x.games) : '–'}</td>
+                    <td>{x.hasKey ? `${x.remaining ?? '?'}${x.limit ? `/${num(x.limit)}` : ''}` : '–'}</td>
+                    <td>{x.usage ? num(x.usage.hours.reduce((n, v) => n + v, 0)) : '–'}</td>
+                    <td className={x.lastError || x.pausedUntil ? 'is-bad' : undefined}>
+                      {!x.hasKey ? 'ingen nøgle' : x.pausedUntil ? `pause til ${clock(x.pausedUntil)}` : x.lastError ? `fejl: ${x.lastError}` : `hentet ${clock(x.todayFetchedAt)}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {football?.usage && (
+              <>
+                <h3 className="dash-sub">Fodbold i dag pr. time (dansk tid)</h3>
+                <Bars values={football.usage.hours} labels={football.usage.hours.map((_, i) => `kl. ${hourLabel(i)}`)} unit="kald" />
+                <p className="dash-axis muted small">
+                  <span>{hourLabel(0)}</span>
+                  <span>baggrund og opslag stopper under {num(football.reserveNow)} tilbage</span>
+                  <span>{hourLabel(23)}</span>
                 </p>
-              )}
-            </section>
-          )
-        })}
-        <section className="panel prose__section">
-          <h2 className="panel__title">Kampdatabase (historik)</h2>
-          <p>
-            Fil: <code>{h.file}</code>
-          </p>
-          {h.error ? (
-            <p className="unverified">{h.error}</p>
-          ) : (
-            <>
-              <p>
-                {h.matches.toLocaleString('da-DK')} spillede kampe fra {h.from} til {h.to}. {h.clubs} af vores klubber er fundet i
-                databasen og får rigtige indbyrdes opgør og historik.
-              </p>
-              <p>Turneringer: {h.tournaments.map(([t, n]) => `${t} (${n})`).join(', ')}</p>
-              <p>
-                Denne sæson i databasen:{' '}
-                {h.season.length
-                  ? h.season.map((x) => `${x.id} ${x.events} kampe (${x.finished} spillet)`).join(', ')
-                  : `ingen kampe fra de danske rækker (turneringer denne sæson: ${h.seasonTournaments.join(', ') || 'ingen'})`}
-              </p>
-              {h.unmatched.length > 0 && (
-                <p className="muted small">
-                  Hold i databasen uden klub hos os ({h.unmatched.length}): {h.unmatched.join(', ')}
-                </p>
-              )}
-            </>
-          )}
-        </section>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Matchlys statistikbank</h2>
-          <p>
-            Fil: <code>{a.file}</code> · Senest gemt: {a.lastRun ?? 'ikke endnu'}
-          </p>
-          {a.lastError && <p className="unverified">Seneste fejl: {a.lastError}</p>}
-          <p>
-            Spillertal (spillersider): {pg.rows.toLocaleString('da-DK')} spiller-kampe fra {pg.matches.toLocaleString('da-DK')} kampe. Hentes 20 kampe pr. kald ned til reserven.
-          </p>
-          <p>
-            {a.total.toLocaleString('da-DK')} færdigspillede kampe gemt
-            {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
-          </p>
-          <p className="muted small">Hver færdigspillet kamp fra alle kilder gemmes her hvert 5. minut, med resultat, pauseresultat, tilskuere, mål og kort.</p>
-        </section>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Serverens svartid</h2>
-          {(() => {
-            const s = slowStatus()
-            const clock = (at: number) => new Date(at).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit', minute: '2-digit' })
-            return (
-              <div className="small">
-                <p>
-                  {s.minutes
-                    ? `De sidste ${s.minutes} minutter: længste tid serveren ikke kunne svare ${(s.worst / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} sek.; ${s.stalls} minutter med over 1 sek. ventetid.`
-                    : 'Måles fra serverstart – kom tilbage om et par minutter.'}
-                </p>
-                {s.recent.length > 0 && <p className="muted">Pr. minut (længste ventetid): {s.recent.map((m) => `${clock(m.at)} ${m.max} ms`).join(' · ')}</p>}
-                {s.tasks.length > 0 ? (
-                  <ul>
-                    {s.tasks.map((t) => (
-                      <li key={t.label}>
-                        <b>{t.label}</b>: længste {t.max.toLocaleString('da-DK')} ms, {t.count} gange over 0,2 sek. (i alt {(t.total / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} sek.), senest {clock(t.last)}
+                <ul className="dash-chips">
+                  {Object.entries(football.usage.kinds)
+                    .sort((p, q) => q[1] - p[1])
+                    .slice(0, 8)
+                    .map(([k, n]) => (
+                      <li key={k}>
+                        {USAGE_NAMES[k] ?? k} <b>{num(n)}</b>
                       </li>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Ingen opgaver har taget over 0,2 sek. endnu.</p>
-                )}
-              </div>
-            )
-          })()}
-        </section>
-        <section className="panel prose__section">
-          <h2 className="panel__title">Serverens hukommelse</h2>
-          {(() => {
-            const m = memoryStatus({ ...apiSportsFiles(), 'scoreline-arkiv.db': archiveFile(), 'real-data.json': realDataFile() })
-            return (
-              <p className="small">
-                Webserveren bruger {m.rss} MB (JavaScript {m.heap} MB, billeder og buffere {m.external} MB) ·{' '}
-                {m.files
-                  .filter((f) => f.mb !== undefined)
-                  .map((f) => `${f.name} ${f.mb} MB`)
-                  .join(' · ')}
+                </ul>
+              </>
+            )}
+            <ApiStatusCheck />
+          </section>
+
+          <section className="panel dash-card">
+            <h2 className="panel__title">Vores ligaer</h2>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Liga</th>
+                  <th>Kampe</th>
+                  <th>Spillet</th>
+                  <th>Kilde</th>
+                  <th>Ukendte hold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leagues.map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.name}</td>
+                    <td className={l.events ? undefined : 'is-bad'}>{l.events ? num(l.events) : 'ingen'}</td>
+                    <td>{num(l.finished)}</td>
+                    <td className="muted">{l.source ?? '–'}</td>
+                    <td className={l.unknown.length ? 'is-warn' : 'muted'} title={l.unknown.join(', ')}>
+                      {l.unknown.length || '–'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+        </div>
+
+        <div className="dash-details">
+          <details className="panel">
+            <summary>Statistikbanken pr. turnering ({a.byDivision.length})</summary>
+            <p className="small">{a.byDivision.map((r) => `${r.division} ${num(r.matches)} (${num(r.incidents)} hændelser)`).join(' · ') || 'Ingen endnu.'}</p>
+            <p className="muted small">
+              Fil: <code>{a.file}</code>. Hver færdigspillet kamp fra alle kilder gemmes hvert 5. minut med resultat, pause, tilskuere, mål og kort. Spillertal: {num(pg.rows)}{' '}
+              spiller-kampe fra {num(pg.matches)} kampe (20 kampe pr. kald ned til reserven).
+            </p>
+          </details>
+          <details className="panel">
+            <summary>Hold pr. liga og ukendte hold</summary>
+            {leagues.map((l) => (
+              <p key={l.id} className="small">
+                <b>{l.name}</b>
+                {l.lookup ? <span className="muted"> ({l.lookup})</span> : null}: {l.teams.join(', ') || 'ingen'}
+                {l.unknown.length > 0 && <span className="unverified"> · Ukendte (tilføj i src/data/leagues.ts eller som apiName): {l.unknown.join(', ')}</span>}
               </p>
-            )
-          })()}
-        </section>
-        <section className="panel prose__section">
-          <h2 className="panel__title">API-Sports</h2>
-          <ApiStatusCheck />
-          <p className="muted small">
-            Nøgler i serverens env: <code>API_SPORTS_KEY</code> (alle) eller <code>API_SPORTS_KEY_FOOTBALL</code>, <code>_BASKETBALL</code>,{' '}
-            <code>_NBA</code>, <code>_HOCKEY</code>, <code>_HANDBALL</code>, <code>_VOLLEYBALL</code>, <code>_AMERICAN_FOOTBALL</code>.
-          </p>
-          <ul>
-            {apis.map((x) => (
-              <li key={x.api}>
-                <strong>{x.label}</strong>:{' '}
-                {!x.hasKey
-                  ? 'ingen nøgle'
-                  : `${x.games} kampe i ${x.leagues.length} turneringer · kald tilbage i dag: ${x.remaining ?? '?'}${x.limit ? ` af ${x.limit}` : ''} · i dag hentet ${x.todayFetchedAt ?? 'ikke endnu'}`}
-                {x.lastError && <span className="unverified"> · Fejl: {x.lastError}</span>}
-                {x.pausedUntil && <span className="unverified"> · Hentning (også live) sat på pause til {new Date(x.pausedUntil).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen' })}</span>}
-                {x.leagues.length > 0 && <span className="muted small"> · {x.leagues.join(', ')}</span>}
-                {x.usage && (
-                  <span className="small">
-                    {' '}
-                    · <b>Brugt i dag</b> (døgnet nulstilles kl. 00 UTC):{' '}
-                    {Object.entries(x.usage.kinds)
-                      .sort((p, q) => q[1] - p[1])
-                      .map(([k, n]) => `${USAGE_NAMES[k] ?? k} ${n}`)
-                      .join(', ')}{' '}
-                    · pr. time:{' '}
-                    {x.usage.hours
-                      .map((n, h) => [n, h] as const)
-                      .filter(([n]) => n > 0)
-                      .map(([n, h]) => `${new Date(Date.UTC(2026, 0, 1, h)).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit' })}: ${n}`)
-                      .join(', ')}{' '}
-                    · sidevisninger (opslag): {x.extrasSpent} af {x.extrasMax} · baggrund og opslag stopper under {x.reserveNow} tilbage
-                  </span>
-                )}
-                {x.history.length > 0 && (
-                  <span className="muted small">
-                    {' '}
-                    · Historik gemt: {x.history.map((h) => `${h.key.replace('|', ' ')} (${h.matches ? `${h.matches} kampe` : 'ikke adgang'})`).join(', ')}
-                  </span>
-                )}
-              </li>
             ))}
-          </ul>
-        </section>
+          </details>
+          <details className="panel">
+            <summary>API-Sports: turneringer og historik pr. sport</summary>
+            {keyed.map((x) => (
+              <p key={x.api} className="small">
+                <b>{x.label}</b> ({x.leagues.length} turneringer): {x.leagues.join(', ')}
+                {x.history.length > 0 && (
+                  <span className="muted"> · Historik: {x.history.map((hh) => `${hh.key.replace('|', ' ')} (${hh.matches ? `${hh.matches} kampe` : 'ikke adgang'})`).join(', ')}</span>
+                )}
+              </p>
+            ))}
+            <p className="muted small">
+              Nøgler i serverens env: <code>API_SPORTS_KEY</code> (alle) eller <code>API_SPORTS_KEY_FOOTBALL</code>, <code>_BASKETBALL</code>, <code>_NBA</code>,{' '}
+              <code>_HOCKEY</code>, <code>_HANDBALL</code>, <code>_VOLLEYBALL</code>, <code>_AMERICAN_FOOTBALL</code>. Døgnet nulstilles kl. 00 UTC.
+            </p>
+          </details>
+          <details className="panel">
+            <summary>Kampdatabasen (football.db): turneringer og hold uden klub</summary>
+            <p className="small">
+              {num(h.matches)} kampe fra {h.from} til {h.to}. Turneringer: {h.tournaments.map(([tt, n]) => `${tt} (${n})`).join(', ')}
+            </p>
+            {h.unmatched.length > 0 && <p className="muted small">Hold uden klub hos os ({h.unmatched.length}): {h.unmatched.join(', ')}</p>}
+            <p className="muted small">
+              Fil: <code>{h.file}</code>
+            </p>
+          </details>
+          <details className="panel">
+            <summary>Danske ligaer hos TheSportsDB ({danish.leagues.length})</summary>
+            <ul className="small">
+              {danish.leagues.map((l) => (
+                <li key={l.id}>
+                  <strong>{l.name}</strong> ({l.sport}, id {l.id}){l.alternate ? ` · også kaldt ${l.alternate}` : ''} · {l.ours ? `bruges til ${l.ours}` : <span className="muted">bruges ikke</span>}
+                </li>
+              ))}
+            </ul>
+            <p className="muted small">
+              Fil: <code>{s.file}</code>
+            </p>
+          </details>
+        </div>
       </div>
     </div>
   )
