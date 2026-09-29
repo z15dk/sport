@@ -201,13 +201,12 @@ export default async function SeasonPage({ params }: { params: Params }) {
                   Topscorere
                 </h2>
               </header>
-              <div className="leaders__grid leaders__grid--one">
+              <div className="leaders__grid">
                 <div className="leaders__list">
                   <ol>
                     {top.list.map((p, i) => (
                       <li key={`${p.name}|${p.team}`}>
                         <span className="leaders__rank">{i + 1}</span>
-                        <TeamBadge link={false} name={p.team} size={28} />
                         <span className="leaders__who">
                           {p.id ? (
                             <Link className="leaders__name" href={playerPath(p.id, p.name)}>

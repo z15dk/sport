@@ -524,8 +524,6 @@ function onPaidPlan(s: ApiState) {
 const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
 const PAID_RESERVE = 300
-/** Requests never used by the background work (older days, past seasons): on a paid plan the reserve kept for live games */
-const spareFloor = (s?: ApiState) => (isPaid(s) ? PAID_RESERVE : 40)
 
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
@@ -638,7 +636,7 @@ function backfillDay(api: Api, now: number): string | undefined {
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= spareFloor(s)) return undefined
+  if (remaining <= 40) return undefined
   if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
   const today = isoDate(now)
   for (let i = 2; i <= BACKFILL_DAYS; i++) {
@@ -699,7 +697,7 @@ function historyDue(api: Api): { division: Division; league: string; year: numbe
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= spareFloor(s)) return undefined
+  if (remaining <= 40) return undefined
   learnLeagueIds(api)
   // Seasons saved before rounds and awarded matches were kept: fetched again once
   if ((s.historyVersion ?? 1) < 2) {
@@ -1063,8 +1061,7 @@ async function tick() {
       for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
         const s = mem.store[api]!
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-        // Two requests (table and top scorers), never out of the live reserve
-        if (remaining <= spareFloor(s) + 2) break
+        if (remaining <= 40) break
         const due = historyTableDue(api)
         if (!due) break
         try {
