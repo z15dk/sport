@@ -91,6 +91,7 @@ const SCHEMA = `
     checked_at TEXT
   );
   CREATE INDEX IF NOT EXISTS matches_date ON matches (start_date);
+  CREATE INDEX IF NOT EXISTS matches_saved ON matches (saved_at);
 `
 
 /** "2026/27" -> "2026/2027" (the form football.db uses); calendar years stay as they are */
@@ -227,9 +228,35 @@ export interface ArchivedMatch {
  * every 5 minutes (the archive grows all the time; pages must not read the
  * whole file on every visit).
  */
-const archiveHolder = globalThis as typeof globalThis & { __scorelineArchiveRead?: { at: number; mtime: number; rows: ArchivedMatch[] } }
+interface ArchiveRead {
+  at: number
+  mtime: number
+  rows: ArchivedMatch[]
+  byId: Map<string, ArchivedMatch>
+  /** The newest saved_at read: later reads only ask for rows saved after it */
+  savedAt: string
+}
+const archiveHolder = globalThis as typeof globalThis & { __scorelineArchiveRead2?: ArchiveRead; __scorelineStrings?: Map<string, string> }
+
+/**
+ * The same string once in memory: the archive repeats the leagues', seasons'
+ * and teams' names on every match, and SQLite gives a new copy each time.
+ */
+export function intern(s: string): string {
+  const pool = (archiveHolder.__scorelineStrings ??= new Map())
+  const have = pool.get(s)
+  if (have !== undefined) return have
+  pool.set(s, s)
+  return s
+}
+
+/**
+ * Every finished match in the statistics bank, newest first. Read once, then
+ * only the rows saved since (the file changes every few minutes); the matches
+ * already read stay the same objects.
+ */
 export function readArchive(): ArchivedMatch[] {
-  const cached = archiveHolder.__scorelineArchiveRead
+  const cached = archiveHolder.__scorelineArchiveRead2
   if (cached && Date.now() - cached.at < 5 * 60_000) return cached.rows
   let mtime = 0
   try {
@@ -241,43 +268,59 @@ export function readArchive(): ArchivedMatch[] {
     cached.at = Date.now()
     return cached.rows
   }
-  const rows = readArchiveFile()
-  archiveHolder.__scorelineArchiveRead = { at: Date.now(), mtime, rows }
-  return rows
+  const state: ArchiveRead = cached ?? { at: 0, mtime: 0, rows: [], byId: new Map(), savedAt: '' }
+  const fresh = readArchiveFile(state.savedAt)
+  if (fresh) {
+    for (const { row, savedAt } of fresh) {
+      state.byId.set(row.id, row)
+      if (savedAt > state.savedAt) state.savedAt = savedAt
+    }
+    if (fresh.length || !cached) state.rows = [...state.byId.values()].sort((a, b) => b.date.getTime() - a.date.getTime())
+  }
+  state.at = Date.now()
+  state.mtime = mtime
+  archiveHolder.__scorelineArchiveRead2 = state
+  return state.rows
 }
 
-function readArchiveFile(): ArchivedMatch[] {
+/** The finished matches saved after `since` (all of them from ''), or undefined when the archive cannot be read */
+function readArchiveFile(since: string): { row: ArchivedMatch; savedAt: string }[] | undefined {
   const lib = sqlite()
-  if (!lib) return []
+  if (!lib) return undefined
   let db: Db
   try {
     db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
   } catch {
-    return [] // no archive yet
+    return undefined // no archive yet
   }
+  const text = (v: unknown) => intern(String(v ?? ''))
   try {
+    // >= and by id: rows saved in the same millisecond as the last one read are not missed
     return db
       .prepare(
-        `SELECT event_id, division_id, tournament_name, season_year, round, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators
-           FROM matches WHERE status = 'finished' ORDER BY start_date DESC`,
+        `SELECT event_id, division_id, tournament_name, season_year, round, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators, saved_at
+           FROM matches WHERE status = 'finished' AND IFNULL(saved_at, '') >= ?`,
       )
-      .all()
+      .all(since)
       .map((r) => ({
-        id: String(r.event_id),
-        divisionId: String(r.division_id ?? ''),
-        tournament: String(r.tournament_name ?? ''),
-        season: String(r.season_year ?? ''),
-        date: new Date(String(r.start_date)),
-        homeName: String(r.home_name ?? ''),
-        awayName: String(r.away_name ?? ''),
-        homeScore: Number(r.home_score),
-        awayScore: Number(r.away_score),
-        ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
-        spectators: r.spectators == null ? undefined : Number(r.spectators),
-        round: r.round == null ? undefined : String(r.round),
+        savedAt: String(r.saved_at ?? ''),
+        row: {
+          id: String(r.event_id),
+          divisionId: text(r.division_id),
+          tournament: text(r.tournament_name),
+          season: text(r.season_year),
+          date: new Date(String(r.start_date)),
+          homeName: text(r.home_name),
+          awayName: text(r.away_name),
+          homeScore: Number(r.home_score),
+          awayScore: Number(r.away_score),
+          ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
+          spectators: r.spectators == null ? undefined : Number(r.spectators),
+          round: r.round == null ? undefined : text(r.round),
+        },
       }))
   } catch {
-    return []
+    return undefined
   } finally {
     db.close()
   }
@@ -447,7 +490,11 @@ export function archiveSeason(divisionId: string, tournament: string, season: st
       ON CONFLICT(event_id) DO UPDATE SET
         division_id = excluded.division_id, season_year = excluded.season_year, round = excluded.round, start_date = excluded.start_date,
         home_name = excluded.home_name, away_name = excluded.away_name, home_score = excluded.home_score, away_score = excluded.away_score,
-        home_score_ht = excluded.home_score_ht, away_score_ht = excluded.away_score_ht, status = 'finished', saved_at = excluded.saved_at`)
+        home_score_ht = excluded.home_score_ht, away_score_ht = excluded.away_score_ht, status = 'finished', saved_at = excluded.saved_at
+      WHERE matches.division_id IS NOT excluded.division_id OR matches.season_year IS NOT excluded.season_year OR matches.round IS NOT excluded.round
+         OR matches.start_date IS NOT excluded.start_date OR matches.home_name IS NOT excluded.home_name OR matches.away_name IS NOT excluded.away_name
+         OR matches.home_score IS NOT excluded.home_score OR matches.away_score IS NOT excluded.away_score
+         OR matches.home_score_ht IS NOT excluded.home_score_ht OR matches.away_score_ht IS NOT excluded.away_score_ht OR matches.status IS NOT 'finished'`)
     const now = new Date().toISOString()
     db.exec('BEGIN')
     for (const g of finished) {

@@ -18,6 +18,7 @@ import type { PlayerData, PlayerSeasonRow } from '../data/player'
 import type { Injury, Periods, TeamStats } from '../data/teamStats'
 import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
 import { checkSeason } from './seasonCheck'
+import { kvStore, type KvStore } from './extrasDb'
 
 // Games from API-Sports: football, basketball, NBA, ice hockey, handball,
 // volleyball and NFL. Keys go in the server's environment: API_SPORTS_KEY for
@@ -1179,6 +1180,9 @@ export function startApiSportsSync() {
   setInterval(() => void live(), 30_000).unref()
 }
 
+/** The data files behind API-Sports' data, for the status page's memory line */
+export const apiSportsFiles = () => ({ 'apisports.json': file(), 'h2h.db': extrasDbFile() })
+
 /** Numbers for the status page */
 export function apiSportsStatus() {
   load()
@@ -1218,7 +1222,7 @@ export function apiSportsStatus() {
 
 // ---------------------------------------------------------------- match page extras
 // Head-to-head, the teams' latest games and the league table, fetched when a
-// match page is first viewed and cached (h2h.json). They share a small daily
+// match page is first viewed and cached (h2h.db). They share a small daily
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
@@ -1241,19 +1245,15 @@ function spendExtra(api: Api, cost = 1): boolean {
   const floor = isPaid(s) ? backgroundReserve(s) : EXTRAS_KEEP_REMAINING
   if (remaining - cost < floor || spent + cost > extrasPerDay(s)) return false
   store.spent[api] = { day: utcDay(), count: spent + cost }
+  store.touch()
   return true
 }
 const extrasFile = (): string => process.env.H2H_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.json')
-const extrasHolder = globalThis as { __scorelineH2h?: ExtraStore }
-function extrasStore(): ExtraStore {
-  if (!extrasHolder.__scorelineH2h) {
-    try {
-      extrasHolder.__scorelineH2h = JSON.parse(readFileSync(extrasFile(), 'utf8')) as ExtraStore
-    } catch {
-      extrasHolder.__scorelineH2h = { entries: {}, spent: {} }
-    }
-  }
-  return extrasHolder.__scorelineH2h
+const extrasDbFile = (): string => process.env.H2H_DB ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'h2h.db')
+const extrasHolder = globalThis as { __scorelineH2hDb?: KvStore<ExtraStore['entries'][string]> }
+/** The extras, in SQLite (src/lib/extrasDb.ts): an entry is read when asked for, not the whole store */
+function extrasStore(): KvStore<ExtraStore['entries'][string]> {
+  return (extrasHolder.__scorelineH2hDb ??= kvStore(extrasDbFile(), extrasFile()))
 }
 
 const apiOf = (game: ExternalGame) => game.id.split('-').slice(0, -1).join('-') as Api
@@ -1276,15 +1276,7 @@ async function cached<T extends 'games' | 'table'>(
   if (error) return entry?.[kind]
   const fresh = { fetchedAt: Date.now(), [kind]: read(response ?? []) }
   store.entries[key] = fresh
-  // Old entries go after a month
-  for (const [k, e] of Object.entries(store.entries)) if (Date.now() - e.fetchedAt > 30 * 86_400_000) delete store.entries[k]
-  try {
-    mkdirSync(path.dirname(extrasFile()), { recursive: true })
-    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-    renameSync(`${extrasFile()}.tmp`, extrasFile())
-  } catch {
-    // kept in memory
-  }
+  extrasStore().flush()
   return fresh[kind] as ExtraStore['entries'][string][T]
 }
 
@@ -1408,13 +1400,7 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
   if (error) return entry?.incidents
   const incidents = toIncidents(response ?? [], game)
   store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
-  try {
-    mkdirSync(path.dirname(extrasFile()), { recursive: true })
-    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-    renameSync(`${extrasFile()}.tmp`, extrasFile())
-  } catch {
-    // kept in memory
-  }
+  extrasStore().flush()
   return incidents
 }
 
@@ -1579,13 +1565,7 @@ async function fetchEvents(api: Api, ids: string[]) {
       for (let i = 0; i < list.length; i++) if (list[i].id === id && list[i].eventsFor !== eventsKey(list[i])) list[i] = { ...list[i], incidents: list[i].incidents ?? [], eventsFor: eventsKey(list[i]) }
   }
   if (statsChanged) {
-    try {
-      mkdirSync(path.dirname(extrasFile()), { recursive: true })
-      writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-      renameSync(`${extrasFile()}.tmp`, extrasFile())
-    } catch {
-      // kept in memory
-    }
+    extrasStore().flush()
   }
 }
 
@@ -1736,13 +1716,7 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
     }
   })
   store.entries[key] = { fetchedAt: Date.now(), catalog: leagues }
-  try {
-    mkdirSync(path.dirname(extrasFile()), { recursive: true })
-    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-    renameSync(`${extrasFile()}.tmp`, extrasFile())
-  } catch {
-    // kept in memory
-  }
+  extrasStore().flush()
   return { leagues: withChoices(leagues), fetchedAt: Date.now() }
 }
 
@@ -1799,13 +1773,7 @@ export async function apiMatchStats(game: ExternalGame, incidents?: Incident[]):
           if (side) for (const x of r.statistics ?? []) stats[side][String(x.type)] = x.value ?? null
         }
         entry = store.entries[key] = { fetchedAt: Date.now(), stats, final: game.state === 'finished' }
-        try {
-          mkdirSync(path.dirname(extrasFile()), { recursive: true })
-          writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(store))
-          renameSync(`${extrasFile()}.tmp`, extrasFile())
-        } catch {
-          // kept in memory
-        }
+        extrasStore().flush()
       }
     }
   }
@@ -1852,13 +1820,7 @@ function toLineups(response: Raw[]): Lineup[] {
 }
 
 function saveExtras() {
-  try {
-    mkdirSync(path.dirname(extrasFile()), { recursive: true })
-    writeFileSync(`${extrasFile()}.tmp`, JSON.stringify(extrasStore()))
-    renameSync(`${extrasFile()}.tmp`, extrasFile())
-  } catch {
-    // kept in memory
-  }
+  extrasStore().flush()
 }
 
 /**

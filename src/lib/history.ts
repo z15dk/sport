@@ -10,7 +10,7 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveDetailedEvents, archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
+import { archiveDetailedEvents, archiveFile, archiveIncidents, intern, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
@@ -78,9 +78,15 @@ interface Db {
   close(): void
 }
 
-let loaded: Loaded | undefined
-let checkedAt = 0
-let lastError: string | undefined
+// On globalThis: the background jobs (started from instrumentation) and the pages load separate copies of this module, and the data is big
+const historyHolder = globalThis as typeof globalThis & {
+  __scorelineHistory?: { loaded?: Loaded; checkedAt: number; lastError?: string }
+  __scorelineHistoryDb?: { dbTime: number; rows: DbMatch[] }
+  __scorelineHistoryRows?: WeakMap<ArchivedMatch, DbMatch>
+  __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] }
+  __scorelineSeason?: SeasonData
+}
+const hist = (historyHolder.__scorelineHistory ??= { checkedAt: 0 })
 
 /** Finds our club for a team name, among the clubs of one sport (a football team is never a basketball club of the same town) */
 function resolver(sport: SportId = 'soccer') {
@@ -121,12 +127,17 @@ function resolver(sport: SportId = 'soccer') {
   }
 }
 
-function read(file: string | undefined, mtime: number): Loaded {
+/** football.db's finished matches, read again only when the file changes */
+function dbRows(file: string | undefined): DbMatch[] {
+  if (!file) return []
+  const dbTime = statSync(file).mtimeMs
+  const cached = historyHolder.__scorelineHistoryDb
+  if (cached?.dbTime === dbTime) return cached.rows
   const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => Db } | undefined
   if (!sqlite) throw new Error(`Node ${process.version} kan ikke læse SQLite – kræver Node 22.13 eller nyere`)
   let rows: Row[] = []
-  const db = file ? new sqlite.DatabaseSync(file, { readOnly: true }) : undefined
-  if (db) try {
+  const db = new sqlite.DatabaseSync(file, { readOnly: true })
+  try {
     rows = db
       .prepare(
         `SELECT event_id, tournament_id, tournament_name, season_id, season_year, start_date, home_id, home_name,
@@ -139,34 +150,47 @@ function read(file: string | undefined, mtime: number): Loaded {
   } finally {
     db.close()
   }
-  const fromDb: DbMatch[] = rows.map((r) => ({
+  const text = (v: unknown) => intern(String(v ?? ''))
+  const out: DbMatch[] = rows.map((r) => ({
     id: Number(r.event_id),
     tournamentId: Number(r.tournament_id),
-    tournament: String(r.tournament_name ?? ''),
+    tournament: text(r.tournament_name),
     seasonId: Number(r.season_id),
-    season: String(r.season_year ?? ''),
+    season: text(r.season_year),
     date: new Date(String(r.start_date)),
     homeId: Number(r.home_id),
-    homeName: String(r.home_name ?? ''),
+    homeName: text(r.home_name),
     awayId: Number(r.away_id),
-    awayName: String(r.away_name ?? ''),
+    awayName: text(r.away_name),
     homeScore: Number(r.home_score),
     awayScore: Number(r.away_score),
     spectators: r.spectators == null ? undefined : Number(r.spectators),
     sport: 'soccer' as SportId,
   }))
+  historyHolder.__scorelineHistoryDb = { dbTime, rows: out }
+  return out
+}
+
+function read(file: string | undefined, mtime: number): Loaded {
+  const fromDb = dbRows(file)
 
   // Our own statistics bank: every other league, and anything football.db no longer has
   const seen = new Set(fromDb.map((m) => matchKey(m.date.toISOString(), m.homeName, m.awayName)))
   // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
   const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
-  const fromArchive: DbMatch[] = readArchive()
-    .filter((a) => !seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName)))
-    .flatMap((a) => {
-      const sport = sportOfDivisionId(a.divisionId)
-      return sport ? [{ a, sport }] : []
-    })
-    .map(({ a, sport }) => ({
+  // The same archive row gives the same match object each time (the archive keeps its rows between reads)
+  const made = (historyHolder.__scorelineHistoryRows ??= new WeakMap())
+  const fromArchive: DbMatch[] = []
+  for (const a of readArchive()) {
+    if (seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName))) continue
+    const have = made.get(a)
+    if (have) {
+      fromArchive.push(have)
+      continue
+    }
+    const sport = sportOfDivisionId(a.divisionId)
+    if (!sport) continue
+    const m: DbMatch = {
       id: -hashString(a.id),
       tournamentId: -hashString(a.divisionId),
       tournament: a.tournament,
@@ -183,7 +207,10 @@ function read(file: string | undefined, mtime: number): Loaded {
       sport,
       divisionId: a.divisionId,
       eventId: a.id,
-    }))
+    }
+    made.set(a, m)
+    fromArchive.push(m)
+  }
   const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
 
   // Newest name per team id (clubs get renamed), then matched to our register
@@ -216,27 +243,27 @@ function read(file: string | undefined, mtime: number): Loaded {
 /** The database in memory; re-read when the file changes (checked at most once a minute) */
 function data(): Loaded | undefined {
   const now = Date.now()
-  if (loaded && now - checkedAt < 60_000) return loaded
-  checkedAt = now
+  if (hist.loaded && now - hist.checkedAt < 60_000) return hist.loaded
+  hist.checkedAt = now
   const file = historyFile()
   try {
     const hasDb = existsSync(file)
     const hasArchive = existsSync(archiveFile())
     if (!hasDb && !hasArchive) {
-      lastError = `Filen ${file} findes ikke`
-      loaded = undefined
+      hist.lastError = `Filen ${file} findes ikke`
+      hist.loaded = undefined
       return undefined
     }
     // Re-read when football.db has changed, or the archive (which changes all the time) at most every 15 minutes
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
-    const stale = !loaded || loaded.dbTime !== dbTime || (loaded.mtime !== mtime && now - (loaded.readAt ?? 0) > 15 * 60_000)
-    if (stale) loaded = { ...read(hasDb ? file : undefined, mtime), dbTime, readAt: now }
-    lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
+    const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 15 * 60_000)
+    if (stale) hist.loaded = { ...read(hasDb ? file : undefined, mtime), dbTime, readAt: now }
+    hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
-    lastError = (err as Error).message
+    hist.lastError = (err as Error).message
   }
-  return loaded
+  return hist.loaded
 }
 
 const nameOf = (d: Loaded, id: number, fallback: string) => d.clubOf.get(id)?.name ?? fallback
@@ -427,7 +454,7 @@ export function historyStatus() {
   for (const m of d?.matches ?? []) tournaments.set(m.tournament, (tournaments.get(m.tournament) ?? 0) + 1)
   return {
     file: historyFile(),
-    error: lastError ?? null,
+    error: hist.lastError ?? null,
     matches: d?.matches.length ?? 0,
     from: d?.matches.at(-1)?.date.toISOString().slice(0, 10) ?? null,
     to: d?.matches[0]?.date.toISOString().slice(0, 10) ?? null,
@@ -485,7 +512,6 @@ type SeasonData = {
   /** The same, as a list (for matching names written differently) */
   extrasList: { kickoff: string; home: string; away: string; extras: Pick<RealEvent, 'incidents' | 'ht' | 'spectators'> }[]
 }
-let seasonCache: SeasonData | undefined
 
 /** Key for finding the same match across sources */
 export function matchKey(kickoff: string, home: string, away: string) {
@@ -503,7 +529,7 @@ const clubFinder = () => (finder ??= resolver())
 export function databaseSeason(): SeasonData | undefined {
   const d = data()
   if (!d) return undefined
-  if (seasonCache?.mtime === d.mtime) return seasonCache
+  if (historyHolder.__scorelineSeason?.mtime === d.mtime) return historyHolder.__scorelineSeason
   const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => Db } | undefined
   if (!sqlite || !existsSync(historyFile())) return undefined
   const year = SEASON.slice(0, 4)
@@ -600,8 +626,8 @@ export function databaseSeason(): SeasonData | undefined {
       extrasList.push({ kickoff, home: String(r.home_name), away: String(r.away_name), extras })
     }
   }
-  seasonCache = { mtime: d.mtime, key: `${d.mtime}`, leagues, cups, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
-  return seasonCache
+  historyHolder.__scorelineSeason = { mtime: d.mtime, key: `${d.mtime}`, leagues, cups, tournaments: [...tournaments].sort(), extrasByMatch, extrasList }
+  return historyHolder.__scorelineSeason
 }
 
 // ---------------------------------------------------------------- a league's past seasons
@@ -969,12 +995,11 @@ export interface PastGame {
   source: { db?: number; archive?: string }
 }
 
-let pastCache: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] } | undefined
 
 function pastIndex() {
   const d = data()
   if (!d) return undefined
-  if (pastCache?.loaded === d) return pastCache
+  if (historyHolder.__scorelinePast?.loaded === d) return historyHolder.__scorelinePast
   const bySlug = new Map<string, PastGame>()
   for (const m of d.matches) {
     const home = nameOf(d, m.homeId, m.homeName)
@@ -997,8 +1022,8 @@ function pastIndex() {
       source: m.eventId ? { archive: m.eventId } : { db: m.id },
     })
   }
-  pastCache = { loaded: d, bySlug, list: [...bySlug.values()] }
-  return pastCache
+  historyHolder.__scorelinePast = { loaded: d, bySlug, list: [...bySlug.values()] }
+  return historyHolder.__scorelinePast
 }
 
 /** Every played match we know of, newest first */

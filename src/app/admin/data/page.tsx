@@ -4,10 +4,12 @@ import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
 import { ApiStatusCheck } from '../../../components/admin/ApiStatusCheck'
 import Link from 'next/link'
-import { realDataStatus, tsdbDanishLeagues } from '../../../lib/realdata'
+import { realDataFile, realDataStatus, tsdbDanishLeagues } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
 import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
-import { apiSportsStatus } from '../../../lib/apisports'
+import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
+import { memoryStatus } from '../../../lib/extrasDb'
+import { archiveFile } from '../../../lib/archive'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
@@ -156,6 +158,21 @@ export default async function DataStatusPage() {
             {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
           </p>
           <p className="muted small">Hver færdigspillet kamp fra alle kilder gemmes her hvert 5. minut, med resultat, pauseresultat, tilskuere, mål og kort.</p>
+        </section>
+        <section className="panel prose__section">
+          <h2 className="panel__title">Serverens hukommelse</h2>
+          {(() => {
+            const m = memoryStatus({ ...apiSportsFiles(), 'scoreline-arkiv.db': archiveFile(), 'real-data.json': realDataFile() })
+            return (
+              <p className="small">
+                Webserveren bruger {m.rss} MB (JavaScript {m.heap} MB, billeder og buffere {m.external} MB) ·{' '}
+                {m.files
+                  .filter((f) => f.mb !== undefined)
+                  .map((f) => `${f.name} ${f.mb} MB`)
+                  .join(' · ')}
+              </p>
+            )
+          })()}
         </section>
         <section className="panel prose__section">
           <h2 className="panel__title">API-Sports</h2>

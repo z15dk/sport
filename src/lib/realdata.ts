@@ -35,7 +35,8 @@ const FULL_EVERY_MS = 6 * 3_600_000
 const HOT_EVERY_MS = 10 * 60_000
 const MAX_ROUNDS = 40
 
-const file = (): string => process.env.REAL_DATA_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'real-data.json')
+export const realDataFile = (): string => process.env.REAL_DATA_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'real-data.json')
+const file = realDataFile
 
 type JobState = {
   running: boolean
