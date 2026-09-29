@@ -1,5 +1,5 @@
 import 'server-only'
-import type { Leaders } from '../data/matchExtra'
+import type { Leaders, Lineup } from '../data/matchExtra'
 import { alike, normalize } from '../data/aliases'
 import { playersByName } from './archive'
 import { realLogo } from './logoCheck'
@@ -30,5 +30,18 @@ export function playerFaces(rows: { name: string; team: string; id?: number }[],
       id = ids.length === 1 ? ids[0] : !ids.length && any.length === 1 ? any[0] : undefined
     }
     return { id, photo: id ? realLogo(`https://media.api-sports.io/football/players/${id}.png`) : undefined }
+  })
+}
+
+/** The line-ups with each player's photo (by id, else by name and team in the statistics bank) */
+export function lineupPhotos(lineups: Lineup[] | undefined): Lineup[] | undefined {
+  return lineups?.map((l) => {
+    const faces = playerFaces([...l.startXI, ...l.substitutes].map((p) => ({ name: p.name, team: l.team, id: p.id })))
+    let i = 0
+    const withFace = (p: Lineup['startXI'][number]) => {
+      const f = faces[i++]
+      return { ...p, id: p.id ?? f?.id, photo: f?.photo }
+    }
+    return { ...l, startXI: l.startXI.map(withFace), substitutes: l.substitutes.map(withFace) }
   })
 }

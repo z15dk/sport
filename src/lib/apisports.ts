@@ -1817,8 +1817,8 @@ function toLineups(response: Raw[]): Lineup[] {
     team: String(t.team?.name ?? ''),
     formation: t.formation ?? undefined,
     coach: t.coach?.name ?? undefined,
-    startXI: (t.startXI ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, grid: x.player?.grid ?? undefined })),
-    substitutes: (t.substitutes ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined })),
+    startXI: (t.startXI ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, grid: x.player?.grid ?? undefined, id: num(x.player?.id) })),
+    substitutes: (t.substitutes ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, id: num(x.player?.id) })),
   }))
 }
 

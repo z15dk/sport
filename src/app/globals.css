@@ -1953,3 +1953,12 @@ a.player-games__match:hover { text-decoration: underline; }
 .api-check__list .is-error { color: #c0341d; }
 /* A live match's statistics right under the score */
 .match-page__live-stats { margin: 12px 0 16px; }
+/* The line-up pitch with the players' photos: the photo in the circle, the shirt number as a small tag */
+.pitch__shirt--photo { position: relative; width: 40px; height: 40px; padding: 0; background: #fff; overflow: visible; }
+.pitch__shirt--photo img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: top; background: #e9ece4; display: block; }
+.pitch__half--away .pitch__shirt--photo { background: var(--ink); }
+.pitch__half--away .pitch__shirt--photo img { box-shadow: 0 0 0 2px var(--ink); }
+.pitch__half--home .pitch__shirt--photo img { box-shadow: 0 0 0 2px #fff; }
+.pitch__no { position: absolute; right: -6px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.pitch__half--away .pitch__no { background: var(--ink); color: #fff; }
+.lineups__face { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: top; vertical-align: middle; background: var(--surface-2); margin-right: 2px; }

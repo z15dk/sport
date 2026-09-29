@@ -8,6 +8,7 @@ import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
+import { lineupPhotos } from '../../../lib/playerPhotos'
 import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
@@ -219,7 +220,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} related={related} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

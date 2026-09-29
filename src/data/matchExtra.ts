@@ -51,13 +51,25 @@ export function estimateXg(insideBox: number, outsideBox: number, penalties: num
 }
 
 /** A team's line-up for a match (API-Sports) */
+export interface LineupPlayer {
+  name: string
+  number?: number
+  pos?: string
+  /** "row:column" on the pitch, from the goal (1:1 is the goalkeeper) */
+  grid?: string
+  /** API-Sports' player id */
+  id?: number
+  /** The player's photo (our image proxy), added on the server */
+  photo?: string
+}
+
 export interface Lineup {
   team: string
   formation?: string
   coach?: string
   /** "row:column" on the pitch, from the goal (1:1 is the goalkeeper) */
-  startXI: { name: string; number?: number; pos?: string; grid?: string }[]
-  substitutes: { name: string; number?: number; pos?: string }[]
+  startXI: LineupPlayer[]
+  substitutes: LineupPlayer[]
 }
 
 /** A league's best players this season (API-Sports) */
