@@ -1923,3 +1923,6 @@ a.player-games__match:hover { text-decoration: underline; }
 .social-preview summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .social-preview dl { margin: 6px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
 .social-preview dd { margin: 0; white-space: pre-wrap; }
+/* The admin menu wraps instead of scrolling sideways, so every page (e.g. Sociale medier) is in sight on a phone */
+.admin-nav .filter-bar { flex-wrap: wrap; overflow: visible; border-radius: 22px; }
+.admin-subnav { row-gap: 6px; }
