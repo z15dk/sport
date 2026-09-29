@@ -2199,3 +2199,59 @@ export function injuriesForTeam(injuries: Injury[] | undefined, teamId: number |
   const date = dates[0]
   return { date, list: date ? own.filter((i) => i.date === date) : [] }
 }
+
+// ---------------------------------------------------------------- connection test (/admin/data)
+
+export interface ApiStatus {
+  api: Api
+  label: string
+  ok: boolean
+  plan?: string
+  active?: boolean
+  end?: string
+  used?: number
+  limit?: number
+  error?: string
+}
+
+/**
+ * Asks each sport's /status with its key: the plan, whether it is active, and
+ * today's calls. The status call does not count against the day's calls.
+ */
+export async function apiStatus(): Promise<ApiStatus[]> {
+  const out: ApiStatus[] = []
+  for (const api of Object.keys(APIS) as Api[]) {
+    const def = APIS[api]
+    const key = keyFor(api)
+    if (!key) {
+      out.push({ api, label: def.label, ok: false, error: 'Ingen nøgle' })
+      continue
+    }
+    try {
+      const res = await fetch(`${def.base}/status`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(15_000), cache: 'no-store' })
+      const body = (await res.json().catch(() => ({}))) as {
+        errors?: Record<string, string> | string[]
+        response?:
+          | { subscription?: { plan?: string; end?: string; active?: boolean }; requests?: { current?: number; limit_day?: number } }
+          | { subscription?: { plan?: string; end?: string; active?: boolean }; requests?: { current?: number; limit_day?: number } }[]
+      }
+      const errors = Array.isArray(body.errors) ? body.errors : Object.values(body.errors ?? {})
+      const r = Array.isArray(body.response) ? body.response[0] : body.response
+      const error = !res.ok ? `HTTP ${res.status}` : errors.length ? errors.join(', ') : !r ? 'Intet svar' : undefined
+      out.push({
+        api,
+        label: def.label,
+        ok: !error && r?.subscription?.active !== false,
+        plan: r?.subscription?.plan,
+        active: r?.subscription?.active,
+        end: r?.subscription?.end,
+        used: r?.requests?.current,
+        limit: r?.requests?.limit_day,
+        error: error ?? (r?.subscription?.active === false ? 'Abonnementet er ikke aktivt' : undefined),
+      })
+    } catch (e) {
+      out.push({ api, label: def.label, ok: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return out
+}

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
+import { ApiStatusCheck } from '../../../components/admin/ApiStatusCheck'
 import Link from 'next/link'
 import { realDataStatus, tsdbDanishLeagues } from '../../../lib/realdata'
 import { historyStatus } from '../../../lib/history'
@@ -136,6 +137,7 @@ export default async function DataStatusPage() {
         </section>
         <section className="panel prose__section">
           <h2 className="panel__title">API-Sports</h2>
+          <ApiStatusCheck />
           <p className="muted small">
             Nøgler i serverens env: <code>API_SPORTS_KEY</code> (alle) eller <code>API_SPORTS_KEY_FOOTBALL</code>, <code>_BASKETBALL</code>,{' '}
             <code>_NBA</code>, <code>_HOCKEY</code>, <code>_HANDBALL</code>, <code>_VOLLEYBALL</code>, <code>_AMERICAN_FOOTBALL</code>.

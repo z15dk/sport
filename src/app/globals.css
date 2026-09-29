@@ -1947,3 +1947,7 @@ a.player-games__match:hover { text-decoration: underline; }
 /* When the last column (form) is hidden, the last shown cell gets the row's rounded right edge */
 .table--compact td:not(.hide-sm):has(+ td.hide-sm:last-child) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 @media (max-width: 600px) { .table td:not(.hide-sm):has(+ td.hide-sm:last-child) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; } }
+.api-check { margin: 0 0 12px; }
+.api-check__list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.api-check__list .is-ok strong { color: var(--lime-deep); }
+.api-check__list .is-error { color: #c0341d; }
