@@ -46,13 +46,7 @@ export function WomenHero({ kicker, title1, title2, lead, image, position = 'cen
         <p className="women-hero__lead">{lead}</p>
         <div className="women-hero__cta">
           <Link className="women-hero__btn is-live" href={liveHref}>
-            {liveNow ? (
-              <>
-                <span className="live-dot" aria-hidden="true" /> {liveNow} {liveNow === 1 ? 'kamp' : 'kampe'} live nu
-              </>
-            ) : (
-              'Se live'
-            )}
+            {liveNow > 0 && <span className="live-dot" aria-hidden="true" />} Følg kampene live
           </Link>
           <a className="women-hero__btn" href="#kampe">
             {todayCount ? `Dagens ${n(todayCount)} kampe` : 'Kampprogram'}
