@@ -79,6 +79,11 @@ function TournamentList({ onPick }: { onPick: () => void }) {
               Alle klubber →
             </Link>
           </li>
+          <li>
+            <Link href={paths.women()} onClick={onPick}>
+              Kvindefodbold →
+            </Link>
+          </li>
         </ul>
       </div>
     </div>
@@ -182,6 +187,9 @@ export function SiteNav() {
           </button>
           <Link className={`topbar__btn topbar__live${live ? ' has-live' : ''}`} href="/?live=1">
             <span className="live-dot" aria-hidden /> Live {live > 0 && <span className="topbar__count">{live}</span>}
+          </Link>
+          <Link className={`topbar__btn${pathname === '/kvindefodbold' ? ' is-open' : ''}`} href={paths.women()}>
+            Kvinder
           </Link>
           <button type="button" className={`topbar__btn${open === 'teams' ? ' is-open' : ''}`} aria-expanded={open === 'teams'} onClick={() => toggle('teams')}>
             <Icon name="star" /> Mine hold

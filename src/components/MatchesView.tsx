@@ -16,7 +16,7 @@ import { AdSlot } from './AdSlot'
 import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { externalMatch, getMatches, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
 import { getRealData } from '../data/real'
@@ -82,9 +82,13 @@ interface Props {
   initialNow: number
   /** "Live" in the menu opens the page on the matches being played */
   initialFilter?: StateFilter
+  /** Women's football only (the /kvindefodbold page) */
+  women?: boolean
 }
 
-export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women }: Props) {
+  // The day's matches: all of the sport's, or only the women's
+  const dayMatches = (d: string, n: number) => (women ? getMatches(d, 'soccer', n).filter(isWomenMatch) : getMatches(d, sport, n))
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
   const [filter, setFilter] = useState<StateFilter>(initialFilter)
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
@@ -104,15 +108,15 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
   // Recomputed when new data arrives (the version changes) as well as when time passes
   const dataVersion = getRealData()?.version
-  const fictional = useMemo(() => getMatches(date, sport, now), [date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const fictional = useMemo(() => dayMatches(date, now), [date, sport, now, dataVersion, women]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const matches = fictional
 
   // The time view lists the chosen day only (more days made the page slow); "Næste kampdag" goes on
   const DAYS_AHEAD = 0
   const range = useMemo(
-    () => (order === 'time' ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => getMatches(addDays(date, i), sport, now)).flat() : matches),
-    [order, date, sport, now, matches, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (order === 'time' ? Array.from({ length: DAYS_AHEAD + 1 }, (_, i) => dayMatches(addDays(date, i), now)).flat() : matches),
+    [order, date, sport, now, matches, dataVersion, women], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const pinned = useMemo(() => new Set(pinnedList), [pinnedList])
@@ -160,14 +164,14 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     const have = new Set(groups.map((g) => g.leagueId))
     const covered = DIVISIONS.flatMap((d, i): LeagueGroup[] => {
       const leagueId = `${d.countryCode.toLowerCase()}-${d.id}`
-      if (have.has(leagueId) || (sport !== 'all' && sportOf(d) !== sport) || !shownDivisions().includes(d)) return []
+      if (women || have.has(leagueId) || (sport !== 'all' && sportOf(d) !== sport) || !shownDivisions().includes(d)) return []
       return [{ leagueId, leagueSlug: d.slug, league: d.name, country: d.country, order: i, matches: [] }]
     })
     // The cups we follow, also on days without cup games
     const cups: LeagueGroup[] = []
     if (sport === 'all' || sport === 'soccer') {
       for (const g of getRealData()?.external ?? []) {
-        if (!cupOfGame(g)) continue
+        if (!cupOfGame(g) || (women && !isWomenGame(g))) continue
         const m = externalMatch(g)
         if (have.has(m.leagueId) || cups.some((c) => c.leagueId === m.leagueId)) continue
         cups.push({ leagueId: m.leagueId, leagueSlug: m.leagueSlug, league: m.league, country: m.country, leagueBadge: m.leagueBadge, order: m.leagueOrder, matches: [] })
@@ -181,12 +185,14 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const featured = useMemo(() => {
     const from = hour * 3_600_000 + 12 * 3_600_000
     const start = hour * 3_600_000
-    return upcomingMatches(sport, isoDate(start), start, 2, 10_000).filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
-  }, [sport, hour, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+    return upcomingMatches(women ? 'soccer' : sport, isoDate(start), start, 2, 10_000)
+      .filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
+      .filter((m) => !women || isWomenMatch(m))
+  }, [sport, hour, dataVersion, women]) // eslint-disable-line react-hooks/exhaustive-deps
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
   // From the server when given (it has the ten days; the browser only the days shown)
   const upcoming = useMemo(
-    () => (upcomingGiven ? upcomingGiven.filter((m) => m.state === 'live' || m.kickoff.getTime() > now) : upcomingMatches(sport, today, now)),
+    () => (upcomingGiven ? upcomingGiven.filter((m) => m.state === 'live' || m.kickoff.getTime() > now) : upcomingMatches(sport, today, now).filter((m) => !women || isWomenMatch(m))),
     [upcomingGiven, sport, today, now, dataVersion], // eslint-disable-line react-hooks/exhaustive-deps
   )
   // Worked out on the server, which has every day's games (the browser only gets the days shown)
@@ -194,14 +200,15 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const prevDay = useMemo(() => (nearDays ? nearDays.prev : nearestMatchDay(date, sport, -1, now)), [nearDays, date, sport, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
+  const dayHref = (d: string) => (women ? paths.women({ dato: d, today }) : paths.home({ sport: sportDef.slug, dato: d, today }))
   return (
     <div className="page">
       {/* On phones the sports come first, above the live strip */}
-      <SportTabs active={sport} className="sport-tabs--mobile" />
+      {!women && <SportTabs active={sport} className="sport-tabs--mobile" />}
 
       <LiveStrip matches={searched} upcoming={league ? upcoming.filter((m) => m.leagueId === league) : upcoming} now={now} />
 
-      {(sport === 'soccer' || sport === 'all') && real.length === 0 && (
+      {!women && (sport === 'soccer' || sport === 'all') && real.length === 0 && (
         <div className="banner" role="status">
           Kampene hentes – kom tilbage om lidt.
         </div>
@@ -211,8 +218,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
         <Sidebar groups={allGroups} pinned={pinned} selected={league} onSelect={setLeague} />
 
         <main className="feed" id="kampe">
-          <MyTeams now={now} />
-          <SportTabs active={sport} className="sport-tabs--desktop" />
+          {!women && <MyTeams now={now} />}
+          {!women && <SportTabs active={sport} className="sport-tabs--desktop" />}
           <div className="feed__head">
             <h1 className="feed__title">
               {heading ?? sportDef.label}
@@ -228,7 +235,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
               </button>
             </div>
           </div>
-          <DateStrip selected={date} today={today} sport={sportDef.slug} />
+          <DateStrip selected={date} today={today} sport={sportDef.slug} women={women} />
 
           {(order === 'time' ? days.length === 0 : groups.length === 0) ? (
             <div className="panel empty">
@@ -236,12 +243,12 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
               {!query && (nextDay || prevDay) && (
                 <p className="empty__links">
                   {nextDay && (
-                    <Link className="pill is-active" href={paths.home({ sport: sportDef.slug, dato: nextDay, today })}>
+                    <Link className="pill is-active" href={dayHref(nextDay)}>
                       Næste kampdag: {formatLong(nextDay)} →
                     </Link>
                   )}
                   {prevDay && (
-                    <Link className="pill" href={paths.home({ sport: sportDef.slug, dato: prevDay, today })}>
+                    <Link className="pill" href={dayHref(prevDay)}>
                       ← Seneste resultater: {formatLong(prevDay)}
                     </Link>
                   )}
@@ -298,7 +305,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
         </main>
 
         <aside className="aside">
-          <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${sport}|${hour}`} />
+          <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${women ? 'women' : sport}|${hour}`} />
 
           <AdSlot placement="side" />
         </aside>

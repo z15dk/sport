@@ -165,7 +165,21 @@ export function clubMatches(clubName: string, now: number): Match[] {
 }
 
 /** A women's tournament (or team league) by its name */
-const WOMEN = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga/i
+const WOMEN = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga|\bwsl\b|\bliga f\b|première ligue|arkema|damer|\bdame\b/i
+/** A women's team by its name: "Brondby W", "HB Køge Women" */
+const WOMEN_TEAM = /\b(w|women|kvinder|damer|dames|frauen|femenino|feminino|féminines)\b\.?$/i
+
+/** A women's football game (the /kvindefodbold page): the tournament's name, or both teams named as women's teams */
+export function isWomenGame(g: ExternalGame): boolean {
+  if (g.sport !== 'soccer') return false
+  return WOMEN.test(g.league.originalName ?? g.league.name) || (WOMEN_TEAM.test(g.home.name) && WOMEN_TEAM.test(g.away.name))
+}
+
+/** The same for a match as the pages show it */
+export function isWomenMatch(m: Match): boolean {
+  if (m.sport !== 'soccer') return false
+  return WOMEN.test(m.league) || (WOMEN_TEAM.test(m.home.name) && WOMEN_TEAM.test(m.away.name))
+}
 
 /**
  * A team's games in the tournaments we keep for the whole season (our cups,

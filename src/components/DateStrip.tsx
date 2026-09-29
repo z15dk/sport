@@ -9,12 +9,14 @@ interface Props {
   selected: string
   today: string
   sport: string
+  /** Links to another page's days (women's football) instead of the front page's */
+  women?: boolean
 }
 
 // From yesterday to ten days ahead
 const RANGE = Array.from({ length: 12 }, (_, i) => i - 1)
 
-export function DateStrip({ selected, today, sport }: Props) {
+export function DateStrip({ selected, today, sport, women }: Props) {
   const days = useRef<HTMLDivElement>(null)
   // Keep the chosen day in view when the strip scrolls sideways
   useEffect(() => {
@@ -22,7 +24,7 @@ export function DateStrip({ selected, today, sport }: Props) {
     if (active && days.current) days.current.scrollLeft = active.offsetLeft - days.current.clientWidth / 2 + active.clientWidth / 2
   }, [selected])
 
-  const href = (date: string) => paths.home({ sport, dato: date, today })
+  const href = (date: string) => (women ? paths.women({ dato: date, today }) : paths.home({ sport, dato: date, today }))
   const label = (d: string) =>
     d === today ? 'I dag' : d === addDays(today, -1) ? 'I går' : d === addDays(today, 1) ? 'I morgen' : formatWeekday(d)
 
