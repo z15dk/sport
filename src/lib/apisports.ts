@@ -68,7 +68,7 @@ function stateOf(short: string): MatchState {
   if (UPCOMING.has(short) || !short) return 'upcoming'
   return 'live'
 }
-const PERIOD_LABEL: Record<string, string> = { ET: 'Forl.', PT: 'Straffe', LIVE: 'Live', HT: 'Pause', BT: 'Pause', P: 'Straffe', OT: 'Forl.', Q1: '1. kvt.', Q2: '2. kvt.', Q3: '3. kvt.', Q4: '4. kvt.', P1: '1. periode', P2: '2. periode', P3: '3. periode' }
+const PERIOD_LABEL: Record<string, string> = { ET: 'Forl.', PT: 'Straffe', LIVE: 'Live', HT: 'Pause', BT: 'Pause', P: 'Straffe', OT: 'Forl.', Q1: '1. kvt.', Q2: '2. kvt.', Q3: '3. kvt.', Q4: '4. kvt.', P1: '1. periode', P2: '2. periode', P3: '3. periode', S1: '1. sæt', S2: '2. sæt', S3: '3. sæt', S4: '4. sæt', S5: '5. sæt' }
 
 /** Youth and reserve teams are left out everywhere */
 const notYouth = (g: ExternalGame) => !/\bU\s?\d{2}\b|youth|reserve|junior/i.test(g.league.name)
@@ -78,6 +78,14 @@ function leagues(byCountry: Record<string, RegExp>) {
     const rule = byCountry[g.league.country ?? '']
     return !!rule && rule.test(g.league.name)
   }
+}
+
+/** A live game's status: its quarter, period or set, with the clock when the source gives one */
+function liveLabel(short: string, timer: unknown): string {
+  const period = /^(Q[1-4]|P[1-3]|S[1-5])$/.test(short) ? PERIOD_LABEL[short] : undefined
+  const clock = timer != null && timer !== '' ? `${timer}'` : undefined
+  if (period) return clock ? `${period} ${clock}` : period
+  return clock ?? PERIOD_LABEL[short] ?? short
 }
 
 /** Games in the v1 format shared by basketball, hockey, handball and volleyball */
@@ -96,7 +104,8 @@ function v1Game(sport: SportId) {
       away: { name: r.teams.away.name, logo: r.teams.away.logo ?? undefined, id: num(r.teams.away.id) },
       kickoff: new Date(Number(r.timestamp) * 1000).toISOString(),
       state,
-      label: state === 'live' ? (r.status?.timer ? `${r.status.timer}'` : (PERIOD_LABEL[short] ?? short)) : undefined,
+      // The quarter or period first (basketball's and hockey's clock runs within it): "2. kvt. 6'"; handball's is the match's minute
+      label: state === 'live' ? liveLabel(short, r.status?.timer) : undefined,
       homeScore: total(r.scores?.home),
       awayScore: total(r.scores?.away),
     }
@@ -946,7 +955,7 @@ async function fetchSeason(api: Api, due: { league: string }) {
 }
 
 /** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
-const KEEP_VERSION = '2026-09-30-women-all-sports'
+const KEEP_VERSION = '2026-09-30-women-b-liga'
 
 /**
  * The fast lane for paid plans: while games are on, today is fetched every 30

@@ -41,8 +41,12 @@ export const WOMEN_TEAM = /\b(w|women|kvinder|damer|dames|frauen|femenino|femini
 
 /** A women's game (every sport): the tournament's name, or both teams named as women's teams */
 export function isWomenGame(g: ExternalGame): boolean {
-  return WOMEN_LEAGUE.test(g.league.originalName ?? g.league.name) || (WOMEN_TEAM.test(g.home.name) && WOMEN_TEAM.test(g.away.name))
+  return isWomenLeague(g.league.originalName ?? g.league.name, g.league.country) || (WOMEN_TEAM.test(g.home.name) && WOMEN_TEAM.test(g.away.name))
 }
+
+/** Denmark's women's leagues are the A-, B- and C-Liga (the names say nothing of women); elsewhere a "B-Liga" is a men's league */
+const DANISH_WOMEN = /^([abc]-liga(en)?|kvindeserien|3F Kvindeserie)\b/i
+export const isWomenLeague = (name: string, country?: string) => WOMEN_LEAGUE.test(name) || (/^denmark$|^danmark$/i.test(country ?? '') && DANISH_WOMEN.test(name))
 
 /**
  * A round's name in Danish: "3rd Round" and "Round 3" -> "3. runde",

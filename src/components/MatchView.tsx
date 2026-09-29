@@ -64,7 +64,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
     <>
       <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
       {related && related.length > 0 && (
-        <section className="league" aria-labelledby="related-title">
+        <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
             <div className="league__toggle">
               <span className="league__titles">

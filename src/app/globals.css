@@ -579,6 +579,8 @@ h2.league__name { margin: 0; }
 
 /* Match page */
 .match-page { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1040px; margin-inline: auto; }
+/* "Flere kampe i …" under the match: as wide as the page above it */
+.match-related { width: 100%; max-width: 1040px; margin-inline: auto; box-sizing: border-box; }
 .match-page .duel { padding: 28px 20px; }
 .duel__team a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .match-page__title {
@@ -2054,3 +2056,6 @@ a.player-games__match:hover { text-decoration: underline; }
 .women-admin__form .is-wide { grid-column: 1 / -1; }
 .women-admin__buttons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 0 18px 18px; }
 .women-admin__preview { pointer-events: none; }
+
+/* "Følg dine hold" closed once: hidden from the first paint (script in the layout) */
+[data-teams-hint='hidden'] .my-teams--hint { display: none; }

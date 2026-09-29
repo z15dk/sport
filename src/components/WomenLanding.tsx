@@ -9,7 +9,7 @@ import { externalOn, getMatches, isWomenGame, isWomenMatch, upcomingMatches } fr
 import { competitionLabel } from '../data/leagues'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../lib/jsonld'
 import { SITE_NAME, paths } from '../lib/site'
-import { addDays, formatFull, isoDate, isValidIsoDate } from '../lib/time'
+import { addDays, formatDayMonth, formatFull, formatTime, formatWeekday, isoDate, isValidIsoDate } from '../lib/time'
 import { ALL_SPORTS, SPORTS } from '../sports'
 import type { Match, SportFilter } from '../types'
 
@@ -66,13 +66,27 @@ export function womenMetadata(s: WomenSport, dato: string | undefined): Metadata
 
 /** The tournaments with women's games around today, most games first */
 function tournaments(days: Match[][]) {
-  const map = new Map<string, { m: Match; games: number }>()
+  const map = new Map<string, { m: Match; games: number; live: boolean; next?: Date; last?: Date }>()
   for (const m of days.flat()) {
-    const t = map.get(m.leagueId)
-    if (t) t.games++
-    else map.set(m.leagueId, { m, games: 1 })
+    const t = map.get(m.leagueId) ?? map.set(m.leagueId, { m, games: 0, live: false }).get(m.leagueId)!
+    t.games++
+    if (m.state === 'live') t.live = true
+    else if (m.state === 'upcoming' && (!t.next || m.kickoff < t.next)) t.next = m.kickoff
+    else if (m.state === 'finished' && (!t.last || m.kickoff > t.last)) t.last = m.kickoff
   }
-  return [...map.values()].sort((a, b) => b.games - a.games || a.m.league.localeCompare(b.m.league, 'da'))
+  return [...map.values()].sort((a, b) => Number(b.live) - Number(a.live) || b.games - a.games || a.m.league.localeCompare(b.m.league, 'da'))
+}
+
+/** When a tournament plays: now, its next match, or its last one */
+function whenText(t: { live: boolean; next?: Date; last?: Date }, today: string) {
+  const day = (d: Date) => {
+    const iso = isoDate(d)
+    return iso === today ? `i dag kl. ${formatTime(d)}` : iso === addDays(today, 1) ? `i morgen kl. ${formatTime(d)}` : `${formatWeekday(iso)} ${formatDayMonth(iso)}`
+  }
+  if (t.live) return 'Spiller nu'
+  if (t.next) return `Næste kamp ${day(t.next)}`
+  if (t.last) return `Seneste kamp ${day(t.last)}`
+  return undefined
 }
 
 const n = (x: number) => x.toLocaleString('da-DK')
@@ -161,14 +175,15 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
               <section className="panel women-leagues">
                 <h2 className="panel__title">Turneringerne vi følger</h2>
                 <ul>
-                  {leagues.slice(0, 24).map(({ m, games: count }) => {
+                  {leagues.slice(0, 24).map((t) => {
+                    const { m } = t
                     const body = (
                       <>
                         <TeamBadge link={false} name={m.league} src={m.leagueBadge} size={32} label={competitionLabel(m.league)} />
                         <span>
                           <b>{m.league}</b>
                           <small>
-                            {[s.id === 'all' ? SPORTS.find((x) => x.id === m.sport)?.label : undefined, m.country, `${count} kampe omkring i dag`].filter(Boolean).join(' · ')}
+                            {[s.id === 'all' ? SPORTS.find((x) => x.id === m.sport)?.label : undefined, m.country, whenText(t, today)].filter(Boolean).join(' · ')}
                           </small>
                         </span>
                       </>

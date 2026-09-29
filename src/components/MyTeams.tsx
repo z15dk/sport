@@ -145,7 +145,11 @@ export function MyTeams({ now }: { now: number }) {
         <header className="my-teams__head">
           <h2>Følg dine hold</h2>
           <span>Få næste kamp, live-stilling og seneste resultat øverst – tryk på et hold</span>
-          <button type="button" className="text-btn" onClick={() => setHintHidden(true)} aria-label="Skjul">
+          <button type="button" className="text-btn" onClick={() => {
+              setHintHidden(true)
+              document.documentElement.setAttribute('data-teams-hint', 'hidden')
+            }}
+            aria-label="Skjul">
             ✕
           </button>
         </header>

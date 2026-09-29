@@ -2,7 +2,7 @@ import type { Match, SportFilter, SportId } from '../types'
 import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
-import { WOMEN_LEAGUE, WOMEN_TEAM, externalToMatch, gameKey, isWomenGame, type ExternalGame } from './external'
+import { WOMEN_TEAM, externalToMatch, isWomenLeague, gameKey, isWomenGame, type ExternalGame } from './external'
 
 export { isWomenGame }
 import { alike, clubNames, normalize } from './aliases'
@@ -166,11 +166,9 @@ export function clubMatches(clubName: string, now: number): Match[] {
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
 }
 
-/** A women's tournament (or team league) by its name (shared with the data job in external.ts) */
-const WOMEN = WOMEN_LEAGUE
 /** The same for a match as the pages show it */
 export function isWomenMatch(m: Match): boolean {
-  return WOMEN.test(m.league) || (WOMEN_TEAM.test(m.home.name) && WOMEN_TEAM.test(m.away.name))
+  return isWomenLeague(m.league, m.country) || (WOMEN_TEAM.test(m.home.name) && WOMEN_TEAM.test(m.away.name))
 }
 
 /**
@@ -183,7 +181,7 @@ export function teamTournamentMatches(names: string[], women: boolean): Match[] 
   const bare = (n: string) => normalize(n.replace(/\b(w|women|q|kvinder)\b\.?/gi, '').trim())
   const keys = new Set(names.map(bare))
   return (getRealData()?.external ?? [])
-    .filter((g) => !divisionOfGame(g) && wholeSeason(g) && WOMEN.test(g.league.originalName ?? g.league.name) === women)
+    .filter((g) => !divisionOfGame(g) && wholeSeason(g) && isWomenLeague(g.league.originalName ?? g.league.name, g.league.country) === women)
     .filter((g) => keys.has(bare(g.home.name)) || keys.has(bare(g.away.name)))
     .map(externalMatch)
 }
@@ -195,7 +193,7 @@ export function teamTournamentMatches(names: string[], women: boolean): Match[] 
  */
 export function teamGames(team: { name: string; names?: string[]; sport: SportId; league: string; leagueSlug?: string }, now: number): Match[] {
   const names = team.names ?? [team.name]
-  const women = WOMEN.test(team.league) || /\b(w|women)\b/i.test(team.name)
+  const women = isWomenLeague(team.league) || /\b(w|women)\b/i.test(team.name)
   const league = teamMatches(names, team.sport, addDays(isoDate(now), -10), 40, now, team.names ? team.leagueSlug : undefined)
   const tournaments = team.sport === 'soccer' ? teamTournamentMatches(names, women) : []
   return [...new Map([...league, ...tournaments].map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())

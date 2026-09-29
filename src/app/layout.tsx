@@ -54,8 +54,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const badges = await getBadges()
   const real = loadRealData()
   return (
-    <html lang="da">
+    // The attribute below is set by the script before the page is drawn (not by React)
+    <html lang="da" suppressHydrationWarning>
       <head>
+        {/* A closed "Følg dine hold" stays closed from the first paint (the box itself reads the choice only after loading) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{if(localStorage.getItem('myTeamsHintHidden')==='true')document.documentElement.setAttribute('data-teams-hint','hidden')}catch(e){}",
+          }}
+        />
       </head>
       <body>
         <JsonLd data={websiteLd()} />
