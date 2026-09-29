@@ -92,6 +92,9 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Se
   const slots = slotsOf(picks)
   const weekdayTopic = cfg.topics[String(new Date(`${date}T12:00:00Z`).getUTCDay())]
   const base = { date, matchIds: ids }
+  // Women's football: its own pick of the day's women's games
+  const womenPicks = pickMatches(date, now, () => true, cfg.matches, true)
+  const womenBase = { date, matchIds: womenPicks.map((p) => p.fixture.id), women: true }
   return (
     <div className="page">
       <div className="clubs prose admin">
@@ -137,6 +140,13 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Se
           where="Karrusel i feed · forsiden viser de udvalgte kampes resultater; eget kort kun til kampe, hvor alle mål har en målscorer med navn"
           empty="Ingen færdige kampe endnu."
         />
+        <h2 className="feed__title" style={{ marginTop: 32 }}>Kvindefodbold</h2>
+        <p className="muted">Dagens kvindekampe med samme kort, i kvindefodboldens farver og med mærket øverst.</p>
+        <Section spec={{ ...womenBase, kind: 'programme' }} now={now} time={cfg.times.programme} label="Morgen" title="Kvindefodbold: dagens kampe" where={`Feed og story · ${womenPicks.length} kampe`} empty="Ingen kvindekampe denne dag." />
+        {slotsOf(womenPicks).map(([slot]) => (
+          <Section key={`w-${slot}`} spec={{ ...womenBase, kind: 'story', slot }} now={now} time={`–${cfg.times.storyBefore} m`} label="Før kamp" title={`Kvindefodbold: story kl. ${slot}`} where="Story på Facebook og Instagram" empty="" />
+        ))}
+        <Section spec={{ ...womenBase, kind: 'results' }} now={now} time={`+${cfg.times.resultsAfter} m`} label="Efter kampene" title="Kvindefodbold: resultater" where="Karrusel i feed" empty="Ingen færdige kvindekampe endnu." />
         <p className="muted small">Kortene vises formindsket: 4:5 til feed (1080×1350) og 9:16 til stories (1080×1920).</p>
         <ShareImages date={date} now={now} />
       </div>

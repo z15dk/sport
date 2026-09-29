@@ -243,3 +243,29 @@
 .render .fig, .render .fig.story { width: 540px; }
 .render figcaption { display: none; }
 .render .card { border-radius: 0; box-shadow: none; }
+
+/* ---------- women's football: the same cards, violet instead of lime, with a tag on top ---------- */
+.womenTag { display: none; }
+.siteWomen { display: none; }
+.women .womenTag {
+  display: inline-block;
+  margin-right: 2cqw;
+  padding: 0.6cqw 2cqw;
+  border-radius: 999px;
+  background: #b69cff;
+  color: #16181a;
+  font-weight: 800;
+  font-size: 2.8cqw;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.3cqw;
+  opacity: 1;
+}
+.women .hd { opacity: 1; }
+.women .hd > span { opacity: 0.95; }
+.women .siteAll { display: none; }
+.women .siteWomen { display: inline; }
+.women .wmM { -webkit-text-stroke-color: #b69cff; }
+.women .wmMGreen { filter: drop-shadow(0 0 1.2cqw rgba(182, 156, 255, 0.45)); opacity: 0.45; }
+.women .brandbar { background: #15101f; }
+.women .fixtureTime { background: #15101f; }

@@ -5,8 +5,9 @@ import { DIVISIONS, sportOf } from '../data/leagues'
 import { allFixtures, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
 import { leagueStats, type ScorerRow } from '../data/stats'
 import { alike } from '../data/aliases'
-import { getMatches } from '../data/matches'
+import { getMatches, isWomenMatch } from '../data/matches'
 import { teamByName } from '../data/teams'
+import { ourClubByName } from '../data/cups'
 import { addDays, isoDate } from './time'
 import { realHeadToHead } from './history'
 import { EXTERNAL_PRIORITIES, socialConfig } from './socialStore'
@@ -206,7 +207,12 @@ function externalWeight(m: Match) {
 function externalFixture(m: Match): Fixture {
   const club = (name: string): Club => {
     const t = teamByName(name)
-    return { id: `x-${t?.slug ?? name}`, slug: t?.slug ?? name, name, city: '', colors: t?.colors ?? t?.season?.club.colors ?? ['#16181a', '#ffffff'] }
+    // A women's team without colours of its own wears its club's: "Brøndby W" in Brøndby's yellow
+    const bare = name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino)\.?$/i, '').trim()
+    const parent = t?.colors || t?.season ? undefined : bare !== name ? (ourClubByName(bare, 'soccer')?.club ?? teamByName(bare)) : undefined
+    const parentColors = parent && ('season' in parent ? (parent.colors ?? parent.season?.club.colors) : parent.colors)
+    const colors = t?.colors ?? t?.season?.club.colors ?? parentColors ?? ['#16181a', '#ffffff']
+    return { id: `x-${t?.slug ?? name}`, slug: t?.slug ?? name, name, city: '', colors }
   }
   const hasScore = m.home.score !== undefined && m.away.score !== undefined
   return {
@@ -251,14 +257,15 @@ type Scored = {
 }
 
 /** Every match of a day with its score: league weight (0 = never), table, goals and the admin's favourite clubs */
-function scoredMatches(date: string, now: number, only: (f: Fixture) => boolean): Scored[] {
-  const ours = fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed' && only(f))
+function scoredMatches(date: string, now: number, only: (f: Fixture) => boolean, women = false): Scored[] {
+  // Women's football: only the women's games (our leagues are the men's)
+  const ours = women ? [] : fixturesOn(date).filter((f) => f.division && f.real.state !== 'postponed' && only(f))
   const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
   const known = new Set(ours.map((f) => f.id))
   const favorites = socialConfig().favorites
   const favorite = (f: Fixture) => favorites.some((n) => alike([n], f.home.name) || alike([n], f.away.name))
   // Cups, Champions League and API-Sports' other leagues, for days our leagues rest
-  const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed')
+  const others = getMatches(date, 'all', now).filter((m) => !known.has(m.id) && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && m.state !== 'postponed' && (!women || isWomenMatch(m)))
   const scored: Scored[] = [
     ...ours.flatMap((f) => {
       const div = f.division!
@@ -330,8 +337,8 @@ function decorate(chosen: Scored[], scored: Scored[], now: number): Pick[] {
 }
 
 /** The day's matches (5, or the number set in the admin): the best of each league first, then the next best */
-export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true, count = socialConfig().matches || DAY_MATCHES): Pick[] {
-  const scored = scoredMatches(date, now, only)
+export function pickMatches(date: string, now: number, only: (f: Fixture) => boolean = () => true, count = socialConfig().matches || DAY_MATCHES, women = false): Pick[] {
+  const scored = scoredMatches(date, now, only, women)
   const chosen: Scored[] = []
   const leagues = new Set<string>()
   for (const s of scored) {

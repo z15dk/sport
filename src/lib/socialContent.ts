@@ -33,12 +33,14 @@ export interface PostSpec {
   topic?: TopicId
   slot?: string
   matchIds: string[]
+  /** Women's football: its own posts and look */
+  women?: boolean
 }
 
 export type Content =
-  | { kind: 'programme'; date: string; picks: Pick[] }
-  | { kind: 'story'; date: string; slot: string; picks: Pick[] }
-  | { kind: 'results'; date: string; overview: Pick[]; detailed: Pick[] }
+  | { kind: 'programme'; date: string; picks: Pick[]; women?: boolean }
+  | { kind: 'story'; date: string; slot: string; picks: Pick[]; women?: boolean }
+  | { kind: 'results'; date: string; overview: Pick[]; detailed: Pick[]; women?: boolean }
   | { kind: 'topic'; topic: 'week'; date: string; week: WeekNumbers }
   | { kind: 'topic'; topic: 'scorers'; date: string; division: Division; rows: ScorerRow[] }
   | { kind: 'topic'; topic: 'form'; date: string; division: Division; rows: FormRow[] }
@@ -49,19 +51,19 @@ export type Content =
 
 /** The post's data, or undefined when there is nothing good enough to post */
 export function contentFor(spec: PostSpec, now: number): Content | undefined {
-  const { date, matchIds } = spec
+  const { date, matchIds, women } = spec
   switch (spec.kind) {
     case 'programme': {
       const picks = picksFor(date, now, matchIds)
-      return picks.length ? { kind: 'programme', date, picks } : undefined
+      return picks.length ? { kind: 'programme', date, picks, women } : undefined
     }
     case 'story': {
       const picks = picksFor(date, now, matchIds).filter((p) => formatTime(p.fixture.kickoff) === spec.slot)
-      return picks.length ? { kind: 'story', date, slot: spec.slot!, picks } : undefined
+      return picks.length ? { kind: 'story', date, slot: spec.slot!, picks, women } : undefined
     }
     case 'results': {
       const overview = picksFor(date, now, matchIds, isFinishedMatch)
-      return overview.length ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)) } : undefined
+      return overview.length ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)), women } : undefined
     }
     case 'topic': {
       const div = topicDivision()
@@ -106,6 +108,7 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
 /** The admin's name for the post */
 export function titleFor(spec: PostSpec): string {
+  if (spec.women) return `Kvindefodbold: ${titleFor({ ...spec, women: false }).toLowerCase()}`
   if (spec.kind === 'programme') return 'Dagens kampe'
   if (spec.kind === 'story') return `Story før kampstart kl. ${spec.slot}`
   if (spec.kind === 'results') return 'Resultater'
@@ -116,11 +119,11 @@ export function titleFor(spec: PostSpec): string {
 export function captionFor(c: Content): string {
   switch (c.kind) {
     case 'programme':
-      return [`${cap(formatLong(c.date))}: dagens udvalgte kampe`, '', ...c.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)].join('\n')
+      return [`${cap(formatLong(c.date))}: ${c.women ? 'dagens kampe i kvindefodbold' : 'dagens udvalgte kampe'}`, '', ...c.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)].join('\n')
     case 'story':
       return c.picks.map((p) => `${vs(p)} kl. ${formatTime(p.fixture.kickoff)}`).join('\n')
     case 'results':
-      return [`Resultater ${formatLong(c.date)}`, '', ...c.overview.map((p) => `${p.fixture.home.name} ${score(p)} ${p.fixture.away.name}`)].join('\n')
+      return [`${c.women ? 'Kvindefodbold: resultater' : 'Resultater'} ${formatLong(c.date)}`, '', ...c.overview.map((p) => `${p.fixture.home.name} ${score(p)} ${p.fixture.away.name}`)].join('\n')
     case 'topic':
       switch (c.topic) {
         case 'week': {
@@ -162,6 +165,7 @@ export function captionFor(c: Content): string {
 
 /** The page the post points to on our site */
 export function linkFor(c: Content): string {
+  if ('women' in c && c.women) return `${SITE_URL}${paths.women()}`
   if (c.kind === 'topic' && 'division' in c) return `${SITE_URL}${paths.league(c.division.slug)}`
   if (c.kind === 'topic' && c.topic === 'bigmatch') return `${SITE_URL}${paths.match(c.pick.fixture.slug)}`
   if (c.kind === 'story' && c.picks.length === 1) return `${SITE_URL}${paths.match(c.picks[0].fixture.slug)}`

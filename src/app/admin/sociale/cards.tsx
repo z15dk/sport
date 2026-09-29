@@ -99,9 +99,13 @@ export function Card({ children, story, caption, style, className }: { children:
   )
 }
 
+/** The card's top line; the women's cards (a .women carousel) add their tag */
 const Head = ({ left }: { left: string }) => (
   <div className={s.hd}>
-    <span>{left}</span>
+    <span>
+      <b className={s.womenTag}>Kvindefodbold</b>
+      {left}
+    </span>
   </div>
 )
 /** The Matchly bar at the foot of every card, with the address, so the sender shows wherever a card is shared */
@@ -110,7 +114,8 @@ const Foot = ({ left, right }: { left?: string; right?: string }) => (
     <span className={s.brandLogo}>
       Matchly<b>.</b>
     </span>
-    <small>{['matchly.dk', left, right].filter(Boolean).join(' · ')}</small>
+    <small className={s.siteAll}>{['matchly.dk', left, right].filter(Boolean).join(' · ')}</small>
+    <small className={s.siteWomen}>{['matchly.dk/kvindefodbold', left, right].filter(Boolean).join(' · ')}</small>
   </div>
 )
 
@@ -1099,6 +1104,12 @@ export function FactsCards({ date, picks, logos }: { date: string; picks: Pick[]
 
 /** Every card of one post, from its content (src/lib/socialContent.ts) */
 export function PostCards({ content: c, logos }: { content: Content; logos: Logos }) {
+  // Women's football: the same cards in its own colours and with its tag
+  if ('women' in c && c.women) return <div className={s.women}>{PostCardsOf(c, logos)}</div>
+  return PostCardsOf(c, logos)
+}
+
+function PostCardsOf(c: Content, logos: Logos) {
   switch (c.kind) {
     case 'programme':
       return <Programme date={c.date} picks={c.picks} logos={logos} />
