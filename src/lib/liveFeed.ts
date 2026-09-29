@@ -1,7 +1,6 @@
 import 'server-only'
 import type { RealData } from '../data/real'
 import type { ExternalGame } from '../data/external'
-import { hashString } from '../data/fixtures'
 
 // Live scores for open pages without building the page again. The server
 // numbers every change in the games (score, state, minute, goals and cards);
@@ -31,10 +30,23 @@ const feed: Feed = (holder.__scorelineLive ??= { epoch: Date.now().toString(36),
 const fingerprint = (g: ExternalGame) =>
   `${g.state}|${g.homeScore ?? ''}-${g.awayScore ?? ''}|${g.label ?? ''}|${g.kickoff}|${g.incidents?.length ?? 0}|${g.ht?.join('-') ?? ''}`
 
-/** Everything besides the games' own state, as one short string */
+/**
+ * Everything besides the games' own state, as one short string: only the
+ * fields a page shows of our leagues' fixtures (not whole objects, which with
+ * a season of goals and the TV listings are many MB), and the small admin data
+ */
 function otherKey(real: RealData): string {
-  const { leagues, clubNames, leagueNames, channels, settings } = real
-  return hashString(JSON.stringify([leagues, clubNames, leagueNames, channels, settings])).toString(36)
+  let h = 0
+  const mix = (s: string) => {
+    for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  }
+  for (const [id, events] of Object.entries(real.leagues)) {
+    mix(id)
+    for (const e of events) mix(`${e.id}${e.kickoff}${e.state}${e.homeScore ?? ''}${e.awayScore ?? ''}${e.incidents?.length ?? 0}`)
+  }
+  const c = real.channels
+  mix(JSON.stringify([real.clubNames, real.leagueNames, real.settings, c?.channels, c?.rules, c?.overrides, Object.keys(c?.tv ?? {}).length]))
+  return (h >>> 0).toString(36)
 }
 
 /** Brings the numbering up to date with the data */

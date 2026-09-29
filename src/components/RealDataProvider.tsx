@@ -29,7 +29,8 @@ interface LiveAnswer {
  * at a random moment within 25 seconds, so open pages don't all come at once.
  */
 export function RealDataProvider({ data, cursor, children }: { data?: RealData; cursor?: string; children: React.ReactNode }) {
-  setRealData(data)
+  // In the browser only: the server already has all the data (the page's share must never replace it there)
+  if (typeof window !== 'undefined') setRealData(data)
   const router = useRouter()
   // Where to ask from: the page's own cursor, new with every page from the server
   const at = useRef(cursor)
