@@ -543,6 +543,19 @@ const pausedByError = (s: ApiState, api: Api, now: number) =>
 const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
 const PAID_RESERVE = 300
+/**
+ * What the background work (past seasons' goals, cards and players, earlier
+ * tables) must leave for the rest of the day's live scores: the reserve plus a
+ * share of the live budget for the hours left until the reset. In the morning
+ * it keeps about 2,500 back, late in the day little, so the history is filled
+ * from the day's spare calls without eating the evening's live games.
+ */
+const LIVE_BUDGET = 2_500
+function backgroundReserve(s: ApiState | undefined): number {
+  if (!isPaid(s)) return 40
+  const budget = Math.min(LIVE_BUDGET, Math.round((s!.limit ?? 100) * 0.35))
+  return PAID_RESERVE + Math.round((budget * msUntilReset()) / 86_400_000)
+}
 
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
@@ -657,7 +670,7 @@ function backfillDay(api: Api, now: number): string | undefined {
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 40) return undefined
+  if (remaining <= backgroundReserve(s)) return undefined
   if (pausedByError(s, api, now)) return undefined
   const today = isoDate(now)
   for (let i = 2; i <= BACKFILL_DAYS; i++) {
@@ -718,7 +731,7 @@ function historyDue(api: Api): { division: Division; league: string; year: numbe
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 40) return undefined
+  if (remaining <= backgroundReserve(s)) return undefined
   learnLeagueIds(api)
   // Seasons saved before rounds and awarded matches were kept: fetched again once
   if ((s.historyVersion ?? 1) < 2) {
@@ -1038,7 +1051,7 @@ async function tick() {
       const s = mem.store.football
       for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
-        if (remaining < PAID_RESERVE) break
+        if (remaining < backgroundReserve(s)) break
         const ids = archiveMissingEvents(20)
         if (!ids.length) break
         const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
@@ -1065,7 +1078,7 @@ async function tick() {
       const s = mem.store.football
       for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
-        if (remaining < PAID_RESERVE) break
+        if (remaining < backgroundReserve(s)) break
         const ids = archiveMissingPlayers(20)
         if (!ids.length) break
         const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
@@ -1082,7 +1095,7 @@ async function tick() {
       for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
         const s = mem.store[api]!
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-        if (remaining <= 40) break
+        if (remaining <= backgroundReserve(s)) break
         const due = historyTableDue(api)
         if (!due) break
         try {
