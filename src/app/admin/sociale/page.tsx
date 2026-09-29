@@ -23,6 +23,15 @@ type SearchParams = Promise<{ dato?: string }>
 
 const clock = (ms: number) => formatTime(new Date(ms))
 
+const LogItem = ({ at, level, text }: { at: number; level: string; text: string }) => (
+  <li className={level === 'error' ? 'is-error' : undefined}>
+    <span className="muted">
+      {formatLong(new Date(at))} {clock(at)}
+    </span>{' '}
+    {text}
+  </li>
+)
+
 function Post({ p, now }: { p: SocialPost; now: number }) {
   const targets = targetsOf(p)
   const cfg = socialConfig()
@@ -231,18 +240,26 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
           <h2 className="panel__title">Log</h2>
           <ul className="social-log">
             {data.log
-              .slice(-40)
+              .slice(-10)
               .reverse()
               .map((l, i) => (
-                <li key={i} className={l.level === 'error' ? 'is-error' : undefined}>
-                  <span className="muted">
-                    {formatLong(new Date(l.at))} {clock(l.at)}
-                  </span>{' '}
-                  {l.text}
-                </li>
+                <LogItem key={i} at={l.at} level={l.level} text={l.text} />
               ))}
             {!data.log.length && <li className="muted">Intet endnu.</li>}
           </ul>
+          {data.log.length > 10 && (
+            <details className="social-guide social-pad">
+              <summary>Vis {Math.min(data.log.length, 60) - 10} ældre linjer</summary>
+              <ul className="social-log">
+                {data.log
+                  .slice(-60, -10)
+                  .reverse()
+                  .map((l, i) => (
+                    <LogItem key={i} at={l.at} level={l.level} text={l.text} />
+                  ))}
+              </ul>
+            </details>
+          )}
         </section>
       </div>
     </div>

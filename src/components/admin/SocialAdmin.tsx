@@ -388,39 +388,24 @@ export function ScheduleForm(p: SettingsProps) {
           <input name="matches" type="number" min={1} max={10} defaultValue={p.matches} />
         </Field>
       </div>
-      <table className="social-matrix">
-        <thead>
-          <tr>
-            <th>Opslag</th>
-            {Object.entries(p.platformNames).map(([k, n]) => (
-              <th key={k}>{n}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(p.kinds).map(([k, v]) => (
-            <tr key={k}>
-              <td>
-                <label className="social-check">
-                  <input type="checkbox" name={`kind-${k}`} defaultChecked={v.enabled} /> {p.kindNames[k]}
-                </label>
-              </td>
-              {Object.keys(p.platformNames).map((pl) => {
-                const storyOnly = k === 'story' && !p.storyPlatforms.includes(pl)
-                return (
-                  <td key={pl}>
-                    {storyOnly ? (
-                      <span className="muted small" title="Platformen har ingen stories i sin API">–</span>
-                    ) : (
-                      <input type="checkbox" name={`kind-${k}-p`} value={pl} defaultChecked={v.platforms.includes(pl)} aria-label={`${p.kindNames[k]} på ${p.platformNames[pl]}`} />
-                    )}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="social-kinds">
+        {Object.entries(p.kinds).map(([k, v]) => (
+          <div key={k} className="social-kind">
+            <label className="social-check">
+              <input type="checkbox" name={`kind-${k}`} defaultChecked={v.enabled} /> {p.kindNames[k]}
+            </label>
+            <div className="social-chips">
+              {Object.entries(p.platformNames)
+                .filter(([pl]) => k !== 'story' || p.storyPlatforms.includes(pl))
+                .map(([pl, name]) => (
+                  <label key={pl} className="social-chip">
+                    <input type="checkbox" name={`kind-${k}-p`} value={pl} defaultChecked={v.platforms.includes(pl)} /> {name}
+                  </label>
+                ))}
+            </div>
+          </div>
+        ))}
+      </div>
       <p className="muted small">Dagens kampe går både i feed og som story på Facebook og Instagram. Threads og X har ingen stories i deres API.</p>
       <Field label="Hashtags" hint="Sættes under teksten på Facebook og Instagram">
         <input name="hashtags" defaultValue={p.hashtags} />

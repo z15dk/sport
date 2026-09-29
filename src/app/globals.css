@@ -1926,3 +1926,18 @@ a.player-games__match:hover { text-decoration: underline; }
 /* The admin menu wraps instead of scrolling sideways, so every page (e.g. Sociale medier) is in sight on a phone */
 .admin-nav .filter-bar { flex-wrap: wrap; overflow: visible; border-radius: 22px; }
 .admin-subnav { row-gap: 6px; }
+.social-kinds { display: flex; flex-direction: column; gap: 10px; }
+.social-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.social-kind .social-check { min-width: 170px; }
+.social-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.social-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 600; cursor: pointer; }
+.social-chip:has(input:checked) { border-color: var(--ink); }
+@media (max-width: 560px) {
+  .social-post { padding: 12px; }
+  .social-post header { gap: 10px; }
+  .social-post__time { font-size: 20px; min-width: 50px; }
+  .social-thumbs img { height: 150px; }
+  .social-status { padding: 14px; }
+  .social-pad { padding: 0 14px 14px; }
+  .social-log { padding: 0 14px 14px; }
+}
