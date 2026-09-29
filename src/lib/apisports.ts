@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
-import { danishRound, externalLeagueKey, type ExternalGame } from '../data/external'
+import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
 import { alike } from '../data/aliases'
 import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
@@ -507,7 +507,8 @@ function allowed(s: ApiState | undefined, date: string, today: string) {
 function keeps(api: Api, g: ExternalGame): boolean {
   if (divisionOfGame(g) || cupOfGame(g)) return true
   const choice = followChoice(api, g.league.id)
-  return choice ? choice === 'on' : APIS[api].keep(g)
+  // Every women's league is followed (the /kvindefodbold page), unless switched off in the admin
+  return choice ? choice === 'on' : APIS[api].keep(g) || isWomenGame(g)
 }
 
 /** A paid plan: more than the free plan's 100 requests a day */
@@ -925,7 +926,7 @@ async function fetchSeason(api: Api, due: { league: string }) {
 }
 
 /** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
-const KEEP_VERSION = '2026-09-26-more-leagues'
+const KEEP_VERSION = '2026-09-29-women'
 
 /**
  * The fast lane for paid plans: while games are on, today is fetched every 30
@@ -1697,7 +1698,7 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
       },
       followed: false,
       fixed: !!ours || !!cupOfGame(probe),
-      standard: APIS[api].keep(probe),
+      standard: APIS[api].keep(probe) || isWomenGame(probe),
       ours: ours?.name,
     }
   })

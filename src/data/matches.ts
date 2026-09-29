@@ -2,7 +2,9 @@ import type { Match, SportFilter, SportId } from '../types'
 import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
-import { externalToMatch, gameKey, type ExternalGame } from './external'
+import { WOMEN_LEAGUE, WOMEN_TEAM, externalToMatch, gameKey, isWomenGame, type ExternalGame } from './external'
+
+export { isWomenGame }
 import { alike, clubNames, normalize } from './aliases'
 import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
@@ -164,17 +166,8 @@ export function clubMatches(clubName: string, now: number): Match[] {
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
 }
 
-/** A women's tournament (or team league) by its name */
-const WOMEN = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga|\bwsl\b|\bliga f\b|première ligue|arkema|damer|\bdame\b/i
-/** A women's team by its name: "Brondby W", "HB Køge Women" */
-const WOMEN_TEAM = /\b(w|women|kvinder|damer|dames|frauen|femenino|feminino|féminines)\b\.?$/i
-
-/** A women's football game (the /kvindefodbold page): the tournament's name, or both teams named as women's teams */
-export function isWomenGame(g: ExternalGame): boolean {
-  if (g.sport !== 'soccer') return false
-  return WOMEN.test(g.league.originalName ?? g.league.name) || (WOMEN_TEAM.test(g.home.name) && WOMEN_TEAM.test(g.away.name))
-}
-
+/** A women's tournament (or team league) by its name (shared with the data job in external.ts) */
+const WOMEN = WOMEN_LEAGUE
 /** The same for a match as the pages show it */
 export function isWomenMatch(m: Match): boolean {
   if (m.sport !== 'soccer') return false
