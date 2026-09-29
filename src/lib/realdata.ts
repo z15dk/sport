@@ -14,6 +14,7 @@ import { externalGames, seasonGames, tableTeams } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { addDays, isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
+import { clubAliasList } from './clubAliases'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
 import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../data/baselines'
@@ -185,6 +186,7 @@ function apply() {
   const db = databaseSeason()
   const external = externalGames()
   const names = clubNameOverrides()
+  const aliases = clubAliasList()
   const channels = channelData()
   const settings = siteSettings()
   const leagueNames = leagueNameOverrides()
@@ -195,7 +197,7 @@ function apply() {
     if (!l.teams.some((x) => x.name === t.name)) l.teams.push({ name: t.name, logo: t.logo })
   }
   const tablesKey = hashString(JSON.stringify(tables)).toString(36)
-  const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
+  const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
@@ -218,6 +220,7 @@ function apply() {
     tableTeams: tables,
     leagueNames: leagueNames.names,
     clubNames: names.names,
+    clubAliases: aliases.aliases,
     channels: channels.data,
     settings: settings.settings,
   })

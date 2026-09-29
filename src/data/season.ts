@@ -1,7 +1,7 @@
 import type { Incident, Match, MatchState } from '../types'
 import type { SportId } from '../types'
 import { getRealData, type RealData } from './real'
-import { alike, normalize, clubNames } from './aliases'
+import { alike, normalize, clubNames, setClubAliases } from './aliases'
 import { DIVISIONS, renameClubs, renameLeagues, sportOf, type Club, type Division } from './leagues'
 import { hashString } from './fixtures'
 import { GAME_LENGTH_MIN, type Extra } from './scoring'
@@ -118,7 +118,8 @@ function buildReal(real: RealData): Fixture[] {
 // ---------------------------------------------------------------- the season
 
 interface Season {
-  version?: string
+  /** What it was built from: the same objects give the same season (live scores leave them alone) */
+  from: [unknown, unknown, unknown, unknown]
   fixtures: Fixture[]
   byDate: Map<string, Fixture[]>
   realDivisions: Set<string>
@@ -129,8 +130,10 @@ let season: Season | undefined
 /** The season from the real data; rebuilt when the real data changes */
 function current(): Season {
   const real = getRealData()
-  if (season && season.version === real?.version) return season
+  const from: Season['from'] = [real?.leagues, real?.clubNames, real?.leagueNames, real?.clubAliases]
+  if (season && season.from.every((x, i) => x === from[i])) return season
   // Names changed in the admin pages, before anything is built from the clubs
+  setClubAliases(real?.clubAliases ?? {})
   renameClubs(real?.clubNames ?? {})
   renameLeagues(real?.leagueNames ?? {})
   const realDivisions = new Set(Object.entries(real?.leagues ?? {}).filter(([, e]) => e.length > 0).map(([id]) => id))
@@ -146,7 +149,7 @@ function current(): Season {
     if (!f.division) continue
     for (const club of [f.home, f.away]) if (!clubs.has(club.id)) clubs.set(club.id, { club, division: f.division })
   }
-  season = { version: real?.version, fixtures, byDate, realDivisions, clubs: [...clubs.values()] }
+  season = { from, fixtures, byDate, realDivisions, clubs: [...clubs.values()] }
   return season
 }
 

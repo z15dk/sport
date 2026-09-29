@@ -249,6 +249,13 @@ function read(file: string | undefined, mtime: number): Loaded {
   return { mtime, matches, clubOf, byClub, unmatched: unmatched.sort((a, b) => a.localeCompare(b, 'da')) }
 }
 
+/** After names are added in the admin pages: every team name is looked up again, and the data rebuilt */
+export function forgetResolvedNames() {
+  historyHolder.__scorelineResolvedAt = 0
+  hist.checkedAt = 0
+  if (hist.loaded) hist.loaded = { ...hist.loaded, readAt: 0, mtime: -1 }
+}
+
 /** The database in memory; re-read when the file changes (checked at most once a minute) */
 function data(): Loaded | undefined {
   const now = Date.now()

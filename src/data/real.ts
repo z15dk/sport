@@ -43,6 +43,8 @@ export interface RealData {
   tableTeams?: Record<string, { sport: SportId; league: string; country?: string; teams: { name: string; logo?: string }[] }>
   /** Club names changed in the admin pages, by club slug */
   clubNames?: Record<string, string>
+  /** Other names for our clubs set in the admin pages (unknown teams), by club id */
+  clubAliases?: Record<string, string[]>
   /** League names changed in the admin pages, by league slug (ours) or externalLeagueKey */
   leagueNames?: Record<string, string>
   /** Channels, rules, exceptions and TV listings (src/data/channels.ts) */

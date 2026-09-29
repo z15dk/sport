@@ -11,7 +11,9 @@ import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
 import { slowStatus } from '../../../lib/slow'
 import { archiveFile } from '../../../lib/archive'
-import { allClubs } from '../../../data/leagues'
+import { DIVISIONS, allClubs, sportOf } from '../../../data/leagues'
+import { clubAliasList } from '../../../lib/clubAliases'
+import { LeagueTeamsAdmin, type LeagueRow } from '../../../components/admin/LeagueTeamsAdmin'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
 /** What the kinds of API-Sports requests are (/admin/data's usage) */
@@ -39,15 +41,15 @@ const USAGE_NAMES: Record<string, string> = {
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Data & API · Admin', robots: { index: false, follow: false } }
 
-// Every name we know, as whole words: a team is "known" when one of them is a word run of its name
-const knownNames = (() => {
+// Every name we know (with the names set in the admin pages), as whole words: a team is "known" when one of them is a word run of its name
+function knownNames(aliases: Record<string, string[]>) {
   const set = new Set<string>()
-  for (const { club } of allClubs()) for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id]]) if (n) set.add(normalize(n))
+  for (const { club } of allClubs()) for (const n of [club.name, club.apiName, SEARCH_NAMES[club.id], ...(aliases[club.id] ?? [])]) if (n) set.add(normalize(n))
   return set
-})()
-const isKnown = (team: string) => {
+}
+const isKnownIn = (known: Set<string>, team: string) => {
   const words = normalize(team).split(' ')
-  for (let i = 0; i < words.length; i++) for (let j = i + 1; j <= words.length; j++) if (knownNames.has(words.slice(i, j).join(' '))) return true
+  for (let i = 0; i < words.length; i++) for (let j = i + 1; j <= words.length; j++) if (known.has(words.slice(i, j).join(' '))) return true
   return false
 }
 
@@ -104,7 +106,31 @@ export default async function DataStatusPage() {
   const fbShare = football?.limit ? fbLeft / football.limit : 1
   const fbUsed = football?.usage ? football.usage.hours.reduce((n, x) => n + x, 0) : 0
   const dataAge = s.fetchedAt ? (Date.now() - Date.parse(s.fetchedAt)) / 60_000 : Infinity
-  const leagues = s.leagues.map((l) => ({ ...l, unknown: l.teams.filter((t) => !isKnown(t)) }))
+  const aliases = clubAliasList().aliases
+  const known = knownNames(aliases)
+  const leagues = s.leagues.map((l) => ({ ...l, unknown: l.teams.filter((t) => !isKnownIn(known, t)) }))
+  const leagueRows: LeagueRow[] = leagues.map((l) => {
+    // The league's own clubs first, then those of our other leagues in the same country and sport (promoted and relegated clubs)
+    const div = DIVISIONS.find((d) => d.id === l.id)
+    const near = div ? DIVISIONS.filter((d) => d.countryCode === div.countryCode && sportOf(d) === sportOf(div)).sort((a, b) => Number(b === div) - Number(a === div)) : []
+    const seen = new Set<string>()
+    const clubs = near.flatMap((d) =>
+      [...d.clubs]
+        .sort((a, b) => a.name.localeCompare(b.name, 'da'))
+        .filter((c) => !seen.has(c.id) && seen.add(c.id))
+        .map((c) => ({ id: c.id, name: c.name, group: d.name })),
+    )
+    return {
+      id: l.id,
+      name: l.name,
+      events: l.events,
+      finished: l.finished,
+      source: l.source,
+      unknown: l.unknown,
+      clubs,
+      aliases: clubs.flatMap((c) => (aliases[c.id] ?? []).map((name) => ({ club: c.id, clubName: c.name, name }))),
+    }
+  })
   // The UTC hours of today's calls, shown in Danish time
   const hourLabel = (hh: number) => new Date(Date.UTC(2026, 0, 1, hh)).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit' })
 
@@ -273,30 +299,7 @@ export default async function DataStatusPage() {
 
           <section className="panel dash-card">
             <h2 className="panel__title">Vores ligaer</h2>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Liga</th>
-                  <th>Kampe</th>
-                  <th>Spillet</th>
-                  <th>Kilde</th>
-                  <th>Ukendte hold</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leagues.map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.name}</td>
-                    <td className={l.events ? undefined : 'is-bad'}>{l.events ? num(l.events) : 'ingen'}</td>
-                    <td>{num(l.finished)}</td>
-                    <td className="muted">{l.source ?? '–'}</td>
-                    <td className={l.unknown.length ? 'is-warn' : 'muted'} title={l.unknown.join(', ')}>
-                      {l.unknown.length || '–'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <LeagueTeamsAdmin rows={leagueRows} />
           </section>
 
         </div>

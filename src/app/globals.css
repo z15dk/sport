@@ -2125,3 +2125,11 @@ a.player-games__match:hover { text-decoration: underline; }
   .dash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-tile__value { font-size: 22px; }
 }
+
+.dash-link { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.dash-link.is-warn { color: #9a6a00; }
+.dash-expand td { background: var(--surface-2); padding: 10px 12px !important; }
+.dash-unknown { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 6px; }
+.dash-unknown select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); max-width: 220px; }
+.dash-unknown .pill { padding: 3px 12px; font-size: 12px; }
+.dash-alias { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; }

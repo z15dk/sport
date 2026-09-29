@@ -50,8 +50,14 @@ export const OTHER_NAMES: Record<string, string[]> = {
 }
 
 /** Every name a club goes by: ours, the original, TheSportsDB's and the short ones */
+/** Other names set in the admin pages (RealData.clubAliases), by club id; set where the season is built (season.ts) */
+let adminNames: Record<string, string[]> = {}
+export function setClubAliases(aliases: Record<string, string[]>) {
+  adminNames = aliases
+}
+
 export function clubNames(club: { id: string; name: string; originalName?: string; apiName?: string }): string[] {
-  return [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id], ...(OTHER_NAMES[club.id] ?? [])].filter((n): n is string => !!n)
+  return [club.name, club.originalName, club.apiName, SEARCH_NAMES[club.id], ...(OTHER_NAMES[club.id] ?? []), ...(adminNames[club.id] ?? [])].filter((n): n is string => !!n)
 }
 
 // normalize() runs for every name in every match lookup: remembered, as the same names come again and again

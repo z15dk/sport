@@ -45,7 +45,7 @@ function otherKey(real: RealData): string {
     for (const e of events) mix(`${e.id}${e.kickoff}${e.state}${e.homeScore ?? ''}${e.awayScore ?? ''}${e.incidents?.length ?? 0}`)
   }
   const c = real.channels
-  mix(JSON.stringify([real.clubNames, real.leagueNames, real.settings, c?.channels, c?.rules, c?.overrides, Object.keys(c?.tv ?? {}).length]))
+  mix(JSON.stringify([real.clubNames, real.clubAliases, real.leagueNames, real.settings, c?.channels, c?.rules, c?.overrides, Object.keys(c?.tv ?? {}).length]))
   return (h >>> 0).toString(36)
 }
 
