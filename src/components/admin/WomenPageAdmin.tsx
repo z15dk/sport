@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { WomenHero } from '../WomenHero'
+import { shrinkImage } from '../../lib/shrinkImage'
 
 // /admin/kvindesport: the women's sport pages' top – picture (upload, remove,
 // which part to show), the heading's two lines and the text – with a preview.
@@ -32,7 +33,9 @@ export function WomenPageAdmin({ page, defaultLead, numbers }: { page: Page; def
         ...(body instanceof FormData ? { body } : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
       })
       const r = (await res.json().catch(() => ({}))) as { page?: Page; error?: string }
-      if (!res.ok || !r.page) throw new Error(r.error ?? 'Det gik ikke')
+      if (res.status === 413) throw new Error('Billedet er for stort til serveren – prøv et mindre billede')
+      if (res.status === 401) throw new Error('Du er logget ud – log ind igen og prøv igen')
+      if (!res.ok || !r.page) throw new Error(r.error ?? `Det gik ikke (fejl ${res.status})`)
       setP(r.page)
       setMsg({ text: done })
       router.refresh()
@@ -43,14 +46,17 @@ export function WomenPageAdmin({ page, defaultLead, numbers }: { page: Page; def
     }
   }
 
-  function upload() {
+  async function upload() {
     const f = file.current?.files?.[0]
     if (!f) return
+    setBusy(true)
+    setMsg({ text: 'Gør billedet klar …' })
+    // Made smaller in the browser first: a phone's photo is often 5–15 MB or HEIC
+    const small = await shrinkImage(f)
     const form = new FormData()
-    form.set('file', f)
-    send(form, 'Billedet er lagt op og vises nu på siden').finally(() => {
-      if (file.current) file.current.value = ''
-    })
+    form.set('file', small, small === f ? f.name : 'billede.jpg')
+    await send(form, 'Billedet er lagt op og vises nu på siden')
+    if (file.current) file.current.value = ''
   }
 
   const hero = (
@@ -83,7 +89,7 @@ export function WomenPageAdmin({ page, defaultLead, numbers }: { page: Page; def
           altid kan læses. Brug kun billeder, du har ret til at bruge.
         </p>
         <div className="women-admin__buttons">
-          <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={upload} disabled={busy} aria-label="Vælg billede" />
+          <input ref={file} type="file" accept="image/*" onChange={upload} disabled={busy} aria-label="Vælg billede" />
           {p.image && (
             <button type="button" className="pill" disabled={busy} onClick={() => send({ image: null }, 'Billedet er fjernet')}>
               Fjern billedet

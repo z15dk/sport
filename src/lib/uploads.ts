@@ -33,7 +33,7 @@ export async function saveUpload(bytes: Buffer, maxWidth = 1600): Promise<{ url?
     writeFileSync(path.join(dir(), name), out.data)
     return { url: `/uploads/${name}`, width: out.info.width, height: out.info.height }
   } catch {
-    return { error: 'Billedet kunne ikke læses' }
+    return { error: 'Billedet kunne ikke læses – gem det som JPG og prøv igen' }
   }
 }
 
