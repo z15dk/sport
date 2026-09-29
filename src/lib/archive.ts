@@ -1,4 +1,5 @@
 import 'server-only'
+import { timed } from './slow'
 import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf } from '../data/leagues'
@@ -106,6 +107,9 @@ const state = (holder.__scorelineArchive ??= { saved: 0 })
 
 /** Saves every finished match in the current data; matches already saved are updated if they changed */
 export function archiveFinished() {
+  timed('Statistikbanken gemmer kampe', archiveFinishedNow)
+}
+function archiveFinishedNow() {
   const data = getRealData()
   const lib = sqlite()
   if (!data || !lib) return
@@ -269,7 +273,7 @@ export function readArchive(): ArchivedMatch[] {
     return cached.rows
   }
   const state: ArchiveRead = cached ?? { at: 0, mtime: 0, rows: [], byId: new Map(), savedAt: '' }
-  const fresh = readArchiveFile(state.savedAt)
+  const fresh = timed('Statistikbanken læses', () => readArchiveFile(state.savedAt))
   if (fresh) {
     for (const { row, savedAt } of fresh) {
       state.byId.set(row.id, row)

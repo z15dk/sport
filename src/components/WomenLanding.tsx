@@ -91,6 +91,21 @@ function whenText(t: { live: boolean; next?: Date; last?: Date }, today: string)
 
 const n = (x: number) => x.toLocaleString('da-DK')
 
+/**
+ * Every women's game two weeks back and ahead, by day (the tournaments, tabs
+ * and numbers). 29 days of every sport's games is a lot of work, so it is kept
+ * for two minutes (on globalThis: shared by every page and sport); today's
+ * live and today's count on the page are always worked out fresh.
+ */
+const womenHolder = globalThis as typeof globalThis & { __scorelineWomenDays?: { today: string; at: number; days: Match[][] } }
+function womenDays(today: string, now: number): Match[][] {
+  const c = womenHolder.__scorelineWomenDays
+  if (c && c.today === today && now - c.at < 120_000) return c.days
+  const days = Array.from({ length: 29 }, (_, i) => womenOn(addDays(today, i - 14), 'all', now))
+  womenHolder.__scorelineWomenDays = { today, at: now, days }
+  return days
+}
+
 /** The text under the heading when the admin has not written one */
 export const defaultLead = (s: WomenSport) =>
   s.id === 'all'
@@ -110,8 +125,7 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
   const matches = womenOn(date, s.id, now)
 
   // Two weeks back and ahead: the tournaments, the sports played and the numbers
-  const around = Array.from({ length: 29 }, (_, i) => addDays(today, i - 14))
-  const every = around.map((d) => womenOn(d, 'all', now))
+  const every = womenDays(today, now)
   const mine = s.id === 'all' ? every : every.map((l) => l.filter((m) => m.sport === s.id))
   const played = mine.slice(0, 15).flat().filter((m) => m.state === 'finished')
   const liveNow = womenOn(today, s.id, now).filter((m) => m.state === 'live').length

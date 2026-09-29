@@ -11,16 +11,28 @@ import { danishCountry } from '../data/countries'
 import { externalLeagueKey } from '../data/external'
 import type { SportId } from '../types'
 
-/** Site-wide footer; one column per sport, and a path for crawlers to every league. */
-export function Footer() {
-  const divisions = shownDivisions()
-  // Every other league and cup we fetch from API-Sports (the admin's choice and the built-in list), once each
-  const others = new Map<string, { key: string; name: string; sport: SportId; country?: string }>()
-  for (const g of getRealData()?.external ?? []) {
+type Other = { key: string; name: string; sport: SportId; country?: string }
+// Worked out once per data (every page has the footer, and the data has thousands of games)
+const othersCache = new WeakMap<object, Map<string, Other>>()
+function otherLeagues(): Map<string, Other> {
+  const data = getRealData()
+  const have = data && othersCache.get(data)
+  if (have) return have
+  const others = new Map<string, Other>()
+  for (const g of data?.external ?? []) {
     if (divisionOfGame(g)) continue
     const key = externalLeagueKey(g.league)
     if (!others.has(key)) others.set(key, { key, name: g.league.name, sport: g.sport, country: g.league.country })
   }
+  if (data) othersCache.set(data, others)
+  return others
+}
+
+/** Site-wide footer; one column per sport, and a path for crawlers to every league. */
+export function Footer() {
+  const divisions = shownDivisions()
+  // Every other league and cup we fetch from API-Sports (the admin's choice and the built-in list), once each
+  const others = otherLeagues()
   const sports = [...new Set([...divisions.map(sportOf), ...[...others.values()].map((o) => o.sport)])]
   const byCountry = (a: { country?: string; name: string }, b: { country?: string; name: string }) =>
     danishCountry(a.country).localeCompare(danishCountry(b.country), 'da') || a.name.localeCompare(b.name, 'da')

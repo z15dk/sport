@@ -1,4 +1,5 @@
 import 'server-only'
+import { timed } from './slow'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, seasonOf, sportOf, type Club } from '../data/leagues'
@@ -85,6 +86,8 @@ const historyHolder = globalThis as typeof globalThis & {
   __scorelineHistoryRows?: WeakMap<ArchivedMatch, DbMatch>
   __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] }
   __scorelineSeason?: SeasonData
+  __scorelineResolved?: Map<SportId, Map<string, Club | undefined>>
+  __scorelineResolvedAt?: number
 }
 const hist = (historyHolder.__scorelineHistory ??= { checkedAt: 0 })
 
@@ -104,8 +107,14 @@ function resolver(sport: SportId = 'soccer') {
   }
   const danish = same.filter((d) => d.countryCode === 'DK').flatMap((d) => d.clubs)
   const everyone = same.flatMap((d) => d.clubs)
-  // Each name is looked up once: the loose matching below is too slow to repeat for every match in the database
-  const memo = new Map<string, Club | undefined>()
+  // Each name is looked up once, also across rebuilds (on globalThis): the loose matching below is too slow to repeat
+  // Cleared every six hours, so clubs renamed in the admin are found again
+  if (Date.now() - (historyHolder.__scorelineResolvedAt ?? 0) > 6 * 3_600_000) {
+    historyHolder.__scorelineResolved = new Map()
+    historyHolder.__scorelineResolvedAt = Date.now()
+  }
+  const memos = (historyHolder.__scorelineResolved ??= new Map())
+  const memo = memos.get(sport) ?? memos.set(sport, new Map()).get(sport)!
   return (name: string) => {
     if (memo.has(name)) return memo.get(name)
     const found = look(name)
@@ -258,7 +267,7 @@ function data(): Loaded | undefined {
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
     const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 15 * 60_000)
-    if (stale) hist.loaded = { ...read(hasDb ? file : undefined, mtime), dbTime, readAt: now }
+    if (stale) hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => read(hasDb ? file : undefined, mtime)), dbTime, readAt: now }
     hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
     hist.lastError = (err as Error).message

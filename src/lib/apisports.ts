@@ -1,4 +1,5 @@
 import 'server-only'
+import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
@@ -375,7 +376,7 @@ function load() {
   try {
     const mtime = statSync(file()).mtimeMs
     if (mtime !== mem.mtime) {
-      mem.store = JSON.parse(readFileSync(file(), 'utf8')) as Store
+      mem.store = timed('apisports.json læses', () => JSON.parse(readFileSync(file(), 'utf8')) as Store)
       // A count below 0 saved before the check above: unknown, not used up
       for (const st of Object.values(mem.store)) if (st && typeof st.remaining === 'number' && st.remaining < 0) st.remaining = undefined
       mem.mtime = mtime
@@ -389,7 +390,7 @@ function load() {
 function save() {
   try {
     mkdirSync(path.dirname(file()), { recursive: true })
-    writeFileSync(`${file()}.tmp`, JSON.stringify(mem.store))
+    timed('apisports.json gemmes', () => writeFileSync(`${file()}.tmp`, JSON.stringify(mem.store)))
     renameSync(`${file()}.tmp`, file())
     mem.mtime = statSync(file()).mtimeMs
     mem.games = undefined
@@ -403,7 +404,7 @@ const window = (today: string) => Array.from({ length: 12 }, (_, i) => addDays(t
 /** Every game from yesterday to ten days ahead, all APIs; and a version that changes with them */
 export function externalGames(): { version: string; games: ExternalGame[] } {
   load()
-  if (!mem.games) {
+  if (!mem.games) timed('API-Sports-kampe samles', () => {
     const today = isoDate(Date.now())
     const days = new Set(window(today))
     const byId = new Map<string, ExternalGame>()
@@ -416,9 +417,9 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
     }
     mem.games = [...byId.values()].sort((a, b) => a.kickoff.localeCompare(b.kickoff))
     mem.gamesVersion = gamesVersion(mem.games)
-  }
+  })
   // At least every 5 minutes anyway (the minute of live games outside our leagues)
-  return { version: `${mem.gamesVersion}|${Math.floor(Date.now() / 300_000)}`, games: mem.games }
+  return { version: `${mem.gamesVersion}|${Math.floor(Date.now() / 300_000)}`, games: mem.games! }
 }
 
 /**

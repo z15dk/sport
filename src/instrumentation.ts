@@ -5,6 +5,8 @@ export async function register() {
   // A failing background job must never take the whole site down
   const { guardProcess } = await import('./lib/guards')
   guardProcess()
+  const { startLagMonitor } = await import('./lib/slow')
+  startLagMonitor()
   const [{ startIndexNow }, { startLogoSync }, { startRealDataSync }] = await Promise.all([
     import('./lib/indexnow'),
     import('./lib/badges'),

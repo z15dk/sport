@@ -1,4 +1,5 @@
 import 'server-only'
+import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
@@ -320,13 +321,13 @@ function loadFromDisk() {
     const mtime = statSync(file()).mtimeMs
     if (mtime !== fileMtime) {
       fileMtime = mtime
-      holder.__scorelineTsdb = JSON.parse(readFileSync(file(), 'utf8')) as RealData
+      holder.__scorelineTsdb = timed('real-data.json læses', () => JSON.parse(readFileSync(file(), 'utf8')) as RealData)
     }
   } catch {
     // No file yet
   }
   try {
-    apply()
+    timed('Data flettes (alle kampe)', apply)
   } catch (err) {
     state.lastError = `Kampdatabasen kunne ikke læses: ${(err as Error).message}`
   }
@@ -335,7 +336,7 @@ function loadFromDisk() {
 function save(data: RealData) {
   try {
     mkdirSync(path.dirname(file()), { recursive: true })
-    writeFileSync(`${file()}.tmp`, JSON.stringify(data))
+    timed('real-data.json gemmes', () => writeFileSync(`${file()}.tmp`, JSON.stringify(data)))
     renameSync(`${file()}.tmp`, file())
   } catch (err) {
     state.lastError = `Kunne ikke gemme real-data.json: ${(err as Error).message}`

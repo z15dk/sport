@@ -9,6 +9,7 @@ import { historyStatus } from '../../../lib/history'
 import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
+import { slowStatus } from '../../../lib/slow'
 import { archiveFile } from '../../../lib/archive'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
@@ -158,6 +159,34 @@ export default async function DataStatusPage() {
             {a.byDivision.length > 0 && `: ${a.byDivision.map((r) => `${r.division} ${r.matches} (${r.incidents} hændelser)`).join(', ')}`}.
           </p>
           <p className="muted small">Hver færdigspillet kamp fra alle kilder gemmes her hvert 5. minut, med resultat, pauseresultat, tilskuere, mål og kort.</p>
+        </section>
+        <section className="panel prose__section">
+          <h2 className="panel__title">Serverens svartid</h2>
+          {(() => {
+            const s = slowStatus()
+            const clock = (at: number) => new Date(at).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit', minute: '2-digit' })
+            return (
+              <div className="small">
+                <p>
+                  {s.minutes
+                    ? `De sidste ${s.minutes} minutter: længste tid serveren ikke kunne svare ${(s.worst / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} sek.; ${s.stalls} minutter med over 1 sek. ventetid.`
+                    : 'Måles fra serverstart – kom tilbage om et par minutter.'}
+                </p>
+                {s.recent.length > 0 && <p className="muted">Pr. minut (længste ventetid): {s.recent.map((m) => `${clock(m.at)} ${m.max} ms`).join(' · ')}</p>}
+                {s.tasks.length > 0 ? (
+                  <ul>
+                    {s.tasks.map((t) => (
+                      <li key={t.label}>
+                        <b>{t.label}</b>: længste {t.max.toLocaleString('da-DK')} ms, {t.count} gange over 0,2 sek. (i alt {(t.total / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} sek.), senest {clock(t.last)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">Ingen opgaver har taget over 0,2 sek. endnu.</p>
+                )}
+              </div>
+            )
+          })()}
         </section>
         <section className="panel prose__section">
           <h2 className="panel__title">Serverens hukommelse</h2>

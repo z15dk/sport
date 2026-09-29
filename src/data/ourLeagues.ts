@@ -27,7 +27,18 @@ for (const [id, names] of Object.entries(API_SPORTS_NAMES)) {
 }
 
 /** Our league an API-Sports game belongs to (and its place in DIVISIONS), if any */
+// Asked for every game many times a page: each league's answer is kept (thousands of games share a few hundred leagues)
+const found = new Map<string, { d: Division; i: number } | null>()
 export function divisionOfGame(g: ExternalGame): { d: Division; i: number } | undefined {
+  const key = `${g.sport}|${g.league.country ?? ''}|${g.league.name}`
+  const have = found.get(key)
+  if (have !== undefined) return have ?? undefined
+  const v = lookUp(g)
+  if (found.size > 20_000) found.clear()
+  found.set(key, v ?? null)
+  return v
+}
+function lookUp(g: ExternalGame): { d: Division; i: number } | undefined {
   const prefix = `${g.sport}|${countryKey(g.league.country)}|`
   const name = g.league.name.toLowerCase()
   const exact = OUR_LEAGUES.get(prefix + name)

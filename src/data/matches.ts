@@ -11,6 +11,7 @@ import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
 import { isoDate } from '../lib/time'
 import { sameLeagueKeys } from './baselines'
+import { countryKey } from './channels'
 
 /** An API-Sports game as a match, placed in our league when it is one of ours (and with our clubs' names in a cup) */
 export function externalMatch(g: ExternalGame): Match {
@@ -89,7 +90,28 @@ export function externalOn(date: string): ExternalGame[] {
   return days.get(date) ?? []
 }
 
+/**
+ * The day's matches of a sport: ours with the other sources' live scores, and
+ * the other sources' own games. Worked out once per data and half minute (a
+ * page asks for the same day many times, and a day has thousands of games);
+ * callers get their own copy of the list.
+ */
+const dayCache = new WeakMap<object, Map<string, Match[]>>()
 export function getMatches(date: string, sport: SportFilter, now: number): Match[] {
+  const data = getRealData()
+  if (!data) return matchesOf(date, sport, now)
+  const byData = dayCache.get(data) ?? dayCache.set(data, new Map()).get(data)!
+  const key = `${date}|${sport}|${Math.floor(now / 30_000)}`
+  let list = byData.get(key)
+  if (!list) {
+    if (byData.size > 400) byData.clear()
+    list = matchesOf(date, sport, now)
+    byData.set(key, list)
+  }
+  return list.slice()
+}
+
+function matchesOf(date: string, sport: SportFilter, now: number): Match[] {
   if (sport === 'all') return ALL_SPORTS.flatMap((s) => getMatches(date, s, now))
   const ours = leagueMatches(date, sport, now)
   const external = externalOn(date).filter((g) => g.sport === sport)
@@ -101,10 +123,14 @@ export function getMatches(date: string, sport: SportFilter, now: number): Match
   const extra: ExternalGame[] = []
   const taken = new Set<number>()
   const names = ours.map((m) => ({ home: namesOf(m.home.name), away: namesOf(m.away.name) }))
+  // Loose matching only for games that can be one of ours: from our leagues' countries (the thousands of other games
+  // around the world never are, and comparing each of them with every one of our matches made pages slow)
+  const countries = new Set(ours.map((m) => countryKey(m.country)))
+  const mayBeOurs = (g: ExternalGame) => countries.has('') || countries.has(countryKey(g.league.country)) || !!divisionOfGame(g)
   for (const g of external) {
     let i = byKey.get(gameKey(g.kickoff, g.home.name, g.away.name))
     // Names written differently ("Holbæk B and I" / "Holbæk B&I"): same day and each side shares a word
-    if (i === undefined) {
+    if (i === undefined && mayBeOurs(g)) {
       const loose = ours.flatMap((_, j) =>
         !taken.has(j) && alike(names[j].home, g.home.name) && alike(names[j].away, g.away.name) ? [j] : [],
       )
