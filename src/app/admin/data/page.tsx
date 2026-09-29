@@ -11,6 +11,28 @@ import { apiSportsStatus } from '../../../lib/apisports'
 import { allClubs } from '../../../data/leagues'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
+/** What the kinds of API-Sports requests are (/admin/data's usage) */
+const USAGE_NAMES: Record<string, string> = {
+  '/fixtures?date': 'dagens kampe (live)',
+  '/games?date': 'dagens kampe (live)',
+  '/fixtures?league': 'hele sæsoner',
+  '/games?league': 'hele sæsoner',
+  '/fixtures?ids': 'målscorere/spillere',
+  '/fixtures/events?fixture': 'målscorere (kampside)',
+  '/fixtures/statistics?fixture': 'kampstatistik',
+  '/fixtures/lineups?fixture': 'opstillinger',
+  '/fixtures/headtohead?h2h': 'indbyrdes',
+  '/fixtures?team': 'holdform',
+  '/standings?league': 'tabeller',
+  '/players/topscorers?league': 'topscorere',
+  '/players/topassists?league': 'assists',
+  '/players?id': 'spillersider',
+  '/transfers?player': 'spillersider',
+  '/trophies?player': 'spillersider',
+  '/teams/statistics?league': 'holdstatistik',
+  '/injuries?league': 'skader',
+}
+
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Data-status', robots: { index: false, follow: false } }
 
@@ -152,6 +174,23 @@ export default async function DataStatusPage() {
                 {x.lastError && <span className="unverified"> · Fejl: {x.lastError}</span>}
                 {x.pausedUntil && <span className="unverified"> · Hentning (også live) sat på pause til {new Date(x.pausedUntil).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen' })}</span>}
                 {x.leagues.length > 0 && <span className="muted small"> · {x.leagues.join(', ')}</span>}
+                {x.usage && (
+                  <span className="small">
+                    {' '}
+                    · <b>Brugt i dag</b> (døgnet nulstilles kl. 00 UTC):{' '}
+                    {Object.entries(x.usage.kinds)
+                      .sort((p, q) => q[1] - p[1])
+                      .map(([k, n]) => `${USAGE_NAMES[k] ?? k} ${n}`)
+                      .join(', ')}{' '}
+                    · pr. time:{' '}
+                    {x.usage.hours
+                      .map((n, h) => [n, h] as const)
+                      .filter(([n]) => n > 0)
+                      .map(([n, h]) => `${new Date(Date.UTC(2026, 0, 1, h)).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit' })}: ${n}`)
+                      .join(', ')}{' '}
+                    · sidevisninger (opslag): {x.extrasSpent} af {x.extrasMax} · baggrund og opslag stopper under {x.reserveNow} tilbage
+                  </span>
+                )}
                 {x.history.length > 0 && (
                   <span className="muted small">
                     {' '}
