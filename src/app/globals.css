@@ -2030,11 +2030,12 @@ a.player-games__match:hover { text-decoration: underline; }
 }
 @media (max-width: 700px) {
   .women-hero { padding: 28px 20px 24px; min-height: 0; }
+  /* The whole picture across the top (2:1), fading into the dark under it */
   .women-hero.has-image {
-    padding-top: 200px;
+    padding-top: calc(50vw - 16px);
     background:
-      linear-gradient(180deg, rgba(21, 16, 31, 0.05) 0%, rgba(21, 16, 31, 0.55) 32%, rgba(15, 11, 23, 0.96) 58%, #0f0b17 100%),
-      var(--hero-image) var(--hero-position, center) / cover no-repeat, #15101f;
+      linear-gradient(180deg, rgba(21, 16, 31, 0) 0, rgba(21, 16, 31, 0) calc(25vw - 16px), #0f0b17 calc(50vw - 20px), #0f0b17 100%),
+      var(--hero-image) center top / 100% auto no-repeat, #0f0b17;
   }
   .women-hero__m { font-size: 380px; right: -34%; bottom: -8%; opacity: 0.25; }
   .women-hero__lead { font-size: 15px; }

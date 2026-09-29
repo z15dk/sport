@@ -79,7 +79,7 @@ export function WomenPageAdmin({ page, defaultLead, numbers }: { page: Page; def
       <section className="panel">
         <h2 className="panel__title">Billede</h2>
         <p className="muted small pad">
-          Liggende billede, gerne mindst 2000 px bredt (jpg, png, webp; max 10 MB). Det lægges bag teksten med en mørk tone i venstre side, så teksten
+          Liggende billede i 2:1, helst 2400 × 1200 px (jpg, png, webp; max 10 MB). Placér motivet i højre halvdel – på computeren står teksten til venstre; på mobil vises hele billedet øverst. Det lægges bag teksten med en mørk tone i venstre side, så teksten
           altid kan læses. Brug kun billeder, du har ret til at bruge.
         </p>
         <div className="women-admin__buttons">
