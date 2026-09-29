@@ -39,7 +39,10 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     '@type': 'SportsEvent',
     name: `${match.home.name} – ${match.away.name}`,
     url,
-    ...(description && { description }),
+    // Always a description (Google asks for one): the page's own text, else what, where and when
+    description:
+      description ??
+      `${match.home.name} mod ${match.away.name} i ${match.league}${match.venue ? ` på ${match.venue}` : ''}, ${match.kickoff.toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'long', year: 'numeric' })}.`,
     // The match's own sharing picture (teams, logos, score or time)
     image: `${url}/opengraph-image`,
     startDate: match.kickoff.toISOString(),
@@ -47,10 +50,12 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     eventStatus: status,
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     sport,
-    superEvent: { '@type': 'SportsEvent', name: match.league, ...(league && { url: league }) },
+    // No superEvent: a league as an Event without its own dates and place counts as a broken event at Google
     homeTeam: teamLd(match.home.name, clubSlug(match.home.name), sport),
     awayTeam: teamLd(match.away.name, clubSlug(match.away.name), sport),
     competitor: [teamLd(match.home.name, clubSlug(match.home.name), sport), teamLd(match.away.name, clubSlug(match.away.name), sport)],
+    // The teams also as the performers (the field Google looks for on events)
+    performer: [teamLd(match.home.name, clubSlug(match.home.name), sport), teamLd(match.away.name, clubSlug(match.away.name), sport)],
     // Where it is played: the stadium, or else the home team's ground
     location: {
       '@type': 'Place',
