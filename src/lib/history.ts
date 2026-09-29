@@ -62,7 +62,7 @@ function sportOfDivisionId(id: string): SportId | undefined {
 
 interface Loaded {
   mtime: number
-  /** football.db's modification time, and when the data was read (the archive is re-read at most every 15 minutes) */
+  /** football.db's modification time, and when the data was read (the archive is re-read at most every hour) */
   dbTime?: number
   readAt?: number
   matches: DbMatch[]
@@ -263,10 +263,10 @@ function data(): Loaded | undefined {
       hist.loaded = undefined
       return undefined
     }
-    // Re-read when football.db has changed, or the archive (which changes all the time) at most every 15 minutes
+    // Re-read when football.db has changed, or the archive (which changes all the time) at most every hour (a rebuild takes seconds)
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
-    const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 15 * 60_000)
+    const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 60 * 60_000)
     if (stale) hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => read(hasDb ? file : undefined, mtime)), dbTime, readAt: now }
     hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {

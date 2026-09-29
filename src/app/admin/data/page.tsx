@@ -254,12 +254,15 @@ export default async function DataStatusPage() {
                   <span>{hourLabel(23)}</span>
                 </p>
                 <ul className="dash-chips">
-                  {Object.entries(football.usage.kinds)
+                  {Object.entries(
+                    // Several kinds of request share a name (a player's page asks for four things): one chip each
+                    Object.entries(football.usage.kinds).reduce<Record<string, number>>((m, [k, n]) => ((m[USAGE_NAMES[k] ?? k] = (m[USAGE_NAMES[k] ?? k] ?? 0) + n), m), {}),
+                  )
                     .sort((p, q) => q[1] - p[1])
                     .slice(0, 8)
                     .map(([k, n]) => (
                       <li key={k}>
-                        {USAGE_NAMES[k] ?? k} <b>{num(n)}</b>
+                        {k} <b>{num(n)}</b>
                       </li>
                     ))}
                 </ul>

@@ -366,7 +366,7 @@ type Store = Record<string, ApiState>
 const file = (): string => process.env.APISPORTS_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'apisports.json')
 
 // On globalThis: the job and the pages load separate copies of this module
-const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string } }
+const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string; season?: ExternalGame[]; seasonFor?: number } }
 const mem = (holder.__scorelineApiSports ??= { store: {}, mtime: 0, readAt: 0 })
 
 function load() {
@@ -381,6 +381,7 @@ function load() {
       for (const st of Object.values(mem.store)) if (st && typeof st.remaining === 'number' && st.remaining < 0) st.remaining = undefined
       mem.mtime = mtime
       mem.games = undefined
+      mem.season = undefined
     }
   } catch {
     // No file yet
@@ -394,6 +395,7 @@ function save() {
     renameSync(`${file()}.tmp`, file())
     mem.mtime = statSync(file()).mtimeMs
     mem.games = undefined
+    mem.season = undefined
   } catch {
     // try again next time
   }
@@ -443,12 +445,16 @@ const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !
 /** The finished games in our leagues this season (kept days and the current window) */
 export function seasonGames(): ExternalGame[] {
   load()
+  // The same list until the data changes (asked for several times on every merge)
+  if (mem.season && mem.seasonFor === mem.mtime) return mem.season
   const byId = new Map<string, ExternalGame>()
   for (const s of Object.values(mem.store)) {
     for (const games of Object.values(s.past ?? {})) for (const g of games) byId.set(g.id, g)
     for (const d of Object.values(s.days)) for (const g of d.games) if (inOurLeague(g)) byId.set(g.id, g)
   }
-  return [...byId.values()]
+  mem.season = [...byId.values()]
+  mem.seasonFor = mem.mtime
+  return mem.season
 }
 
 // ---------------------------------------------------------------- fetching
@@ -636,7 +642,17 @@ export function externalLeagues(): ExternalLeague[] {
 }
 
 /** Every team in the league tables we have, for the teams without a game in the fetched days (their pages and links) */
-export function tableTeams(): { leagueKey: string; sport: SportId; league: string; country?: string; name: string; logo?: string }[] {
+type TableTeam = { leagueKey: string; sport: SportId; league: string; country?: string; name: string; logo?: string }
+const tableTeamsHolder = globalThis as typeof globalThis & { __scorelineTableTeams?: { at: number; teams: TableTeam[] } }
+export function tableTeams(): TableTeam[] {
+  // Hundreds of leagues' tables, each read from h2h.db: kept ten minutes (the tables change every twelve hours)
+  const c = tableTeamsHolder.__scorelineTableTeams
+  if (c && Date.now() - c.at < 10 * 60_000) return c.teams
+  const teams = timed('Tabellernes hold samles', tableTeamsNow)
+  tableTeamsHolder.__scorelineTableTeams = { at: Date.now(), teams }
+  return teams
+}
+function tableTeamsNow(): TableTeam[] {
   const store = extrasStore()
   return externalLeagues().flatMap((l) =>
     (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>

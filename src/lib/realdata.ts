@@ -12,7 +12,7 @@ import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
 import { externalGames, seasonGames, tableTeams } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
-import { isoDate } from './time'
+import { addDays, isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
@@ -135,6 +135,44 @@ function sameLeague<G extends { league: { name: string; country?: string; logo?:
   })
 }
 
+/**
+ * Our leagues' season: TheSportsDB's matches, the database's Danish divisions,
+ * their goals and cards, and API-Sports' finished games. It takes seconds (every
+ * match compared with the others by name) and only changes when one of those
+ * does – not with the live scores, which only change the day's games – so it is
+ * kept until what it is made of changes.
+ */
+let seasonMerge: { key: string; leagues: Record<string, RealEvent[]> } | undefined
+function mergedLeagues(tsdbData: RealData | undefined, db: ReturnType<typeof databaseSeason>): Record<string, RealEvent[]> {
+  const season = seasonGames()
+  let h = season.length
+  for (const g of season) {
+    const s = `${g.id}${g.state}${g.homeScore ?? ''}${g.awayScore ?? ''}${g.incidents?.length ?? 0}`
+    for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  }
+  const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${h}`
+  if (seasonMerge?.key === key) return seasonMerge.leagues
+  const leagues = timed('Fletning: sæsonen i vores ligaer', () => {
+    const out = { ...(tsdbData?.leagues ?? {}) }
+    // The source with more of the season wins (our database has the Danish divisions in full)
+    for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (out[id]?.length ?? 0)) out[id] = events
+    // Goals, cards, half-time score and attendance from our database for TheSportsDB's matches
+    if (db?.extrasByMatch.size) {
+      for (const [id, events] of Object.entries(out)) {
+        out[id] = events.map((e) => {
+          if (e.id.startsWith('db-')) return e
+          const x = db.extrasByMatch.get(matchKey(e.kickoff, e.home, e.away)) ?? looseExtras(db.extrasList, e)
+          return x ? { ...e, incidents: e.incidents ?? x.incidents, ht: e.ht ?? x.ht, spectators: e.spectators ?? x.spectators } : e
+        })
+      }
+    }
+    fillFromApiSports(out)
+    return out
+  })
+  seasonMerge = { key, leagues }
+  return leagues
+}
+
 /** What TheSportsDB gave us (as saved in real-data.json) */
 const base = () => holder.__scorelineTsdb
 
@@ -160,20 +198,7 @@ function apply() {
   const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
   if (mergedKey === key) return
   mergedKey = key
-  const leagues = { ...(tsdbData?.leagues ?? {}) }
-  // The source with more of the season wins (our database has the Danish divisions in full)
-  for (const [id, events] of Object.entries(db?.leagues ?? {})) if (events.length > (leagues[id]?.length ?? 0)) leagues[id] = events
-  // Goals, cards, half-time score and attendance from our database for TheSportsDB's matches
-  if (db?.extrasByMatch.size) {
-    for (const [id, events] of Object.entries(leagues)) {
-      leagues[id] = events.map((e) => {
-        if (e.id.startsWith('db-')) return e
-        const x = db.extrasByMatch.get(matchKey(e.kickoff, e.home, e.away)) ?? looseExtras(db.extrasList, e)
-        return x ? { ...e, incidents: e.incidents ?? x.incidents, ht: e.ht ?? x.ht, spectators: e.spectators ?? x.spectators } : e
-      })
-    }
-  }
-  fillFromApiSports(leagues)
+  const leagues = mergedLeagues(tsdbData, db)
   if (!tsdbData && !db && !external.games.length) return setRealData(undefined)
   setRealData({
     version: hashString(key).toString(36),
@@ -181,7 +206,7 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders)).map((g) => {
+    external: timed('Fletning: dagens kampe', () => sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders))).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
@@ -296,9 +321,23 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
 }
 
 /** The database's goals and cards for a match whose team names are written differently: within a day, both teams alike, only one candidate */
-function looseExtras(list: NonNullable<ReturnType<typeof databaseSeason>>['extrasList'], e: RealEvent) {
+type ExtrasList = NonNullable<ReturnType<typeof databaseSeason>>['extrasList']
+// The list by day, so each match is only compared with the matches around its own day (not the whole season)
+const extrasByDay = new WeakMap<ExtrasList, Map<string, ExtrasList>>()
+function looseExtras(list: ExtrasList, e: RealEvent) {
+  let byDay = extrasByDay.get(list)
+  if (!byDay) {
+    byDay = new Map()
+    for (const x of list) {
+      const d = x.kickoff.slice(0, 10)
+      byDay.get(d)?.push(x) ?? byDay.set(d, [x])
+    }
+    extrasByDay.set(list, byDay)
+  }
   const t = Date.parse(e.kickoff)
-  const found = list.filter((x) => Math.abs(Date.parse(x.kickoff) - t) < 30 * 3_600_000 && alike([x.home], e.home) && alike([x.away], e.away))
+  const day = e.kickoff.slice(0, 10)
+  const near = [addDays(day, -1), day, addDays(day, 1)].flatMap((d) => byDay.get(d) ?? [])
+  const found = near.filter((x) => Math.abs(Date.parse(x.kickoff) - t) < 30 * 3_600_000 && alike([x.home], e.home) && alike([x.away], e.away))
   return found.length === 1 ? found[0].extras : undefined
 }
 
