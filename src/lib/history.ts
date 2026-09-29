@@ -14,7 +14,7 @@ import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from '
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
-import { NOT_LEAGUE_ROUND, checkSeason } from './seasonCheck'
+import { NOT_LEAGUE_ROUND, allSeasonGames, checkSeason, savedSeasons } from './seasonCheck'
 import { historyOfficial, type HistoryScorer } from './apisports'
 import { isoDate } from './time'
 
@@ -1033,8 +1033,6 @@ export function pastLeagueSlug(g: PastGame): string | undefined {
 
 // ---------------------------------------------------------------- earlier seasons' own pages
 
-/** API-Sports' ids in the statistics bank ("football-123", "hockey-45", ...): only their seasons get pages */
-const API_SPORTS_ID = /^(football|hockey|basketball|nba|handball|volleyball|nfl)-\d+$/
 
 export interface SeasonTableRow {
   rank: number
@@ -1105,7 +1103,7 @@ export function pastSeasons(divisionId: string): PastSeason[] {
     const m = /^(\d{4})\/(\d{2})$/.exec(s)
     return m ? `${m[1]}/${m[1].slice(0, 2)}${m[2]}` : s
   })
-  const labels = [...new Set(rowsAll.filter((a) => a.divisionId === divisionId && API_SPORTS_ID.test(a.id) && !current.includes(a.season)).map((a) => a.season))]
+  const labels = savedSeasons(divisionId).filter((s) => !current.includes(s))
   const officials = labels.map((l) => historyOfficial(divisionId, l))
   const tablesKey = officials.map((o) => o?.fetchedAt ?? 0).join('|')
   const hit = pastSeasonsCache.get(divisionId)
@@ -1145,7 +1143,7 @@ export function pastSeasons(divisionId: string): PastSeason[] {
       }
     })
     // Every saved match of the season (play-offs too), for the list and the links
-    const all = rowsAll.filter((a) => a.divisionId === divisionId && a.season === season && API_SPORTS_ID.test(a.id))
+    const all = allSeasonGames(divisionId, season)
     const games = [...all]
       .sort((x, y) => x.date.getTime() - y.date.getTime())
       .map((a): SeasonGame => {
