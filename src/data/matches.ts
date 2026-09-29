@@ -2,8 +2,10 @@ import type { Match, SportFilter, SportId } from '../types'
 import { addDays } from '../lib/time'
 import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
-import { externalToMatch, gameKey, type ExternalGame } from './external'
-import { alike, clubNames } from './aliases'
+import { WOMEN_LEAGUE, WOMEN_TEAM, externalToMatch, gameKey, isWomenGame, type ExternalGame } from './external'
+
+export { isWomenGame }
+import { alike, clubNames, normalize } from './aliases'
 import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
@@ -62,6 +64,14 @@ export function namesOf(name: string) {
 // day's games no longer turns every game's kick-off into a date (that made
 // the front page, which asks for many days and sports, take seconds)
 const byDay = new WeakMap<ExternalGame[], Map<string, ExternalGame[]>>()
+/** Friendlies (national teams, clubs, youth): no table, only the day's matches */
+export const isFriendly = (league: string) => /friendl|venskab/i.test(league)
+
+/** The other games of a league on a Danish date ("Friendlies" today), as sent to the browser */
+export function leagueGamesOn(date: string, league: string, sport: Match['sport']): ExternalGame[] {
+  return externalOn(date).filter((g) => g.sport === sport && externalMatch(g).league === league)
+}
+
 /** API-Sports' games on a Danish date */
 export function externalOn(date: string): ExternalGame[] {
   const all = getRealData()?.external ?? []
@@ -154,6 +164,61 @@ export function clubMatches(clubName: string, now: number): Match[] {
     .map(externalMatch)
     .filter((m) => m.home.name === club.club.name || m.away.name === club.club.name)
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
+}
+
+/** A women's tournament (or team league) by its name (shared with the data job in external.ts) */
+const WOMEN = WOMEN_LEAGUE
+/** The same for a match as the pages show it */
+export function isWomenMatch(m: Match): boolean {
+  if (m.sport !== 'soccer') return false
+  return WOMEN.test(m.league) || (WOMEN_TEAM.test(m.home.name) && WOMEN_TEAM.test(m.away.name))
+}
+
+/**
+ * A team's games in the tournaments we keep for the whole season (our cups,
+ * the Champions League) outside its own league: HB Køge Women in the women's
+ * Champions League. A women's team only in women's tournaments and the other
+ * way round, so the club with the same name never gets them.
+ */
+export function teamTournamentMatches(names: string[], women: boolean): Match[] {
+  const bare = (n: string) => normalize(n.replace(/\b(w|women|q|kvinder)\b\.?/gi, '').trim())
+  const keys = new Set(names.map(bare))
+  return (getRealData()?.external ?? [])
+    .filter((g) => !divisionOfGame(g) && wholeSeason(g) && WOMEN.test(g.league.originalName ?? g.league.name) === women)
+    .filter((g) => keys.has(bare(g.home.name)) || keys.has(bare(g.away.name)))
+    .map(externalMatch)
+}
+
+/**
+ * The games of a team outside our leagues around today: its league's (ten days
+ * back, thirty ahead) and its cup and Champions League games (a women's team
+ * in the women's tournaments), in date order. For its club page and "Mine hold".
+ */
+export function teamGames(team: { name: string; names?: string[]; sport: SportId; league: string; leagueSlug?: string }, now: number): Match[] {
+  const names = team.names ?? [team.name]
+  const women = WOMEN.test(team.league) || /\b(w|women)\b/i.test(team.name)
+  const league = teamMatches(names, team.sport, addDays(isoDate(now), -10), 40, now, team.names ? team.leagueSlug : undefined)
+  const tournaments = team.sport === 'soccer' ? teamTournamentMatches(names, women) : []
+  return [...new Map([...league, ...tournaments].map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+}
+
+/**
+ * The other matches of a match's round (its league, three days either side), or
+ * of its day when the round isn't known: links from one match page to the next.
+ */
+export function relatedMatches(match: Match, now: number, limit = 10): Match[] {
+  if (!match.leagueSlug) return []
+  const day = isoDate(match.kickoff)
+  const span = match.round !== undefined ? 3 : 0
+  const out: Match[] = []
+  for (let i = -span; i <= span; i++) {
+    for (const m of getMatches(addDays(day, i), match.sport, now)) {
+      if (m.id === match.id || m.leagueSlug !== match.leagueSlug) continue
+      if (match.round !== undefined && m.round !== match.round) continue
+      out.push(m)
+    }
+  }
+  return out.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()).slice(0, limit)
 }
 
 /** Matches for any team (any sport) over a range of days from `fromDate` */

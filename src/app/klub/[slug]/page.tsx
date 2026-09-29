@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
-import { clubExternalGames, clubMatches, teamMatches } from '../../../data/matches'
+import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
@@ -14,22 +14,24 @@ import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
-import { JsonLd, breadcrumbLd, clubLd, faqLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AboutText } from '../../../components/AboutText'
 import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
 import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
-import { ClubHistory } from '../../../components/ClubHistory'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
 import { NewsList } from '../../../components/NewsList'
 import { newsFor } from '../../../lib/news'
-import { archiveLeagueTable, clubHistory } from '../../../lib/history'
+import { archiveLeagueTable } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
 import { clubNames, normalize } from '../../../data/aliases'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { Match } from '../../../types'
-import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
+import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../../../data/baselines'
+import { getRealData } from '../../../data/real'
+import { divisionOfGame } from '../../../data/ourLeagues'
+import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
@@ -38,7 +40,7 @@ import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { FollowButton } from '../../../components/FollowButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
-import { addDays, formatLong, formatShortYear, isoDate } from '../../../lib/time'
+import { formatLong, formatShortYear, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 
@@ -55,16 +57,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!team) return { title: 'Klubben findes ikke' }
   if (!team.season) {
     const sport = sportById(team.sport).label.toLowerCase()
+    // A team with no games at all (coming or saved) is a thin page: kept out of the search results
+    const names = new Set((team.names ?? [team.name]).map(normalize))
+    const empty = !teamGames(team, Date.now()).length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
     return {
-      title: `${team.name} – resultater og kampprogram (${team.league})`,
+      title: `${team.name} – resultater og kampprogram`,
       description: `Seneste resultater og kommende kampe for ${team.name} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
       alternates: { canonical: paths.club(team.slug) },
+      ...(empty && { robots: { index: false, follow: true } }),
     }
   }
   const { club, division } = team.season
   const stats = clubStats(club.name, Date.now())!
   return {
-    title: `${club.name} – resultater, kampprogram og stilling ${seasonOf(division)}`,
+    title: `${club.name} – kampe og stilling ${seasonOf(division)}`,
     description: `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
     alternates: { canonical: paths.club(club.slug) },
   }
@@ -86,7 +92,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
   const recent = season.filter((m) => m.state === 'finished').reverse()
   const upcoming = season.filter((m) => m.state !== 'finished')
   const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
-  const history = clubHistory(club)
   const table = standings(division, now)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
@@ -103,7 +108,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
       <RealDataExtra games={clubExternalGames(club.name)} />
       <JsonLd data={clubLd(club, division)} />
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
-      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Klubber', path: paths.clubs() },
@@ -182,7 +186,6 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
-        {history && division.id !== 'superliga' && <ClubHistory name={club.name} history={history} />}
         <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />
         <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
@@ -194,7 +197,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 }
 
 /** A team's finished games: its matches around today and those our statistics bank has saved, newest first */
-function teamResults(names: string[], around: Match[], divisionId: string | undefined, leagueName: string): PastMatch[] {
+function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string): PastMatch[] {
   const keys = new Set(names.map(normalize))
   const logos = teamLogos()
   const fromMatches: PastMatch[] = around
@@ -213,7 +216,7 @@ function teamResults(names: string[], around: Match[], divisionId: string | unde
   const seen = new Set(fromMatches.map((m) => `${isoDate(m.date)}|${normalize(m.home)}`))
   const saved: PastMatch[] = readArchive()
     // In its own league when it has one (a women's team can share its name with the men's club)
-    .filter((a) => (divisionId ? a.divisionId === divisionId : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
+    .filter((a) => (divisionIds.length ? divisionIds.includes(a.divisionId) : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
     .filter((a) => keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))
     .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(a.homeName)}`))
     .map((a) => ({
@@ -232,19 +235,22 @@ function teamResults(names: string[], around: Match[], divisionId: string | unde
 /** Page for any other team: built from its matches, the games we have saved and its league's table */
 async function TeamPage({ team }: { team: TeamEntry }) {
   const now = Date.now()
-  const today = isoDate(now)
   const names = team.names ?? [team.name]
   const keys = new Set(names.map(normalize))
   const own = (name: string) => keys.has(normalize(name))
   const league = team.leagueSlug ? sameLeagueKeys(team.leagueSlug).map(externalLeague).find(Boolean) : undefined
   const api = league?.api.split('-')[0]
   const divisionId = league ? `ext-${api}-${league.id}` : undefined
+  // Every id the source lists the league under (the A-Liga is also "Kvindeliga")
+  const divisionIds = team.leagueSlug
+    ? [...new Set(sameLeagueKeys(team.leagueSlug).map(externalLeague).filter((l): l is NonNullable<typeof l> => !!l).map((l) => `ext-${l.api.split('-')[0]}-${l.id}`))]
+    : []
   // The league's table: API-Sports' own when the plan gives it, else ours from a starting table and the saved games
   const baseline = team.leagueSlug ? BASELINES[team.leagueSlug] : undefined
   // A cup has rounds, not a table
   const cup = !!cupOfGame({ sport: team.sport, league: { id: '', name: team.league, country: team.country } })
   const fromApi = league && !cup ? await apiLeagueTable(league) : undefined
-  const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionId ?? '', baseline).rows : []))
+  const table = cup ? [] : (fromApi?.find((g) => g.some((r) => own(r.name))) ?? (divisionId || baseline ? archiveLeagueTable(divisionIds, baseline).rows : []))
   const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
   const row =
     table.find((r) => own(r.name)) ??
@@ -255,10 +261,11 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const hasDraws = table.some((r) => r.drawn !== undefined)
   const hasPoints = table.some((r) => r.points !== undefined)
 
-  const around = teamMatches(names, team.sport, addDays(today, -10), 30, now, team.names ? team.leagueSlug : undefined)
+  // Its league's games around today, and its games in the cups and the Champions League
+  const around = teamGames(team, now)
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
-  const results = teamResults(names, around, divisionId, team.league)
+  const results = teamResults(names, around, divisionIds, team.league)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)
@@ -281,15 +288,32 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const last = mine[0]
   const next = upcoming[0]
 
+  // The saved results' tournaments under the names and logos the rest of the site uses ("Kvindeliga" is the A-Liga)
+  const tournaments = new Map<string, { name: string; logo?: string; slug?: string }>()
+  for (const g of getRealData()?.external ?? []) {
+    if (divisionOfGame(g)) continue
+    const slug = externalLeagueKey(g.league)
+    for (const n of [g.league.name, g.league.originalName]) if (n && !tournaments.get(normalize(n))?.logo) tournaments.set(normalize(n), { name: g.league.name, logo: g.league.logo, slug })
+  }
+  const tournament = (name: string) => {
+    const known = tournaments.get(normalize(name))
+    if (known) return known
+    const main = mainLeagueKey(externalLeagueKey({ name, country: team.country }))
+    const other = BASELINES[main]?.league.name
+    return other ? (tournaments.get(normalize(other)) ?? { name: other, slug: main }) : { name }
+  }
   // The team's games for the match list (as on our clubs' pages): the saved results and the coming games, the team under its page name
-  const asTeam = (name: string) => (own(name) ? team.name : name)
+  // Also its plain name in a women's tournament ("HB Køge" in the women's Champions League is HB Køge Women)
+  const asTeam = (name: string) => (own(name) || names.some((x) => normalize(women(x)) === normalize(women(name))) ? team.name : name)
   const matches: Match[] = [
     ...mine.map(({ m }, k): Match => ({
       id: `r${k}-${isoDate(m.date)}`,
       slug: m.slug ?? '',
       sport: team.sport,
-      league: m.competition,
-      leagueId: m.competition,
+      league: tournament(m.competition).name,
+      leagueId: tournament(m.competition).name,
+      leagueBadge: tournament(m.competition).logo,
+      leagueSlug: tournament(m.competition).slug,
       kickoff: m.date,
       state: 'finished',
       statusLabel: 'Slut',
@@ -306,7 +330,6 @@ async function TeamPage({ team }: { team: TeamEntry }) {
     <div className="page">
       <JsonLd data={teamPageLd(team)} />
       <JsonLd data={webPageLd(paths.club(team.slug), team.name, new Date(now))} />
-      <JsonLd data={faqLd(faq)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Klubber', path: paths.clubs() },
@@ -384,37 +407,39 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                     </Link>
                   )}
                 </header>
-                <table className="table table--compact">
-                  <thead>
-                    <tr>
-                      <th className="num">#</th>
-                      <th>Hold</th>
-                      <th className="num">K</th>
-                      <th className="num">V</th>
-                      {hasDraws && <th className="num">U</th>}
-                      <th className="num">T</th>
-                      {hasPoints && <th className="num">P</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {nearby.map((r) => (
-                      <tr key={`${r.rank}-${r.name}`} className={r === row ? 'is-highlight' : undefined}>
-                        <td className="num pos">{r.rank}</td>
-                        <td>
-                          <span className="table__club">
-                            <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
-                            {r.name}
-                          </span>
-                        </td>
-                        <td className="num">{r.played}</td>
-                        <td className="num">{r.won}</td>
-                        {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
-                        <td className="num">{r.lost}</td>
-                        {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                <div className="table-wrap">
+                  <table className="table table--compact">
+                    <thead>
+                      <tr>
+                        <th className="num">#</th>
+                        <th>Hold</th>
+                        <th className="num">K</th>
+                        <th className="num">V</th>
+                        {hasDraws && <th className="num">U</th>}
+                        <th className="num">T</th>
+                        {hasPoints && <th className="num">P</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {nearby.map((r) => (
+                        <tr key={`${r.rank}-${r.name}`} className={r === row ? 'is-highlight' : undefined}>
+                          <td className="num pos">{r.rank}</td>
+                          <td>
+                            <span className="table__club">
+                              <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
+                              {r.name}
+                            </span>
+                          </td>
+                          <td className="num">{r.played}</td>
+                          <td className="num">{r.won}</td>
+                          {hasDraws && <td className="num">{r.drawn ?? 0}</td>}
+                          <td className="num">{r.lost}</td>
+                          {hasPoints && <td className="num pts">{r.points ?? 0}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Matchly (se hele stillingen for grundlaget).</p>}
               </section>
             )}

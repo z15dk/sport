@@ -34,6 +34,17 @@ export interface ExternalGame {
   eventsFor?: string
 }
 
+/** A women's tournament by its name: Kvindeliga, A-Liga, "Women", Frauen, Damallsvenskan, WSL, Liga F … */
+export const WOMEN_LEAGUE = /women|kvinde|frauen|femin|damallsvenskan|toppserien|a-liga|\bwsl\b|\bliga f\b|première ligue|arkema|damer|\bdame\b/i
+/** A women's team by its name: "Brondby W", "HB Køge Women" */
+export const WOMEN_TEAM = /\b(w|women|kvinder|damer|dames|frauen|femenino|feminino|féminines)\b\.?$/i
+
+/** A women's football game: the tournament's name, or both teams named as women's teams */
+export function isWomenGame(g: ExternalGame): boolean {
+  if (g.sport !== 'soccer') return false
+  return WOMEN_LEAGUE.test(g.league.originalName ?? g.league.name) || (WOMEN_TEAM.test(g.home.name) && WOMEN_TEAM.test(g.away.name))
+}
+
 /**
  * A round's name in Danish: "3rd Round" and "Round 3" -> "3. runde",
  * "Regular Season - 9" -> "9. runde", "Round of 16" and "1/8-finals" ->
@@ -69,6 +80,18 @@ export function danishRound(round?: string | number): string | undefined {
  * (/turnering/<key>), its logo and its name in the admin pages. From the
  * original name, so a rename keeps the key.
  */
+/**
+ * Danish names for the source's English ones, when the admin pages haven't named the league:
+ * "Friendlies" is "Venskabskampe", "Friendlies Clubs" "Venskabskampe, klubhold". The address keeps the original name.
+ */
+export function danishLeagueName(name: string): string | undefined {
+  const m = /^Friendlies\b\s*(.*)$/i.exec(name.trim())
+  if (!m) return undefined
+  const rest = m[1].trim()
+  const kinds: Record<string, string> = { clubs: 'klubhold', women: 'kvinder', 'u23': 'U23', 'u21': 'U21', 'u20': 'U20', 'u19': 'U19', 'u17': 'U17' }
+  return rest ? `Venskabskampe, ${kinds[rest.toLowerCase()] ?? rest}` : 'Venskabskampe'
+}
+
 export const externalLeagueKey = (league: { name: string; country?: string; originalName?: string }) =>
   `x-${slugify(`${league.country ?? ''} ${league.originalName ?? league.name}`)}`
 

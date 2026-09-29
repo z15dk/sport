@@ -24,6 +24,8 @@ export interface OfficialRow {
   goalsFor?: number
   goalsAgainst?: number
   points?: number
+  /** The team's logo in the official table (the source's address) */
+  logo?: string
 }
 
 export interface SeasonCheck {
@@ -42,9 +44,38 @@ export interface SeasonCheck {
 
 const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
 
+// The statistics bank's API-Sports matches by "league|season", built once per read of the bank
+// (going through every saved match for every season blocked the server for seconds)
+const bySeason = new WeakMap<ArchivedMatch[], { league: Map<string, ArchivedMatch[]>; all: Map<string, ArchivedMatch[]> }>()
+function seasonIndex() {
+  const rows = readArchive()
+  let index = bySeason.get(rows)
+  if (!index) {
+    index = { league: new Map(), all: new Map() }
+    for (const a of rows) {
+      if (!API_SPORTS_ID.test(a.id)) continue
+      const key = `${a.divisionId}|${a.season}`
+      ;(index.all.get(key) ?? index.all.set(key, []).get(key)!).push(a)
+      if (!NOT_LEAGUE_ROUND.test(a.round ?? '')) (index.league.get(key) ?? index.league.set(key, []).get(key)!).push(a)
+    }
+    bySeason.set(rows, index)
+  }
+  return { rows, index }
+}
+
 /** A season's saved league matches: API-Sports' ids, this league and season, no play-off rounds */
 export function leagueSeasonGames(divisionId: string, season: string): ArchivedMatch[] {
-  return readArchive().filter((a) => a.divisionId === divisionId && a.season === season && API_SPORTS_ID.test(a.id) && !NOT_LEAGUE_ROUND.test(a.round ?? ''))
+  return seasonIndex().index.league.get(`${divisionId}|${season}`) ?? []
+}
+
+/** Every saved API-Sports match of a season (play-offs too) */
+export function allSeasonGames(divisionId: string, season: string): ArchivedMatch[] {
+  return seasonIndex().index.all.get(`${divisionId}|${season}`) ?? []
+}
+
+/** The seasons a league has API-Sports matches saved for */
+export function savedSeasons(divisionId: string): string[] {
+  return [...seasonIndex().index.all.keys()].filter((k) => k.startsWith(`${divisionId}|`)).map((k) => k.slice(divisionId.length + 1))
 }
 
 /**
@@ -67,6 +98,7 @@ export function finalTable(groups: TableRow[][]): { table: OfficialRow[]; upper?
     goalsFor: r.for,
     goalsAgainst: r.against,
     points: r.points,
+    logo: r.logo,
   })
   const size = Math.max(...named.map((g) => g.length))
   const whole = named.find((g) => g.length === size)!
@@ -88,6 +120,7 @@ export function finalTable(groups: TableRow[][]): { table: OfficialRow[]; upper?
       table.push({
         rank: table.length + 1,
         name: r.name,
+        logo: r.logo ?? base.logo,
         played: r.played + (add ? base.played : 0),
         won: r.won + (add ? base.won : 0),
         drawn: (r.drawn ?? 0) + (add ? (base.drawn ?? 0) : 0),
@@ -102,7 +135,20 @@ export function finalTable(groups: TableRow[][]): { table: OfficialRow[]; upper?
   return { table, upper: ordered[0].length }
 }
 
+// A season's check, kept until the bank is read again or the official table changes
+const checked = new Map<string, { rows: ArchivedMatch[]; groups?: TableRow[][]; result: SeasonCheck }>()
+
 export function checkSeason(divisionId: string, season: string, sport: SportId, groups?: TableRow[][]): SeasonCheck {
+  const { rows } = seasonIndex()
+  const key = `${divisionId}|${season}`
+  const hit = checked.get(key)
+  if (hit && hit.rows === rows && hit.groups === groups) return hit.result
+  const result = runCheck(divisionId, season, sport, groups)
+  checked.set(key, { rows, groups, result })
+  return result
+}
+
+function runCheck(divisionId: string, season: string, sport: SportId, groups?: TableRow[][]): SeasonCheck {
   const games = leagueSeasonGames(divisionId, season)
   const empty = { games, table: [], adjustments: [] }
   if (!games.length) return { status: 'no-games', issues: ['Ingen kampe gemt'], ...empty }

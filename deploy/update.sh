@@ -52,6 +52,22 @@ if ! (cd "$RELEASE" && as_app env NODE_ENV=production SITE_URL="$SITE_URL" SITE_
   exit 1
 fi
 
+# Chromium for the social media cards (src/lib/socialRender.ts), once per
+# Playwright version, in $BASE/browsers. A failure never stops the deploy: the
+# site runs without it, only the pictures wait.
+BROWSERS="$BASE/browsers"
+PW_VERSION=$(node -p "require('$RELEASE/node_modules/playwright-core/package.json').version" 2>/dev/null || echo "")
+if [ -n "$PW_VERSION" ] && [ ! -f "$BROWSERS/.installed-$PW_VERSION" ]; then
+  echo "Installerer Chromium til billederne (Playwright $PW_VERSION)"
+  mkdir -p "$BROWSERS"
+  if (cd "$RELEASE" && PLAYWRIGHT_BROWSERS_PATH="$BROWSERS" timeout 900 node node_modules/playwright-core/cli.js install --with-deps chromium >/dev/null 2>&1); then
+    touch "$BROWSERS/.installed-$PW_VERSION"
+    chmod -R a+rX "$BROWSERS"
+  else
+    echo "Chromium kunne ikke installeres – siden kører videre, billederne venter" >&2
+  fi
+fi
+
 ln -sfn "$RELEASE" "$BASE/current.new"
 mv -Tf "$BASE/current.new" "$BASE/current"
 chown -h "$APP_USER": "$BASE/current"

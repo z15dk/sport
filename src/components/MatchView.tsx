@@ -7,7 +7,7 @@ import { paths } from '../lib/site'
 import { clubStats, findClub, scoreWords, type ClubStats, type PastMatch } from '../data/matchInsights'
 import { clubSeasonStats } from '../data/stats'
 import { sportOf } from '../data/leagues'
-import { clubMatches, findMatch } from '../data/matches'
+import { clubMatches, findMatch, getMatches, isFriendly } from '../data/matches'
 import { matchPreview, matchReport } from '../data/matchStory'
 import { teamByName, teamInLeague } from '../data/teams'
 import { useNow } from '../hooks/useNow'
@@ -22,6 +22,7 @@ import { PartnerLogo } from './PartnerLogo'
 import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
+import { MatchRow } from './MatchRow'
 import { MatchTimeline } from './MatchTimeline'
 import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
@@ -50,14 +51,39 @@ interface Props {
   lineups?: Lineup[]
   /** Injured and suspended players for this match (server) */
   absent?: { home: Injury[]; away: Injury[] }
+  /** The round's other matches in the league (server): links to their pages */
+  related?: Match[]
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   if (!match) return null
-  return <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+  return (
+    <>
+      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+      {related && related.length > 0 && (
+        <section className="league" aria-labelledby="related-title">
+          <header className="league__header">
+            <div className="league__toggle">
+              <span className="league__titles">
+                <h2 id="related-title" className="league__name">
+                  {match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>Flere kampe i {match.league}</Link> : `Flere kampe i ${match.league}`}
+                </h2>
+                {match.round !== undefined && <span className="league__country">{match.round}. runde</span>}
+              </span>
+            </div>
+          </header>
+          <ul className="league__matches">
+            {related.map((m) => (
+              <MatchRow key={m.id} match={m} showDate />
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  )
 }
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
@@ -135,7 +161,14 @@ function MatchBody({
   const form = extra?.form ?? seasonForm(match)
   // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
   // A cup has rounds, not a table
-  const sourceTable = cup ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  // Friendlies have no table: the day's friendlies instead (sent by the page with RealDataExtra)
+  const friendly = isFriendly(match.league)
+  const dayGames = friendly
+    ? getMatches(isoDate(match.kickoff), match.sport, now)
+        .filter((m) => m.league === match.league)
+        .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    : []
+  const sourceTable = cup || friendly ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
   // The table under our clubs' own names ("Nykobing FC" from API-Sports is "Nykøbing FC"), so the report and the table say the same
   const ourClubs = [...(homeStats?.division.clubs ?? []), ...(awayStats?.division.clubs ?? [])]
   const ourName = (name: string) =>
@@ -208,7 +241,33 @@ function MatchBody({
               </ol>
             </section>
           ) : null
-  const pairRow = !!stats || lineups?.length === 2
+  // The match statistics: at the top, right under the score, while the match is live; else in the flow with the line-ups
+  const statsTop = match.state === 'live' && !!stats
+  const flowStats = statsTop ? undefined : stats
+  const statsBox = stats ? (
+    <section className="sheet__section">
+      <h2 className="sheet__title">Kampstatistik</h2>
+      {stats.xg && (
+        <StatBar
+          label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
+          home={stats.xg.home}
+          away={stats.xg.away}
+          homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        />
+      )}
+      {stats.rows.map((r) => (
+        <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
+      ))}
+      {stats.xg?.source === 'scoreline' && (
+        <p className="muted small">
+          Chance-tal er Matchlys estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
+          Det er ikke rigtig xG, som vurderer hvert skud for sig.
+        </p>
+      )}
+    </section>
+  ) : null
+  const pairRow = !!flowStats || lineups?.length === 2
 
   return (
     <article className="match-page">
@@ -249,6 +308,8 @@ function MatchBody({
         </div>
       </header>
 
+      {statsTop && <div className="match-page__live-stats">{statsBox}</div>}
+
       <MatchTimeline match={match} />
       <MatchExtrasPanel match={match} withChannels={false} />
 
@@ -258,35 +319,26 @@ function MatchBody({
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
 
+      {/* The written report or preview right under the summary: the page's own text, high up for readers and search engines */}
+      {story && (
+        <section className="story" aria-labelledby="story-title">
+          <h2 id="story-title" className="story__title">
+            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
+          </h2>
+          {story.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
+        </section>
+      )}
+
       {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
       <div className="match-page__flow">
       {pairRow && (
-        <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
-          {(stats || timeline) && (
+        <div className={`match-page__cols${(flowStats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
+          {(flowStats || timeline) && (
           <div className="match-page__col">
-            {stats && (
-              <section className="sheet__section">
-                <h2 className="sheet__title">Kampstatistik</h2>
-                {stats.xg && (
-                  <StatBar
-                    label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
-                    home={stats.xg.home}
-                    away={stats.xg.away}
-                    homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  />
-                )}
-                {stats.rows.map((r) => (
-                  <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
-                ))}
-                {stats.xg?.source === 'scoreline' && (
-                  <p className="muted small">
-                    Chance-tal er Matchlys estimat af forventede mål ud fra skuddene: ca. 0,12 mål pr. skud i feltet, 0,03 pr. skud udenfor og 0,76 pr. straffespark.
-                    Det er ikke rigtig xG, som vurderer hvert skud for sig.
-                  </p>
-                )}
-              </section>
-            )}
+            {flowStats && statsBox}
 
             {timeline}
           </div>
@@ -347,6 +399,19 @@ function MatchBody({
           </section>
 
           {!pairRow && timeline}
+
+          {dayGames.length > 1 && (
+            <section className="sheet__section">
+              <h2 className="sheet__title">
+                {isoDate(match.kickoff) === isoDate(new Date(now)) ? 'I dag' : formatDayMonth(isoDate(match.kickoff))} · {match.league}
+              </h2>
+              <ul className="league__matches league__matches--flush">
+                {dayGames.map((m) => (
+                  <MatchRow key={m.id} match={m} />
+                ))}
+              </ul>
+            </section>
+          )}
 
           {table && table.rows.length > 1 && (
             <section className="sheet__section">
@@ -507,7 +572,15 @@ function MatchBody({
                     <TeamBadge name={m.home} src={m.homeLogo ?? (m.home === home.name ? home.badge : m.home === away.name ? away.badge : undefined)} colors={colorsOf(m.home)} size={22} />
                   </span>
                   <span className="h2h__score">
-                    {m.homeScore}–{m.awayScore}
+                    {m.slug ? (
+                      <Link href={paths.match(m.slug)} title={`${m.home} – ${m.away} ${m.homeScore}-${m.awayScore}`}>
+                        {m.homeScore}–{m.awayScore}
+                      </Link>
+                    ) : (
+                      <>
+                        {m.homeScore}–{m.awayScore}
+                      </>
+                    )}
                   </span>
                   <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
                     <TeamBadge name={m.away} src={m.awayLogo ?? (m.away === home.name ? home.badge : m.away === away.name ? away.badge : undefined)} colors={colorsOf(m.away)} size={22} />
@@ -519,18 +592,6 @@ function MatchBody({
           </ul>
         </section>
       </div>
-      {/* The written report or preview last: the facts, line-ups and statistics come first */}
-      {story && (
-        <section className="story" aria-labelledby="story-title">
-          <h2 id="story-title" className="story__title">
-            {match.state === 'finished' ? 'Kampreferat' : 'Optakt'}
-          </h2>
-          {story.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-          <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
-        </section>
-      )}
     </article>
   )
 }

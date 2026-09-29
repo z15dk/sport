@@ -19,7 +19,9 @@ type SearchParams = Promise<{ sport?: string; live?: string }>
 function resolve(dag: string, now: number) {
   const today = isoDate(now)
   const date = dag === 'i-gaar' ? addDays(today, -1) : dag === 'i-morgen' ? addDays(today, 1) : dag === 'i-dag' ? today : isValidIsoDate(dag) ? dag : undefined
-  return date ? { date, today } : undefined
+  // Only the dates our data can have: a date years away is not a page (a crawler could walk the day links forever)
+  const days = date ? Math.abs(Date.parse(date) - Date.parse(today)) / 86_400_000 : Infinity
+  return date && days <= 400 ? { date, today } : undefined
 }
 
 function words(date: string, today: string, sportLabel?: string) {
@@ -42,10 +44,12 @@ export async function generateMetadata({ params, searchParams }: { params: Param
   const dateText = formatFull(date)
   const alias = dayAlias(date, today)
   return {
-    title: `${w.heading}${w.when === dateText ? '' : ` (${dateText})`} – ${w.past ? 'alle resultater' : 'kampprogram og TV'}`,
+    title: `${w.heading}${w.when === dateText ? '' : ` (${dateText})`}${w.past ? '' : ' – kampprogram og TV'}`,
     description: w.past
       ? `${count ? `Alle ${count} resultater` : 'Resultaterne'} ${w.when}${w.when === dateText ? '' : `, ${dateText}`}: ${s.id === 'all' ? 'fodbold, ishockey, basketball og mere' : s.label.toLowerCase()} fra Danmark og Europas store ligaer, med målscorere og stillinger.`
       : `${count ? `Alle ${count} kampe` : 'Kampene'} ${w.when}${w.when === dateText ? '' : `, ${dateText}`}: kampprogram med tidspunkter og TV-kanaler for ${s.id === 'all' ? 'fodbold, ishockey, basketball og mere' : s.label.toLowerCase()}.`,
+    // A day without matches is not worth a place in the search results
+    ...(count === 0 && { robots: { index: false, follow: true } }),
     // Yesterday and tomorrow are found under their names; today is the front page
     alternates: { canonical: alias ? `${paths.home({ sport: s.slug, dato: date, today })}` : paths.home({ sport: s.slug }) },
   }

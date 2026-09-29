@@ -7,15 +7,23 @@ import { paths } from '../lib/site'
 import { formatShortYear } from '../lib/time'
 import { IntervalChart } from './IntervalChart'
 import { TeamBadge } from './TeamBadge'
+import { PlayerPhoto } from './PlayerPhoto'
+import type { Leaders } from '../data/matchExtra'
+import { playerFaces } from '../lib/playerPhotos'
+import { playerPath } from '../data/player'
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
 
 /** Our own statistics for a league's season: one of our leagues, or another league's statistics computed from its games */
-export function LeagueStats(props: { division: Division } | { stats: LeagueStatsData | undefined; sport: SportId }) {
+export function LeagueStats(props: ({ division: Division } | { stats: LeagueStatsData | undefined; sport: SportId }) & { leaders?: Leaders }) {
   const s = 'division' in props ? leagueStats(props.division) : props.stats
   if (!s) return null
   const sport = 'division' in props ? sportOf(props.division) : props.sport
   const soccer = sport === 'soccer'
+  // The scorers' photos (and pages) when we know them; otherwise the club's logo
+  // The league's player lists (LeagueLeaders, beside this box) already have the top scorers: not twice on the page
+  const scorers = props.leaders?.scorers.length ? [] : s.scorers
+  const faces = soccer ? playerFaces(scorers.map((r) => ({ name: r.player, team: r.club.name })), props.leaders) : []
   const word = soccer || sport === 'ice_hockey' ? 'Mål' : 'Point'
   const tiles: [string, string][] = [
     [`${word} pr. kamp`, one(s.goalsPerMatch)],
@@ -73,15 +81,15 @@ export function LeagueStats(props: { division: Division } | { stats: LeagueStats
             />
           </div>
         )}
-        {s.scorers.length > 0 && (
+        {scorers.length > 0 && (
           <div>
             <h3 className="stats-sub">Topscorere</h3>
             <ol className="rank-list">
-              {s.scorers.map((r) => (
+              {scorers.map((r, i) => (
                 <li key={`${r.club.id}-${r.player}`}>
-                  <TeamBadge name={r.club.name} src={r.club.logo} colors={r.club.colors} size={22} />
+                  <PlayerPhoto photo={faces[i]?.photo} team={r.club.name} teamLogo={r.club.logo} colors={r.club.colors} size={22} />
                   <span className="rank-list__name">
-                    {r.player}
+                    {faces[i]?.id ? <Link href={playerPath(faces[i].id!, r.player)}>{r.player}</Link> : r.player}
                     <em>{r.club.name}</em>
                   </span>
                   <strong>

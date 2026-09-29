@@ -23,6 +23,12 @@ export async function register() {
   const { warmKnownPictures } = await import('./lib/imageProxy')
   warmKnownPictures()
   startIndexNow()
+  // The sitemap's match list, worked out ahead so /sitemap.xml answers at once
+  const { startSitemapWarm } = await import('./lib/sitemaps')
+  startSitemapWarm()
   startRealDataSync()
   startLogoSync()
+  // Social media posts (does nothing until it is switched on in /admin/sociale)
+  const { startSocialEngine } = await import('./lib/socialEngine')
+  startSocialEngine()
 }

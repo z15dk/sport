@@ -20,6 +20,8 @@
     "@tiptap/starter-kit": "^3.31.3",
     "html-to-image": "1.11.13",
     "next": "^16.3.6",
+    "nodemailer": "^10.0.12",
+    "playwright-core": "1.56",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "sanitize-html": "^2.17.7",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@types/sanitize-html": "^2.16.1",

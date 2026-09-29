@@ -29,7 +29,15 @@ export function generateMetadata(): Metadata {
     robots: indexable() ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
     openGraph: { siteName: SITE_NAME, locale: 'da_DK', type: 'website' },
     twitter: { card: 'summary_large_image' },
-    icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
+    // Matchly's M on lime (favicon.ico for browsers and Google; 96 px, a multiple of 48, for Google's search results)
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+        { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/favicon-96.png', sizes: '96x96', type: 'image/png' },
+      ],
+      apple: '/apple-touch-icon.png',
+    },
     appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
   }
 }

@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { teamByName } from '../data/teams'
 import { paths } from '../lib/site'
 import { useBadge } from './BadgeProvider'
-import { sizedImage } from '../lib/imageSize'
+import { flagImage, sizedImage } from '../lib/imageSize'
+import { flagCode } from '../data/flagCodes'
 import { Flag, hasFlag } from './Flag'
 import { danishCountry } from '../data/countries'
 
@@ -24,8 +25,10 @@ export function TeamBadge({ link = true, ...props }: Props) {
   const team = link ? teamByName(props.name) : undefined
   if (!team) return <Badge {...props} />
   return (
-    <Link className="badge-link" href={paths.club(team.slug)} aria-label={`Gå til ${team.name}`} title={team.name}>
+    <Link className="badge-link" href={paths.club(team.slug)} title={team.name}>
       <Badge {...props} />
+      {/* Real link text for search engines and screen readers (the logo itself says nothing) */}
+      <span className="visually-hidden">{team.name}</span>
     </Link>
   )
 }
@@ -78,7 +81,9 @@ function useLightLogo(url?: string) {
 
 function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
   const known = useBadge(name)
-  const url = src ?? known
+  // No logo: a national team's flag (a drawn one first, then any country's from our own domain)
+  const code = src || known || nationOf(name) ? undefined : flagCode(name, true)
+  const url = src ?? known ?? (code ? flagImage(code, size) : undefined)
   const [failed, setFailed] = useState(false)
   const light = useLightLogo(failed ? undefined : url)
 

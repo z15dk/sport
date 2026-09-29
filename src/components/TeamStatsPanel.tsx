@@ -77,7 +77,7 @@ export function TeamStatsPanel({ stats, name }: { stats: TeamStats; name: string
       <div className="team-stats__charts">
         <div>
           <h3>Mål pr. kvarter</h3>
-          <PeriodBars a={stats.goalsFor.periods} b={stats.goalsAgainst.periods} labels={['Scoret', 'Imod']} colors={['#2f6fdb', '#ff4a1f']} />
+          <PeriodBars a={stats.goalsFor.periods} b={stats.goalsAgainst.periods} labels={['Scoret', 'Imod']} colors={['var(--lime-deep)', 'var(--ink)']} />
         </div>
         <div>
           <h3>Kort pr. kvarter</h3>

@@ -184,13 +184,13 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   : `Beregnet af Matchly ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
-          <LeagueStats stats={stats} sport={league.sport} />
+          <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
           </div>
           {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
           </div>
         )}
         {rounds && rows.length <= 1 && leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-        {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} />}
+        {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />}
         {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
 
         {news}

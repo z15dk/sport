@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { divisionBySlug } from '../../../../data/leagues'
+import { divisionBySlug, sportOf } from '../../../../data/leagues'
 import { pastSeason, pastSeasons, seasonGameAsMatch, type PastSeason, type SeasonGame } from '../../../../lib/history'
 import { MatchRow } from '../../../../components/MatchRow'
 import type { Match } from '../../../../types'
@@ -12,6 +12,8 @@ import { TeamBadge } from '../../../../components/TeamBadge'
 import { AdSlot } from '../../../../components/AdSlot'
 import { playerPath } from '../../../../data/player'
 import { SeasonLinks } from '../../../../components/SeasonLinks'
+import { PlayerPhoto } from '../../../../components/PlayerPhoto'
+import { playerFaces } from '../../../../lib/playerPhotos'
 
 // An earlier season of one of our leagues (only seasons our partners' results
 // cover in full): final table, top scorers, every match and the season in numbers.
@@ -65,7 +67,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const [first, second] = season.table
   const f = facts(season)
   return {
-    title: `${division.name} ${season.label} – slutstilling, resultater og topscorere`,
+    title: `${division.name} ${season.label}: slutstilling og resultater`,
     description: `Slutstillingen i ${division.name} ${season.label}: ${first.name} vandt${season.hasDraws ? ` med ${first.points} point` : ''}${second ? ` foran ${second.name}` : ''}. Alle ${season.games.length} kampe, ${f.goals} mål (${one(f.perMatch)} pr. kamp) og sæsonens topscorere.`,
     alternates: { canonical: `${paths.league(division.slug)}/${season.slug}` },
   }
@@ -81,6 +83,8 @@ export default async function SeasonPage({ params }: { params: Params }) {
   const [first, second] = season.table
   const f = facts(season)
   const top = scorers(season)
+  // Photos (and pages) for the scorers we know; otherwise the club's logo
+  const faces = sportOf(division) === 'soccer' ? playerFaces(top.list) : []
   const others = pastSeasons(division.id)
   const lead = [
     `${first.name} vandt ${division.name} ${season.label}${season.hasDraws ? ` med ${first.points} point` : ` med ${first.won} sejre`}${second ? `, ${season.hasDraws ? `${first.points - second.points} point` : `${first.won - second.won} sejre`} foran ${second.name}` : ''}.`,
@@ -99,10 +103,16 @@ export default async function SeasonPage({ params }: { params: Params }) {
     const key = g.date.toLocaleDateString('da-DK', { month: 'long', year: 'numeric', timeZone: 'Europe/Copenhagen' })
     months.set(key, [...(months.get(key) ?? []), asMatch(g)])
   }
-  const Club = ({ name, slug }: { name: string; slug?: string }) => (
-    <span className="table__club">
-      <TeamBadge link={false} name={name} size={20} />
-      {slug ? <Link href={paths.club(slug)}>{name}</Link> : name}
+  const Club = ({ name, slug, logo }: { name: string; slug?: string; logo?: string }) => (
+    <span className="table__club table__club--fit">
+      <TeamBadge link={false} name={name} src={logo} size={20} />
+      {slug ? (
+        <Link className="table__clubname" href={paths.club(slug)} title={name}>
+          {name}
+        </Link>
+      ) : (
+        <span className="table__clubname">{name}</span>
+      )}
     </span>
   )
   return (
@@ -140,10 +150,11 @@ export default async function SeasonPage({ params }: { params: Params }) {
             <strong className="tile__value">{one(f.perMatch)}</strong>
           </div>
           <div className="tile tile--lime">
-            <span className="tile__label">Hjemme · uafgjort · ude</span>
-            <strong className="tile__value">
-              {f.homeWins}·{f.draws}·{f.awayWins}
-            </strong>
+            <span className="tile__label">Hjemmesejre</span>
+            <strong className="tile__value">{season.games.length ? Math.round((f.homeWins / season.games.length) * 100) : 0} %</strong>
+            <span className="tile__sub">
+              {f.homeWins} hjemme{season.hasDraws ? ` · ${f.draws} uafgjort` : ''} · {f.awayWins} ude
+            </span>
           </div>
         </section>
 
@@ -171,8 +182,8 @@ export default async function SeasonPage({ params }: { params: Params }) {
                     {season.table.map((r) => (
                       <tr key={r.name} className={season.upper === r.rank ? 'is-split' : undefined}>
                         <td className="num pos">{r.rank}</td>
-                        <td>
-                          <Club name={r.name} slug={r.slug} />
+                        <td className="table__grow">
+                          <Club name={r.name} slug={r.slug} logo={r.logo} />
                         </td>
                         <td className="num">{r.played}</td>
                         <td className="num">{r.won}</td>
@@ -201,15 +212,16 @@ export default async function SeasonPage({ params }: { params: Params }) {
                   Topscorere
                 </h2>
               </header>
-              <div className="leaders__grid">
+              <div className="leaders__grid leaders__grid--one">
                 <div className="leaders__list">
                   <ol>
                     {top.list.map((p, i) => (
                       <li key={`${p.name}|${p.team}`}>
                         <span className="leaders__rank">{i + 1}</span>
+                        <PlayerPhoto photo={faces[i]?.photo} team={p.team} size={28} />
                         <span className="leaders__who">
-                          {p.id ? (
-                            <Link className="leaders__name" href={playerPath(p.id, p.name)}>
+                          {(p.id ?? faces[i]?.id) ? (
+                            <Link className="leaders__name" href={playerPath((p.id ?? faces[i]?.id)!, p.name)}>
                               <strong>{p.name}</strong>
                             </Link>
                           ) : (
@@ -234,8 +246,9 @@ export default async function SeasonPage({ params }: { params: Params }) {
         <AdSlot placement="feed" />
 
         {[...months].map(([month, matches]) => (
-          <section key={month} className="league">
-            <header className="league__header">
+          // Folded by default (a long season is a long page); the matches stay in the page for search engines
+          <details key={month} className="league season-fold">
+            <summary className="league__header">
               <div className="league__toggle">
                 <span className="league__titles">
                   <span className="league__country">
@@ -243,14 +256,18 @@ export default async function SeasonPage({ params }: { params: Params }) {
                   </span>
                   <h2 className="league__name season-month">{month}</h2>
                 </span>
+                <span className="league__count">{matches.length} kampe</span>
+                <span className="chevron" aria-hidden="true">
+                  ›
+                </span>
               </div>
-            </header>
+            </summary>
             <ul className="league__matches">
               {matches.map((m) => (
                 <MatchRow key={m.id} match={m} showDate />
               ))}
             </ul>
-          </section>
+          </details>
         ))}
 
         {others.length > 1 && (

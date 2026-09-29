@@ -70,6 +70,12 @@ export function Footer() {
               <Link href="/kampe/i-morgen">Kampe i morgen</Link>
             </li>
             <li>
+              <Link href={paths.tv()}>Fodbold i TV i dag</Link>
+            </li>
+            <li>
+              <Link href={paths.women()}>Kvindefodbold</Link>
+            </li>
+            <li>
               <Link href={paths.clubs()}>Alle klubber</Link>
             </li>
             <li>
@@ -77,6 +83,9 @@ export function Footer() {
             </li>
             <li>
               <Link href={paths.about()}>Om {SITE_NAME}</Link>
+            </li>
+            <li>
+              <Link href={paths.privacy()}>Privatliv og cookies</Link>
             </li>
           </ul>
         </div>

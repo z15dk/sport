@@ -134,7 +134,7 @@ export function PastMatchView({ match, season, spectators, teamPath, report, h2h
                       <TeamBadge link={false} name={m.home} size={22} />
                     </span>
                     <span className="h2h__score">
-                      {m.homeScore}–{m.awayScore}
+                      {m.slug ? <Link href={paths.match(m.slug)} title={`${m.home} – ${m.away} ${m.homeScore}-${m.awayScore}`}>{m.homeScore}–{m.awayScore}</Link> : `${m.homeScore}–${m.awayScore}`}
                     </span>
                     <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
                       <TeamBadge link={false} name={m.away} size={22} />

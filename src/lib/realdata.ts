@@ -15,12 +15,13 @@ import { isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
-import { sameLeagueKeys } from '../data/baselines'
+import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../data/baselines'
 import { CUPS, asCupGame, cupOfGame, ourClubInCup, wholeSeason } from '../data/cups'
 import type { ExternalGame } from '../data/external'
 import { logoCheckVersion, realLogo } from './logoCheck'
 import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
+import { danishLeagueName } from '../data/external'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
 
@@ -111,6 +112,27 @@ function withoutPlaceholders<G extends { home: { logo?: string }; away: { logo?:
   return { ...g, home: { ...g.home, logo: home }, away: { ...g.away, logo: away }, league: { ...g.league, logo: league } }
 }
 
+/**
+ * A league API-Sports lists under two names (the A-Liga is also "Kvindeliga")
+ * is one league everywhere: its games under the main name (so a club page has
+ * one group, not two), with a logo from whichever of the names has one.
+ */
+function sameLeague<G extends { league: { name: string; country?: string; logo?: string; originalName?: string } }>(games: G[]): G[] {
+  const logos = new Map<string, string>()
+  for (const g of games) {
+    const main = mainLeagueKey(externalLeagueKey(g.league))
+    if (g.league.logo && !logos.has(main)) logos.set(main, g.league.logo)
+  }
+  return games.map((g) => {
+    const key = externalLeagueKey(g.league)
+    const main = mainLeagueKey(key)
+    const name = main !== key ? BASELINES[main]?.league.name : undefined
+    const logo = g.league.logo ?? logos.get(main)
+    if (!name && logo === g.league.logo) return g
+    return { ...g, league: { ...g.league, ...(name && { name, originalName: undefined }), logo } }
+  })
+}
+
 /** What TheSportsDB gave us (as saved in real-data.json) */
 const base = () => holder.__scorelineTsdb
 
@@ -157,12 +179,12 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: withCups(external.games, db?.cups ?? []).map(withoutPlaceholders).map((g) => {
+    external: sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders)).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
       const keys = [...sameLeagueKeys(key), ...(cupOfGame(g) ? [externalLeagueKey({ ...g.league, originalName: undefined })] : [])]
-      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name
+      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name ?? danishLeagueName(g.league.name)
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
     }),

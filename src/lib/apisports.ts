@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, SportId } from '../types'
-import { danishRound, externalLeagueKey, type ExternalGame } from '../data/external'
+import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
 import { alike } from '../data/aliases'
 import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
@@ -331,6 +331,8 @@ interface ApiState {
   /** Goals seen from the score changing between two fetches, by game id (the minute is approximate) */
   goalLog?: Record<string, { at: number; goals: Incident[] }>
   remaining?: number
+  /** When `remaining` was last read from a response */
+  remainingAt?: number
   limit?: number
   /** UTC date the remaining count belongs to (the quota resets at 00:00 UTC) */
   quotaDay?: string
@@ -362,6 +364,8 @@ function load() {
     const mtime = statSync(file()).mtimeMs
     if (mtime !== mem.mtime) {
       mem.store = JSON.parse(readFileSync(file(), 'utf8')) as Store
+      // A count below 0 saved before the check above: unknown, not used up
+      for (const st of Object.values(mem.store)) if (st && typeof st.remaining === 'number' && st.remaining < 0) st.remaining = undefined
       mem.mtime = mtime
       mem.games = undefined
     }
@@ -457,13 +461,17 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
     })
     const remaining = num(res.headers.get('x-ratelimit-requests-remaining'))
     const limit = num(res.headers.get('x-ratelimit-requests-limit'))
-    if (remaining !== undefined) {
+    // API-Sports answers -1 around the daily reset: not a real count (it once stopped football for a whole day)
+    if (remaining !== undefined && remaining >= 0) {
       s.remaining = remaining
       s.quotaDay = utcDay()
+      s.remainingAt = Date.now()
     }
     if (limit !== undefined) s.limit = limit
     onPaidPlan(s)
-    const body = (await res.json()) as { response?: Raw[]; errors?: unknown }
+    // An error page instead of JSON (a 502 from the source): its status, so it counts as a passing error
+    const body = (await res.json().catch(() => undefined)) as { response?: Raw[]; errors?: unknown } | undefined
+    if (!body) return { error: `${res.status} ${res.statusText || 'svar uden JSON'}` }
     const errors: string[] = !body.errors ? [] : (Array.isArray(body.errors) ? body.errors : Object.values(body.errors as object)).map(String)
     if (!res.ok || errors.length) return { error: `${res.status} ${errors.join('; ') || res.statusText}` }
     return { response: body.response ?? [] }
@@ -499,7 +507,8 @@ function allowed(s: ApiState | undefined, date: string, today: string) {
 function keeps(api: Api, g: ExternalGame): boolean {
   if (divisionOfGame(g) || cupOfGame(g)) return true
   const choice = followChoice(api, g.league.id)
-  return choice ? choice === 'on' : APIS[api].keep(g)
+  // Every women's league is followed (the /kvindefodbold page), unless switched off in the admin
+  return choice ? choice === 'on' : APIS[api].keep(g) || isWomenGame(g)
 }
 
 /** A paid plan: more than the free plan's 100 requests a day */
@@ -520,10 +529,34 @@ function onPaidPlan(s: ApiState) {
   for (const [k, v] of Object.entries(s.history ?? {})) if (v === 0) delete s.history![k]
 }
 
+/**
+ * How long the day fetches wait after an error. A wrong key or the plan's
+ * limits would only repeat: an hour. A passing one (a timeout, the network,
+ * too many requests in a minute, the source's own server error) must not stop
+ * the live scores for an hour: a minute.
+ */
+const TRANSIENT = /too many requests|rate ?limit|per minute|timeout|timed out|abort|fetch failed|network|socket|ECONN|ENOTFOUND|EAI_AGAIN|^5\d\d\b/i
+export const errorPause = (error: string | undefined) => (error && TRANSIENT.test(error) && !/for the day/i.test(error) ? 60_000 : 3_600_000)
+const pausedByError = (s: ApiState, api: Api, now: number) =>
+  !!s.lastErrorAt && now - s.lastErrorAt < errorPause(s.lastError) && s.keyFingerprint === fingerprint(keyFor(api))
+
 /** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
 const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, (s!.limit ?? 100) - PAID_RESERVE) : 30)
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
 const PAID_RESERVE = 300
+/**
+ * What the background work (past seasons' goals, cards and players, earlier
+ * tables) must leave for the rest of the day's live scores: the reserve plus a
+ * share of the live budget for the hours left until the reset. In the morning
+ * it keeps about 2,500 back, late in the day little, so the history is filled
+ * from the day's spare calls without eating the evening's live games.
+ */
+const LIVE_BUDGET = 2_500
+function backgroundReserve(s: ApiState | undefined): number {
+  if (!isPaid(s)) return 40
+  const budget = Math.min(LIVE_BUDGET, Math.round((s!.limit ?? 100) * 0.35))
+  return PAID_RESERVE + Math.round((budget * msUntilReset()) / 86_400_000)
+}
 
 async function fetchDay(api: Api, date: string) {
   const def = APIS[api]
@@ -546,6 +579,7 @@ async function fetchDay(api: Api, date: string) {
   logGoals(s, s.days[date]?.games ?? [], games)
   s.days[date] = { fetchedAt: Date.now(), games: keepEvents(s.days[date]?.games ?? [], games) }
   s.lastError = undefined
+  s.lastErrorAt = undefined
   // The other leagues, remembered for their league pages
   for (const g of games) {
     if (divisionOfGame(g) || !g.league.id) continue
@@ -601,7 +635,8 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
 function dueDay(api: Api, now: number): string | undefined {
   const s = mem.store[api] ?? { days: {} }
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 2) return undefined
+  // Used up: wait, except that a paid plan asks again after half an hour in case the count was wrong (one call reads it anew)
+  if (remaining <= 2 && !(isPaid(s) && now - (s.remainingAt ?? 0) > 30 * 60_000)) return undefined
   // An earlier plan-limit error is not one to wait out
   if (s.lastError && /try from \d{4}-\d{2}-\d{2} to/.test(s.lastError)) {
     // The days are relative to when the error came, so only trust one from today
@@ -609,8 +644,8 @@ function dueDay(api: Api, now: number): string | undefined {
     s.lastError = undefined
     s.lastErrorAt = undefined
   }
-  // Wait an hour after an error (a plan restriction or a wrong key would repeat), unless the key has changed since
-  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
+  // Wait after an error (an hour for a plan restriction or a wrong key, a minute for a passing one), unless the key has changed since
+  if (pausedByError(s, api, now)) return undefined
   const today = isoDate(now)
   const age = (d: string) => now - (s.days[d]?.fetchedAt ?? 0)
   const todays = s.days[today]?.games ?? []
@@ -636,8 +671,8 @@ function backfillDay(api: Api, now: number): string | undefined {
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 40) return undefined
-  if (s.lastErrorAt && now - s.lastErrorAt < 3_600_000 && s.keyFingerprint === fingerprint(keyFor(api))) return undefined
+  if (remaining <= backgroundReserve(s)) return undefined
+  if (pausedByError(s, api, now)) return undefined
   const today = isoDate(now)
   for (let i = 2; i <= BACKFILL_DAYS; i++) {
     const d = addDays(today, -i)
@@ -697,7 +732,7 @@ function historyDue(api: Api): { division: Division; league: string; year: numbe
   const s = mem.store[api]
   if (!s) return undefined
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-  if (remaining <= 40) return undefined
+  if (remaining <= backgroundReserve(s)) return undefined
   learnLeagueIds(api)
   // Seasons saved before rounds and awarded matches were kept: fetched again once
   if ((s.historyVersion ?? 1) < 2) {
@@ -891,7 +926,7 @@ async function fetchSeason(api: Api, due: { league: string }) {
 }
 
 /** Changed whenever the leagues we keep (`keep`) change: the stored days are then fetched again right away */
-const KEEP_VERSION = '2026-09-26-more-leagues'
+const KEEP_VERSION = '2026-09-29-women'
 
 /**
  * The fast lane for paid plans: while games are on, today is fetched every 30
@@ -1017,7 +1052,7 @@ async function tick() {
       const s = mem.store.football
       for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
-        if (remaining < PAID_RESERVE) break
+        if (remaining < backgroundReserve(s)) break
         const ids = archiveMissingEvents(20)
         if (!ids.length) break
         const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
@@ -1044,7 +1079,7 @@ async function tick() {
       const s = mem.store.football
       for (let n = 40; s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && n > 0; n--) {
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 0) : (s.limit ?? 0)
-        if (remaining < PAID_RESERVE) break
+        if (remaining < backgroundReserve(s)) break
         const ids = archiveMissingPlayers(20)
         if (!ids.length) break
         const { response, error } = await call('football', `/fixtures?ids=${ids.map((id) => id.split('-').pop()).join('-')}&${TZ}`)
@@ -1061,7 +1096,7 @@ async function tick() {
       for (let n = isPaid(mem.store[api]) ? 15 : 1; n > 0; n--) {
         const s = mem.store[api]!
         const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
-        if (remaining <= 40) break
+        if (remaining <= backgroundReserve(s)) break
         const due = historyTableDue(api)
         if (!due) break
         try {
@@ -1146,6 +1181,8 @@ export function apiSportsStatus() {
       leagues: [...new Set(games.map((g) => `${g.league.name}${g.league.country ? ` (${g.league.country})` : ''}`))].sort(),
       todayFetchedAt: fetchedToday ? new Date(fetchedToday).toISOString() : null,
       lastError: s?.lastError ?? null,
+      // Until when the day fetches (and the live scores) wait because of the error
+      pausedUntil: s && pausedByError(s, api, Date.now()) ? new Date(s.lastErrorAt! + errorPause(s.lastError)).toISOString() : null,
       allowedDays: s?.allowedDays ?? null,
       history: Object.entries(s?.history ?? {}).map(([k, n]) => ({ key: k, matches: n })),
     }
@@ -1661,7 +1698,7 @@ export async function apiLeagueCatalog(): Promise<{ leagues: CatalogLeague[]; fe
       },
       followed: false,
       fixed: !!ours || !!cupOfGame(probe),
-      standard: APIS[api].keep(probe),
+      standard: APIS[api].keep(probe) || isWomenGame(probe),
       ours: ours?.name,
     }
   })
@@ -1781,8 +1818,8 @@ function toLineups(response: Raw[]): Lineup[] {
     team: String(t.team?.name ?? ''),
     formation: t.formation ?? undefined,
     coach: t.coach?.name ?? undefined,
-    startXI: (t.startXI ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, grid: x.player?.grid ?? undefined })),
-    substitutes: (t.substitutes ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined })),
+    startXI: (t.startXI ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, grid: x.player?.grid ?? undefined, id: num(x.player?.id) })),
+    substitutes: (t.substitutes ?? []).map((x: Raw) => ({ name: String(x.player?.name ?? ''), number: num(x.player?.number), pos: x.player?.pos ?? undefined, id: num(x.player?.id) })),
   }))
 }
 
@@ -2182,4 +2219,60 @@ export function injuriesForTeam(injuries: Injury[] | undefined, teamId: number |
   const dates = [...new Set(own.map((i) => i.date))].filter((d) => Date.parse(d) >= now - 3 * 3_600_000).sort()
   const date = dates[0]
   return { date, list: date ? own.filter((i) => i.date === date) : [] }
+}
+
+// ---------------------------------------------------------------- connection test (/admin/data)
+
+export interface ApiStatus {
+  api: Api
+  label: string
+  ok: boolean
+  plan?: string
+  active?: boolean
+  end?: string
+  used?: number
+  limit?: number
+  error?: string
+}
+
+/**
+ * Asks each sport's /status with its key: the plan, whether it is active, and
+ * today's calls. The status call does not count against the day's calls.
+ */
+export async function apiStatus(): Promise<ApiStatus[]> {
+  const out: ApiStatus[] = []
+  for (const api of Object.keys(APIS) as Api[]) {
+    const def = APIS[api]
+    const key = keyFor(api)
+    if (!key) {
+      out.push({ api, label: def.label, ok: false, error: 'Ingen nøgle' })
+      continue
+    }
+    try {
+      const res = await fetch(`${def.base}/status`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(15_000), cache: 'no-store' })
+      const body = (await res.json().catch(() => ({}))) as {
+        errors?: Record<string, string> | string[]
+        response?:
+          | { subscription?: { plan?: string; end?: string; active?: boolean }; requests?: { current?: number; limit_day?: number } }
+          | { subscription?: { plan?: string; end?: string; active?: boolean }; requests?: { current?: number; limit_day?: number } }[]
+      }
+      const errors = Array.isArray(body.errors) ? body.errors : Object.values(body.errors ?? {})
+      const r = Array.isArray(body.response) ? body.response[0] : body.response
+      const error = !res.ok ? `HTTP ${res.status}` : errors.length ? errors.join(', ') : !r ? 'Intet svar' : undefined
+      out.push({
+        api,
+        label: def.label,
+        ok: !error && r?.subscription?.active !== false,
+        plan: r?.subscription?.plan,
+        active: r?.subscription?.active,
+        end: r?.subscription?.end,
+        used: r?.requests?.current,
+        limit: r?.requests?.limit_day,
+        error: error ?? (r?.subscription?.active === false ? 'Abonnementet er ikke aktivt' : undefined),
+      })
+    } catch (e) {
+      out.push({ api, label: def.label, ok: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return out
 }

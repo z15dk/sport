@@ -10,13 +10,14 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
+import { archiveDetailedEvents, archiveFile, archiveIncidents, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
-import { NOT_LEAGUE_ROUND, checkSeason } from './seasonCheck'
+import { NOT_LEAGUE_ROUND, allSeasonGames, checkSeason, savedSeasons } from './seasonCheck'
 import { historyOfficial, type HistoryScorer } from './apisports'
 import { isoDate } from './time'
+import { realLogo } from './logoCheck'
 
 // Our match database (SQLite, read-only): /opt/scoreline/data/football.db on
 // the VPS, or STATS_DB. It has the tables `matches` (one row per match) and
@@ -862,22 +863,38 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
  * plan doesn't give.
  */
 /** A league's matches this season in the statistics bank: from the first match after the last break of more than 45 days */
-export function archiveSeasonGames(divisionId: string): ArchivedMatch[] {
-  const inLeague = readArchive()
-    .filter((a) => a.divisionId === divisionId)
+/**
+ * A league's saved matches, oldest first: under one id, or several when the
+ * source lists the league under more than one ("A-Liga" and "Kvindeliga").
+ * The same match under two of them counts once.
+ */
+function leagueGames(divisionId: string | string[]): ArchivedMatch[] {
+  const ids = new Set(Array.isArray(divisionId) ? divisionId : [divisionId])
+  const seen = new Set<string>()
+  return readArchive()
+    .filter((a) => ids.has(a.divisionId))
+    .filter((a) => {
+      if (ids.size === 1) return true
+      const key = `${isoDate(a.date)}|${normalize(a.homeName)}|${normalize(a.awayName)}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     .sort((x, y) => x.date.getTime() - y.date.getTime())
+}
+
+export function archiveSeasonGames(divisionId: string | string[]): ArchivedMatch[] {
+  const inLeague = leagueGames(divisionId)
   let start = 0
   for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
   return inLeague.slice(start)
 }
 
 export function archiveLeagueTable(
-  divisionId: string,
+  divisionId: string | string[],
   baseline?: Baseline,
 ): { rows: TableRow[]; matches: number; since?: Date; recent: PastMatch[] } {
-  const inLeague = readArchive()
-    .filter((a) => a.divisionId === divisionId)
-    .sort((x, y) => x.date.getTime() - y.date.getTime())
+  const inLeague = leagueGames(divisionId)
   let start = 0
   for (let i = 1; i < inLeague.length; i++) if (inLeague[i].date.getTime() - inLeague[i - 1].date.getTime() > 45 * 86_400_000) start = i
   // With a starting table, only the matches after it count on top of it
@@ -1025,21 +1042,69 @@ export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
   return out
 }
 
+/** Earlier meetings with the address of their own match page, where one exists (links between match pages) */
+export function withMatchLinks(list: PastMatch[]): PastMatch[] {
+  return list.map((m) => {
+    if (m.slug) return m
+    const slug = matchSlug(m.home, m.away, isoDate(m.date))
+    return pastGame(slug) ? { ...m, slug } : m
+  })
+}
+
 /** The page of the league a past match belongs to, when it is one of ours */
 export function pastLeagueSlug(g: PastGame): string | undefined {
   const id = g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0]
   return DIVISIONS.find((d) => d.id === id)?.slug
 }
 
-// ---------------------------------------------------------------- earlier seasons' own pages
+// ---------------------------------------------------------------- which older matches search engines get
 
-/** API-Sports' ids in the statistics bank ("football-123", "hockey-45", ...): only their seasons get pages */
-const API_SPORTS_ID = /^(football|hockey|basketball|nba|handball|volleyball|nfl)-\d+$/
+/** The leagues whose older matches people search for (by our division ids) */
+const TOP_LEAGUES = new Set(['superliga', '1div', 'premierleague', 'bundesliga', 'laliga'])
+const TOP_TOURNAMENT = /champions league/i
+
+// football.db's matches with named scorers, found once an hour
+let dbDetailed: { at: number; ids: Set<number> } | undefined
+function dbDetailedIds(): Set<number> {
+  if (dbDetailed && Date.now() - dbDetailed.at < 3_600_000) return dbDetailed.ids
+  const ids = new Set<number>()
+  const sqlite = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o: { readOnly: boolean }) => { prepare(sql: string): { all(...p: unknown[]): Row[] }; close(): void } } | undefined
+  if (sqlite && existsSync(historyFile())) {
+    let db: { prepare(sql: string): { all(...p: unknown[]): Row[] }; close(): void } | undefined
+    try {
+      db = new sqlite.DatabaseSync(historyFile(), { readOnly: true })
+      for (const r of db.prepare("SELECT DISTINCT event_id FROM incidents WHERE player_name IS NOT NULL AND player_name != ''").all()) ids.add(Number(r.event_id))
+    } catch {
+      // No incidents table
+    } finally {
+      db?.close()
+    }
+  }
+  dbDetailed = { at: Date.now(), ids }
+  return ids
+}
+
+/**
+ * Whether an older match's page (one the season's data no longer has) is for
+ * search engines: only a match in one of the big leagues or the Champions
+ * League that has named scorers or players' numbers. The rest keep their page
+ * (links, visitors) but get noindex and stay out of the sitemap, so search
+ * engines spend their time on the pages that can rank.
+ */
+export function pastGameIndexable(g: PastGame): boolean {
+  const top = TOP_LEAGUES.has(g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0] || '') || TOP_TOURNAMENT.test(g.tournament)
+  if (!top) return false
+  return g.source.archive ? archiveDetailedEvents().has(g.source.archive) : g.source.db !== undefined && dbDetailedIds().has(g.source.db)
+}
+
+// ---------------------------------------------------------------- earlier seasons' own pages
 
 export interface SeasonTableRow {
   rank: number
   name: string
   slug?: string
+  /** The logo from the official table (teams no longer in the league have no other) */
+  logo?: string
   played: number
   won: number
   drawn: number
@@ -1061,6 +1126,8 @@ export interface SeasonGame {
   slug?: string
   /** The source's round ("Regular Season - 7", "Europe Play-off") */
   round?: string
+  homeLogo?: string
+  awayLogo?: string
 }
 
 export interface PastSeason {
@@ -1105,7 +1172,8 @@ export function pastSeasons(divisionId: string): PastSeason[] {
     const m = /^(\d{4})\/(\d{2})$/.exec(s)
     return m ? `${m[1]}/${m[1].slice(0, 2)}${m[2]}` : s
   })
-  const labels = [...new Set(rowsAll.filter((a) => a.divisionId === divisionId && API_SPORTS_ID.test(a.id) && !current.includes(a.season)).map((a) => a.season))]
+  // Only API-Sports' seasons get pages (indexed once per read of the bank in seasonCheck.ts)
+  const labels = savedSeasons(divisionId).filter((s) => !current.includes(s))
   const officials = labels.map((l) => historyOfficial(divisionId, l))
   const tablesKey = officials.map((o) => o?.fetchedAt ?? 0).join('|')
   const hit = pastSeasonsCache.get(divisionId)
@@ -1135,6 +1203,7 @@ export function pastSeasons(divisionId: string): PastSeason[] {
         rank: o.rank,
         name: shown(o.name),
         slug: find(o.name)?.slug,
+        logo: realLogo(o.logo),
         played: o.played,
         won: r.won,
         drawn: r.drawn,
@@ -1145,14 +1214,15 @@ export function pastSeasons(divisionId: string): PastSeason[] {
       }
     })
     // Every saved match of the season (play-offs too), for the list and the links
-    const all = rowsAll.filter((a) => a.divisionId === divisionId && a.season === season && API_SPORTS_ID.test(a.id))
-    const games = [...all]
+    // The teams' logos from the official table, for the match list too
+    const logos = new Map(check.table.map((o) => [o.name, realLogo(o.logo)]))
+    const games = [...allSeasonGames(divisionId, season)]
       .sort((x, y) => x.date.getTime() - y.date.getTime())
       .map((a): SeasonGame => {
         const home = shown(a.homeName)
         const away = shown(a.awayName)
         const slug = matchSlug(home, away, isoDate(a.date))
-        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined, round: a.round }
+        return { id: a.id, date: a.date, home, away, homeScore: a.homeScore, awayScore: a.awayScore, spectators: a.spectators, slug: pastGame(slug) ? slug : undefined, round: a.round, homeLogo: logos.get(a.homeName), awayLogo: logos.get(a.awayName) }
       })
     seasons.push({
       divisionId,
@@ -1186,8 +1256,8 @@ export function seasonGameAsMatch(g: SeasonGame, division: { id: string; name: s
     kickoff: g.date,
     state: 'finished',
     statusLabel: NOT_LEAGUE_ROUND.test(g.round ?? '') ? 'Slutspil' : 'Slut',
-    home: { name: g.home, score: g.homeScore },
-    away: { name: g.away, score: g.awayScore },
+    home: { name: g.home, score: g.homeScore, badge: g.homeLogo },
+    away: { name: g.away, score: g.awayScore, badge: g.awayLogo },
     real: true,
   }
 }

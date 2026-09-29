@@ -1,19 +1,19 @@
-import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
-import { clubExternalGames, findExternalGame, findMatch, namesOf } from '../../../data/matches'
+import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
+import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
+import { lineupPhotos } from '../../../lib/playerPhotos'
 import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { archiveGameExtras, pastMeetings, realHeadToHead, type PastGame } from '../../../lib/history'
-import { findPastMatch } from '../../../lib/pastMatch'
+import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, withMatchLinks, type PastGame } from '../../../lib/history'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
 import { PastMatchView } from '../../../components/PastMatchView'
@@ -22,32 +22,25 @@ import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { matchFaq } from '../../../lib/faq'
-import { dateFromMatchSlug } from '../../../lib/slug'
 import { summary } from '../../../lib/matchText'
-import { formatFull, isoDate } from '../../../lib/time'
+import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
 import { paths } from '../../../lib/site'
-import { JsonLd, breadcrumbLd, faqLd, matchLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
 export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
 
-/** The match, once per request (the metadata and the page both need it) */
-const load = cache((slug: string) => {
-  const date = dateFromMatchSlug(slug)
-  const now = Date.now()
-  const match = date ? findMatch(slug, date, now) : undefined
-  return match && date ? { match, date, now } : undefined
-})
-
-/** An older match the live data no longer has (match database and statistics bank) */
-const loadPast = cache((slug: string) => findPastMatch(slug))
+// The match, once per request (src/lib/matchLookup.ts; the layout checks it exists first)
+const load = loadMatch
+const loadPast = loadPastMatch
 
 async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
   const { game: g, match } = past
-  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore} | ${g.tournament} ${formatFull(g.date)}`
+  // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
+  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
   const description = `${g.home} mod ${g.away} i ${g.tournament} ${g.season} (${formatFull(g.date)}): ${result}.${match.incidents?.length ? ' Målscorere, kort' : ' Resultat'}, spillere og tidligere opgør mellem holdene.`
   return {
@@ -55,19 +48,21 @@ async function pastMetadata(slug: string): Promise<Metadata> {
     description,
     alternates: { canonical: paths.match(g.slug) },
     openGraph: { title, description, type: 'article' },
+    // An older match outside the big leagues, or without named scorers: kept out of the search results (src/lib/history.ts)
+    ...(!pastGameIndexable(g) && { robots: { index: false, follow: true } }),
   }
 }
 
 function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
   const now = Date.now()
-  const h2h = pastMeetings(g)
+  const h2h = withMatchLinks(pastMeetings(g))
   const teamPath = Object.fromEntries([g.home, g.away].map((n) => [n, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined]))
   const report = matchReport({ match, now, h2h })
   const players = g.source.archive ? eventPlayers(g.source.archive) : []
   const title = `${g.home} – ${g.away}`
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, (name) => teamByName(name)?.slug)} />
+      <JsonLd data={matchLd(match, (name) => teamByName(name)?.slug, report?.[0])} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
@@ -90,7 +85,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { match } = found
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
-  const title = `${match.home.name} – ${match.away.name}${score} | ${match.league} ${formatFull(match.kickoff)}`
+  // As people search for it: "live" before and during the match, "resultat" (and "målscorere") after it
+  const scorers = match.incidents?.some((i) => i.player)
+  const title =
+    match.state === 'finished'
+      ? `${match.home.name} – ${match.away.name}${score}: resultat${scorers ? ' og målscorere' : ''} · ${formatNumeric(match.kickoff)}`
+      : `${match.home.name} – ${match.away.name} live · ${match.league} ${formatNumeric(match.kickoff)}`
   const description = summary(match, clubStats(match.home.name, found.now), clubStats(match.away.name, found.now))
   return {
     title: { absolute: title },
@@ -159,7 +159,7 @@ export default async function MatchPage({ params }: { params: Params }) {
     ...facts,
     form: facts.form ?? saved?.form,
     // A tournament with groups (Champions League): only API-Sports' table for the group, never one we compute
-    table: cup ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
+    table: cup || isFriendly(match.league) ? undefined : (facts.table ?? (external && wholeSeason(external) ? undefined : savedTable)),
   }
   if ((dbH2h?.length ?? 0) < 5) {
     const games = h2hGames
@@ -191,12 +191,15 @@ export default async function MatchPage({ params }: { params: Params }) {
     realH2h = saved.h2h
     h2hSource = 'database'
   }
+  // The meetings link to their own match pages; the round's other matches too (at the foot)
+  if (realH2h) realH2h = withMatchLinks(realH2h)
+  const related = isFriendly(match.league) ? [] : relatedMatches(match, now)
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
 
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, clubSlug)} />
+      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
@@ -205,14 +208,19 @@ export default async function MatchPage({ params }: { params: Params }) {
         ])}
       />
       <JsonLd data={webPageLd(paths.match(match.slug), title, new Date(now), summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
-      <JsonLd data={faqLd(faq)} />
       <RealDataExtra
         {...realExtras(
-          [...new Map([...(external ? [external] : []), ...clubExternalGames(match.home.name), ...clubExternalGames(match.away.name)].map((g) => [g.id, g])).values()],
+          [...new Map([
+            ...(external ? [external] : []),
+            ...clubExternalGames(match.home.name),
+            ...clubExternalGames(match.away.name),
+            // A friendly shows the day's other friendlies instead of a table
+            ...(isFriendly(match.league) ? leagueGamesOn(isoDate(match.kickoff), match.league, match.sport) : []),
+          ].map((g) => [g.id, g])).values()],
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
         <Faq items={faq} />

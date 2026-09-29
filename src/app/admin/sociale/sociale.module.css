@@ -226,3 +226,46 @@
 .wmMGreen { left: -8cqw; bottom: 6cqw; font-size: 160cqw; opacity: 0.35; filter: drop-shadow(0 0 1.2cqw rgba(198, 241, 53, 0.4)); }
 /* the story is taller: a bigger M */
 .story .wmMGreen { left: -12cqw; bottom: 14cqw; font-size: 215cqw; }
+
+/* The pages' share pictures (Open Graph), shown at their own shape */
+.share { margin-top: 32px; }
+.shareGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.shareGrid figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.shareGrid img { width: 100%; height: auto; aspect-ratio: 1200 / 630; border-radius: 12px; background: #1a1c1b; display: block; }
+.shareGrid figcaption { font-size: 13px; }
+
+/* the form table's results: one small square per match */
+.formDot { display: inline-grid; place-items: center; width: 5cqw; height: 5cqw; margin-left: 0.8cqw; border-radius: 0.8cqw; font-size: 2.6cqw; font-weight: 800; }
+
+/* the render page (/admin/sociale/kort): every card at 540 px, the engine takes the pictures at twice that */
+.render { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: #fff; }
+.render .rail { flex-wrap: wrap; overflow: visible; }
+.render .fig, .render .fig.story { width: 540px; }
+.render figcaption { display: none; }
+.render .card { border-radius: 0; box-shadow: none; }
+
+/* ---------- women's football: the same cards, violet instead of lime, with a tag on top ---------- */
+.womenTag { display: none; }
+.siteWomen { display: none; }
+.women .womenTag {
+  display: inline-block;
+  margin-right: 2cqw;
+  padding: 0.6cqw 2cqw;
+  border-radius: 999px;
+  background: #b69cff;
+  color: #16181a;
+  font-weight: 800;
+  font-size: 2.8cqw;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.3cqw;
+  opacity: 1;
+}
+.women .hd { opacity: 1; }
+.women .hd > span { opacity: 0.95; }
+.women .siteAll { display: none; }
+.women .siteWomen { display: inline; }
+.women .wmM { -webkit-text-stroke-color: #b69cff; }
+.women .wmMGreen { filter: drop-shadow(0 0 1.2cqw rgba(182, 156, 255, 0.45)); opacity: 0.45; }
+.women .brandbar { background: #15101f; }
+.women .fixtureTime { background: #15101f; }
