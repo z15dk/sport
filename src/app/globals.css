@@ -1941,3 +1941,9 @@ a.player-games__match:hover { text-decoration: underline; }
   .social-pad { padding: 0 14px 14px; }
   .social-log { padding: 0 14px 14px; }
 }
+/* the text about a club or league keeps the panel's side margins */
+.about-text { padding-bottom: 8px; }
+.about-text p { padding: 0 18px; }
+/* When the last column (form) is hidden, the last shown cell gets the row's rounded right edge */
+.table--compact td:not(.hide-sm):has(+ td.hide-sm:last-child) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+@media (max-width: 600px) { .table td:not(.hide-sm):has(+ td.hide-sm:last-child) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; } }

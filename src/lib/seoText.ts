@@ -37,8 +37,10 @@ export function clubAbout(club: Club, division: Division, now: number): string[]
   if (s && position) {
     const h = s.home
     const a = s.away
-    const draws = (r: typeof h) => (sport === 'soccer' ? `, ${r.drawn} uafgjorte` : '')
-    first.push(`Hjemme har holdet ${h.won} sejre${draws(h)} og ${h.lost} nederlag, ude ${a.won} sejre${draws(a)} og ${a.lost} nederlag.`)
+    // "1 sejr", "2 sejre"; "1 uafgjort", "2 uafgjorte"
+    const wins = (n: number) => `${n} ${n === 1 ? 'sejr' : 'sejre'}`
+    const draws = (r: typeof h) => (sport === 'soccer' ? `, ${r.drawn} ${r.drawn === 1 ? 'uafgjort' : 'uafgjorte'}` : '')
+    first.push(`Hjemme har holdet ${wins(h.won)}${draws(h)} og ${h.lost} nederlag, ude ${wins(a.won)}${draws(a)} og ${a.lost} nederlag.`)
     first.push(`Det giver ${num(s.goalsForPerMatch)} ${goals} scoret og ${num(s.goalsAgainstPerMatch)} lukket ind pr. kamp.`)
     if (sport === 'soccer' && s.cleanSheets) first.push(`${club.name} har holdt buret rent i ${s.cleanSheets} af ${s.played} kampe.`)
     if (s.streak && s.streak.length >= 3) first.push(`Lige nu har holdet ${s.streak.length} ${STREAK[s.streak.kind]} i træk.`)
