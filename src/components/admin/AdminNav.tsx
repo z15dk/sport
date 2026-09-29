@@ -23,6 +23,7 @@ const PAGES = [
   { href: '/admin/klubber', label: 'Klubber' },
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
+  { href: '/admin/kvindesport', label: 'Kvindesport' },
   { href: '/admin/sociale', label: 'Sociale medier', children: SOCIAL },
 ]
 

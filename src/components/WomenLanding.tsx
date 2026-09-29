@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import { MatchesView } from './MatchesView'
 import { RealDataExtra } from './RealDataExtra'
 import { TeamBadge } from './TeamBadge'
+import { WomenHero } from './WomenHero'
+import { womenPage } from '../lib/womenPage'
 import { externalOn, getMatches, isWomenGame, isWomenMatch, upcomingMatches } from '../data/matches'
 import { competitionLabel } from '../data/leagues'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../lib/jsonld'
@@ -75,11 +77,18 @@ function tournaments(days: Match[][]) {
 
 const n = (x: number) => x.toLocaleString('da-DK')
 
+/** The text under the heading when the admin has not written one */
+export const defaultLead = (s: WomenSport) =>
+  s.id === 'all'
+    ? 'Live score, resultater og tabeller fra kvindernes fodbold, håndbold, basketball, ishockey og volleyball – fra Kvindeligaen til Champions League.'
+    : `Live score, resultater og tabeller i ${womenTitle(s).toLowerCase()} – hjemme og ude, hver dag.`
+
 export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato?: string; live?: string }) {
   const now = Date.now()
   const today = isoDate(now)
   const date = dayOf(dato, today)
   const name = womenTitle(s)
+  const hero = womenPage()
   // The browser gets today's games; the page adds the chosen day and tomorrow
   const dates = [...new Set([date, today, addDays(today, 1)])]
   const games = dates.flatMap((d) => externalOn(d)).filter(isWomenGame)
@@ -118,58 +127,23 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
         nearDays={{ prev: nearestDay(date, s.id, -1, now), next: nearestDay(date, s.id, 1, now) }}
         upcoming={upcoming}
         top={
-          <section className="women-hero" aria-labelledby="women-hero-title">
-            <span className="women-hero__m" aria-hidden="true">
-              M
-            </span>
-            <div className="women-hero__inner">
-              <p className="women-hero__kicker">Matchly · {s.id === 'all' ? 'Kvinder i sport' : name}</p>
-              <h1 id="women-hero-title" className="women-hero__title">
-                Hun spiller.
-                <br />
-                <em>Vi følger med.</em>
-              </h1>
-              <p className="women-hero__lead">
-                {s.id === 'all'
-                  ? 'Live score, resultater og tabeller fra kvindernes fodbold, håndbold, basketball, ishockey og volleyball – fra Kvindeligaen til Champions League.'
-                  : `Live score, resultater og tabeller i ${name.toLowerCase()} – hjemme og ude, hver dag.`}
-              </p>
-              <div className="women-hero__cta">
-                <Link className="women-hero__btn is-live" href={paths.women({ sport: s.slug, live: true })}>
-                  {liveNow ? (
-                    <>
-                      <span className="live-dot" aria-hidden="true" /> {liveNow} {liveNow === 1 ? 'kamp' : 'kampe'} live nu
-                    </>
-                  ) : (
-                    'Se live'
-                  )}
-                </Link>
-                <a className="women-hero__btn" href="#kampe">
-                  {todayCount ? `Dagens ${n(todayCount)} kampe` : 'Kampprogram'}
-                </a>
-              </div>
-              <dl className="women-hero__numbers">
-                <div>
-                  <dt>Kampe i dag</dt>
-                  <dd>{n(todayCount)}</dd>
-                </div>
-                <div>
-                  <dt>Spillet de sidste 14 dage</dt>
-                  <dd>{n(played.length)}</dd>
-                </div>
-                <div>
-                  <dt>Turneringer</dt>
-                  <dd>{n(leagues.length)}</dd>
-                </div>
-                {s.id === 'all' && (
-                  <div>
-                    <dt>Sportsgrene</dt>
-                    <dd>{n(sportsPlayed.size)}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          </section>
+          <WomenHero
+            kicker={`Matchly · ${s.id === 'all' ? 'Kvinder i sport' : name}`}
+            title1={hero.title1}
+            title2={hero.title2}
+            lead={hero.lead || defaultLead(s)}
+            image={hero.image}
+            position={hero.position}
+            liveHref={paths.women({ sport: s.slug, live: true })}
+            liveNow={liveNow}
+            todayCount={todayCount}
+            numbers={[
+              { label: 'Kampe i dag', value: todayCount },
+              { label: 'Spillet de sidste 14 dage', value: played.length },
+              { label: 'Turneringer', value: leagues.length },
+              ...(s.id === 'all' ? [{ label: 'Sportsgrene', value: sportsPlayed.size }] : []),
+            ]}
+          />
         }
         tabs={
           <nav className="women-tabs" aria-label="Sportsgrene">

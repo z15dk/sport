@@ -1969,6 +1969,13 @@ a.player-games__match:hover { text-decoration: underline; }
   background: radial-gradient(120% 140% at 100% 0%, #3a2466 0%, #15101f 55%, #0f0b17 100%);
   padding: 44px 40px 34px; min-height: 340px; display: flex; align-items: flex-end;
 }
+.women-hero.has-image {
+  background:
+    linear-gradient(90deg, rgba(15, 11, 23, 0.94) 0%, rgba(21, 16, 31, 0.8) 38%, rgba(21, 16, 31, 0.25) 70%, rgba(21, 16, 31, 0.1) 100%),
+    var(--hero-image) var(--hero-position, center) / cover no-repeat, #15101f;
+  min-height: 420px;
+}
+.women-hero.has-image .women-hero__m { opacity: 0.35; }
 .women-hero__m {
   position: absolute; right: -2%; bottom: -18%; pointer-events: none; user-select: none;
   font-family: var(--display); font-style: italic; font-weight: 800; font-size: 560px; line-height: 0.8;
@@ -2023,9 +2030,26 @@ a.player-games__match:hover { text-decoration: underline; }
 }
 @media (max-width: 700px) {
   .women-hero { padding: 28px 20px 24px; min-height: 0; }
+  .women-hero.has-image {
+    padding-top: 200px;
+    background:
+      linear-gradient(180deg, rgba(21, 16, 31, 0.05) 0%, rgba(21, 16, 31, 0.55) 32%, rgba(15, 11, 23, 0.96) 58%, #0f0b17 100%),
+      var(--hero-image) var(--hero-position, center) / cover no-repeat, #15101f;
+  }
   .women-hero__m { font-size: 380px; right: -34%; bottom: -8%; opacity: 0.25; }
   .women-hero__lead { font-size: 15px; }
   .women-hero__btn { padding: 11px 16px; font-size: 14px; }
   .women-hero__numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
   .women-hero__numbers dd { font-size: 32px; }
 }
+
+/* /admin/kvindesport: the top's picture and texts, with a preview */
+.women-admin { display: flex; flex-direction: column; gap: 16px; }
+.women-admin__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; padding: 0 18px 18px; }
+.women-admin__form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; }
+.women-admin__form input, .women-admin__form select, .women-admin__form textarea {
+  font: inherit; font-weight: 400; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2);
+}
+.women-admin__form .is-wide { grid-column: 1 / -1; }
+.women-admin__buttons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 0 18px 18px; }
+.women-admin__preview { pointer-events: none; }
