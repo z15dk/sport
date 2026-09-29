@@ -25,7 +25,7 @@ export function TeamBadge({ link = true, ...props }: Props) {
   const team = link ? teamByName(props.name) : undefined
   if (!team) return <Badge {...props} />
   return (
-    <Link className="badge-link" href={paths.club(team.slug)} title={team.name}>
+    <Link className="badge-link" href={paths.club(team.slug)} title={team.name} prefetch={false}>
       <Badge {...props} />
       {/* Real link text for search engines and screen readers (the logo itself says nothing) */}
       <span className="visually-hidden">{team.name}</span>

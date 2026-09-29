@@ -8,6 +8,7 @@ import { getBadges } from '../lib/badges'
 import { loadRealData } from '../lib/realdata'
 import { RealDataProvider } from '../components/RealDataProvider'
 import { clientRealData } from '../lib/clientData'
+import { liveCursor } from '../lib/liveFeed'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
 // The site's fonts, served from our own domain (no request to Google that holds up the first paint)
@@ -67,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <JsonLd data={websiteLd()} />
         <JsonLd data={organizationLd()} />
-        <RealDataProvider data={clientRealData(real)}>
+        <RealDataProvider data={clientRealData(real)} cursor={liveCursor(real)}>
           <BadgeProvider badges={badges}>
             <div className="app">
               <div className="app__main">

@@ -5,6 +5,7 @@
 
 import type { Incident, MatchState, SportId } from '../types'
 import type { ExternalGame } from './external'
+import { isoDate } from '../lib/time'
 import type { ChannelData } from './channels'
 import type { SiteSettings } from './settingsDef'
 
@@ -89,7 +90,11 @@ export function getRealData(): RealData | undefined {
   return holder.__scorelineReal
 }
 
+let lastGiven: RealData | undefined
 export function setRealData(data: RealData | undefined) {
+  // The same data handed over again (a component rendering once more) must not undo live changes put in since
+  if (data && data === lastGiven) return
+  lastGiven = data
   if (data && holder.__scorelineReal?.version === data.version) return
   holder.__scorelineReal = data
 }
@@ -116,6 +121,45 @@ export function addRealExtras(extra: { games?: ExternalGame[]; teamIndex?: Recor
     leagueTeamIndex: newPairs ? { ...cur.leagueTeamIndex, ...extra.leagueTeamIndex } : cur.leagueTeamIndex,
   }
 }
+
+// Browser only: live changes put into the data without a new page (RealDataProvider, /api/live).
+// Components that show matches re-render through useNow, which listens here.
+const listeners = new Set<() => void>()
+export function onRealDataPatch(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+/** Browser only: the changed games replace the ones the page has (today's and live ones are added); pages then show them */
+export function patchRealData(games: ExternalGame[], version: string | null) {
+  if (typeof window === 'undefined') return
+  const cur = holder.__scorelineReal
+  if (!cur || !games.length) return
+  const today = isoDate(Date.now())
+  const byId = new Map(games.map((g) => [g.id, g]))
+  const external = (cur.external ?? []).map((g) => {
+    const n = byId.get(g.id)
+    if (n) byId.delete(g.id)
+    return n ?? g
+  })
+  // New to the page: only what the page would have had from the server (today and games in play)
+  for (const g of byId.values()) {
+    if (g.state === 'live' || isoDate(new Date(g.kickoff)) === today) external.push(g)
+  }
+  holder.__scorelineReal = { ...cur, external, version: version ?? `${cur.version}+` }
+  for (const l of listeners) l()
+}
+
+/**
+ * Browser only: a page that shows more than the games themselves while a match
+ * is on (the match page's statistics and line-ups come from the server) asks to
+ * be fetched anew now and then; RealDataProvider does so, spread out in time.
+ */
+let wanting = 0
+export function wantPageRefresh(on: boolean) {
+  wanting = Math.max(0, wanting + (on ? 1 : -1))
+}
+export const pageRefreshWanted = () => wanting > 0
 
 /** Server only: registers how to refresh the data before it is read */
 export function setRealDataLoader(loader: () => void) {

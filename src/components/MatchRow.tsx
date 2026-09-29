@@ -44,7 +44,7 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
   return (
     <li className={`match match--${state}`}>
       {/* Covers the whole row; the club badges sit on top and link to the clubs */}
-      <Link className="stretched-link" href={paths.match(match.slug)}>
+      <Link className="stretched-link" href={paths.match(match.slug)} prefetch={false}>
         {/* The link's text (the row shows the names itself): what search engines read as the match page's anchor */}
         <span className="visually-hidden">
           {home.name} – {away.name}

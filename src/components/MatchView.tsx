@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { wantPageRefresh } from '../data/real'
 import Link from 'next/link'
 import { formatDayMonth, formatFull, formatShortYear, formatTime, isoDate } from '../lib/time'
 import { danishCountry } from '../data/countries'
@@ -59,6 +61,13 @@ interface Props {
 export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
+  // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
+  const live = match?.state === 'live'
+  useEffect(() => {
+    if (!live) return
+    wantPageRefresh(true)
+    return () => wantPageRefresh(false)
+  }, [live])
   if (!match) return null
   return (
     <>
