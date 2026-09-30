@@ -53,59 +53,77 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
           ]
   const badge = (r: StandingRow) => {
     const src = badges[r.club.name]
-    if (src) return `<img src="${esc(sizedImage(src, 20))}" alt="" width="20" height="20" loading="lazy">`
+    if (src) return `<img src="${esc(sizedImage(src, 24))}" alt="" width="24" height="24" loading="lazy">`
     const [bg, fg] = r.club.colors ?? ['#d9dcd2', '#0f110c']
     return `<span class="ini" style="background:${esc(bg)};color:${esc(fg)}">${esc(initials(r.club.name))}</span>`
   }
-  const zone = (i: number) => (zones && i < zones.top ? ' top' : zones && i >= rows.length - zones.bottom ? ' bottom' : '')
+  const zone = (i: number) => (zones && i < zones.top ? ' up' : zones && zones.bottom > 0 && i >= rows.length - zones.bottom ? ' down' : '')
+  const chips = (r: StandingRow) =>
+    `<span class="form">${r.form
+      .slice(-5)
+      .map((f) => `<i class="${f}" title="${f === 'V' ? 'Sejr' : f === 'U' ? 'Uafgjort' : 'Tab'}">${f}</i>`)
+      .join('')}</span>`
   const body = rows
-    .map(
-      (r, i) => `<tr class="${zone(i)}${r.club.slug === highlight ? ' me' : ''}">
+    .map((r, i) => {
+      const gd = r.goalsFor - r.goalsAgainst
+      return `<tr class="${zone(i)}${r.club.slug === highlight ? ' me' : ''}">
 <td class="n pos">${i + 1}</td>
-<td class="club"><a href="${paths.club(r.club.slug)}" target="_blank" rel="noopener">${badge(r)}<span>${esc(r.club.name)}</span></a></td>
+<td class="club"><a href="${paths.club(r.club.slug)}" target="_blank" rel="noopener">${badge(r)}<strong>${esc(r.club.name)}</strong></a></td>
 <td class="n">${r.played}</td>
 ${compact ? '' : cols.map((c) => `<td class="n x">${c.value(r)}</td>`).join('')}
-<td class="n">${r.goalsFor - r.goalsAgainst > 0 ? '+' : ''}${r.goalsFor - r.goalsAgainst}</td>
-<td class="n p">${r.points}</td>
-</tr>`,
-    )
+<td class="n">${gd > 0 ? '+' : ''}${gd}</td>
+<td class="n pts">${r.points}</td>
+${compact ? '' : `<td class="fm">${chips(r)}</td>`}
+</tr>`
+    })
     .join('')
-  const legend = zones ? `<span class="lg top">${esc(zones.topLabel ?? 'Top')}</span><span class="lg bottom">Nedrykning</span>` : ''
+  const legend = zones
+    ? `<div class="legend"><span><i class="dot up"></i>${esc(zones.topLabel ?? 'Top')}</span>${zones.bottom > 0 ? '<span><i class="dot down"></i>Nedrykning</span>' : ''}</div>`
+    : ''
   const html = `<!doctype html>
 <html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&amp;text=MATCHLY.&amp;display=swap">
 <title>${esc(division.name)} stilling</title>
 <style>
-:root{--bg:#fff;--ink:#0f110c;--muted:#6b7064;--line:#e6e8e0;--lime:#c6f135;--deep:#6f8f00;--me:#f4fbd9;--red:#d64545}
-${dark ? ':root{--bg:#15170f;--ink:#f3f5ee;--muted:#9ea393;--line:#2a2d22;--me:#252c10;--deep:#c6f135}' : ''}
-*{box-sizing:border-box}html,body{margin:0;background:transparent;color:var(--ink);font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.w{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
-.h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
-.h b{font-size:15px}.h small{color:var(--muted)}
-table{width:100%;border-collapse:collapse}th,td{padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-size:11px;font-weight:600;color:var(--muted);text-align:left;text-transform:uppercase}
-.n{text-align:right;font-variant-numeric:tabular-nums;width:1%}.p{font-weight:700}
-.pos{position:relative;padding-left:10px;color:var(--muted)}
-tr.top .pos::before,tr.bottom .pos::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--deep)}
-tr.bottom .pos::before{background:var(--red)}
-tr.me td{background:var(--me);font-weight:700}
-.club a{display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;overflow:hidden}.club a:hover span{text-decoration:underline}
-.club span{overflow:hidden;text-overflow:ellipsis}td.club{max-width:0;width:100%}
-img,.ini{width:20px;height:20px;flex:none;object-fit:contain}
-.ini{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:7px;font-weight:700}
-.f{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding:8px 12px;font-size:12px;color:var(--muted)}
-.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#0f110c;color:#fff;text-decoration:none}
-.logo{font:italic 800 22px/1 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:-.01em}.logo i{color:#ff4a1f;font-style:inherit}
-.tag{font-size:11px;color:#b9bdb0;text-align:right}.bar:hover .tag{color:#c6f135}
-.lg{margin-right:10px}.lg::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;background:var(--deep)}.lg.bottom::before{background:var(--red)}
-@media (max-width:360px){.x{display:none}}
+@font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:800;font-display:swap;src:url(/widget-fonts/barlow-condensed-800-italic.woff2) format("woff2")}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:100 1000;font-display:swap;src:url(/widget-fonts/dm-sans.woff2) format("woff2")}
+:root{--surface:#fff;--row:#f4f5f0;--ink:#0f110c;--ink2:#5a5f55;--ink3:#676c60;--line:#e1e4da;--lime:#c6f135;--deep:#6f8f00;--live:#ff4a1f;--d:"Barlow Condensed","Arial Narrow",sans-serif}
+${dark ? ':root{--surface:#15170f;--row:#1f2219;--ink:#f3f5ee;--ink2:#b9bdb0;--ink3:#9ea393;--line:#2a2d22;--deep:#a5d000}.bar{border-top:1px solid #2f3326}' : ''}
+*{box-sizing:border-box}html,body{margin:0;background:transparent;color:var(--ink);font:14px/1.4 "DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.w{background:var(--surface);border-radius:22px;overflow:hidden}
+.h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:18px 18px 8px}
+.h h1{margin:0;font:italic 800 22px/1 var(--d);text-transform:uppercase}
+.h span{font-size:12px;color:var(--ink3)}
+.tw{padding:0 10px}
+table{width:100%;border-collapse:separate;border-spacing:0 4px;font-variant-numeric:tabular-nums}
+th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);text-align:left;padding:6px 8px}
+td{background:var(--row);padding:7px 8px;white-space:nowrap}
+td:first-child{border-radius:14px 0 0 14px;box-shadow:inset 4px 0 0 transparent}td:last-child{border-radius:0 14px 14px 0}
+.n{text-align:center;width:1%}
+.pos{font:italic 800 18px/1 var(--d)}.pts{font:italic 800 20px/1 var(--d)}
+tr.up td:first-child{box-shadow:inset 4px 0 0 var(--deep)}tr.down td:first-child{box-shadow:inset 4px 0 0 var(--live)}
+tr.me td{background:var(--lime);color:#111}
+td.club{max-width:0;width:100%}
+.club a{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;min-width:0}
+.club strong{overflow:hidden;text-overflow:ellipsis;font-weight:700}.club a:hover strong{text-decoration:underline;text-underline-offset:3px}
+img,.ini{width:24px;height:24px;flex:none;object-fit:contain}
+.ini{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:8px;font-weight:800}
+.form{display:inline-flex;gap:3px}.form i{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:800;font-style:normal}
+.form .V{background:var(--lime);color:#0f110c}.form .U{background:var(--line);color:var(--ink2)}.form .T{background:var(--live);color:#fff}
+tr.me .form .V{background:#0f110c;color:var(--lime)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:8px 18px 14px;font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}.dot{width:10px;height:10px;border-radius:3px;display:inline-block}.dot.up{background:var(--deep)}.dot.down{background:var(--live)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;background:#0f110c;color:#fff;text-decoration:none}
+.logo{font:italic 800 24px/1 var(--d);text-transform:uppercase;letter-spacing:-.01em}.logo i{color:var(--live);font-style:inherit}
+.tag{font-size:12px;color:#b9bdb0;text-align:right}.bar:hover .tag{color:var(--lime)}
+@media (max-width:520px){.fm,th.fm{display:none}}
+@media (max-width:380px){.x{display:none}.tw{padding:0 6px}td{padding:6px 6px}.h{padding:14px 14px 6px}}
 </style></head><body>
 <div class="w">
-<div class="h"><b>${esc(division.name)}</b><small>Stilling ${esc(seasonOf(division))}</small></div>
-<table><thead><tr><th class="n">#</th><th>Hold</th><th class="n" title="Kampe">K</th>${compact ? '' : cols.map((c) => `<th class="n x" title="${c.title}">${c.label}</th>`).join('')}<th class="n" title="Målforskel">+/-</th><th class="n" title="Point">P</th></tr></thead>
-<tbody>${body}</tbody></table>
-${legend ? `<div class="f">${legend}</div>` : ''}
+<div class="h"><h1>${esc(division.name)}</h1><span>Stilling ${esc(seasonOf(division))}</span></div>
+<div class="tw"><table><thead><tr><th class="n">#</th><th>Klub</th><th class="n" title="Kampe">K</th>${compact ? '' : cols.map((c) => `<th class="n x" title="${c.title}">${c.label}</th>`).join('')}<th class="n" title="Målforskel">+/-</th><th class="n" title="Point">P</th>${compact ? '' : '<th class="fm">Form</th>'}</tr></thead>
+<tbody>${body}</tbody></table></div>
+${legend}
 <a class="bar" href="${paths.league(division.slug)}" target="_blank" rel="noopener"><span class="logo">Matchly<i>.</i></span><span class="tag">Live score og stats · matchly.dk</span></a>
 </div>
 <script>(function(){function s(){parent.postMessage({matchly:${JSON.stringify(id)},height:document.body.getBoundingClientRect().height},"*")}addEventListener("load",s);new ResizeObserver(s).observe(document.body);s();setTimeout(s,700);setTimeout(s,2000)})()</script>
