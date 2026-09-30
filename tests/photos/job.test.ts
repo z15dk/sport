@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash, generateKeyPairSync } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
@@ -19,6 +19,7 @@ let noAccess = false
 let geminiAnswers: (() => Response)[] = []
 const files: Record<string, { name: string; parent: string; folder?: boolean; bytes?: Buffer }> = {}
 const uploads: string[] = []
+const trashed: string[] = []
 
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } })
 const answer = (spillere: unknown[]) => () => json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ spillere, situation: 'duel' }) }] } }] })
@@ -36,9 +37,13 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
     uploads.push(id)
     return json({ id })
   }
-  // Access checks for the drive and the photo folder (404 when the account is not a member)
-  const probe = /\/drive\/v3\/(drives|files)\/([^?]+)\?(?!alt=media)/.exec(url)
+  // Access checks for the drive and the photo folder (GET only) (404 when the account is not a member)
+  const probe = (init?.method ?? 'GET') === 'GET' ? /\/drive\/v3\/(drives|files)\/([^?]+)\?(?!alt=media)/.exec(url) : null
   if (probe) return probe[2] === (noAccess ? 'none' : 'ROOT') ? json({ id: probe[2] }) : json({ error: { message: 'not found' } }, 404)
+  if (init?.method === 'PATCH' && /\/drive\/v3\/files\//.test(url) && String(init.body).includes('trashed')) {
+    trashed.push(/\/files\/([^?]+)/.exec(url)![1])
+    return json({ id: 'x' })
+  }
   const media = /\/files\/([^?]+)\?alt=media/.exec(url)
   if (media) return new Response(new Uint8Array(files[media[1]].bytes!))
   if (url.startsWith('https://www.googleapis.com/drive/v3/files?') && (init?.method ?? 'GET') === 'GET') {
@@ -161,4 +166,24 @@ test('manglende adgang til drevet er en fejl, aldrig "ingen billeder"', async ()
   noAccess = true
   await assert.rejects(runPhotoJob({ dbu: 'skip', log: () => {} }), /har ikke adgang/)
   noAccess = false
+})
+
+test('et lånt billede slettes, når låneperioden er udløbet', async () => {
+  const d = db()
+  const a = d.prepare(`SELECT id, drive_id, web_drive_id FROM photos WHERE name = 'a.jpg'`).get()!
+  d.prepare(`UPDATE photos SET credit = 'Foto: Jens', license_until = '2020-01-01' WHERE id = ?`).run(a.id)
+  d.close()
+  const s = await runPhotoJob({ dbu: 'skip', log: () => {} })
+  assert.equal(s.deleted, 1)
+  assert.ok(trashed.includes(String(a.drive_id)))
+  assert.ok(trashed.includes(String(a.web_drive_id)))
+  const d2 = db()
+  const row = d2.prepare('SELECT status, deleted_reason, vision_json FROM photos WHERE id = ?').get(a.id)!
+  assert.equal(row.status, 'slettet')
+  assert.match(String(row.deleted_reason), /Foto: Jens/)
+  assert.equal(row.vision_json, null)
+  assert.equal(d2.prepare('SELECT COUNT(*) n FROM tags WHERE photo_id = ?').get(a.id)!.n, 0)
+  d2.close()
+  // Miniaturen er væk fra serveren
+  assert.equal(existsSync(path.join(dir, 'fotos', 'miniaturer', `${String(a.id)}.webp`)), false)
 })

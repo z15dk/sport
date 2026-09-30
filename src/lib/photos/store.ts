@@ -29,6 +29,10 @@ export interface Photo {
   error: string | null
   processedAt: string | null
   approvedAt: string | null
+  /** Empty = our own photo (PHOTOS_DEFAULT_CREDIT) */
+  credit: string | null
+  /** Borrowed: the last day we may keep it (yyyy-mm-dd) */
+  licenseUntil: string | null
 }
 
 export interface Tag {
@@ -74,6 +78,8 @@ const toPhoto = (r: Row): Photo => ({
   error: (r.error as string) ?? null,
   processedAt: (r.processed_at as string) ?? null,
   approvedAt: (r.approved_at as string) ?? null,
+  credit: (r.credit as string) ?? null,
+  licenseUntil: (r.license_until as string) ?? null,
 })
 
 const toTag = (r: Row): Tag => ({
@@ -108,11 +114,14 @@ export function clubList(db: Db): (ClubRef & { colors: string[]; extraColors: st
 export function overview(db: Db, dailyLimit: number) {
   const counts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) n FROM photos GROUP BY status').all().map((r) => [String(r.status), Number(r.n)])) as Record<string, number>
   const review = Number(db.prepare(`SELECT COUNT(*) n FROM photos WHERE review = 1 AND status = 'tagget'`).get()?.n ?? 0)
+  const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+  const expiring = Number(db.prepare(`SELECT COUNT(*) n FROM photos WHERE license_until IS NOT NULL AND license_until <= ? AND status != 'slettet'`).get(soon)?.n ?? 0)
   const lastRun = getMeta(db, 'last_run')
   return {
     counts,
     total: Object.values(counts).reduce((a, b) => a + b, 0),
     review,
+    expiring,
     quota: { ...quotaUsed(db, 'gemini'), dailyLimit },
     lastRun: lastRun ? (JSON.parse(lastRun) as { finishedAt?: string; processed?: number; failed?: number; stoppedBecause?: string }) : undefined,
     dbu: getMeta(db, 'dbu_synced_at'),
@@ -121,8 +130,14 @@ export function overview(db: Db, dailyLimit: number) {
 
 export function searchPhotos(db: Db, q: string, status = '', limit = 120): Photo[] {
   const { sql, params } = searchWhere(parseQuery(q, clubList(db)))
-  const statusSql = status === 'gennemgang' ? ` AND p.review = 1 AND p.status = 'tagget'` : status ? ' AND p.status = ?' : ` AND p.status NOT IN ('ny', 'behandles')`
-  const statusParams = status && status !== 'gennemgang' ? [status] : []
+  const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+  const statusSql =
+    status === 'gennemgang' ? ` AND p.review = 1 AND p.status = 'tagget'`
+    : status === 'laant' ? ` AND p.license_until IS NOT NULL AND p.status != 'slettet'`
+    : status === 'udloeber' ? ` AND p.license_until IS NOT NULL AND p.license_until <= ? AND p.status != 'slettet'`
+    : status ? ' AND p.status = ?'
+    : ` AND p.status NOT IN ('ny', 'behandles', 'slettet')`
+  const statusParams = status === 'udloeber' ? [soon] : status && !['gennemgang', 'laant'].includes(status) ? [status] : []
   return db
     .prepare(`SELECT p.* FROM photos p WHERE ${sql}${statusSql} ORDER BY p.match_date DESC, p.id DESC LIMIT ?`)
     .all(...params, ...statusParams, limit)
@@ -278,6 +293,33 @@ export function retag(db: Db, photoId: number, minConfidence: number) {
   for (const t of tagging.tags) ins.run(photoId, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.backName ?? null, t.note ?? null, nowIso())
   db.prepare('UPDATE photos SET review = ?, review_reasons = ?, review_cost = ? WHERE id = ?').run(tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, photoId)
   return true
+}
+
+// ---------- rights ----------
+
+export const isIsoDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d
+
+/**
+ * The credit (empty = our own) and, for a borrowed photo, the last day we may keep it
+ * (empty = ours for good). With wholeMatch it goes for every photo of the same club and match.
+ */
+export function setRights(db: Db, photoId: number, input: { credit?: string; licenseUntil?: string; wholeMatch?: boolean }) {
+  const row = db.prepare('SELECT club_id, club, match_date, opponent FROM photos WHERE id = ?').get(photoId)
+  if (!row) return { error: 'Billedet findes ikke' }
+  const credit = input.credit?.trim().slice(0, 120) || null
+  const until = input.licenseUntil?.trim() || null
+  if (until && !isIsoDate(until)) return { error: 'Datoen skal være ÅÅÅÅ-MM-DD' }
+  if (until && !credit) return { error: 'Skriv hvem billedet er lånt af, når det har en låneperiode' }
+  const sql = `UPDATE photos SET credit = ?, license_until = ? WHERE status != 'slettet' AND `
+  const changes = input.wholeMatch
+    ? db.prepare(sql + 'club IS ? AND match_date IS ? AND opponent IS ?').run(credit, until, row.club ?? null, row.match_date ?? null, row.opponent ?? null).changes
+    : db.prepare(sql + 'id = ?').run(credit, until, photoId).changes
+  return { count: Number(changes ?? 0) }
+}
+
+/** Borrowed photos whose loan has run out (the day after license_until) */
+export function expiredLoans(db: Db, today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })) {
+  return db.prepare(`SELECT id, drive_id, web_drive_id, path, credit, license_until FROM photos WHERE license_until IS NOT NULL AND license_until < ? AND status NOT IN ('slettet', 'behandles')`).all(today)
 }
 
 // ---------- squads and clubs ----------

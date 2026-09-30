@@ -5,7 +5,8 @@ import path from 'node:path'
 // a log of every processed photo and the AI quota used per day.
 //
 // Photo status: ny → behandles → tagget → godkendt (phase 2) → arkiveret (phase 3),
-// or fejl. `behandles` is a lease (lease_until): a run that stops halfway leaves
+// or fejl; slettet = a borrowed photo whose loan ran out (the row stays as a record
+// without picture or tags, so the file is never taken in again). `behandles` is a lease (lease_until): a run that stops halfway leaves
 // the photo to be picked up again once the lease runs out, never twice at once.
 
 export type Row = Record<string, unknown>
@@ -21,7 +22,7 @@ export interface Db {
 }
 type Sqlite = { DatabaseSync: new (file: string, opts?: { readOnly?: boolean }) => Db }
 
-export type PhotoStatus = 'ny' | 'behandles' | 'tagget' | 'godkendt' | 'fejl' | 'arkiveret'
+export type PhotoStatus = 'ny' | 'behandles' | 'tagget' | 'godkendt' | 'fejl' | 'arkiveret' | 'slettet'
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS photos (
@@ -156,7 +157,14 @@ export function openPhotoDb(file: string): Db {
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
   // Columns added after the first release
-  for (const sql of ['ALTER TABLE tags ADD COLUMN back_name TEXT']) {
+  for (const sql of [
+    'ALTER TABLE tags ADD COLUMN back_name TEXT',
+    // Rights: the credit shown with the photo (empty = PHOTOS_DEFAULT_CREDIT) and, for borrowed photos, the last day we may keep it
+    'ALTER TABLE photos ADD COLUMN credit TEXT',
+    'ALTER TABLE photos ADD COLUMN license_until TEXT',
+    'ALTER TABLE photos ADD COLUMN deleted_at TEXT',
+    'ALTER TABLE photos ADD COLUMN deleted_reason TEXT',
+  ]) {
     try {
       db.exec(sql)
     } catch {

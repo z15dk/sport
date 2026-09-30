@@ -1,7 +1,7 @@
 import { isAdmin, sameOrigin } from '../../../../lib/admin'
 import { photoConfig } from '../../../../lib/photos/config'
 import { withPhotoDb } from '../../../../lib/photos/server'
-import { addSquadRow, addTag, deleteSquadRow, deleteTag, setApproved, setMatch, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
+import { addSquadRow, addTag, deleteSquadRow, deleteTag, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
 
 // Changes from the photo admin: JSON { action, … }.
 //   approve { photo, approved }         add-tag { photo, number, name?, side? }
@@ -9,6 +9,7 @@ import { addSquadRow, addTag, deleteSquadRow, deleteTag, setApproved, setMatch, 
 //   set-match { photo, clubId?, date?, opponentId? }
 //   add-squad { club, number, name, validFrom?, validTo? }   delete-squad { id }
 //   update-club { club, extraColors?, aliases? }
+//   set-rights { photo, credit?, licenseUntil?, wholeMatch? }
 
 type Body = Record<string, unknown>
 
@@ -23,7 +24,7 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === 's
 export async function POST(request: Request) {
   if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
   const b = (await request.json().catch(() => ({}))) as Body
-  const result = withPhotoDb((db): { error?: string; name?: string | null; note?: string | null } => {
+  const result = withPhotoDb((db): { error?: string; name?: string | null; note?: string | null; count?: number } => {
     switch (b.action) {
       case 'approve':
         return setApproved(db, Number(b.photo), b.approved !== false)
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
         return deleteSquadRow(db, Number(b.id))
       case 'update-club':
         return updateClub(db, String(b.club), { extraColors: list(b.extraColors), aliases: list(b.aliases) })
+      case 'set-rights':
+        return setRights(db, Number(b.photo), { credit: String(b.credit ?? ''), licenseUntil: String(b.licenseUntil ?? ''), wholeMatch: b.wholeMatch === true })
       default:
         return { error: 'Ukendt handling' }
     }

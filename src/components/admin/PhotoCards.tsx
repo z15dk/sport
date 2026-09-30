@@ -11,6 +11,7 @@ export const STATUS: Record<string, string> = {
   godkendt: 'Godkendt',
   fejl: 'Fejl',
   arkiveret: 'Arkiveret',
+  slettet: 'Slettet (lån udløbet)',
 }
 
 export const dateDk = (iso: string | null) => (iso ? `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))} ${iso.slice(0, 4)}` : 'ukendt dato')
@@ -48,6 +49,7 @@ export function PhotoCard({ photo, tags }: { photo: Photo; tags: Tag[] }) {
           {photo.club ?? 'Ukendt klub'} – {photo.opponent ?? '?'}
         </span>
         <span className={s.muted}>{dateDk(photo.matchDate)}</span>
+        {photo.licenseUntil && <span className={`${s.chip} ${s.unknown}`}>Lånt til {dateDk(photo.licenseUntil)} · {photo.credit}</span>}
         <span className={s.chips}>{tags.length ? tags.map((t) => <TagChip key={t.id} tag={t} />) : <span className={s.muted}>ingen numre</span>}</span>
         <span className={photo.status === 'godkendt' ? s.approved : s.muted}>
           {STATUS[photo.status] ?? photo.status}

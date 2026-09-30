@@ -48,6 +48,8 @@ export function photoConfig() {
     /** DBU pools whose clubs and team sheets give the names (comma separated) */
     dbuPools: (e.PHOTOS_DBU_POOLS ?? '508656').split(',').map((s) => s.trim()).filter(Boolean),
     dbuPauseMs: num(e.PHOTOS_DBU_PAUSE_MS, 2_000),
+    /** The credit shown with our own photos; borrowed ones get their own in admin */
+    defaultCredit: e.PHOTOS_DEFAULT_CREDIT || 'Matchly.dk',
   }
 }
 

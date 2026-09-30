@@ -5,7 +5,7 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { openPhotoDb, type Db } from '../../src/lib/photos/db.ts'
 import { parseQuery } from '../../src/lib/photos/search.ts'
-import { addSquadRow, addTag, clubList, deleteSquadRow, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, updateTag } from '../../src/lib/photos/store.ts'
+import { addSquadRow, addTag, clubList, deleteSquadRow, expiredLoans, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
 
 // Search, corrections and approval against a small temporary database
 
@@ -101,4 +101,19 @@ test('godkendelse og trup-rettelser', () => {
   assert.deepEqual(addSquadRow(db, 'brabrand', { number: 9, name: 'Ny Nier' }), {})
   const dbuRow = db.prepare(`SELECT id FROM squads WHERE source = 'dbu' LIMIT 1`).get()!
   assert.match(deleteSquadRow(db, Number(dbuRow.id)).error!, /DBU/)
+})
+
+test('rettigheder: lånte billeder, hele kampen og kontrol af input', () => {
+  db.prepare(`INSERT INTO photos (id, drive_id, name, path, club, club_id, opponent, match_date, status, created_at) VALUES (5, 'd5', 'c.jpg', 'Brabrand/010826 Skive/c.jpg', 'Brabrand', 'brabrand', 'Skive', '2026-08-01', 'tagget', ?)`).run(now)
+  assert.match(setRights(db, 2, { licenseUntil: '2026-12-01' }).error!, /lånt af/)
+  assert.match(setRights(db, 2, { credit: 'Foto: Jens', licenseUntil: '1/12' }).error!, /ÅÅÅÅ-MM-DD/)
+  // Hele kampen: billede 2 og 5 er fra Brabrand – Skive 1/8
+  assert.deepEqual(setRights(db, 2, { credit: 'Foto: Jens Hansen', licenseUntil: '2026-12-01', wholeMatch: true }), { count: 2 })
+  assert.equal(getPhoto(db, 5)!.photo.credit, 'Foto: Jens Hansen')
+  assert.deepEqual(searchPhotos(db, '', 'laant').map((p) => p.id).sort(), [2, 5])
+  assert.deepEqual(expiredLoans(db, '2026-12-01').length, 0)
+  assert.deepEqual(expiredLoans(db, '2026-12-02').map((r) => Number(r.id)).sort(), [2, 5])
+  // Tilbage til vores eget
+  assert.deepEqual(setRights(db, 5, { credit: '', licenseUntil: '' }), { count: 1 })
+  assert.equal(getPhoto(db, 5)!.photo.licenseUntil, null)
 })

@@ -119,6 +119,16 @@ export function driveClient(serviceAccountFile: string, driveId: string) {
       return ((await res.json()) as { id: string }).id
     },
 
+    /** Moves a file to the shared drive's trash (emptied by Google after 30 days); a file already gone counts as done */
+    async trash(fileId: string): Promise<void> {
+      try {
+        await call(`${API}/files/${encodeURIComponent(fileId)}?supportsAllDrives=true&fields=id`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) })
+      } catch (e) {
+        if (e instanceof DriveError && e.status === 404) return
+        throw e
+      }
+    },
+
     /** Uploads a file, replacing the content of one with the same name in the folder (so a retried run makes no duplicates) */
     async put(name: string, parentId: string, bytes: Buffer, mimeType: string): Promise<string> {
       const existing = (await children(parentId, ` and name = '${name.replace(/'/g, "\\'")}'`))[0]

@@ -2,10 +2,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { AdminNav } from '../../../../components/admin/AdminNav'
-import { AddTag, ApproveButton, MatchEditor, TagRow } from '../../../../components/admin/PhotoAdmin'
+import { AddTag, ApproveButton, MatchEditor, RightsEditor, TagRow } from '../../../../components/admin/PhotoAdmin'
 import { STATUS, dateDk, webUrl } from '../../../../components/admin/PhotoCards'
 import s from '../../../../components/admin/photos.module.css'
 import { isAdmin } from '../../../../lib/admin'
+import { photoConfig } from '../../../../lib/photos/config'
+import { FORMATS, type SomeFormat } from '../../../../lib/photos/crop'
 import { withPhotoDb } from '../../../../lib/photos/server'
 import { clubList, getPhoto, type Tag } from '../../../../lib/photos/store'
 
@@ -32,6 +34,8 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
   const data = Number.isInteger(id) ? withPhotoDb((db) => ({ found: getPhoto(db, id), clubs: clubList(db).map((c) => ({ id: c.id, name: c.name })) })) : undefined
   if (!data?.found) notFound()
   const { photo, tags, log } = data.found
+  const defaultCredit = photoConfig().defaultCredit
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
   const boxClass = (t: Tag) => (t.side === 'egen' && t.playerName ? s.box : t.side === 'modstander' ? `${s.box} ${s.boxOpp}` : `${s.box} ${s.boxUnknown}`)
   return (
     <div className="page">
@@ -69,10 +73,12 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
                 ))}
             </div>
             <div className={s.some} style={{ marginTop: 8 }}>
-              SoMe uden spiller (midten):
-              <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photo.id}/some?format=post`}>4:5</a>
-              <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photo.id}/some?format=story`}>Story</a>
-              <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photo.id}/some?format=kvadrat`}>Kvadrat</a>
+              Hent uden spiller (midten):
+              {(Object.keys(FORMATS) as SomeFormat[]).map((f) => (
+                <a key={f} className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photo.id}/some?format=${f}`}>
+                  {FORMATS[f].label}
+                </a>
+              ))}
             </div>
             <p className={s.muted}>
               {photo.path}
@@ -82,6 +88,7 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
           </div>
           <div className={s.side}>
             {photo.error && <p className={s.error}>{photo.error}</p>}
+            {photo.status === 'slettet' && <p className={s.error}>Slettet: {String(data.found.row.deleted_reason ?? 'låneperioden udløb')}</p>}
             {photo.review && photo.status === 'tagget' && <p className={s.note}>Til gennemgang: {photo.reviewReasons.join(', ')}</p>}
             {(photo.status === 'tagget' || photo.status === 'godkendt') && <ApproveButton photoId={photo.id} approved={photo.status === 'godkendt'} />}
             <h2>Spillere</h2>
@@ -90,6 +97,12 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
               <TagRow key={t.id} photoId={photo.id} tag={{ id: t.id, number: t.number, playerName: t.playerName, side: t.side, note: t.note, info: info(t) }} />
             ))}
             <AddTag photoId={photo.id} />
+            <h2>Rettigheder</h2>
+            <p className={s.muted} style={{ margin: 0 }}>
+              Foto: <b>{photo.credit ?? defaultCredit}</b>
+              {photo.licenseUntil ? ` · lånt til og med ${dateDk(photo.licenseUntil)} – slettes derefter automatisk` : ' · vores eget billede'}
+            </p>
+            <RightsEditor photoId={photo.id} credit={photo.credit} licenseUntil={photo.licenseUntil} defaultCredit={defaultCredit} today={today} />
             <h2>Kamp</h2>
             <p className={s.muted}>Ret klub, modstander eller dato: navnene findes igen ud fra kampens holdkort og truppen (uden nyt AI-kald). Rettede spillere bevares.</p>
             <MatchEditor photoId={photo.id} clubId={photo.clubId} opponentId={photo.opponentId} date={photo.matchDate} clubs={data.clubs} />

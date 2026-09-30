@@ -47,6 +47,10 @@ export async function photoImage(id: number, variant: 'thumb' | 'web'): Promise<
 
 /** A JPEG for social media (Instagram takes no WebP), cut around the chosen player */
 export async function someImage(id: number, format: SomeFormat, tagId?: number): Promise<{ jpeg: Buffer; name: string } | undefined> {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const rights = withPhotoDb((db) => db.prepare('SELECT status, license_until FROM photos WHERE id = ?').get(id))
+  // A borrowed photo past its loan may not be used any more (it is deleted at the next run)
+  if (!rights || rights.status === 'slettet' || (rights.license_until && String(rights.license_until) < today)) return undefined
   const web = await photoImage(id, 'web')
   if (!web) return undefined
   const { box, label } = withPhotoDb((db) => {

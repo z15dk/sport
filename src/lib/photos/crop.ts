@@ -6,6 +6,7 @@ export const FORMATS = {
   post: { width: 1080, height: 1350, label: '4:5' },
   story: { width: 1080, height: 1920, label: 'Story' },
   kvadrat: { width: 1080, height: 1080, label: 'Kvadrat' },
+  bred: { width: 1920, height: 1080, label: '16:9' },
 } as const
 
 export type SomeFormat = keyof typeof FORMATS

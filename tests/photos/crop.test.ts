@@ -29,3 +29,11 @@ test('uden spiller: midten af billedet', () => {
   assert.equal(r.left, Math.round((1600 - 1067) / 2))
   assert.equal(r.top, 0)
 })
+
+test('16:9 fra et liggende 3:2-billede: fuld bredde, lodret efter spilleren', () => {
+  const r = cropRect(1600, 1067, FORMATS.bred.width, FORMATS.bred.height, [50, 400, 500, 500])
+  assert.equal(r.width, 1600)
+  assert.equal(r.height, 900)
+  assert.equal(r.left, 0)
+  assert.equal(r.top, 0)
+})

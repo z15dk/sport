@@ -8,6 +8,7 @@ import { syncDbu } from './dbu.ts'
 import { DriveError, driveClient, type DriveClient, type DriveFile } from './drive.ts'
 import { geminiProvider } from './gemini.ts'
 import { parseList, taggingContext } from './context.ts'
+import { expiredLoans } from './store.ts'
 import { parsePhotoPath, resolveClub, type ClubRef } from './paths.ts'
 import { tagPhoto, type Tagging } from './tagging.ts'
 import { MAX_ORIGINAL_BYTES, makeVariants } from './variants.ts'
@@ -35,6 +36,9 @@ export interface RunSummary {
   failed: number
   released: number
   aiCalls: number
+  /** Borrowed photos deleted because the loan ran out */
+  deleted: number
+  deleteErrors: number
   stoppedBecause?: string
   seconds?: number
 }
@@ -55,7 +59,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
   const missing = missingConfig(cfg)
   if (missing.length) throw new FatalError(`Mangler i /opt/scoreline/env: ${missing.join(', ')} (se docs/billeder-drift.md)`)
   const db = openPhotoDb(cfg.db)
-  const summary: RunSummary = { startedAt: nowIso(), queued: 0, processed: 0, review: 0, failed: 0, released: 0, aiCalls: 0 }
+  const summary: RunSummary = { startedAt: nowIso(), queued: 0, processed: 0, review: 0, failed: 0, released: 0, aiCalls: 0, deleted: 0, deleteErrors: 0 }
   const t0 = Date.now()
   try {
     summary.released = Number(db.prepare(`UPDATE photos SET status = 'ny', lease_until = NULL WHERE status = 'behandles' AND lease_until < ?`).run(Date.now()).changes ?? 0)
@@ -70,6 +74,10 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     }
 
     const drive = driveClient(cfg.serviceAccountFile!, cfg.driveId!)
+    // Borrowed photos go before anything else, so a run that stops early never keeps one too long
+    const gone = await deleteExpiredLoans(db, drive, cfg, log)
+    summary.deleted = gone.deleted
+    summary.deleteErrors = gone.errors
     summary.queued = await syncDrive(db, drive, cfg.folderId!, log)
 
     const vision = geminiProvider(cfg.geminiKey!, cfg.geminiModel)
@@ -141,6 +149,44 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     }
     db.close()
   }
+}
+
+/**
+ * Deletes borrowed photos whose loan has run out: the original and the web version go to
+ * the shared drive's trash, the thumbnail and cached copy are removed, the tags are
+ * deleted, and the row stays as a record (status slettet). A photo whose files could not
+ * be removed stays as it is and is tried again next run.
+ */
+export async function deleteExpiredLoans(db: Db, drive: DriveClient, cfg: PhotoConfig, log: Log): Promise<{ deleted: number; errors: number }> {
+  let deleted = 0
+  let errors = 0
+  for (const p of expiredLoans(db)) {
+    const id = Number(p.id)
+    try {
+      await drive.trash(String(p.drive_id))
+      if (p.web_drive_id) await drive.trash(String(p.web_drive_id))
+      for (const f of [path.join(cfg.thumbDir, `${id}.webp`), path.join(cfg.cacheDir, `${id}.webp`)]) {
+        try {
+          unlinkSync(f)
+        } catch {
+          // Not there
+        }
+      }
+      const reason = `lånt af ${String(p.credit ?? '?')} til ${String(p.license_until)}`
+      transaction(db, () => {
+        db.prepare('DELETE FROM tags WHERE photo_id = ?').run(id)
+        db.prepare(`UPDATE photos SET status = 'slettet', deleted_at = ?, deleted_reason = ?, vision_json = NULL, web_drive_id = NULL, review = 0, lease_until = NULL WHERE id = ?`).run(nowIso(), reason, id)
+      })
+      logStep(db, id, 'slettet', true, undefined, reason)
+      log(`Slettet (låneperioden er udløbet): ${String(p.path)} – ${reason}`)
+      deleted++
+    } catch (e) {
+      errors++
+      logStep(db, id, 'slettet', false, undefined, (e as Error).message)
+      log(`Kunne ikke slette ${String(p.path)} (låneperioden er udløbet), prøves igen næste kørsel: ${(e as Error).message}`)
+    }
+  }
+  return { deleted, errors }
 }
 
 /** New photos in Drive into the queue; returns how many are waiting */

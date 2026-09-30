@@ -26,7 +26,8 @@ const stamp = (s: string) => console.log(`${new Date().toLocaleTimeString('da-DK
 try {
   if (cmd === 'run') {
     const s = await runPhotoJob({ limit: value('limit') ? Number(value('limit')) : undefined, dbu: flag('dbu') ? 'force' : 'auto', log: stamp })
-    stamp(`Færdig: ${s.processed} tagget (${s.review} til gennemgang), ${s.failed} fejl, ${s.aiCalls} AI-kald, ${s.seconds} s${s.stoppedBecause ? ` – stoppede: ${s.stoppedBecause}` : ''}`)
+    stamp(`Færdig: ${s.processed} tagget (${s.review} til gennemgang), ${s.failed} fejl, ${s.aiCalls} AI-kald${s.deleted || s.deleteErrors ? `, ${s.deleted} lånte slettet${s.deleteErrors ? ` (${s.deleteErrors} kunne ikke slettes)` : ''}` : ''}, ${s.seconds} s${s.stoppedBecause ? ` – stoppede: ${s.stoppedBecause}` : ''}`)
+    if (s.deleteErrors) process.exitCode = 1
   } else if (cmd === 'status') {
     console.log(JSON.stringify(photoStatus(), null, 2))
   } else if (cmd === 'dbu') {

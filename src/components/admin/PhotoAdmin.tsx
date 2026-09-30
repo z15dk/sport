@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { FORMATS, type SomeFormat } from '../../lib/photos/crop'
 import s from './photos.module.css'
 
 // The photo admin's editors (/admin/billeder): tags, match, approval, review
@@ -18,13 +19,13 @@ function useAction() {
     setError(undefined)
     try {
       const res = await fetch('/api/admin/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const out = (await res.json().catch(() => ({}))) as { error?: string }
+      const out = (await res.json().catch(() => ({}))) as { error?: string; count?: number }
       if (!res.ok) {
         setError(out.error ?? 'Noget gik galt')
         return false
       }
       router.refresh()
-      return true
+      return out
     } catch {
       setError('Kunne ikke nå serveren')
       return false
@@ -79,15 +80,11 @@ export function TagRow({
         </button>
         <span className={s.some}>
           SoMe:
-          <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photoId}/some?format=post&tag=${tag.id}`}>
-            4:5
-          </a>
-          <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photoId}/some?format=story&tag=${tag.id}`}>
-            Story
-          </a>
-          <a className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photoId}/some?format=kvadrat&tag=${tag.id}`}>
-            Kvadrat
-          </a>
+          {(Object.keys(FORMATS) as SomeFormat[]).map((f) => (
+            <a key={f} className="text-btn" style={{ marginLeft: 0 }} href={`/api/admin/photos/${photoId}/some?format=${f}&tag=${tag.id}`}>
+              {FORMATS[f].label}
+            </a>
+          ))}
         </span>
         {error && <span className={s.error}>{error}</span>}
       </div>
@@ -259,6 +256,48 @@ export function ClubEditor({ clubId, extraColors, aliases }: { clubId: string; e
       <button className="pill" disabled={busy}>
         Gem
       </button>
+      {error && <span className={s.error}>{error}</span>}
+    </form>
+  )
+}
+
+export function RightsEditor({ photoId, credit, licenseUntil, defaultCredit, today }: { photoId: number; credit: string | null; licenseUntil: string | null; defaultCredit: string; today: string }) {
+  const { busy, error, run } = useAction()
+  const [who, setWho] = useState(credit ?? '')
+  const [until, setUntil] = useState(licenseUntil ?? '')
+  const [whole, setWhole] = useState(false)
+  const [saved, setSaved] = useState<string>()
+  const changed = who !== (credit ?? '') || until !== (licenseUntil ?? '') || whole
+  return (
+    <form
+      className={s.form}
+      onSubmit={async (e) => {
+        e.preventDefault()
+        setSaved(undefined)
+        const out = await run({ action: 'set-rights', photo: photoId, credit: who, licenseUntil: until, wholeMatch: whole })
+        if (out) {
+          setSaved(`Gemt på ${out.count ?? 1} billede${out.count === 1 ? '' : 'r'}`)
+          setWhole(false)
+        }
+      }}
+    >
+      <label className={s.muted} style={{ flexBasis: '100%' }}>
+        Foto (rettigheder)
+        <input value={who} onChange={(e) => setWho(e.target.value)} placeholder={defaultCredit} aria-label="Rettigheder" />
+      </label>
+      <label className={s.muted} style={{ flexBasis: '100%' }}>
+        Lånt til og med (tom = vores eget billede)
+        <input type="date" value={until} min={today} onChange={(e) => setUntil(e.target.value)} aria-label="Lånt til" />
+      </label>
+      <label className={s.muted} style={{ display: 'flex', gap: 6, alignItems: 'center', flexBasis: '100%' }}>
+        <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} style={{ width: 'auto' }} />
+        Gælder alle billeder fra denne kamp
+      </label>
+      {until && until < today && <span className={s.error}>Datoen er overskredet – billedet slettes ved næste kørsel.</span>}
+      <button className={changed ? 'pill is-active' : 'pill'} disabled={busy || !changed}>
+        Gem rettigheder
+      </button>
+      {saved && <span className={s.muted}>{saved}</span>}
       {error && <span className={s.error}>{error}</span>}
     </form>
   )

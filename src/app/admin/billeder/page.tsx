@@ -39,6 +39,7 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
           <div className={s.stat}><b>{info.review}</b><span><Link href="/admin/billeder/gennemgang">til gennemgang</Link></span></div>
           <div className={s.stat}><b>{c.ny ?? 0}</b><span>i kø</span></div>
           <div className={s.stat}><b className={c.fejl ? s.warn : undefined}>{c.fejl ?? 0}</b><span><Link href="/admin/billeder?status=fejl">fejl</Link></span></div>
+          <div className={s.stat}><b className={info.expiring ? s.warn : undefined}>{info.expiring}</b><span><Link href="/admin/billeder?status=udloeber">lån udløber ≤ 14 dage</Link></span></div>
           <div className={s.stat}><b>{info.quota.calls}/{info.quota.dailyLimit}</b><span>AI-kald i dag{info.quota.limited ? ` · ${info.quota.limited}× kvote` : ''}</span></div>
         </div>
         {info.lastRun?.stoppedBecause && <p className={s.note}>Seneste kørsel stoppede: {info.lastRun.stoppedBecause}</p>}
@@ -50,7 +51,10 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
             <option value="tagget">Tagget</option>
             <option value="godkendt">Godkendt</option>
             <option value="gennemgang">Til gennemgang</option>
+            <option value="laant">Lånte billeder</option>
+            <option value="udloeber">Lån udløber snart</option>
             <option value="fejl">Fejl</option>
+            <option value="slettet">Slettet (lån udløbet)</option>
             <option value="ny">I kø</option>
           </select>
           <button className="pill is-active">Søg</button>

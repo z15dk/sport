@@ -124,6 +124,7 @@ Googles egen oversigt: <https://aistudio.google.com/usage>.
 | `Filtypen image/heic understøttes ikke` | iPhone-format | Gem som JPG (eller sæt kameraet til "Mest kompatibel") |
 | `midlertidig fejl, prøves igen senere` | Google/net svarede ikke | Intet – prøves op til 3 gange, derefter status `fejl` |
 | Mange billeder med `fejl` efter en rettelse | | `npm run -s photos -- retry` sætter dem i kø igen |
+| `Kunne ikke slette … (låneperioden er udløbet)` | Drive svarede ikke | Intet – prøves igen næste kørsel; kørslen står som fejlet i systemd, så det ses |
 | `Serveren har travlt` | Belastningen er over `PHOTOS_MAX_LOAD` | Intet – jobbet venter eller prøver igen om 10 min. |
 
 Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og i journalen
@@ -131,7 +132,11 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 
 ## Admin
 
-<https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere), **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent SoMe-JPEG (4:5, story, kvadrat) centreret på en spiller.
+<https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere), **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent JPEG i 4:5, story, kvadrat og 16:9 centreret på en spiller.
+
+### Rettigheder og lånte billeder
+
+Hvert billede har "Foto:" – som standard `Matchly.dk` (`PHOTOS_DEFAULT_CREDIT`). Lånte billeder får fotografens/klubbens navn og en dato under "Lånt til og med" (på ét billede eller alle billeder fra samme kamp). Dagen efter sletter billedjobbet billedet: original og web-version flyttes til det fælles drevs papirkurv (Google tømmer den efter 30 dage), miniature og cache slettes på serveren, tags slettes, og billedet står tilbage som `slettet` med grunden i loggen. Et udløbet billede kan ikke hentes til SoMe, heller ikke før jobbet har kørt. Lånte billeder arkiveres aldrig på NAS'en. Oversigten viser, hvor mange lån der udløber inden for 14 dage.
 
 ## Data
 
