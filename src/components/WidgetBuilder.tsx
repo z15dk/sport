@@ -10,8 +10,8 @@ export interface WidgetLeague {
 }
 
 /** /widget: choose a league, a team to highlight and a theme; a live preview and the code to copy */
-export function WidgetBuilder({ leagues, site }: { leagues: WidgetLeague[]; site: string }) {
-  const [liga, setLiga] = useState(leagues[0]?.slug ?? '')
+export function WidgetBuilder({ leagues, site, initial }: { leagues: WidgetLeague[]; site: string; initial?: string }) {
+  const [liga, setLiga] = useState(leagues.find((l) => l.slug === initial)?.slug ?? leagues[0]?.slug ?? '')
   const [hold, setHold] = useState('')
   const [tema, setTema] = useState<'lys' | 'mork'>('lys')
   const [kompakt, setKompakt] = useState(false)
