@@ -183,6 +183,21 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             {showTable && tableSection}
           </>
         )}
+        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
+        {/* Stats and players right under the coming matches and the table, the rounds after them */}
+        {showTable && stats && leaders ? (
+          <div className="table-duo">
+            <div className="table-duo__main">
+              <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
+            </div>
+            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          </div>
+        ) : (
+          <>
+            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+            <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
+          </>
+        )}
         {rounds?.map((r) => (
           <section key={r.name} className="league">
             <header className="league__header">
@@ -199,21 +214,6 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             </ul>
           </section>
         ))}
-        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
-        {/* Stats and players after the coming matches, the table and the rounds */}
-        {showTable && stats && leaders ? (
-          <div className="table-duo">
-            <div className="table-duo__main">
-              <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
-            </div>
-            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-          </div>
-        ) : (
-          <>
-            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-            <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
-          </>
-        )}
 
         {news}
         <AdSlot placement="feed" />
