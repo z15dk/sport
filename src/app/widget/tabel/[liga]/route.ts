@@ -74,6 +74,7 @@ ${compact ? '' : cols.map((c) => `<td class="n x">${c.value(r)}</td>`).join('')}
   const html = `<!doctype html>
 <html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&amp;text=MATCHLY.&amp;display=swap">
 <title>${esc(division.name)} stilling</title>
 <style>
 :root{--bg:#fff;--ink:#0f110c;--muted:#6b7064;--line:#e6e8e0;--lime:#c6f135;--deep:#6f8f00;--me:#f4fbd9;--red:#d64545}
@@ -93,8 +94,10 @@ tr.me td{background:var(--me);font-weight:700}
 .club span{overflow:hidden;text-overflow:ellipsis}td.club{max-width:0;width:100%}
 img,.ini{width:20px;height:20px;flex:none;object-fit:contain}
 .ini{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:7px;font-weight:700}
-.f{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding:8px 12px;font-size:12px;color:var(--muted)}
-.f a{color:var(--ink);font-weight:700;text-decoration:none}.f a:hover{text-decoration:underline}
+.f{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding:8px 12px;font-size:12px;color:var(--muted)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#0f110c;color:#fff;text-decoration:none}
+.logo{font:italic 800 22px/1 "Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:-.01em}.logo i{color:#ff4a1f;font-style:inherit}
+.tag{font-size:11px;color:#b9bdb0;text-align:right}.bar:hover .tag{color:#c6f135}
 .lg{margin-right:10px}.lg::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;background:var(--deep)}.lg.bottom::before{background:var(--red)}
 @media (max-width:360px){.x{display:none}}
 </style></head><body>
@@ -102,7 +105,8 @@ img,.ini{width:20px;height:20px;flex:none;object-fit:contain}
 <div class="h"><b>${esc(division.name)}</b><small>Stilling ${esc(seasonOf(division))}</small></div>
 <table><thead><tr><th class="n">#</th><th>Hold</th><th class="n" title="Kampe">K</th>${compact ? '' : cols.map((c) => `<th class="n x" title="${c.title}">${c.label}</th>`).join('')}<th class="n" title="Målforskel">+/-</th><th class="n" title="Point">P</th></tr></thead>
 <tbody>${body}</tbody></table>
-<div class="f"><span>${legend}</span><a href="${paths.league(division.slug)}" target="_blank" rel="noopener">Matchly ↗</a></div>
+${legend ? `<div class="f">${legend}</div>` : ''}
+<a class="bar" href="${paths.league(division.slug)}" target="_blank" rel="noopener"><span class="logo">Matchly<i>.</i></span><span class="tag">Live score og stats · matchly.dk</span></a>
 </div>
 <script>(function(){function s(){parent.postMessage({matchly:${JSON.stringify(id)},height:document.body.getBoundingClientRect().height},"*")}addEventListener("load",s);new ResizeObserver(s).observe(document.body);s();setTimeout(s,700);setTimeout(s,2000)})()</script>
 </body></html>`
