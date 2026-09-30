@@ -18,7 +18,7 @@ import { FatalError, PhotoError, QuotaError, TransientError, parseVisionJson, ty
 // The photo job, started by systemd (deploy/photos.timer → scripts/photos-job.ts)
 // with the lowest CPU and disk priority. One run:
 //   1. frees photos whose lease ran out (a run that stopped halfway)
-//   2. every PHOTOS_DBU_EVERY_DAYS (14) days: clubs, team sheets, results and goals from DBU
+//   2. every PHOTOS_DBU_EVERY_DAYS (3) days, in a night run: clubs, team sheets, results and goals from DBU
 //   3. lists the Drive folder and queues new photos
 //   4. works through the queue one photo at a time, pausing between AI calls and
 //      while the server is busy; stops politely on quota errors
@@ -68,7 +68,8 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     if (summary.released) log(`${summary.released} billede(r) fra en afbrudt kørsel sat tilbage i køen`)
 
     const lastDbu = getMeta(db, 'dbu_synced_at')
-    if (opts.dbu === 'force' || (opts.dbu !== 'skip' && (!lastDbu || Date.now() - Date.parse(lastDbu) > cfg.dbuEveryDays * 86_400_000 - 3600_000))) {
+    // The full fetch only at night (never on the Sync button); `dbu` on the command line forces it
+    if (opts.dbu === 'force' || (opts.dbu !== 'skip' && opts.night && (!lastDbu || Date.now() - Date.parse(lastDbu) > cfg.dbuEveryDays * 86_400_000 - 3600_000))) {
       const r = await syncDbu(db, cfg.dbuPools, cfg.dbuPauseMs, log)
       setMeta(db, 'dbu_synced_at', nowIso())
       setMeta(db, 'dbu_last', JSON.stringify(r))

@@ -17,7 +17,7 @@ højst 50 % af én CPU og 700 MB hukommelse). Siden går altid forud.
 4. Alt usikkert (lav tillid, ukendt navn, usikkert hold, ingen numre, ukendt klub) markeres til gennemgang.
 5. Originalen markeres "klar til arkivering" (arkivering til NAS kommer i fase 3; indtil da bliver originalen i Drive).
 
-Hver 14. dag (`PHOTOS_DBU_EVERY_DAYS`) henter jobbet klubber, trøjefarver, holdkort, resultater og målscorere fra dbu.dk – eller når du kører `npm run -s photos -- dbu`
+Hver 3. dag (`PHOTOS_DBU_EVERY_DAYS`), i natkørslen kl. 00–06, henter jobbet klubber, trøjefarver, holdkort, resultater og målscorere fra dbu.dk – eller når du kører `npm run -s photos -- dbu`
 (2026/27: pulje 506118 = 3F Superliga, 507530 = Betinia Liga (1. division), 508656 = CampoBet 2. Division, 508657 = CampoBet 3. Division; ændres i `PHOTOS_DBU_POOLS` – nye puljer hvert år). Kommer der billeder fra en kamp, hvis holdkort eller resultat mangler, hentes netop den kampside med det samme (ét opslag).
 
 ## Opsætning (én gang)
@@ -64,7 +64,7 @@ GEMINI_API_KEY=<nøglen>
 # PHOTOS_MIN_CONFIDENCE=0.8     under dette får et nummer intet navn
 # PHOTOS_MAX_LOAD=1.5           vent mens serverens belastning er højere
 # PHOTOS_DBU_POOLS=506118,507530,508656,508657   DBU-puljer 2026/27 (Superliga, 1., 2., 3. division)
-# PHOTOS_DBU_EVERY_DAYS=14      hent fra DBU så mange dage imellem
+# PHOTOS_DBU_EVERY_DAYS=3       hent alt fra DBU så mange dage imellem (om natten)
 # PHOTOS_CACHE_MB=300           cache af web-versioner på serveren
 ```
 
