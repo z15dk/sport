@@ -97,6 +97,9 @@ export function Footer() {
               <Link href={paths.articles()}>Artikler</Link>
             </li>
             <li>
+              <Link href="/widget">Ligatabel til din side</Link>
+            </li>
+            <li>
               <Link href={paths.about()}>Om {SITE_NAME}</Link>
             </li>
             <li>

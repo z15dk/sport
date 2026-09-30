@@ -48,6 +48,7 @@ export function pageEntries(): SitemapEntry[] {
     { path: paths.clubs() },
     ...allTeams().map((t) => ({ path: paths.club(t.slug) })),
     { path: paths.about() },
+    { path: '/widget' },
     { path: paths.privacy() },
     { path: paths.women() },
     ...SPORTS.filter((s) => s.id !== 'american_football').map((s) => ({ path: paths.women({ sport: s.slug }) })),
