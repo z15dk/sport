@@ -32,7 +32,12 @@ const holder = globalThis as typeof globalThis & {
 }
 const mem = (holder.__scorelineLogoCheck ??= { mtime: -1, data: { entries: {} }, placeholders: new Set(), running: false, checked: 0 })
 
+// Asked for every logo of every game (tens of thousands of times a merge): the file is looked at every ten seconds at most
+let lookedAt = 0
 function load() {
+  const now = Date.now()
+  if (now - lookedAt < 10_000) return
+  lookedAt = now
   let mtime = 0
   try {
     mtime = statSync(file()).mtimeMs

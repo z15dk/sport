@@ -61,11 +61,18 @@ const allowed = (url: string) => {
 }
 
 /** A source's picture address as our own ("/billede/<id>"); other addresses are left as they are */
+const idOf = new Map<string, string>()
 export function proxyImage(url: string): string
 export function proxyImage(url: string | undefined): string | undefined
 export function proxyImage(url: string | undefined): string | undefined {
   if (!url || !allowed(url)) return url
-  const id = createHash('sha256').update(url).digest('hex').slice(0, 20)
+  // The same addresses come again and again (every logo of every game): each one's id worked out once
+  let id = idOf.get(url)
+  if (!id) {
+    id = createHash('sha256').update(url).digest('hex').slice(0, 20)
+    if (idOf.size > 100_000) idOf.clear()
+    idOf.set(url, id)
+  }
   const r = registry()
   if (r.byId.get(id) !== url) {
     r.byId.set(id, url)

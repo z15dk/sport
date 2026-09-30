@@ -2124,6 +2124,14 @@ a.player-games__match:hover { text-decoration: underline; }
 @media (max-width: 560px) {
   .dash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-tile__value { font-size: 22px; }
+  /* Tables stay inside their card: smaller, numbers kept whole, and a too-wide table scrolls sideways within the card */
+  .dash-card > :not(.panel__title) { margin-left: 12px; margin-right: 12px; }
+  .dash-card .panel__title { padding-left: 12px; padding-right: 12px; }
+  .dash-table { display: block; overflow-x: auto; width: calc(100% - 24px); font-size: 12px; -webkit-overflow-scrolling: touch; }
+  .dash-table th, .dash-table td { padding-right: 6px; }
+  .dash-table td:first-child { white-space: normal; min-width: 92px; }
+  .dash-table td:not(:first-child):not(:last-child), .dash-table th { white-space: nowrap; }
+  .dash-sub { margin-left: 12px; margin-right: 12px; }
 }
 
 .dash-link { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }

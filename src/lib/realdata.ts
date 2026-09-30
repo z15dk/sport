@@ -174,6 +174,21 @@ function mergedLeagues(tsdbData: RealData | undefined, db: ReturnType<typeof dat
   return leagues
 }
 
+/** The league tables' teams by league, and a key of them: worked out again only when the teams or the league names change */
+let tablesMemo: { teams: unknown; names: unknown; tables: NonNullable<RealData['tableTeams']>; tablesKey: string } | undefined
+function tablesOf(teams: ReturnType<typeof tableTeams>, leagueNames: ReturnType<typeof leagueNameOverrides>) {
+  if (tablesMemo?.teams === teams && tablesMemo.names === leagueNames.names) return tablesMemo
+  const tables: NonNullable<RealData['tableTeams']> = {}
+  timed('Fletning: tabellernes hold', () => {
+    for (const t of teams) {
+      const l = (tables[t.leagueKey] ??= { sport: t.sport, league: leagueNames.names[t.leagueKey] ?? t.league, country: t.country, teams: [] })
+      if (!l.teams.some((x) => x.name === t.name)) l.teams.push({ name: t.name, logo: t.logo })
+    }
+  })
+  tablesMemo = { teams, names: leagueNames.names, tables, tablesKey: hashString(JSON.stringify(tables)).toString(36) }
+  return tablesMemo
+}
+
 /** What TheSportsDB gave us (as saved in real-data.json) */
 const base = () => holder.__scorelineTsdb
 
@@ -183,7 +198,7 @@ const base = () => holder.__scorelineTsdb
  */
 function apply() {
   const tsdbData = base()
-  const db = databaseSeason()
+  const db = timed('Fletning: historik til sæsonen', databaseSeason)
   const external = externalGames()
   const names = clubNameOverrides()
   const aliases = clubAliasList()
@@ -191,12 +206,7 @@ function apply() {
   const settings = siteSettings()
   const leagueNames = leagueNameOverrides()
   const logos = Object.keys(customLogos()).length
-  const tables: NonNullable<RealData['tableTeams']> = {}
-  for (const t of tableTeams()) {
-    const l = (tables[t.leagueKey] ??= { sport: t.sport, league: leagueNames.names[t.leagueKey] ?? t.league, country: t.country, teams: [] })
-    if (!l.teams.some((x) => x.name === t.name)) l.teams.push({ name: t.name, logo: t.logo })
-  }
-  const tablesKey = hashString(JSON.stringify(tables)).toString(36)
+  const { tables, tablesKey } = tablesOf(tableTeams(), leagueNames)
   const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
   if (mergedKey === key) return
   mergedKey = key
@@ -208,7 +218,7 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: timed('Fletning: dagens kampe', () => sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders))).map((g) => {
+    external: timed('Fletning: dagens kampe', () => sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders)).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
@@ -216,7 +226,7 @@ function apply() {
       const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name ?? danishLeagueName(g.league.name)
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
       return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
-    }),
+    })),
     tableTeams: tables,
     leagueNames: leagueNames.names,
     clubNames: names.names,
