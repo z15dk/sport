@@ -1,0 +1,19 @@
+# Matchly billeder: tagger egne kampbilleder fra Drive (src/lib/photos, docs/billeder-drift.md).
+# Laveste CPU- og diskprioritet og et loft over CPU og hukommelse, så siden altid går forud.
+# Installeres én gang: se docs/billeder-drift.md
+[Unit]
+Description=Matchly billeder (tagging, lav prioritet)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=scoreline
+WorkingDirectory=/opt/scoreline/current
+EnvironmentFile=/opt/scoreline/env
+ExecStart=/usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts run
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=700M
+TimeoutStartSec=55min
