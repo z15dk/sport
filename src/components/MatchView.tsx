@@ -787,6 +787,41 @@ function PeriodScores({ match }: { match: Match }) {
         </table>
       </div>
       {live && <p className="muted small periods__note">{periods.at(-1)?.label} spilles nu.</p>}
+      <PeriodFacts match={match} />
     </section>
+  )
+}
+
+/** The match in numbers, from its sets or periods: points in all, the biggest win, the closest and the longest (played ones only) */
+function PeriodFacts({ match }: { match: Match }) {
+  const all = match.periods ?? []
+  // The set or period being played is not over yet
+  const done = match.state === 'live' ? all.slice(0, -1) : all
+  const regular = done.filter((p) => /^\d/.test(p.label))
+  if (regular.length < 2) return null
+  const unit = match.sport === 'volleyball' || match.sport === 'basketball' ? 'Point' : 'Mål'
+  const name = (p: { label: string }) => p.label.toLowerCase()
+  const score = (p: { home: number; away: number }) => `${p.home}–${p.away}`
+  const home = all.reduce((n, p) => n + p.home, 0)
+  const away = all.reduce((n, p) => n + p.away, 0)
+  const margin = (p: { home: number; away: number }) => Math.abs(p.home - p.away)
+  const biggest = [...regular].sort((a, b) => margin(b) - margin(a))[0]
+  const closest = [...regular].sort((a, b) => margin(a) - margin(b))[0]
+  const longest = [...regular].sort((a, b) => b.home + b.away - (a.home + a.away))[0]
+  const facts: [string, string][] = [
+    [`${unit} i alt`, `${home}–${away}`],
+    ...(margin(biggest) > 0 ? ([[`Største ${match.sport === 'volleyball' ? 'sætsejr' : 'forskel'}`, `${score(biggest)} (${name(biggest)})`]] as [string, string][]) : []),
+    ...(closest !== biggest ? ([['Tættest', `${score(closest)} (${name(closest)})`]] as [string, string][]) : []),
+    ...(match.sport === 'volleyball' ? ([['Længste sæt', `${longest.home + longest.away} point (${name(longest)})`]] as [string, string][]) : []),
+  ]
+  return (
+    <dl className="facts periods__facts">
+      {facts.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }

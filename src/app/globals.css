@@ -2181,3 +2181,4 @@ a.player-games__match:hover { text-decoration: underline; }
 .periods__table td.is-now { background: var(--surface-2); border-radius: 6px; }
 .periods__total { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; }
 .periods__note { margin: 6px 0 0; }
+.periods__facts { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line, #e3e5de); }
