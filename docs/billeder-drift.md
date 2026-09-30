@@ -17,7 +17,7 @@ højst 50 % af én CPU og 700 MB hukommelse). Siden går altid forud.
 4. Alt usikkert (lav tillid, ukendt navn, usikkert hold, ingen numre, ukendt klub) markeres til gennemgang.
 5. Originalen markeres "klar til arkivering" (arkivering til NAS kommer i fase 3; indtil da bliver originalen i Drive).
 
-Én gang i døgnet henter jobbet klubber, trøjefarver og holdkort fra dbu.dk
+Hver 14. dag (`PHOTOS_DBU_EVERY_DAYS`) henter jobbet klubber, trøjefarver, holdkort, resultater og målscorere fra dbu.dk – eller når du kører `npm run -s photos -- dbu`
 (pulje 508656 = CampoBet 2. Division 2026/27; flere puljer i `PHOTOS_DBU_POOLS`).
 
 ## Opsætning (én gang)
@@ -64,6 +64,7 @@ GEMINI_API_KEY=<nøglen>
 # PHOTOS_MIN_CONFIDENCE=0.8     under dette får et nummer intet navn
 # PHOTOS_MAX_LOAD=1.5           vent mens serverens belastning er højere
 # PHOTOS_DBU_POOLS=508656       DBU-puljer (kommasepareret)
+# PHOTOS_DBU_EVERY_DAYS=14      hent fra DBU så mange dage imellem
 # PHOTOS_CACHE_MB=300           cache af web-versioner på serveren
 ```
 
