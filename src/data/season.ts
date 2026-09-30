@@ -79,6 +79,18 @@ function clubResolver(div: Division, names: Record<string, string>) {
   }
 }
 
+/** One of our clubs in a division by a source's name for it (the same lookup the season uses), or nothing for a team we don't know */
+const divisionResolvers = new Map<string, { names: Record<string, string>; resolve: (name: string) => Club }>()
+export function clubInDivision(div: Division, name: string, names: Record<string, string> = {}): Club | undefined {
+  let r = divisionResolvers.get(div.id)
+  if (!r || r.names !== names) {
+    r = { names, resolve: clubResolver(div, names) }
+    divisionResolvers.set(div.id, r)
+  }
+  const club = r.resolve(name)
+  return club.id.startsWith('x-') ? undefined : club
+}
+
 function buildReal(real: RealData): Fixture[] {
   const out: Fixture[] = []
   for (const [divisionId, events] of Object.entries(real.leagues)) {

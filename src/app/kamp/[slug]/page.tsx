@@ -115,6 +115,8 @@ export default async function MatchPage({ params }: { params: Params }) {
     return <PastMatchPage {...past} />
   }
   const { match, date, now } = found
+  // Found under an older address (the source's own team names): to the match's own
+  if (match.slug !== slug) permanentRedirect(paths.match(match.slug))
   const clubSlug = (name: string) => teamByName(name)?.slug
   const homeStats = clubStats(match.home.name, now)
   const awayStats = clubStats(match.away.name, now)

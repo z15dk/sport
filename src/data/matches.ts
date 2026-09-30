@@ -1,6 +1,6 @@
 import type { Match, SportFilter, SportId } from '../types'
 import { addDays } from '../lib/time'
-import { clubFixtures, fixturesOn, seasonClub, toMatch } from './season'
+import { clubFixtures, clubInDivision, fixturesOn, seasonClub, toMatch } from './season'
 import { getRealData } from './real'
 import { WOMEN_TEAM, externalToMatch, isWomenLeague, gameKey, isWomenGame, type ExternalGame } from './external'
 
@@ -10,6 +10,7 @@ import { divisionOfGame } from './ourLeagues'
 import { DIVISIONS, sportOf } from './leagues'
 import { cupOfGame, ourClubInGame, wholeSeason } from './cups'
 import { isoDate } from '../lib/time'
+import { matchSlug } from '../lib/slug'
 import { sameLeagueKeys } from './baselines'
 import { countryKey } from './channels'
 
@@ -26,11 +27,28 @@ export function externalMatch(g: ExternalGame): Match {
     // One cup, whichever source the game comes from, right after the country's leagues
     return cupOfGame(g) ? { ...m, ...cupPlace(m.leagueSlug), ...teams } : { ...m, ...teams }
   }
-  const m = externalToMatch(g)
   const own = divisionOfGame(g)
-  if (!own) return m
+  if (!own) return externalToMatch(g)
   const { d, i } = own
-  return { ...m, league: d.name, leagueId: `${d.countryCode.toLowerCase()}-${d.id}`, leagueSlug: d.slug, leagueOrder: i, country: d.country }
+  // A game in one of our leagues that the season doesn't have: our clubs under their own names, logos and colours ("Gladsaxe" is Gladsaxe Basketball)
+  const names = getRealData()?.clubNames ?? {}
+  const homeClub = clubInDivision(d, g.home.name, names)
+  const awayClub = clubInDivision(d, g.away.name, names)
+  const m = externalToMatch({
+    ...g,
+    home: homeClub ? { ...g.home, name: homeClub.name, logo: undefined } : g.home,
+    away: awayClub ? { ...g.away, name: awayClub.name, logo: undefined } : g.away,
+  })
+  return {
+    ...m,
+    league: d.name,
+    leagueId: `${d.countryCode.toLowerCase()}-${d.id}`,
+    leagueSlug: d.slug,
+    leagueOrder: i,
+    country: d.country,
+    home: { ...m.home, colors: homeClub?.colors ?? m.home.colors },
+    away: { ...m.away, colors: awayClub?.colors ?? m.away.colors },
+  }
 }
 
 /** A cup's place in the lists: one group (all sources), right after the country's own football leagues */
@@ -168,7 +186,9 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
     const m = getMatches(date, sport, now).find((x) => x.slug === slug)
     if (m) return m
   }
-  return undefined
+  // An address from the source's own team names ("bakken-bears-gladsaxe-…" before Gladsaxe got its club's name): the same match
+  const g = (getRealData()?.external ?? []).find((x) => isoDate(new Date(x.kickoff)) === date && matchSlug(x.home.name, x.away.name, date) === slug)
+  return g ? externalMatch(g) : undefined
 }
 
 /** A league club's games outside its league (cup, Champions League), as the source has them */
