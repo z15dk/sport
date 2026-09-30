@@ -7,6 +7,7 @@ import { WomenHero } from './WomenHero'
 import { womenPage } from '../lib/womenPage'
 import { externalOn, getMatches, isWomenGame, isWomenMatch, upcomingMatches } from '../data/matches'
 import { competitionLabel } from '../data/leagues'
+import { BASELINES, sameLeagueKeys } from '../data/baselines'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../lib/jsonld'
 import { SITE_NAME, paths } from '../lib/site'
 import { addDays, formatDayMonth, formatFull, formatTime, formatWeekday, isoDate, isValidIsoDate } from '../lib/time'
@@ -131,6 +132,14 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
   const liveNow = womenOn(today, s.id, now).filter((m) => m.state === 'live').length
   const todayCount = womenOn(today, s.id, now).length
   const leagues = tournaments(mine)
+  // Denmark's women's leagues with a page of their own (their starting tables), when no game in the window lists them
+  const listed = new Set(leagues.flatMap((t) => (t.m.leagueSlug ? sameLeagueKeys(t.m.leagueSlug) : [])))
+  const danishLeagues =
+    s.id === 'all' || s.id === 'soccer'
+      ? [...new Map(Object.entries(BASELINES).map(([key, b]) => [b, key])).entries()]
+          .filter(([b, key]) => b.league.sport === 'soccer' && b.league.country === 'Denmark' && !sameLeagueKeys(key).some((k) => listed.has(k)))
+          .map(([b, key]) => ({ key, name: b.league.name }))
+      : []
   const sportsPlayed = new Set(every.flat().map((m) => m.sport))
   const tabs = [ALL_SPORTS, ...SPORTS.filter((x) => sportsPlayed.has(x.id) || x.id === 'soccer')]
   const todayBy = (id: SportFilter) => (id === 'all' ? every[14] : every[14].filter((m) => m.sport === id)).length
@@ -185,10 +194,22 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
         }
         below={
           <div className="women-more">
-            {leagues.length > 0 && (
+            {(leagues.length > 0 || danishLeagues.length > 0) && (
               <section className="panel women-leagues">
                 <h2 className="panel__title">Turneringerne vi følger</h2>
                 <ul>
+                  {/* The Danish women's leagues always, also between rounds (A-Liga, B-Liga) */}
+                  {danishLeagues.map((b) => (
+                    <li key={b.key}>
+                      <Link href={paths.league(b.key)}>
+                        <TeamBadge link={false} name={b.name} size={32} label={competitionLabel(b.name)} />
+                        <span>
+                          <b>{b.name}</b>
+                          <small>{[s.id === 'all' ? 'Fodbold' : undefined, 'Danmark', 'Stilling og kampe'].filter(Boolean).join(' · ')}</small>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
                   {leagues.slice(0, 24).map((t) => {
                     const { m } = t
                     const body = (
