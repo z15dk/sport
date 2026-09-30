@@ -2,11 +2,14 @@ import 'server-only'
 import { existsSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensurePhotoDirs, photoConfig } from './config.ts'
+import sharp from 'sharp'
 import type { SomeFormat } from './crop.ts'
 import { openPhotoDb, type Db } from './db.ts'
-import { runningSince } from './store.ts'
+import { bestPhotos, openShare, runningSince } from './store.ts'
 import { driveClient } from './drive.ts'
+import { deletePhotoEverywhere } from './remove.ts'
 import { cropToJpeg } from './some.ts'
+import { safeName, zip } from './zip.ts'
 
 // The admin pages' access to the photos (Next only; the job has its own).
 // Thumbnails are on the server; the 1600 px web version is read from the small
@@ -113,3 +116,74 @@ export function requestSync(): { started: boolean; reason?: string } {
 }
 
 export const syncRequested = () => existsSync(photoConfig().syncRequestFile)
+
+/** Deletes photos everywhere (Drive trash, server copies, tags); returns how many went and the errors */
+export async function deletePhotos(ids: number[], reason = 'slettet i admin'): Promise<{ deleted: number; errors: string[] }> {
+  const cfg = photoConfig()
+  if (!cfg.serviceAccountFile || !cfg.driveId) return { deleted: 0, errors: ['Drive er ikke sat op'] }
+  const drive = driveClient(cfg.serviceAccountFile, cfg.driveId)
+  const db = openPhotoDb(cfg.db)
+  let deleted = 0
+  const errors: string[] = []
+  try {
+    for (const id of ids) {
+      try {
+        await deletePhotoEverywhere(db, drive, cfg, id, reason)
+        deleted++
+      } catch (e) {
+        errors.push(`#${id}: ${(e as Error).message}`)
+      }
+    }
+  } finally {
+    db.close()
+  }
+  return { deleted, errors }
+}
+
+/** "Best of the match": the N best safe photos cut to one format, as a ZIP with a credits file */
+export async function bestZip(clubId: string, date: string, opponentId: string | null, format: SomeFormat, n = 10): Promise<{ zip: Buffer; name: string } | undefined> {
+  const cfg = photoConfig()
+  const picks = withPhotoDb((db) => bestPhotos(db, clubId, date, opponentId, n))
+  if (!picks.length) return undefined
+  const files: { name: string; data: Buffer }[] = []
+  const credits: string[] = []
+  for (const [i, p] of picks.entries()) {
+    const out = await someImage(p.id, format)
+    if (!out) continue
+    const who = p.players.length ? `_${p.players.slice(0, 2).join('_')}` : p.situation ? `_${p.situation}` : ''
+    const name = `${String(i + 1).padStart(2, '0')}${safeName(who)}.jpg`
+    files.push({ name, data: out.jpeg })
+    credits.push(`${name}: Foto: ${p.credit ?? cfg.defaultCredit}`)
+  }
+  if (!files.length) return undefined
+  files.push({ name: 'kreditering.txt', data: Buffer.from(`${credits.join('\n')}\n`) })
+  return { zip: zip(files), name: `${safeName(`${clubId}_${date}_bedste`)}_${format}.zip` }
+}
+
+/** A photo from an open share link: thumbnail (WebP) or a JPEG of the 1600 px version to download */
+export async function sharedImage(token: string, photoId: number, variant: 'thumb' | 'jpg'): Promise<{ bytes: Buffer; type: string; name?: string } | undefined> {
+  const share = withPhotoDb((db) => openShare(db, token))
+  const photo = share?.photos.find((p) => p.id === photoId)
+  if (!share || share.expired || !photo) return undefined
+  if (variant === 'thumb') {
+    const bytes = await photoImage(photoId, 'thumb')
+    return bytes && { bytes, type: 'image/webp' }
+  }
+  const web = await photoImage(photoId, 'web')
+  if (!web) return undefined
+  const bytes = await sharp(web).jpeg({ quality: 90, mozjpeg: true }).toBuffer()
+  return { bytes, type: 'image/jpeg', name: `${safeName(`${photo.club ?? 'matchly'}_${photo.matchDate ?? ''}_${photo.id}`)}.jpg` }
+}
+
+/** All photos of an open share link as one ZIP of JPEGs */
+export async function sharedZip(token: string): Promise<{ zip: Buffer; name: string } | undefined> {
+  const share = withPhotoDb((db) => openShare(db, token))
+  if (!share || share.expired || !share.photos.length) return undefined
+  const files: { name: string; data: Buffer }[] = []
+  for (const p of share.photos) {
+    const img = await sharedImage(token, p.id, 'jpg')
+    if (img?.name) files.push({ name: img.name, data: img.bytes })
+  }
+  files.push({ name: 'kreditering.txt', data: Buffer.from(`Foto: ${photoConfig().defaultCredit}\n`) })
+  return { zip: zip(files), name: `${safeName(share.title) || 'billeder'}.zip` }
+}

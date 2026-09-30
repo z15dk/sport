@@ -1,0 +1,9 @@
+# Morgenrapporten kl. 06.15 (dansk tid), efter nattens billedkørsler
+[Unit]
+Description=Matchly billeder: morgenrapport kl. 06.15
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 Europe/Copenhagen
+
+[Install]
+WantedBy=timers.target

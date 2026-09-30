@@ -88,6 +88,33 @@ export function parseSheet(html: string): { home: LineupPlayer[]; away: LineupPl
   return sheet.home.length || sheet.away.length ? sheet : undefined
 }
 
+export interface DbuGoal {
+  side: 'home' | 'away'
+  minute: number | null
+  name: string
+}
+
+/** The final score and the goals from a match page (the live-score block); undefined before the match */
+export function parseResult(html: string): { home: number; away: number; goals: DbuGoal[] } | undefined {
+  const score = (side: string) => {
+    const m = new RegExp(`live-score--result--${side}[\\s\\S]*?scoreboard--content">\\s*(\\d+)\\s*<`).exec(html)
+    return m ? Number(m[1]) : undefined
+  }
+  const home = score('home')
+  const away = score('away')
+  if (home === undefined || away === undefined) return undefined
+  const goals: DbuGoal[] = []
+  for (const ev of html.split('class="sr--match--live-score--event"').slice(1)) {
+    if (!ev.includes('icon_sr_goal.svg')) continue
+    const side = /live-score--event--(home|away)"/.exec(ev)?.[1] as 'home' | 'away' | undefined
+    const minute = /event--minute">\s*(?:&#x27;|')?\s*(\d+)/.exec(ev)
+    const player = /event--player">([\s\S]*?)<\/div>/.exec(ev)
+    if (side && player && text(player[1])) goals.push({ side, minute: minute ? Number(minute[1]) : null, name: text(player[1]) })
+  }
+  // The page lists the newest event first
+  return { home, away, goals: goals.reverse() }
+}
+
 async function get(path: string): Promise<string> {
   const res = await fetch(BASE + path, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30_000) })
   if (!res.ok) throw new Error(`DBU ${path}: ${res.status}`)
@@ -128,22 +155,37 @@ export async function syncDbu(db: Db, pools: string[], pauseMs: number, log: (s:
         ).run(`dbu:${f.key}`, f.date, home, away, f.url)
         res.fixtures++
       }
-      // Played matches without a sheet, not tried in the last 12 hours
+      // Played matches without a sheet or result, not tried in the last 12 hours
       const due = db
-        .prepare(`SELECT match_key, url, home_id, away_id FROM matches WHERE source = 'dbu' AND has_lineups = 0 AND date <= ? AND match_key LIKE ? AND (fetched_at IS NULL OR fetched_at < ?) ORDER BY date`)
+        .prepare(`SELECT match_key, url, home_id, away_id, has_lineups FROM matches WHERE source = 'dbu' AND (has_lineups = 0 OR has_events = 0) AND date <= ? AND match_key LIKE ? AND (fetched_at IS NULL OR fetched_at < ?) ORDER BY date`)
         .all(today, `dbu:%_${pool}`, new Date(Date.now() - 12 * 3600_000).toISOString())
       for (const m of due) {
         try {
-          const sheet = parseSheet(await get(String(m.url)))
+          const html = await get(String(m.url))
+          const sheet = parseSheet(html)
+          const result = parseResult(html)
           transaction(db, () => {
-            db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ? WHERE match_key = ?').run(nowIso(), sheet ? 1 : 0, m.match_key)
-            if (!sheet) return
-            db.prepare('DELETE FROM lineups WHERE match_key = ?').run(m.match_key)
-            const ins = db.prepare('INSERT OR IGNORE INTO lineups (match_key, club_id, number, name, reserve) VALUES (?, ?, ?, ?, ?)')
-            for (const p of sheet.home) ins.run(m.match_key, m.home_id, p.number, p.name, p.reserve ? 1 : 0)
-            for (const p of sheet.away) ins.run(m.match_key, m.away_id, p.number, p.name, p.reserve ? 1 : 0)
+            db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ?, has_events = ?, home_score = ?, away_score = ? WHERE match_key = ?').run(
+              nowIso(),
+              sheet || m.has_lineups ? 1 : 0,
+              result ? 1 : 0,
+              result?.home ?? null,
+              result?.away ?? null,
+              m.match_key,
+            )
+            if (sheet) {
+              db.prepare('DELETE FROM lineups WHERE match_key = ?').run(m.match_key)
+              const ins = db.prepare('INSERT OR IGNORE INTO lineups (match_key, club_id, number, name, reserve) VALUES (?, ?, ?, ?, ?)')
+              for (const p of sheet.home) ins.run(m.match_key, m.home_id, p.number, p.name, p.reserve ? 1 : 0)
+              for (const p of sheet.away) ins.run(m.match_key, m.away_id, p.number, p.name, p.reserve ? 1 : 0)
+            }
+            if (result) {
+              db.prepare('DELETE FROM goals WHERE match_key = ?').run(m.match_key)
+              const g = db.prepare('INSERT INTO goals (match_key, club_id, minute, name, seq) VALUES (?, ?, ?, ?, ?)')
+              result.goals.forEach((x, i) => g.run(m.match_key, x.side === 'home' ? m.home_id : m.away_id, x.minute, x.name, i))
+            }
           })
-          res.sheetsFetched++
+          if (sheet) res.sheetsFetched++
         } catch (e) {
           res.errors.push(`${String(m.url)}: ${(e as Error).message}`)
         }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseProgram, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
+import { parseProgram, parseResult, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
 
 // Small made-up pages in dbu.dk's structure (no real contact details)
 const teams = `<div class="sr--pool--team-list--team" onclick="window.location.href = '/resultater/hold/9351_508656/'">
@@ -38,4 +38,22 @@ test('holdkort: startopstilling og reserver, trænere tæller ikke', () => {
     away: [{ number: 9, name: 'Ude Spiller', reserve: false }],
   })
   assert.equal(parseSheet('<h2>Kampinfo</h2>'), undefined)
+})
+
+test('resultat og målscorere fra kampsiden (nyeste først på siden)', () => {
+  const ev = (min: string, side: string, name: string, icon: string) =>
+    `<div class="sr--match--live-score--event"><div class="sr--match--live-score--event--minute">&#x27;${min}</div><div class="sr--match--live-score--event--${side}"><div class="sr--match--live-score--event--player">\n${name}   </div><div class="sr--match--live-score--event--icon"><img src="/x/${icon}" /></div></div></div>`
+  const html = `<div class="sr--match--live-score--result--home"><div class="sr--match--live-score--result--scoreboard--content">1</div></div>
+    <div class="sr--match--live-score--result--away"><div class="sr--match--live-score--result--scoreboard--content">3</div></div>
+    ${ev('91', 'away', 'Zean Peets Dal&#xFC;gge', 'icon_sr_goal.svg')}${ev('77', 'home', 'Rasmus Juul', 'icon_sr_yellow.svg')}${ev('42', 'home', 'Simon Vesterbæk', 'icon_sr_goal.svg')}${ev('18', 'away', 'Malthe Larsson', 'icon_sr_goal.svg')}`
+  assert.deepEqual(parseResult(html), {
+    home: 1,
+    away: 3,
+    goals: [
+      { side: 'away', minute: 18, name: 'Malthe Larsson' },
+      { side: 'home', minute: 42, name: 'Simon Vesterbæk' },
+      { side: 'away', minute: 91, name: 'Zean Peets Dalügge' },
+    ],
+  })
+  assert.equal(parseResult('<h2>Kampinfo</h2>'), undefined)
 })

@@ -35,8 +35,17 @@ export function Legend() {
   )
 }
 
-export function PhotoCard({ photo, tags }: { photo: Photo; tags: Tag[] }) {
+export function PhotoCard({ photo, tags, burst }: { photo: Photo; tags: Tag[]; burst?: number[] }) {
   return (
+    <div className={s.cardWrap}>
+      <label className={s.pick} title="Vælg">
+        <input type="checkbox" name="valg" value={photo.id} aria-label="Vælg billedet" />
+      </label>
+      {burst && burst.length > 1 && (
+        <Link className={s.burst} href={`/admin/billeder?ids=${burst.join(',')}`} prefetch={false} title="Serieskud – det skarpeste vises">
+          Serie · {burst.length}
+        </Link>
+      )}
     <Link href={`/admin/billeder/${photo.id}`} className={s.card} prefetch={false}>
       {photo.processedAt ? (
         // eslint-disable-next-line @next/next/no-img-element -- private admin thumbnails, already sized
@@ -58,5 +67,6 @@ export function PhotoCard({ photo, tags }: { photo: Photo; tags: Tag[] }) {
         </span>
       </div>
     </Link>
+    </div>
   )
 }

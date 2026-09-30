@@ -2,29 +2,42 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
-import { AutoFilterForm, SyncButton } from '../../../components/admin/PhotoAdmin'
+import { AutoFilterForm, BulkBar, SyncButton } from '../../../components/admin/PhotoAdmin'
 import { Legend, PhotoCard } from '../../../components/admin/PhotoCards'
 import s from '../../../components/admin/photos.module.css'
 import { isAdmin } from '../../../lib/admin'
 import { photoConfig } from '../../../lib/photos/config'
 import { syncRequested, withPhotoDb } from '../../../lib/photos/server'
-import { filterOptions, overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
+import { getMeta } from '../../../lib/photos/db'
+import { burstsOf, clubList, filterOptions, overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Billeder · Admin', robots: { index: false, follow: false } }
 
-type SearchParams = Promise<{ q?: string; status?: string; klub?: string; modstander?: string; situation?: string; spiller?: string; fra?: string; til?: string }>
+type SearchParams = Promise<{ q?: string; status?: string; klub?: string; modstander?: string; situation?: string; spiller?: string; fra?: string; til?: string; ids?: string }>
 
 /** The owner's match photos: search by club and number, name, match or situation */
 export default async function AdminPhotos({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect('/admin')
-  const { q = '', status = '', klub = '', modstander = '', situation = '', spiller = '', fra = '', til = '' } = await searchParams
+  const { q = '', status = '', klub = '', modstander = '', situation = '', spiller = '', fra = '', til = '', ids = '' } = await searchParams
+  const only = ids.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
   const cfg = photoConfig()
-  const { info, photos, tags, options } = withPhotoDb((db) => {
-    const photos = searchPhotos(db, q, status, 200, { clubId: klub, opponentId: modstander, situation, player: spiller, from: fra, to: til })
-    return { info: overview(db, cfg.dailyLimit), photos, tags: tagsFor(db, photos.map((p) => p.id)), options: filterOptions(db, klub || undefined) }
+  const { info, photos, tags, options, clubs, report } = withPhotoDb((db) => {
+    const photos = searchPhotos(db, q, status, 200, { clubId: klub, opponentId: modstander, situation, player: spiller, from: fra, to: til, ids: only })
+    const last = getMeta(db, 'report_last')
+    return {
+      info: overview(db, cfg.dailyLimit),
+      photos,
+      tags: tagsFor(db, photos.map((p) => p.id)),
+      options: filterOptions(db, klub || undefined),
+      clubs: clubList(db).map((c) => ({ id: c.id, name: c.name })),
+      report: last ? (JSON.parse(last) as { at: string; sent: string; text: string }) : undefined,
+    }
   })
-  const filtered = !!(q || status || klub || modstander || situation || spiller || fra || til)
+  // Bursts: show the sharpest of each, the rest behind its "Serie" badge (all of them when a burst is opened)
+  const bursts = burstsOf(photos)
+  const shown = only.length ? photos : photos.filter((p) => !bursts.has(p.id) || bursts.get(p.id)![0] === p.id)
+  const filtered = !!(q || status || klub || modstander || situation || spiller || fra || til || ids)
   const c = info.counts
   return (
     <div className="page">
@@ -48,6 +61,14 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
           <div className={s.stat}><b>{info.quota.calls}/{info.quota.dailyLimit}</b><span>AI-kald i dag{info.quota.limited ? ` · ${info.quota.limited}× kvote` : ''}</span></div>
         </div>
         {info.lastRun?.stoppedBecause && <p className={s.note}>Seneste kørsel stoppede: {info.lastRun.stoppedBecause}</p>}
+        {report && (
+          <details className={s.report}>
+            <summary>
+              Morgenrapport {new Date(report.at).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen', dateStyle: 'short', timeStyle: 'short' })} · {report.sent}
+            </summary>
+            <pre style={{ whiteSpace: 'pre-wrap', font: 'inherit', margin: '8px 0 0' }}>{report.text}</pre>
+          </details>
+        )}
 
         <AutoFilterForm className="panel admin-filter" style={{ margin: '14px 0' }}>
           <input type="search" name="q" defaultValue={q} placeholder="Søg: Brabrand 9, Bryld, Skive jubel" aria-label="Søg" />
@@ -108,14 +129,17 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
           )}
         </AutoFilterForm>
         <Legend />
+        <BulkBar clubs={clubs} />
         <p className={s.muted}>
-          {photos.length} billede{photos.length === 1 ? '' : 'r'}
+          {only.length ? 'Serieskud – det skarpeste står først · ' : ''}
+          {shown.length} billede{shown.length === 1 ? '' : 'r'}
+          {shown.length < photos.length ? ` (${photos.length - shown.length} lignende i serier)` : ''}
           {q ? ` for "${q}" – et nummer viser kun klubbens egne spillere` : ''}
           {photos.length === 200 ? ' (de 200 nyeste – filtrér mere for at se resten)' : ''}
         </p>
         <div className={s.grid}>
-          {photos.map((p) => (
-            <PhotoCard key={p.id} photo={p} tags={tags.get(p.id) ?? []} />
+          {(only.length ? [...photos].sort((a, b) => only.indexOf(a.id) - only.indexOf(b.id)) : shown).map((p) => (
+            <PhotoCard key={p.id} photo={p} tags={tags.get(p.id) ?? []} burst={only.length ? undefined : bursts.get(p.id)} />
           ))}
         </div>
         {status === 'fejl' && photos.length > 0 && (

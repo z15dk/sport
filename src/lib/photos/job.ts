@@ -8,6 +8,7 @@ import { syncDbu } from './dbu.ts'
 import { DriveError, driveClient, type DriveClient, type DriveFile } from './drive.ts'
 import { geminiProvider } from './gemini.ts'
 import { parseList, taggingContext } from './context.ts'
+import { deletePhotoEverywhere } from './remove.ts'
 import { expiredLoans } from './store.ts'
 import { parsePhotoPath, resolveClub, type ClubRef } from './paths.ts'
 import { tagPhoto, type Tagging } from './tagging.ts'
@@ -169,21 +170,8 @@ export async function deleteExpiredLoans(db: Db, drive: DriveClient, cfg: PhotoC
   for (const p of expiredLoans(db)) {
     const id = Number(p.id)
     try {
-      await drive.trash(String(p.drive_id))
-      if (p.web_drive_id) await drive.trash(String(p.web_drive_id))
-      for (const f of [path.join(cfg.thumbDir, `${id}.webp`), path.join(cfg.cacheDir, `${id}.webp`)]) {
-        try {
-          unlinkSync(f)
-        } catch {
-          // Not there
-        }
-      }
       const reason = `lånt af ${String(p.credit ?? '?')} til ${String(p.license_until)}`
-      transaction(db, () => {
-        db.prepare('DELETE FROM tags WHERE photo_id = ?').run(id)
-        db.prepare(`UPDATE photos SET status = 'slettet', deleted_at = ?, deleted_reason = ?, vision_json = NULL, web_drive_id = NULL, review = 0, lease_until = NULL WHERE id = ?`).run(nowIso(), reason, id)
-      })
-      logStep(db, id, 'slettet', true, undefined, reason)
+      await deletePhotoEverywhere(db, drive, cfg, id, reason)
       log(`Slettet (låneperioden er udløbet): ${String(p.path)} – ${reason}`)
       deleted++
     } catch (e) {
@@ -328,8 +316,8 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
     for (const t of tagging.tags) ins.run(id, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.backName ?? null, t.note ?? null, nowIso())
     db.prepare(
       `UPDATE photos SET status = 'tagget', situation = ?, taken_at = ?, width = ?, height = ?, review = ?, review_reasons = ?, review_cost = ?,
-         web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar' WHERE id = ?`,
-    ).run(tagging.situation ?? null, v.takenAt ?? null, v.width, v.height, tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, webId, nowIso(), id)
+         web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar', sharpness = ?, dhash = ? WHERE id = ?`,
+    ).run(tagging.situation ?? null, v.takenAt ?? null, v.width, v.height, tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, webId, nowIso(), v.sharpness, v.dhash, id)
   })
   return tagging
 }

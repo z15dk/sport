@@ -1,0 +1,14 @@
+# Matchly billeder: morgenrapport efter nattens kørsler (mailes med SMTP fra /admin/sociale/indstillinger)
+[Unit]
+Description=Matchly billeder: morgenrapport
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=scoreline
+WorkingDirectory=/opt/scoreline/current
+EnvironmentFile=/opt/scoreline/env
+ExecStart=/usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts rapport
+Nice=19
+UMask=0077

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { openPhotoDb, type Db } from '../../src/lib/photos/db.ts'
 import { parseQuery } from '../../src/lib/photos/search.ts'
-import { addSquadRow, addTag, clubList, deleteSquadRow, expiredLoans, filterOptions, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
+import { addSquadRow, addTag, bestPhotos, clubList, createShare, deleteSquadRow, expiredLoans, filterOptions, matchOverview, openShare, revokeShare, shareList, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
 
 // Search, corrections and approval against a small temporary database
 
@@ -129,4 +129,34 @@ test('filtre: klub, modstander, situation, spiller og periode – også sammen m
   assert.ok(o.situations.some((x) => x.value === 'duel' && x.n === 1))
   assert.deepEqual(o.players.map((x) => x.value), ['Elias Granlund Astola'])
   assert.ok(o.clubs.some((x) => x.value === 'fremad-amager'))
+})
+
+test('kampe og opslag: resultat, målscorer-billede og kampens bedste', () => {
+  db.exec(`INSERT INTO matches (match_key, date, home_id, away_id, source, has_lineups, has_events, home_score, away_score) VALUES ('dbu:9', '2026-09-20', 'skive', 'brabrand', 'dbu', 1, 1, 0, 2)`)
+  db.exec(`INSERT INTO goals (match_key, club_id, minute, name, seq) VALUES ('dbu:9', 'brabrand', 12, 'Elias Granlund Astola', 0), ('dbu:9', 'brabrand', 80, 'Jonas Moos Pedersen', 1)`)
+  const ins = db.prepare(`INSERT INTO photos (id, drive_id, name, path, club, club_id, opponent, opponent_id, match_date, status, review, situation, sharpness, created_at, processed_at) VALUES (?, ?, 'x.jpg', 'p', 'Brabrand', 'brabrand', 'Skive', 'skive', '2026-09-20', ?, ?, ?, ?, ?, ?)`)
+  ins.run(20, 'd20', 'godkendt', 0, 'duel', 30, now, now)
+  ins.run(21, 'd21', 'tagget', 0, 'jubel', 10, now, now)
+  ins.run(22, 'd22', 'tagget', 1, 'jubel', 99, now, now) // usikkert – må ikke bruges
+  db.exec(`INSERT INTO tags (photo_id, number, side, player_name, source, created_at) VALUES (21, 9, 'egen', 'Elias Granlund Astola', 'ai', '${now}'), (22, 8, 'egen', 'Jonas Moos Pedersen', 'ai', '${now}')`)
+  const m = matchOverview(db, 'Matchly.dk').find((x) => x.date === '2026-09-20')!
+  assert.deepEqual(m.result, { own: 2, opp: 0, home: false })
+  assert.equal(m.post, "Sejr: Skive 0-2 Brabrand\nMål Brabrand: Elias Granlund Astola 12', Jonas Moos Pedersen 80'\n\nFoto: Matchly.dk")
+  assert.equal(m.postPhotoId, 21)
+  assert.equal(m.postScorer, 'Elias Granlund Astola')
+  assert.deepEqual(bestPhotos(db, 'brabrand', '2026-09-20', 'skive').map((p) => p.id).sort(), [20, 21])
+})
+
+test('delinger: kun egne behandlede billeder, lukker ved udløb og når de lukkes', () => {
+  // 2 er lånt, 22 er til gennemgang men behandlet, 999 findes ikke
+  const r = createShare(db, [20, 2, 999], 30, 'Brabrand – Skive')
+  assert.equal(r.count, 1)
+  assert.equal(r.skipped, 2)
+  const open = openShare(db, r.token!, true)!
+  assert.deepEqual(open.photos.map((p) => p.id), [20])
+  assert.equal(openShare(db, 'forkert-token-forkert-token')?.photos, undefined)
+  assert.equal(shareList(db)[0].views, 1)
+  assert.deepEqual(revokeShare(db, open.id), {})
+  assert.equal(openShare(db, r.token!)!.expired, true)
+  assert.match(createShare(db, [2], 30, '').error!, /Ingen/)
 })

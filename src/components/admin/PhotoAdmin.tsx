@@ -19,7 +19,7 @@ function useAction() {
     setError(undefined)
     try {
       const res = await fetch('/api/admin/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const out = (await res.json().catch(() => ({}))) as { error?: string; count?: number }
+      const out = (await res.json().catch(() => ({}))) as { error?: string; count?: number; token?: string; skipped?: number }
       if (!res.ok) {
         setError(out.error ?? 'Noget gik galt')
         return false
@@ -339,5 +339,173 @@ export function AutoFilterForm({ children, className, style }: { children: React
     >
       {children}
     </form>
+  )
+}
+
+/** The bar for many photos at once: approve, rights, move to another match, share, delete */
+export function BulkBar({ clubs }: { clubs: { id: string; name: string }[] }) {
+  const { busy, error, run } = useAction()
+  const [ids, setIds] = useState<number[]>([])
+  const [panel, setPanel] = useState<'' | 'rights' | 'match' | 'share'>('')
+  const [credit, setCredit] = useState('')
+  const [until, setUntil] = useState('')
+  const [club, setClub] = useState('')
+  const [opp, setOpp] = useState('')
+  const [date, setDate] = useState('')
+  const [title, setTitle] = useState('')
+  const [days, setDays] = useState('30')
+  const [done, setDone] = useState<string>()
+  const [link, setLink] = useState<string>()
+  useEffect(() => {
+    const read = () => setIds([...document.querySelectorAll<HTMLInputElement>('input[name="valg"]:checked')].map((i) => Number(i.value)))
+    document.addEventListener('change', read)
+    read()
+    return () => document.removeEventListener('change', read)
+  }, [])
+  const all = (on: boolean) => {
+    document.querySelectorAll<HTMLInputElement>('input[name="valg"]').forEach((i) => (i.checked = on))
+    setIds(on ? [...document.querySelectorAll<HTMLInputElement>('input[name="valg"]')].map((i) => Number(i.value)) : [])
+  }
+  const act = async (body: Record<string, unknown>, label: string) => {
+    setDone(undefined)
+    const out = await run({ action: 'bulk', ids, ...body })
+    if (out) {
+      setDone(`${label}: ${out.count ?? ids.length} billede${out.count === 1 ? '' : 'r'}`)
+      setPanel('')
+      all(false)
+    }
+  }
+  if (!ids.length)
+    return (
+      <p className={s.muted} style={{ margin: '8px 0' }}>
+        Sæt flueben på billeder for at godkende, flytte, dele eller slette mange ad gangen ·{' '}
+        <button className="text-btn" style={{ marginLeft: 0 }} onClick={() => all(true)}>
+          Vælg alle viste
+        </button>
+        {done && <> · {done}</>}
+        {link && (
+          <>
+            {' '}
+            · Link: <input readOnly value={link} onFocus={(e) => e.target.select()} style={{ width: 280 }} />
+          </>
+        )}
+      </p>
+    )
+  return (
+    <div className={s.bulk}>
+      <b>{ids.length} valgt</b>
+      <button className="pill is-active" disabled={busy} onClick={() => void act({ op: 'approve' }, 'Godkendt')}>
+        Godkend
+      </button>
+      <button className="pill" disabled={busy} onClick={() => void act({ op: 'unapprove' }, 'Godkendelse fjernet')}>
+        Fortryd godkendelse
+      </button>
+      <button className="pill" onClick={() => setPanel(panel === 'rights' ? '' : 'rights')}>Rettigheder</button>
+      <button className="pill" onClick={() => setPanel(panel === 'match' ? '' : 'match')}>Flyt til kamp</button>
+      <button className="pill" onClick={() => setPanel(panel === 'share' ? '' : 'share')}>Del</button>
+      <button
+        className="pill"
+        disabled={busy}
+        onClick={() => {
+          if (confirm(`Slet ${ids.length} billede${ids.length === 1 ? '' : 'r'} overalt? Originalerne flyttes til Drives papirkurv (kan fortrydes i 30 dage).`)) void act({ op: 'delete' }, 'Slettet')
+        }}
+      >
+        Slet
+      </button>
+      <button className="text-btn" onClick={() => all(false)}>
+        Fravælg
+      </button>
+      {panel === 'rights' && (
+        <div className={s.bulkPanel}>
+          <input value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Foto: (tom = Matchly.dk)" aria-label="Rettigheder" />
+          <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} aria-label="Lånt til og med" title="Lånt til og med (tom = vores eget)" />
+          <button className="pill is-active" disabled={busy} onClick={() => void act({ op: 'rights', credit, licenseUntil: until }, 'Rettigheder gemt')}>
+            Gem på {ids.length}
+          </button>
+        </div>
+      )}
+      {panel === 'match' && (
+        <div className={s.bulkPanel}>
+          <select value={club} onChange={(e) => setClub(e.target.value)} aria-label="Klub">
+            <option value="">Klub (uændret)</option>
+            {clubs.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select value={opp} onChange={(e) => setOpp(e.target.value)} aria-label="Modstander">
+            <option value="">Modstander (uændret)</option>
+            {clubs.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Kampdato" />
+          <button className="pill is-active" disabled={busy || (!club && !opp && !date)} onClick={() => void act({ op: 'match', clubId: club, opponentId: opp, date }, 'Flyttet')}>
+            Flyt {ids.length}
+          </button>
+        </div>
+      )}
+      {panel === 'share' && (
+        <div className={s.bulkPanel}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titel, fx Brabrand – Skive 1/8" aria-label="Titel" />
+          <select value={days} onChange={(e) => setDays(e.target.value)} aria-label="Gyldig i">
+            <option value="7">7 dage</option>
+            <option value="30">30 dage</option>
+            <option value="90">90 dage</option>
+          </select>
+          <button
+            className="pill is-active"
+            disabled={busy}
+            onClick={async () => {
+              const out = (await run({ action: 'share', ids, days: Number(days), title })) as false | { token?: string; count?: number; skipped?: number }
+              if (out && out.token) {
+                const url = `${location.origin}/deling/${out.token}`
+                setLink(url)
+                void navigator.clipboard?.writeText(url).catch(() => undefined)
+                setDone(`Link lavet til ${out.count} billeder${out.skipped ? ` (${out.skipped} lånte/ikke-behandlede sprunget over)` : ''} – kopieret`)
+                setPanel('')
+                all(false)
+              }
+            }}
+          >
+            Lav link
+          </button>
+        </div>
+      )}
+      {error && <span className={s.error} style={{ color: '#ffb4a3' }}>{error}</span>}
+    </div>
+  )
+}
+
+/** Copies a text (the post draft) to the clipboard */
+export function CopyButton({ text, label = 'Kopiér tekst' }: { text: string; label?: string }) {
+  const [ok, setOk] = useState(false)
+  return (
+    <button
+      className="pill"
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(() => {
+          setOk(true)
+          setTimeout(() => setOk(false), 2000)
+        })
+      }}
+    >
+      {ok ? 'Kopieret' : label}
+    </button>
+  )
+}
+
+export function RevokeShare({ id }: { id: number }) {
+  const { busy, error, run } = useAction()
+  return (
+    <>
+      <button className="text-btn" disabled={busy} onClick={() => void run({ action: 'revoke-share', id })}>
+        Luk linket
+      </button>
+      {error && <span className={s.error}> {error}</span>}
+    </>
   )
 }

@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from 'node:crypto'
+import { bestOfMatch, postPhoto, postText, type Candidate } from './best.ts'
 import { parseList, taggingContext } from './context.ts'
 import { getMeta, nowIso, quotaUsed, transaction, type Db, type Row } from './db.ts'
 import { backNameFits, pickName } from './names.ts'
 import { clubKey, type ClubRef } from './paths.ts'
+import { groupBursts } from './quality.ts'
 import { parseQuery, searchWhere } from './search.ts'
 import { tagPhoto } from './tagging.ts'
 import { parseVisionJson } from './vision.ts'
@@ -33,6 +36,8 @@ export interface Photo {
   credit: string | null
   /** Borrowed: the last day we may keep it (yyyy-mm-dd) */
   licenseUntil: string | null
+  sharpness: number | null
+  dhash: string | null
 }
 
 export interface Tag {
@@ -80,6 +85,8 @@ const toPhoto = (r: Row): Photo => ({
   approvedAt: (r.approved_at as string) ?? null,
   credit: (r.credit as string) ?? null,
   licenseUntil: (r.license_until as string) ?? null,
+  sharpness: r.sharpness == null ? null : Number(r.sharpness),
+  dhash: (r.dhash as string) ?? null,
 })
 
 const toTag = (r: Row): Tag => ({
@@ -144,6 +151,8 @@ export interface PhotoFilters {
   player?: string
   from?: string
   to?: string
+  /** Only these photos (a burst opened from the grid) */
+  ids?: number[]
 }
 
 export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: PhotoFilters = {}): Photo[] {
@@ -173,6 +182,10 @@ export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: Pho
   if (f.player) {
     extra.push(`EXISTS (SELECT 1 FROM tags t WHERE t.photo_id = p.id AND t.side = 'egen' AND t.player_name = ?)`)
     extraParams.push(f.player)
+  }
+  if (f.ids?.length) {
+    extra.push(`p.id IN (${f.ids.map(() => '?').join(', ')})`)
+    extraParams.push(...f.ids)
   }
   if (f.from && isIsoDate(f.from)) {
     extra.push('p.match_date >= ?')
@@ -426,4 +439,147 @@ export function updateClub(db: Db, clubId: string, input: { extraColors?: string
   }
   if (input.extraColors) db.prepare('UPDATE clubs SET extra_colors = ? WHERE id = ?').run(JSON.stringify(clean(input.extraColors.map((c) => c.toLowerCase()))), clubId)
   return {}
+}
+
+// ---------- bursts, best of the match and posts ----------
+
+const matchKeyOf = (p: Photo) => `${p.clubId ?? p.club}|${p.matchDate}|${p.opponentId ?? p.opponent}`
+
+/** Bursts among the photos shown: photo id → the whole group (sharpest first) */
+export function burstsOf(photos: Photo[]): Map<number, number[]> {
+  const out = new Map<number, number[]>()
+  for (const g of groupBursts(photos.map((p) => ({ id: p.id, matchKey: matchKeyOf(p), takenAt: p.takenAt, dhash: p.dhash, sharpness: p.sharpness })))) for (const id of g) out.set(id, g)
+  return out
+}
+
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+
+/** Photos that may go out: approved, or tagged without doubts; never deleted or past a loan */
+const SAFE = `(p.status = 'godkendt' OR (p.status = 'tagget' AND p.review = 0)) AND (p.license_until IS NULL OR p.license_until >= ?)`
+
+function candidates(db: Db, clubId: string, date: string, opponentId: string | null): (Candidate & { credit: string | null })[] {
+  const rows = db
+    .prepare(`SELECT p.* FROM photos p WHERE ${SAFE} AND p.club_id = ? AND p.match_date = ? AND p.opponent_id IS ?`)
+    .all(today(), clubId, date, opponentId)
+  const tags = tagsFor(db, rows.map((r) => Number(r.id)))
+  return rows.map((r) => ({
+    id: Number(r.id),
+    matchKey: 'm',
+    takenAt: (r.taken_at as string) ?? null,
+    dhash: (r.dhash as string) ?? null,
+    sharpness: r.sharpness == null ? null : Number(r.sharpness),
+    situation: (r.situation as string) ?? null,
+    approved: r.status === 'godkendt',
+    players: (tags.get(Number(r.id)) ?? []).filter((t) => t.side === 'egen' && t.playerName).map((t) => t.playerName!),
+    credit: (r.credit as string) ?? null,
+  }))
+}
+
+export function bestPhotos(db: Db, clubId: string, date: string, opponentId: string | null, n = 10) {
+  const cs = candidates(db, clubId, date, opponentId)
+  const ids = bestOfMatch(cs, n)
+  return ids.map((id) => cs.find((c) => c.id === id)!)
+}
+
+/** Matches with photos (newest first), with result, goals, a draft post and its photo */
+export function matchOverview(db: Db, defaultCredit: string, limit = 30) {
+  const rows = db
+    .prepare(
+      `SELECT club_id, club, match_date, opponent_id, opponent, COUNT(*) n,
+         SUM(CASE WHEN status = 'godkendt' OR (status = 'tagget' AND review = 0) THEN 1 ELSE 0 END) safe,
+         SUM(CASE WHEN status = 'tagget' AND review = 1 THEN 1 ELSE 0 END) review
+       FROM photos WHERE status IN ('tagget', 'godkendt', 'arkiveret') AND club_id IS NOT NULL AND match_date IS NOT NULL
+       GROUP BY club_id, match_date, opponent_id ORDER BY match_date DESC LIMIT ?`,
+    )
+    .all(limit)
+  return rows.map((r) => {
+    const clubId = String(r.club_id)
+    const date = String(r.match_date)
+    const opponentId = (r.opponent_id as string) ?? null
+    const m = db
+      .prepare(`SELECT * FROM matches WHERE date = ? AND ((home_id = ? AND away_id IS ?) OR (away_id = ? AND home_id IS ?))`)
+      .get(date, clubId, opponentId, clubId, opponentId)
+    const goals = m ? db.prepare('SELECT club_id, minute, name FROM goals WHERE match_key = ? ORDER BY seq').all(m.match_key) : []
+    const cs = candidates(db, clubId, date, opponentId)
+    const ownScorers = goals.filter((g) => g.club_id === clubId).map((g) => String(g.name))
+    const pick = postPhoto(cs, ownScorers)
+    const credit = cs.find((c) => c.id === pick.id)?.credit ?? defaultCredit
+    const hasResult = m && m.home_score != null
+    const home = m ? m.home_id === clubId : true
+    const own = hasResult ? Number(home ? m.home_score : m.away_score) : 0
+    const opp = hasResult ? Number(home ? m.away_score : m.home_score) : 0
+    return {
+      clubId,
+      club: String(r.club),
+      date,
+      opponentId,
+      opponent: (r.opponent as string) ?? '?',
+      count: Number(r.n),
+      safe: Number(r.safe),
+      review: Number(r.review),
+      result: hasResult ? { own, opp, home } : undefined,
+      goals: goals.map((g) => ({ own: g.club_id === clubId, minute: g.minute == null ? null : Number(g.minute), name: String(g.name) })),
+      post: hasResult
+        ? postText({ own: String(r.club), opponent: String(r.opponent ?? '?'), ownGoals: own, oppGoals: opp, home, goals: goals.map((g) => ({ own: g.club_id === clubId, minute: g.minute == null ? null : Number(g.minute), name: String(g.name) })), credit })
+        : undefined,
+      postPhotoId: pick.id,
+      postScorer: pick.scorer,
+      scorerPhotos: [...new Set(ownScorers)].map((name) => ({ name, ids: cs.filter((c) => c.players.includes(name)).map((c) => c.id) })),
+    }
+  })
+}
+
+// ---------- shares ----------
+
+export const hashToken = (t: string) => createHash('sha256').update(t).digest('hex')
+
+/** A private link to a set of photos for a club or player; borrowed and unsafe photos are left out */
+export function createShare(db: Db, photoIds: number[], days: number, title: string) {
+  if (!photoIds.length) return { error: 'Vælg billeder først' }
+  if (!Number.isInteger(days) || days < 1 || days > 365) return { error: 'Linket skal gælde 1–365 dage' }
+  const ok = db
+    .prepare(`SELECT id FROM photos p WHERE p.id IN (${photoIds.map(() => '?').join(', ')}) AND p.status IN ('tagget', 'godkendt') AND p.license_until IS NULL`)
+    .all(...photoIds)
+    .map((r) => Number(r.id))
+  if (!ok.length) return { error: 'Ingen af billederne kan deles (lånte, slettede eller ikke behandlede billeder deles aldrig)' }
+  const token = randomBytes(24).toString('base64url')
+  const expires = new Date(Date.now() + days * 86_400_000).toISOString()
+  db.prepare('INSERT INTO shares (token_hash, title, photo_ids, expires_at, created_at) VALUES (?, ?, ?, ?, ?)').run(hashToken(token), title.trim().slice(0, 120) || 'Billeder fra Matchly', JSON.stringify(ok), expires, nowIso())
+  return { token, count: ok.length, skipped: photoIds.length - ok.length, expires }
+}
+
+export function shareList(db: Db) {
+  return db
+    .prepare('SELECT id, title, photo_ids, expires_at, created_at, revoked_at, views, last_view_at FROM shares ORDER BY id DESC LIMIT 100')
+    .all()
+    .map((r) => ({
+      id: Number(r.id),
+      title: String(r.title),
+      count: parseList(r.photo_ids).length,
+      expiresAt: String(r.expires_at),
+      createdAt: String(r.created_at),
+      revoked: !!r.revoked_at,
+      active: !r.revoked_at && String(r.expires_at) > nowIso(),
+      views: Number(r.views),
+      lastViewAt: (r.last_view_at as string) ?? null,
+    }))
+}
+
+export function revokeShare(db: Db, id: number) {
+  const n = db.prepare('UPDATE shares SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(nowIso(), id).changes
+  return n ? {} : { error: 'Linket findes ikke eller er allerede lukket' }
+}
+
+/** The share behind a token while it is open, with its photos that may still be shown */
+export function openShare(db: Db, token: string, countView = false) {
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return undefined
+  const r = db.prepare('SELECT * FROM shares WHERE token_hash = ?').get(hashToken(token))
+  if (!r) return undefined
+  const expired = !!r.revoked_at || String(r.expires_at) <= nowIso()
+  const ids = parseList(r.photo_ids).map(Number)
+  const photos = expired || !ids.length
+    ? []
+    : db.prepare(`SELECT * FROM photos p WHERE p.id IN (${ids.map(() => '?').join(', ')}) AND p.status IN ('tagget', 'godkendt', 'arkiveret') AND p.license_until IS NULL ORDER BY p.match_date DESC, p.id`).all(...ids).map(toPhoto)
+  if (countView && !expired) db.prepare('UPDATE shares SET views = views + 1, last_view_at = ? WHERE id = ?').run(nowIso(), r.id)
+  return { id: Number(r.id), title: String(r.title), expiresAt: String(r.expires_at), expired, photos }
 }

@@ -1,5 +1,6 @@
 import exifReader from 'exif-reader'
 import sharp from 'sharp'
+import { measure } from './quality.ts'
 
 // The versions of a photo, made from one decode of the original:
 //  - web: WebP 1600 px (kept in Drive's _web folder, cached on the server)
@@ -22,6 +23,8 @@ export interface Variants {
   height: number
   /** The camera's time (DateTimeOriginal) as local time "yyyy-mm-ddThh:mm:ss", when the photo has it */
   takenAt?: string
+  sharpness: number
+  dhash: string
 }
 
 export async function makeVariants(original: Buffer): Promise<Variants> {
@@ -34,6 +37,7 @@ export async function makeVariants(original: Buffer): Promise<Variants> {
     .raw()
     .toBuffer({ resolveWithObject: true })
   const raw = { raw: { width: info.width, height: info.height, channels: info.channels } }
+  const measures = await measure({ data, width: info.width, height: info.height, channels: info.channels })
   const [web, thumb, ai] = await Promise.all([
     sharp(data, raw).webp({ quality: 82 }).toBuffer(),
     sharp(data, raw).resize(480, 480, { fit: 'inside' }).webp({ quality: 50 }).toBuffer(),
@@ -43,7 +47,7 @@ export async function makeVariants(original: Buffer): Promise<Variants> {
   const turned = (meta.orientation ?? 1) >= 5
   const width = (turned ? meta.height : meta.width) ?? info.width
   const height = (turned ? meta.width : meta.height) ?? info.height
-  return { web, thumb, ai, width, height, takenAt }
+  return { web, thumb, ai, width, height, takenAt, ...measures }
 }
 
 function exifDate(exif: Buffer | undefined): string | undefined {

@@ -143,6 +143,27 @@ const SCHEMA = `
     PRIMARY KEY (day, provider)
   );
 
+  CREATE TABLE IF NOT EXISTS goals (
+    match_key TEXT NOT NULL,
+    club_id TEXT NOT NULL,
+    minute INTEGER,
+    name TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    PRIMARY KEY (match_key, seq)
+  );
+
+  CREATE TABLE IF NOT EXISTS shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    photo_ids TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT,
+    views INTEGER NOT NULL DEFAULT 0,
+    last_view_at TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -170,6 +191,14 @@ export function openPhotoDb(file: string): Db {
     'ALTER TABLE photos ADD COLUMN license_until TEXT',
     'ALTER TABLE photos ADD COLUMN deleted_at TEXT',
     'ALTER TABLE photos ADD COLUMN deleted_reason TEXT',
+    // Picture measures: sharpness (higher = sharper) and a 64-bit look-alike hash for burst grouping
+    'ALTER TABLE photos ADD COLUMN sharpness REAL',
+    'ALTER TABLE photos ADD COLUMN dhash TEXT',
+    // Result and goals from DBU's match page (has_events = the goals have been read)
+    'ALTER TABLE matches ADD COLUMN home_score INTEGER',
+    'ALTER TABLE matches ADD COLUMN away_score INTEGER',
+    // Once, when results arrive: fetch every played match page again for its goals
+    'ALTER TABLE matches ADD COLUMN has_events INTEGER NOT NULL DEFAULT 0; UPDATE matches SET fetched_at = NULL',
   ]) {
     try {
       db.exec(sql)

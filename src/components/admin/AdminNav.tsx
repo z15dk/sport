@@ -21,6 +21,8 @@ const SOCIAL = [
 const PHOTOS = [
   { href: '/admin/billeder', label: 'Søg' },
   { href: '/admin/billeder/gennemgang', label: 'Gennemgang' },
+  { href: '/admin/billeder/kampe', label: 'Kampe og opslag' },
+  { href: '/admin/billeder/delinger', label: 'Delinger' },
   { href: '/admin/billeder/trupper', label: 'Trupper' },
 ]
 const PAGES = [

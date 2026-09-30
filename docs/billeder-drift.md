@@ -78,9 +78,9 @@ chmod 600 /opt/scoreline/env
 ```bash
 ssh root@178.104.121.60
 cd /opt/scoreline/current/deploy
-cp scoreline-photos.service scoreline-photos-nat.service scoreline-photos-nat.timer scoreline-photos-sync.path /etc/systemd/system/
+cp scoreline-photos.service scoreline-photos-nat.service scoreline-photos-nat.timer scoreline-photos-sync.path scoreline-photos-rapport.service scoreline-photos-rapport.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now scoreline-photos-nat.timer scoreline-photos-sync.path
+systemctl enable --now scoreline-photos-nat.timer scoreline-photos-sync.path scoreline-photos-rapport.timer
 ```
 
 - `scoreline-photos-nat.timer` → `scoreline-photos-nat.service`: hvert 10. minut kl. 00–06.
@@ -100,6 +100,8 @@ systemctl enable --now scoreline-photos-nat.timer scoreline-photos-sync.path
 | Stop en kørsel | `systemctl stop scoreline-photos scoreline-photos-nat` (billedet der blev arbejdet på, tages op igen efter 15 min.) |
 | Hent DBU nu | `… npm run -s photos -- dbu` (samme `sudo -u scoreline …` som ovenfor) |
 | Beregn navne igen (efter trup-rettelser, uden AI-kald) | `… npm run -s photos -- retag` |
+| Mål skarphed på ældre billeder (serier, kampens bedste) | `… npm run -s photos -- maal` |
+| Morgenrapport nu | `systemctl start scoreline-photos-rapport` (timer kl. 06.15: `scoreline-photos-rapport.timer`) |
 
 Jobbet kan stoppes når som helst. Et billede, der var i gang, frigives efter 15 minutter.
 Svarede AI'en før stoppet, genbruges svaret, så det samme billede aldrig koster to kald.
@@ -139,6 +141,14 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 ## Admin
 
 <https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere) med filtre for klub, modstander, situation, spiller, periode, status og lånte billeder, **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent JPEG i 4:5, story, kvadrat og 16:9 centreret på en spiller. Udsnittet tages fra originalen, så længe den ligger i Drive (skarpest), ellers fra 1600 px-versionen.
+
+### Arbejdsgange
+
+- **Vælg flere**: flueben på billederne under Søg (eller "Vælg alle viste") → Godkend, Fortryd, Rettigheder, Flyt til kamp, Del eller Slet (slet = som et udløbet lån: Drive-papirkurv, server, tags).
+- **Serieskud**: billeder fra samme kamp, taget inden for 15 sek. og næsten ens, vises som ét (det skarpeste) med mærket "Serie · N"; klik for at se hele serien.
+- **Kampe og opslag**: pr. kamp resultat og målscorere fra DBU, et færdigt opslag (kopiér) med det bedste sikre billede af en målscorer (ellers jubel), og "Kampens bedste" som zip (op til 10, i hvert format, med kreditering.txt). Kun godkendte og sikre billeder bruges.
+- **Delinger**: et privat link (7/30/90 dage) til de valgte billeder, som klubber og spillere kan se og hente (JPEG 1600 px, zip). Lånte billeder deles aldrig. Siden er noindex og forbudt i robots.txt; links kan lukkes under Delinger.
+- **Morgenrapport** kl. 06.15: nye billeder pr. kamp, gennemgangskø, fejl, slettede og snart udløbne lån. Mailes, når SMTP er udfyldt under Sociale medier → Indstillinger (modtager dér eller `PHOTOS_REPORT_TO`); vises altid øverst under Billeder.
 
 ### Rettigheder og lånte billeder
 
