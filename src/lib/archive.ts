@@ -1,5 +1,7 @@
 import 'server-only'
 import { timed } from './slow'
+import { role } from './role'
+import { workerStatus } from './workerStatus'
 import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf } from '../data/leagues'
@@ -393,7 +395,12 @@ export function archiveIncidents(ids: string[]): Map<string, import('../types').
 export const archiveJobStatus = () => ({ lastRun: state.lastRun ?? null, lastError: state.lastError ?? null })
 
 /** The statistics bank's numbers for /admin/data; counting a big archive takes seconds, so it is kept ten minutes */
-export function archiveStatus() {
+export function archiveStatus(): ReturnType<typeof archiveStatusNow> {
+  // A split server: the background process counts, the site process never blocks on it
+  if (role() === 'web') {
+    const w = workerStatus()?.archive
+    if (w && 'total' in w) return w as ReturnType<typeof archiveStatusNow>
+  }
   const holder = globalThis as typeof globalThis & { __scorelineArchiveStatus?: { at: number; value: ReturnType<typeof archiveStatusNow> } }
   const c = holder.__scorelineArchiveStatus
   if (c && Date.now() - c.at < 10 * 60_000) return { ...c.value, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }

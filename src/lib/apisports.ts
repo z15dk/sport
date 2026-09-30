@@ -1265,7 +1265,7 @@ const EXTRAS_KEEP_REMAINING = 20
  * fetches), or false when it is spent or the day's live scores need the rest:
  * on a paid plan extras stop at the same reserve as the background work.
  */
-function spendExtra(api: Api, cost = 1): boolean {
+function spendExtra(api: Api, cost = 1, kind?: 'players'): boolean {
   load()
   const s = mem.store[api]
   const store = extrasStore()
@@ -1273,6 +1273,11 @@ function spendExtra(api: Api, cost = 1): boolean {
   const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
   const floor = isPaid(s) ? backgroundReserve(s) : EXTRAS_KEEP_REMAINING
   if (remaining - cost < floor || spent + cost > extrasPerDay(s)) return false
+  // Player pages (crawlers follow every player link) get at most a third, so match pages keep theirs
+  const own = kind ? `${api}|${kind}` : undefined
+  const ownSpent = own && store.spent[own]?.day === utcDay() ? store.spent[own].count : 0
+  if (own && ownSpent + cost > Math.round(extrasPerDay(s) / 3)) return false
+  if (own) store.spent[own] = { day: utcDay(), count: ownSpent + cost }
   store.spent[api] = { day: utcDay(), count: spent + cost }
   store.touch()
   return true
@@ -2015,7 +2020,7 @@ async function fetchPlayer(id: number): Promise<PlayerData | undefined> {
     load()
     const s = mem.store[api]
     if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.player
-    if (!spendExtra(api, 4)) return store.entries[key]?.player
+    if (!spendExtra(api, 4, 'players')) return store.entries[key]?.player
     const season = Number(SEASON.slice(0, 4))
     const [now, before, transfers, trophies] = await Promise.all([
       call(api, `/players?id=${id}&season=${season}`, 8_000),

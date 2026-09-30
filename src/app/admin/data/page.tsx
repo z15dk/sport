@@ -85,7 +85,7 @@ export default async function DataStatusPage() {
   const worker = role() === 'web' ? workerStatus() : undefined
   const s = { ...realDataStatus(), ...(worker?.realData ?? {}) }
   const h = historyStatus()
-  const a = { ...archiveStatus(), ...(worker?.archive ?? {}) }
+  const a = archiveStatus()
   const pg = playerGamesStatus()
   const apis = apiSportsStatus()
   const danish = tsdbDanishLeagues()
