@@ -82,6 +82,15 @@ export function driveClient(serviceAccountFile: string, driveId: string) {
   return {
     /** Every file under the photo folder, skipping the system's own folders (names starting with "_") */
     async listTree(rootId: string, maxDepth = 4): Promise<DriveFile[]> {
+      // Drive answers a search in a drive the account cannot see with an empty list, not an error:
+      // check the drive and the folder first, so missing access never looks like "no photos"
+      try {
+        await call(`${API}/drives/${encodeURIComponent(driveId)}?fields=id`)
+        await call(`${API}/files/${encodeURIComponent(rootId)}?supportsAllDrives=true&fields=id`)
+      } catch (e) {
+        if (e instanceof DriveError && e.status === 404) throw new DriveError(`Servicekontoen ${key.client_email} har ikke adgang til det fælles drev eller mappen (tilføj den som Indholdsadministrator, tjek PHOTOS_DRIVE_ID/PHOTOS_FOLDER_ID)`, 404)
+        throw e
+      }
       const files: DriveFile[] = []
       const queue: { id: string; parts: string[] }[] = [{ id: rootId, parts: [] }]
       while (queue.length) {

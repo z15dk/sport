@@ -15,6 +15,7 @@ import { runPhotoJob } from '../../src/lib/photos/job.ts'
 const dir = mkdtempSync(path.join(tmpdir(), 'fotos-test-'))
 const realFetch = globalThis.fetch
 let geminiCalls = 0
+let noAccess = false
 let geminiAnswers: (() => Response)[] = []
 const files: Record<string, { name: string; parent: string; folder?: boolean; bytes?: Buffer }> = {}
 const uploads: string[] = []
@@ -35,6 +36,9 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
     uploads.push(id)
     return json({ id })
   }
+  // Access checks for the drive and the photo folder (404 when the account is not a member)
+  const probe = /\/drive\/v3\/(drives|files)\/([^?]+)\?(?!alt=media)/.exec(url)
+  if (probe) return probe[2] === (noAccess ? 'none' : 'ROOT') ? json({ id: probe[2] }) : json({ error: { message: 'not found' } }, 404)
   const media = /\/files\/([^?]+)\?alt=media/.exec(url)
   if (media) return new Response(new Uint8Array(files[media[1]].bytes!))
   if (url.startsWith('https://www.googleapis.com/drive/v3/files?') && (init?.method ?? 'GET') === 'GET') {
@@ -151,4 +155,10 @@ test('manglende opsætning stopper med en klar besked', async () => {
   delete process.env.GEMINI_API_KEY
   await assert.rejects(runPhotoJob({ dbu: 'skip', log: () => {} }), /GEMINI_API_KEY/)
   process.env.GEMINI_API_KEY = key
+})
+
+test('manglende adgang til drevet er en fejl, aldrig "ingen billeder"', async () => {
+  noAccess = true
+  await assert.rejects(runPhotoJob({ dbu: 'skip', log: () => {} }), /har ikke adgang/)
+  noAccess = false
 })
