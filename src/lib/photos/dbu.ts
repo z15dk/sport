@@ -206,7 +206,7 @@ async function fetchMatch(db: Db, m: Row): Promise<boolean> {
 }
 
 /**
- * Between the full fetches: the page of each match that new photos come from, when its
+ * Between the full fetches (every 3rd night): the page of each match that new photos come from, when its
  * sheet or result is missing (one request per match, at most every 6 hours). Squads are
  * rebuilt when a sheet arrives.
  */
