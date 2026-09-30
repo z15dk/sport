@@ -82,7 +82,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     summary.deleted = gone.deleted
     summary.deleteErrors = gone.errors
     summary.queued = await syncDrive(db, drive, cfg.folderId!, log)
-    // Between the 14-day fetches: the sheet and result of each match the new photos are from
+    // Between the full fetches: the sheet and result of each match the new photos are from
     if (opts.dbu !== 'skip' && summary.queued) await fetchMatchesForQueue(db, cfg.dbuPauseMs, log)
 
     const vision = geminiProvider(cfg.geminiKey!, cfg.geminiModel)
