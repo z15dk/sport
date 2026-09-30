@@ -3,7 +3,7 @@ import sharp from 'sharp'
 
 // The versions of a photo, made from one decode of the original:
 //  - web: WebP 1600 px (kept in Drive's _web folder, cached on the server)
-//  - thumb: WebP 480 px (kept on the server)
+//  - thumb: WebP 480 px, quality 50 (kept on the server; only ever shown small)
 //  - ai: JPEG 1600 px, quality 90 (sent to the AI, not kept)
 // The orientation from EXIF is applied, and no metadata is written to any
 // version (sharp drops EXIF/GPS unless asked to keep it).
@@ -36,7 +36,7 @@ export async function makeVariants(original: Buffer): Promise<Variants> {
   const raw = { raw: { width: info.width, height: info.height, channels: info.channels } }
   const [web, thumb, ai] = await Promise.all([
     sharp(data, raw).webp({ quality: 82 }).toBuffer(),
-    sharp(data, raw).resize(480, 480, { fit: 'inside' }).webp({ quality: 75 }).toBuffer(),
+    sharp(data, raw).resize(480, 480, { fit: 'inside' }).webp({ quality: 50 }).toBuffer(),
     sharp(data, raw).jpeg({ quality: 90 }).toBuffer(),
   ])
   // The size of the upright original (width/height swap for 90° orientations)
