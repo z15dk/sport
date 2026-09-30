@@ -64,3 +64,13 @@ test('ingen numre og ukendt klub går i gennemgang, dyrest sidst', () => {
   const quick = tagPhoto(vision([{ number: 9, jerseyColor: 'rød', confidence: 0.6 }]), ctx)
   assert.ok(quick.cost < none.cost)
 })
+
+test('rygnavnet bekræfter eller afviser navnet', () => {
+  const ok = tagPhoto(vision([{ number: 9, jerseyColor: 'rød', confidence: 0.95, backName: 'NISEN' }]), ctx)
+  assert.equal(ok.tags[0].playerName, 'Ni Nisen')
+  assert.equal(ok.review, false)
+  const wrong = tagPhoto(vision([{ number: 9, jerseyColor: 'rød', confidence: 0.95, backName: 'HANSEN' }]), ctx)
+  assert.equal(wrong.tags[0].playerName, undefined)
+  assert.ok(wrong.reasons.includes('navn passer ikke'))
+  assert.match(wrong.tags[0].note!, /HANSEN/)
+})

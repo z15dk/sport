@@ -155,6 +155,14 @@ export function openPhotoDb(file: string): Db {
   const db = new lib.DatabaseSync(file)
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
+  // Columns added after the first release
+  for (const sql of ['ALTER TABLE tags ADD COLUMN back_name TEXT']) {
+    try {
+      db.exec(sql)
+    } catch {
+      // Already there
+    }
+  }
   return db
 }
 
