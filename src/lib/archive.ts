@@ -2,7 +2,8 @@ import 'server-only'
 import { timed } from './slow'
 import { role } from './role'
 import { workerStatus } from './workerStatus'
-import { mkdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
+import { Worker } from 'node:worker_threads'
 import path from 'node:path'
 import { DIVISIONS, seasonOf } from '../data/leagues'
 import { getRealData, type RealEvent } from '../data/real'
@@ -394,44 +395,57 @@ export function archiveIncidents(ids: string[]): Map<string, import('../types').
 /** The saving job's own state (for the split server's status file, src/lib/workerStatus.ts) */
 export const archiveJobStatus = () => ({ lastRun: state.lastRun ?? null, lastError: state.lastError ?? null })
 
-/** The statistics bank's numbers for /admin/data; counting a big archive takes seconds, so it is kept ten minutes */
-export function archiveStatus(): ReturnType<typeof archiveStatusNow> {
+type ArchiveCounts = { file: string; total: number; byDivision: { division: string; matches: number; incidents: number }[]; lastRun: string | null; lastError: string | null }
+const countHolder = globalThis as typeof globalThis & { __scorelineArchiveStatus?: { at: number; value?: ArchiveCounts; counting?: boolean } }
+
+/**
+ * The statistics bank's numbers for /admin/data. Counting a big archive takes
+ * a second or more, so it is done in a thread of its own (never blocking the
+ * server) at most every ten minutes; until the first count, the matches saved
+ * since start.
+ */
+export function archiveStatus(): ArchiveCounts {
   // A split server: the background process counts, the site process never blocks on it
   if (role() === 'web') {
     const w = workerStatus()?.archive
-    if (w && 'total' in w) return w as ReturnType<typeof archiveStatusNow>
+    if (w && 'total' in w) return w as ArchiveCounts
   }
-  const holder = globalThis as typeof globalThis & { __scorelineArchiveStatus?: { at: number; value: ReturnType<typeof archiveStatusNow> } }
-  const c = holder.__scorelineArchiveStatus
-  if (c && Date.now() - c.at < 10 * 60_000) return { ...c.value, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }
-  const value = timed('Statistikbankens tal (admin)', archiveStatusNow)
-  holder.__scorelineArchiveStatus = { at: Date.now(), value }
-  return value
+  const c = (countHolder.__scorelineArchiveStatus ??= { at: 0 })
+  if (!c.counting && Date.now() - c.at > 10 * 60_000) countInThread(c)
+  return { file: archiveFile(), total: state.saved, byDivision: [], ...c.value, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }
 }
-function archiveStatusNow() {
-  const lib = sqlite()
-  let byDivision: { division: string; matches: number; incidents: number }[] = []
-  let total = state.saved
-  if (lib) {
-    try {
-      const db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
-      try {
-        byDivision = db
-          .prepare(
-            `SELECT m.tournament_name AS division, COUNT(DISTINCT m.event_id) AS matches, COUNT(i.event_id) AS incidents
-               FROM matches m LEFT JOIN incidents i ON i.event_id = m.event_id GROUP BY m.tournament_name ORDER BY matches DESC`,
-          )
-          .all()
-          .map((r) => ({ division: String(r.division), matches: Number(r.matches), incidents: Number(r.incidents) }))
-        total = byDivision.reduce((n, r) => n + r.matches, 0)
-      } finally {
-        db.close()
-      }
-    } catch {
-      // no archive yet
-    }
+
+// Runs in a worker thread: node:sqlite there, the counts back as a message
+const COUNT_THREAD = `
+const { parentPort, workerData } = require('node:worker_threads')
+const { DatabaseSync } = require('node:sqlite')
+const db = new DatabaseSync(workerData, { readOnly: true })
+try {
+  const rows = db.prepare(\`SELECT tournament_name AS division, COUNT(*) AS matches,
+      SUM((SELECT COUNT(*) FROM incidents i WHERE i.event_id = m.event_id)) AS incidents
+      FROM matches m GROUP BY tournament_name ORDER BY matches DESC\`).all()
+  parentPort.postMessage(rows.map((r) => ({ division: String(r.division), matches: Number(r.matches), incidents: Number(r.incidents ?? 0) })))
+} finally {
+  db.close()
+}
+`
+function countInThread(c: NonNullable<typeof countHolder.__scorelineArchiveStatus>) {
+  if (!existsSync(archiveFile())) return
+  c.counting = true
+  c.at = Date.now()
+  try {
+    const w = new Worker(COUNT_THREAD, { eval: true, workerData: archiveFile() })
+    w.unref()
+    w.once('message', (byDivision: ArchiveCounts['byDivision']) => {
+      c.value = { file: archiveFile(), total: byDivision.reduce((n, r) => n + r.matches, 0), byDivision, lastRun: null, lastError: null }
+    })
+    w.once('error', () => undefined)
+    w.once('exit', () => {
+      c.counting = false
+    })
+  } catch {
+    c.counting = false
   }
-  return { file: archiveFile(), total, byDivision, lastRun: state.lastRun ?? null, lastError: state.lastError ?? null }
 }
 
 /**

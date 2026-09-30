@@ -10,6 +10,7 @@ import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
 import { slowStatus } from '../../../lib/slow'
+import { cpuStalls } from '../../../lib/cpuProfile'
 import { role } from '../../../lib/role'
 import { workerStatus } from '../../../lib/workerStatus'
 import { archiveFile } from '../../../lib/archive'
@@ -83,6 +84,10 @@ export default async function DataStatusPage() {
   if (!(await isAdmin())) redirect('/admin')
   // A split server (src/lib/role.ts): the jobs' own state comes from the background process's status file
   const worker = role() === 'web' ? workerStatus() : undefined
+  // What blocked the server (sampled, src/lib/cpuProfile.ts): this process's and the background process's, newest first
+  const stalls = [...cpuStalls().map((x) => ({ ...x, where: worker ? 'Siden' : '' })), ...(worker?.stalls ?? []).map((x) => ({ ...x, where: 'Baggrund' }))]
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 10)
   const s = { ...realDataStatus(), ...(worker?.realData ?? {}) }
   const h = historyStatus()
   const a = archiveStatus()
@@ -239,6 +244,35 @@ export default async function DataStatusPage() {
               )}
             </section>
           )}
+          <section className="panel dash-card">
+            <h2 className="panel__title">Hvad blokerede serveren</h2>
+            <p className="muted small">Hver periode over 0,5 sek. uden pause, målt løbende: vores funktioner (fil og linje) efter tid, og hvor tiden selv gik.</p>
+            {stalls.length ? (
+              <table className="dash-table">
+                <tbody>
+                  {stalls.map((x) => (
+                    <tr key={`${x.where}${x.at}`}>
+                      <td>
+                        {clock(x.at)}
+                        {x.where && <div className="muted small">{x.where}</div>}
+                      </td>
+                      <td className={x.ms >= 1000 ? 'is-bad' : undefined}>{num(x.ms)} ms</td>
+                      <td className="small">
+                        {x.top.slice(0, 5).map((f) => (
+                          <div key={f.fn}>
+                            <code>{f.fn}</code> {num(f.ms)} ms
+                          </div>
+                        ))}
+                        <div className="muted">Selve tiden: {x.self.slice(0, 4).map((f) => `${f.fn} ${num(f.ms)} ms`).join(' · ')}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="muted small">Ingen siden start (måles hvert minut).</p>
+            )}
+          </section>
           <section className="panel dash-card">
             <h2 className="panel__title">Filer og kilder</h2>
             <table className="dash-table">

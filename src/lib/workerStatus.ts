@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
 import { slowStatus } from './slow'
+import { cpuStalls, type Stall } from './cpuProfile'
 
 // The background process's own numbers (src/lib/role.ts), written every 30
 // seconds for /admin/data in the site process: that it is alive, its memory
@@ -14,6 +15,8 @@ export interface WorkerStatus {
   rss: number
   heap: number
   slow: ReturnType<typeof slowStatus>
+  /** What blocked it (src/lib/cpuProfile.ts) */
+  stalls?: Stall[]
   /** The fetching job's state (it lives in this process's memory) */
   realData?: { running: boolean; lastFull: string | null; lastHot: string | null; requests: number; lastError: string | null }
   archive?: { lastRun: string | null; lastError: string | null; file?: string; total?: number; byDivision?: { division: string; matches: number; incidents: number }[] }
@@ -27,7 +30,7 @@ export function startWorkerStatus(extra: () => Pick<WorkerStatus, 'realData' | '
   const write = () => {
     try {
       const m = process.memoryUsage()
-      const status: WorkerStatus = { at: Date.now(), startedAt, rss: mb(m.rss), heap: mb(m.heapUsed), slow: slowStatus(), ...extra() }
+      const status: WorkerStatus = { at: Date.now(), startedAt, rss: mb(m.rss), heap: mb(m.heapUsed), slow: slowStatus(), stalls: cpuStalls(), ...extra() }
       mkdirSync(path.dirname(file()), { recursive: true })
       writeFileSync(`${file()}.tmp`, JSON.stringify(status))
       renameSync(`${file()}.tmp`, file())

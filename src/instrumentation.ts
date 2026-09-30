@@ -7,6 +7,9 @@ export async function register() {
   guardProcess()
   const { startLagMonitor } = await import('./lib/slow')
   startLagMonitor()
+  // What the server was busy with when it stalled (file and line, for /admin/data)
+  const { startCpuWatch } = await import('./lib/cpuProfile')
+  startCpuWatch()
   // SCORELINE_WORKER=on: the jobs run in a process of their own (src/lib/role.ts, src/lib/worker.ts); this one only serves pages
   if (process.env.SCORELINE_WORKER === 'on' && process.env.SCORELINE_ROLE !== 'worker') {
     process.env.SCORELINE_ROLE = 'web'
