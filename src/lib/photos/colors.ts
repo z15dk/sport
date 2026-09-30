@@ -104,5 +104,8 @@ export function decideSide(jersey: string | undefined | null, ownColors: string[
   if (opp === 3 && (own === 0 || own === 2)) return { side: 'modstander' }
   if (own >= 2 && own === opp) return { side: 'ukendt', note: `begge hold spiller i ${fams[0]}` }
   if (own === 0 && opp === 0) return { side: 'ukendt', note: `farven ${fams[0]} passer til ingen af holdene` }
+  if ((own === 2 && opp === 0) || (opp === 2 && own === 0)) {
+    return { side: 'ukendt', note: `${fams[0]} er kun ${own === 2 ? 'klubbens' : 'modstanderens'} anden farve – kan være shorts eller træningstrøje` }
+  }
   return { side: 'ukendt', note: `farven ${fams[0]} ligner begge holds` }
 }

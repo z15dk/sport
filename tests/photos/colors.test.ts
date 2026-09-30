@@ -64,6 +64,7 @@ test('flerfarvet klub (Skive: gul/blå) mod et blåt hold', () => {
   // En anden farve alene afgør ikke: hvidt mod Thisted (blå/hvid) kan være shorts eller en træningstrøje
   assert.equal(decideSide('hvid', ['blå', 'hvid'], ['blå']).side, 'ukendt')
   assert.equal(decideSide('hvid', ['grøn'], ['blå', 'hvid']).side, 'ukendt')
+  assert.match(decideSide('hvid', ['grøn'], ['blå', 'hvid']).note!, /modstanderens anden farve/)
   // Begge har blå som anden farve
   assert.equal(decideSide('blå', ['gul', 'blå'], ['hvid', 'blå']).side, 'ukendt')
 })
