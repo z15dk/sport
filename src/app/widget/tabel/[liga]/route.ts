@@ -58,11 +58,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
     return `<span class="ini" style="background:${esc(bg)};color:${esc(fg)}">${esc(initials(r.club.name))}</span>`
   }
   const zone = (i: number) => (zones && i < zones.top ? ' up' : zones && zones.bottom > 0 && i >= rows.length - zones.bottom ? ' down' : '')
-  const chips = (r: StandingRow) =>
-    `<span class="form">${r.form
-      .slice(-5)
-      .map((f) => `<i class="${f}" title="${f === 'V' ? 'Sejr' : f === 'U' ? 'Uafgjort' : 'Tab'}">${f}</i>`)
-      .join('')}</span>`
+  const WORD = { V: 'Sejr', U: 'Uafgjort', T: 'Tab' } as const
+  const chips = (r: StandingRow) => {
+    const last = r.form.slice(-5)
+    return `<span class="form" title="Seneste ${last.length}: ${last.map((f) => WORD[f]).join(', ')}">${last.map((f, k) => `<i class="${f}${k === last.length - 1 ? ' last' : ''}"></i>`).join('')}</span>`
+  }
   const body = rows
     .map((r, i) => {
       const gd = r.goalsFor - r.goalsAgainst
@@ -108,9 +108,9 @@ td.club{max-width:0;width:100%}
 .club strong{overflow:hidden;text-overflow:ellipsis;font-weight:700}.club a:hover strong{text-decoration:underline;text-underline-offset:3px}
 img,.ini{width:24px;height:24px;flex:none;object-fit:contain}
 .ini{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:8px;font-weight:800}
-.form{display:inline-flex;gap:3px}.form i{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:800;font-style:normal}
-.form .V{background:var(--lime);color:#0f110c}.form .U{background:var(--line);color:var(--ink2)}.form .T{background:var(--live);color:#fff}
-tr.me .form .V{background:#0f110c;color:var(--lime)}
+.form{display:inline-flex;align-items:center;gap:5px}.form i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.form .V{background:#2fa84f;color:#2fa84f}.form .U{background:#a4a89c;color:#a4a89c}.form .T{background:var(--live);color:var(--live)}
+.form i.last{width:14px;height:14px;box-shadow:0 0 0 2px var(--row),0 0 0 3.5px currentColor}tr.me .form i.last{box-shadow:0 0 0 2px var(--lime),0 0 0 3.5px currentColor}
 .legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:8px 18px 14px;font-size:12px;color:var(--ink2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.dot{width:10px;height:10px;border-radius:3px;display:inline-block}.dot.up{background:var(--deep)}.dot.down{background:var(--live)}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;background:#0f110c;color:#fff;text-decoration:none}

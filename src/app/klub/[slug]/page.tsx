@@ -155,7 +155,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
           </div>
           <div className="tile tile--form">
             <span className="tile__label">Form</span>
-            <FormChips form={r.form} />
+            <FormChips form={r.form} dots />
           </div>
         </section>
 

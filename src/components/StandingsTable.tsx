@@ -91,7 +91,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
                   <td className="num">{gd > 0 ? `+${gd}` : gd}</td>
                   <td className="num pts">{r.points}</td>
                   <td className="hide-sm">
-                    <FormChips form={r.form} />
+                    <FormChips form={r.form} dots />
                   </td>
                 </tr>
               )
