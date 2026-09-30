@@ -9,6 +9,7 @@ import { loadRealData } from '../lib/realdata'
 import { RealDataProvider } from '../components/RealDataProvider'
 import { clientRealData } from '../lib/clientData'
 import { liveCursor } from '../lib/liveFeed'
+import { VisitBeacon } from '../components/VisitBeacon'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
 // The site's fonts, served from our own domain (no request to Google that holds up the first paint)
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </div>
             <Footer />
+            <VisitBeacon />
           </BadgeProvider>
         </RealDataProvider>
       </body>

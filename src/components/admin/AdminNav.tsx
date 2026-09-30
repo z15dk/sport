@@ -18,6 +18,7 @@ const SOCIAL = [
   { href: '/admin/sociale/skabeloner', label: 'Skabeloner' },
 ]
 const PAGES = [
+  { href: '/admin/besoegende', label: 'Besøgende' },
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
   { href: '/admin/artikler', label: 'Artikler' },
   { href: '/admin/klubber', label: 'Klubber' },

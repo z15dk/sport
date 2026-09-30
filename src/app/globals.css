@@ -2143,3 +2143,4 @@ a.player-games__match:hover { text-decoration: underline; }
 .dash-unknown select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); max-width: 220px; }
 .dash-unknown .pill { padding: 3px 12px; font-size: 12px; }
 .dash-alias { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; }
+.dash-periods { margin: 0 18px 8px; }

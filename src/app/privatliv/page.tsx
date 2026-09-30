@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Kort fortalt</h2>
           <p>
-            {SITE_NAME} har ingen brugerkonti og beder dig ikke om oplysninger. Vi sporer dig ikke på tværs af sider, og vi sælger ikke oplysninger til nogen.
+            {SITE_NAME} har ingen brugerkonti og beder dig ikke om oplysninger. Vi sporer dig ikke på tværs af andre hjemmesider, og vi sælger ikke oplysninger til nogen.
           </p>
         </section>
 
@@ -40,6 +40,17 @@ export default function PrivacyPage() {
           <p>
             Siden sætter ingen cookies for besøgende. Den eneste cookie bruges af redaktionen, når vi logger ind for at redigere siden, og den er nødvendig for
             login.
+          </p>
+        </section>
+
+        <section className="panel prose__section">
+          <h2 className="panel__title">Besøgsstatistik uden cookies</h2>
+          <p>
+            Vi tæller, hvor mange der besøger siden, og hvilke sider der bliver set, så vi ved, hvad der er værd at lave mere af. Det sker uden cookies og uden
+            at gemme noget i din browser. For at kunne tælle en besøgende én gang om dagen laver serveren en anonym kode ud fra din IP-adresse, din browsertype og
+            en hemmelig værdi, der skiftes hver nat og derefter glemmes. Selve IP-adressen gemmes ikke, og koden kan ikke føres tilbage til dig eller følge dig fra
+            den ene dag til den næste. Vi gemmer også, hvilken side du kom fra (fx en søgemaskine), og om du bruger mobil eller computer. Tallene deles ikke med
+            andre og bruges ikke til reklame. De enkelte visninger slettes efter 35 dage; tilbage bliver kun det samlede antal pr. dag.
           </p>
         </section>
 
