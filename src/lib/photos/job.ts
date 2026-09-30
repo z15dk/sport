@@ -4,7 +4,7 @@ import { loadavg } from 'node:os'
 import path from 'node:path'
 import { ensurePhotoDirs, photoConfig, type PhotoConfig } from './config.ts'
 import { countCall, getMeta, logStep, nowIso, openPhotoDb, quotaUsed, setMeta, transaction, type Db, type Row } from './db.ts'
-import { syncDbu } from './dbu.ts'
+import { fetchMatchesForQueue, syncDbu } from './dbu.ts'
 import { DriveError, driveClient, type DriveClient, type DriveFile } from './drive.ts'
 import { geminiProvider } from './gemini.ts'
 import { parseList, taggingContext } from './context.ts'
@@ -18,7 +18,7 @@ import { FatalError, PhotoError, QuotaError, TransientError, parseVisionJson, ty
 // The photo job, started by systemd (deploy/photos.timer → scripts/photos-job.ts)
 // with the lowest CPU and disk priority. One run:
 //   1. frees photos whose lease ran out (a run that stopped halfway)
-//   2. once a day: clubs and team sheets from DBU
+//   2. every PHOTOS_DBU_EVERY_DAYS (14) days: clubs, team sheets, results and goals from DBU
 //   3. lists the Drive folder and queues new photos
 //   4. works through the queue one photo at a time, pausing between AI calls and
 //      while the server is busy; stops politely on quota errors
@@ -68,7 +68,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     if (summary.released) log(`${summary.released} billede(r) fra en afbrudt kørsel sat tilbage i køen`)
 
     const lastDbu = getMeta(db, 'dbu_synced_at')
-    if (opts.dbu === 'force' || (opts.dbu !== 'skip' && (!lastDbu || Date.now() - Date.parse(lastDbu) > 20 * 3600_000))) {
+    if (opts.dbu === 'force' || (opts.dbu !== 'skip' && (!lastDbu || Date.now() - Date.parse(lastDbu) > cfg.dbuEveryDays * 86_400_000 - 3600_000))) {
       const r = await syncDbu(db, cfg.dbuPools, cfg.dbuPauseMs, log)
       setMeta(db, 'dbu_synced_at', nowIso())
       setMeta(db, 'dbu_last', JSON.stringify(r))
@@ -81,6 +81,8 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     summary.deleted = gone.deleted
     summary.deleteErrors = gone.errors
     summary.queued = await syncDrive(db, drive, cfg.folderId!, log)
+    // Between the 14-day fetches: the sheet and result of each match the new photos are from
+    if (opts.dbu !== 'skip' && summary.queued) await fetchMatchesForQueue(db, cfg.dbuPauseMs, log)
 
     const vision = geminiProvider(cfg.geminiKey!, cfg.geminiModel)
     const webFolder = getMeta(db, 'drive_web_folder') ?? (await drive.ensureFolder('_web', cfg.folderId!))

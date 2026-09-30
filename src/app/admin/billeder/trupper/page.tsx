@@ -55,7 +55,7 @@ export default async function AdminSquads({ searchParams }: { searchParams: Sear
               <ClubEditor clubId={club.id} extraColors={club.extraColors} aliases={club.aliases} />
             </div>
             <p className={s.muted}>
-              En rettelse vinder over holdkortenes rækker for samme nummer. Rækker fra DBU opdateres selv hver nat.
+              En rettelse vinder over holdkortenes rækker for samme nummer. Rækker fra DBU opdateres selv hver 14. dag.
             </p>
             <SquadAdd clubId={club.id} />
             <table className={s.table} style={{ marginTop: 12 }}>

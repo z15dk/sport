@@ -48,9 +48,11 @@ export function photoConfig() {
     minConfidence: num(e.PHOTOS_MIN_CONFIDENCE, 0.8),
     /** Wait while the server's 1-minute load is above this (2 CPUs) */
     maxLoad: num(e.PHOTOS_MAX_LOAD, 1.5),
-    /** DBU pools whose clubs and team sheets give the names (comma separated) */
-    dbuPools: (e.PHOTOS_DBU_POOLS ?? '508656').split(',').map((s) => s.trim()).filter(Boolean),
+    /** DBU pools whose clubs and team sheets give the names (comma separated). 2026/27: Superliga, 1., 2. and 3. division */
+    dbuPools: (e.PHOTOS_DBU_POOLS ?? '506118,507530,508656,508657').split(',').map((s) => s.trim()).filter(Boolean),
     dbuPauseMs: num(e.PHOTOS_DBU_PAUSE_MS, 2_000),
+    /** Clubs, team sheets, results and goals from DBU are fetched this often (days) */
+    dbuEveryDays: num(e.PHOTOS_DBU_EVERY_DAYS, 14),
     /** The automatic runs only take photos before this hour (Danish time); they start at midnight */
     nightEndHour: num(e.PHOTOS_NIGHT_END_HOUR, 6),
     /** The credit shown with our own photos; borrowed ones get their own in admin */
