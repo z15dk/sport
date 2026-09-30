@@ -1,0 +1,10 @@
+# Starter billedjobbet 10 minutter efter at forrige kørsel sluttede (aldrig to på én gang)
+[Unit]
+Description=Matchly billeder hvert 10. minut
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target

@@ -61,6 +61,12 @@ export function danishRound(round?: string | number): string | undefined {
   const stages: Record<string, string> = { 'regular season': '', 'league stage': 'Ligafase, ', 'group stage': 'Gruppespil, ', qualifying: 'Kvalifikation, ' }
   if (stage && stage[1].toLowerCase() in stages) return `${stages[stage[1].toLowerCase()]}${stage[2]}. runde`
   const lower = r.toLowerCase()
+  // The qualifying rounds before the tournament proper: "1st Qualifying Round", "2nd Qualifying Round - Semi-finals", "Qualifying Round 2"
+  if (/qualif/.test(lower)) {
+    const nr = /(\d+)(?:st|nd|rd|th)?\b/.exec(lower)?.[1]
+    const part = /semi/.test(lower) ? ', semifinale' : /final/.test(lower) ? ', finale' : /play-?off/.test(lower) ? ', playoff' : ''
+    return nr ? `Kvalifikation, ${nr}. runde${part}` : `Kvalifikation${part}`
+  }
   const finals: [RegExp, string][] = [
     [/semi/, 'Semifinale'],
     [/quarter|1\/4|round of 8\b/, 'Kvartfinale'],
@@ -73,8 +79,8 @@ export function danishRound(round?: string | number): string | undefined {
   if (/^finals?$/.test(lower)) return 'Finale'
   if (/preliminary/.test(lower)) return 'Indledende runde'
   const n = /(\d+)(?:st|nd|rd|th)?\s*round|round\s*(\d+)/.exec(lower)
+  if (/^play-?offs?$/.test(lower)) return 'Playoff'
   if (n) return `${n[1] ?? n[2]}. runde`
-  if (/qualif/.test(lower)) return 'Kvalifikation'
   return r
 }
 

@@ -30,6 +30,8 @@ import { leagueFaq } from '../../../lib/faq'
 import { formatLong, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { ExternalLeaguePage } from '../../../components/ExternalLeaguePage'
+import { buildBracket, isKnockout, type BracketGame } from '../../../lib/bracket'
+import { matchSlug } from '../../../lib/slug'
 import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable, archiveSeasonGames } from '../../../lib/history'
 import { archiveIncidents } from '../../../lib/archive'
@@ -164,6 +166,37 @@ async function externalLeaguePage(slug: string) {
       slug: m.slug,
     })
   }
+  // A knock-out tournament (the women's Europa Cup): a bracket of its ties, never a table
+  const bracketGames = new Map<string, BracketGame>()
+  for (const a of archived) {
+    bracketGames.set(a.id, {
+      id: a.id,
+      round: a.round,
+      date: a.date.getTime(),
+      home: { name: a.homeName, logo: logoFor(a.homeName) },
+      away: { name: a.awayName, logo: logoFor(a.awayName) },
+      homeScore: a.homeScore,
+      awayScore: a.awayScore,
+      finished: true,
+      slug: matchSlug(a.homeName, a.awayName, isoDate(a.date)),
+    })
+  }
+  for (const g of games) {
+    if (g.state === 'postponed' || Date.parse(g.kickoff) < seasonFrom) continue
+    bracketGames.set(g.id, {
+      id: g.id,
+      round: g.round,
+      date: Date.parse(g.kickoff),
+      home: { name: g.home.name, logo: g.home.logo ?? logoFor(g.home.name) },
+      away: { name: g.away.name, logo: g.away.logo ?? logoFor(g.away.name) },
+      homeScore: g.homeScore,
+      awayScore: g.awayScore,
+      finished: g.state === 'finished',
+      slug: externalMatch(g).slug,
+    })
+  }
+  const knockout = !cup && !friendly && !wholeSeason({ sport: found.sport, league: found }) && !fromApi && isKnockout([...bracketGames.values()].map((g) => g.round))
+  const bracket = knockout ? buildBracket([...bracketGames.values()]) : undefined
   // Not from a handful of matches ("100 % home wins" after one match says nothing)
   const stats = statGames.size >= 5 ? gameStats([...statGames.values()]) : undefined
   // News: articles naming the tournament; for a women's league also those about its teams
@@ -186,9 +219,10 @@ async function externalLeaguePage(slug: string) {
   return (
     <ExternalLeaguePage
       league={league}
-      rounds={tournament ? rounds : undefined}
+      rounds={tournament ? rounds : knockout ? [] : undefined}
+      bracket={bracket}
       leaders={leaders}
-      groups={fromApi ?? (tournament ? [] : [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))])}
+      groups={fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))])}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
