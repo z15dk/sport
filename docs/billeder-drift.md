@@ -7,7 +7,7 @@ højst 50 % af én CPU og 700 MB hukommelse). Siden går altid forud.
 
 ## Sådan flyder et billede
 
-1. Du lægger billeder i det fælles drev: `Matchly Billeder/<Klub>/<ÅÅÅÅ-MM-DD>_<Modstander>/`
+1. Du lægger billeder i det fælles drev: `Matchly Billeder/<Klub>/<ÅÅÅÅ-MM-DD>_<Modstander>/` (eller `<DDMMÅÅ> <Modstander>`, fx `300926 Thisted`)
    (fx `Brabrand/2026-08-01_Skive/IMG_0412.jpg`).
 2. Hvert 10. minut (10 min. efter forrige kørsel sluttede) finder jobbet nye billeder og sætter dem i kø.
 3. Ét billede ad gangen: hent → ret orientering, læs optagelsesdato → lav versioner
@@ -119,7 +119,7 @@ Googles egen oversigt: <https://aistudio.google.com/usage>.
 | `Gemini-modellen … findes ikke (404)` | Google har udfaset modellen | Sæt `GEMINI_MODEL` til en aktuel gratis model |
 | `Servicekontoen kunne ikke logge ind` | JSON-nøglen er forkert/slettet | Ny nøgle (afsnit 1), tjek `GOOGLE_SA_FILE` og rettigheder |
 | `Drive … 404` på mappen | Servicekontoen er ikke medlem af drevet, eller id er forkert | Afsnit 2 |
-| Billede med status `fejl`: `Kampmappen … skal hedde ÅÅÅÅ-MM-DD_Modstander` | Billedet ligger forkert | Flyt det i Drive – det tages op igen af sig selv |
+| Billede med status `fejl`: `Kampmappen … skal hedde ÅÅÅÅ-MM-DD_Modstander (eller DDMMÅÅ Modstander)` | Billedet ligger forkert | Flyt det i Drive – det tages op igen af sig selv |
 | `Filtypen image/heic understøttes ikke` | iPhone-format | Gem som JPG (eller sæt kameraet til "Mest kompatibel") |
 | `midlertidig fejl, prøves igen senere` | Google/net svarede ikke | Intet – prøves op til 3 gange, derefter status `fejl` |
 | Mange billeder med `fejl` efter en rettelse | | `npm run -s photos -- retry` sætter dem i kø igen |

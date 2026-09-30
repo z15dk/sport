@@ -14,8 +14,11 @@ export interface ParsedPath {
 export function parsePhotoPath(parts: string[]): ParsedPath | { error: string } {
   if (parts.length !== 3) return { error: `Billedet skal ligge i <Klub>/<ÅÅÅÅ-MM-DD>_<Modstander>/ – ligger i "${parts.slice(0, -1).join('/') || '(roden)'}"` }
   const [club, folder] = parts
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ _-]+(.+)$/.exec(folder.trim())
-  if (!m) return { error: `Kampmappen "${folder}" skal hedde ÅÅÅÅ-MM-DD_Modstander` }
+  // ÅÅÅÅ-MM-DD_Modstander, or the Danish short forms DDMMÅÅ / DDMMÅÅÅÅ / DD-MM-ÅÅÅÅ ("300926 Thisted")
+  const iso = /^(\d{4})-(\d{2})-(\d{2})[ _-]+(.+)$/.exec(folder.trim())
+  const dk = /^(\d{2})[-.]?(\d{2})[-.]?(\d{2}|\d{4})[ _-]+(.+)$/.exec(folder.trim())
+  const m = iso ?? (dk && [dk[0], dk[3].length === 2 ? `20${dk[3]}` : dk[3], dk[2], dk[1], dk[4]])
+  if (!m) return { error: `Kampmappen "${folder}" skal hedde ÅÅÅÅ-MM-DD_Modstander (eller DDMMÅÅ Modstander)` }
   const date = `${m[1]}-${m[2]}-${m[3]}`
   const d = new Date(`${date}T12:00:00Z`)
   if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date) return { error: `Datoen i "${folder}" findes ikke` }

@@ -7,6 +7,13 @@ test('klub, dato og modstander fra stien', () => {
   assert.deepEqual(parsePhotoPath(['Brabrand', '2026-08-01_FC_Roskilde', 'a.jpg']), { club: 'Brabrand', date: '2026-08-01', opponent: 'FC Roskilde' })
 })
 
+test('danske korte datoer: DDMMÅÅ, DDMMÅÅÅÅ og DD-MM-ÅÅÅÅ', () => {
+  assert.deepEqual(parsePhotoPath(['Næstved ', '300926 Thisted', 'a.jpg']), { club: 'Næstved', date: '2026-09-30', opponent: 'Thisted' })
+  assert.deepEqual(parsePhotoPath(['Brabrand', '01082026_Skive', 'a.jpg']), { club: 'Brabrand', date: '2026-08-01', opponent: 'Skive' })
+  assert.deepEqual(parsePhotoPath(['Brabrand', '01-08-2026 Skive', 'a.jpg']), { club: 'Brabrand', date: '2026-08-01', opponent: 'Skive' })
+  assert.ok('error' in parsePhotoPath(['Brabrand', '310926 Skive', 'a.jpg']))
+})
+
 test('forkerte stier giver en forklaring, ikke et gæt', () => {
   assert.ok('error' in parsePhotoPath(['IMG_1.jpg']))
   assert.ok('error' in parsePhotoPath(['Brabrand', 'Skive', 'a.jpg']))
