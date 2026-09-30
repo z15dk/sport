@@ -2197,7 +2197,13 @@ a.player-games__match:hover { text-decoration: underline; }
 .periods__facts { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line, #e3e5de); }
 
 /* /widget: the league table for other sites */
-.widget-builder { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 14px; align-items: start; margin-bottom: 14px; }
+.widget-builder { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr) minmax(0, 360px); gap: 14px; align-items: start; margin-bottom: 14px; }
+.widget-builder__form { position: sticky; top: 16px; }
+.widget-builder__aside .faq { margin: 0; }
+@media (max-width: 1200px) {
+  .widget-builder { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+  .widget-builder__aside { grid-column: 1 / -1; }
+}
 .widget-builder__form { display: grid; gap: 12px; padding: 16px; }
 .widget-steps { padding: 0 18px 0 38px; line-height: 1.7; }
 .widget-builder__form label, .widget-builder__form fieldset { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; }
@@ -2208,10 +2214,10 @@ a.player-games__match:hover { text-decoration: underline; }
 .widget-builder__row label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .widget-builder__copy { justify-self: start; padding: 10px 18px; border: 0; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .widget-builder__copy:hover { background: #2a2d22; }
-.widget-builder__preview { max-width: 560px; }
+.widget-builder__preview { min-width: 0; padding: 14px; }
 .widget-builder__preview iframe { display: block; width: 100%; border: 0; min-height: 200px; }
 .widget-builder__preview p { margin: 6px 2px 0; }
-@media (max-width: 800px) { .widget-builder { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .widget-builder { grid-template-columns: 1fr; } .widget-builder__form { position: static; } }
 
 /* /widget as a landing page: dark hero with the live table, benefits, steps, the builder */
 .wg { display: flex; flex-direction: column; gap: 16px; }

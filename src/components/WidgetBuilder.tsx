@@ -10,7 +10,7 @@ export interface WidgetLeague {
 }
 
 /** /widget: choose a league, a team to highlight and a theme; a live preview and the code to copy */
-export function WidgetBuilder({ leagues, site, initial }: { leagues: WidgetLeague[]; site: string; initial?: string }) {
+export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: WidgetLeague[]; site: string; initial?: string; aside?: React.ReactNode }) {
   const [liga, setLiga] = useState(leagues.find((l) => l.slug === initial)?.slug ?? leagues[0]?.slug ?? '')
   const [hold, setHold] = useState('')
   const [tema, setTema] = useState<'lys' | 'mork'>('lys')
@@ -98,12 +98,13 @@ export function WidgetBuilder({ leagues, site, initial }: { leagues: WidgetLeagu
           {copied ? 'Kopieret ✓' : 'Kopiér koden'}
         </button>
       </section>
-      <section className="widget-builder__preview">
+      <section className="panel widget-builder__preview">
         <iframe ref={frame} key={preview} src={preview} title="Forhåndsvisning af tabellen" style={{ height }} />
         <p className="small muted">
           <a href={`/turnering/${league.slug}`}>{league.name} stilling</a> · leveret af <a href="/">Matchly</a>
         </p>
       </section>
+      {aside && <aside className="widget-builder__aside">{aside}</aside>}
     </div>
   )
 }

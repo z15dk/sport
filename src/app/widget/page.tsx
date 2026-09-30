@@ -154,10 +154,8 @@ export default async function WidgetPage({ searchParams }: { searchParams: Promi
             </a>
           ))}
         </div>
-        <WidgetBuilder key={initial ?? ''} leagues={leagues} site={SITE_URL} initial={initial} />
+        <WidgetBuilder key={initial ?? ''} leagues={leagues} site={SITE_URL} initial={initial} aside={<Faq items={FAQ} />} />
       </section>
-
-      <Faq items={FAQ} />
     </div>
   )
 }
