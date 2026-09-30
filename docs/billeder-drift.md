@@ -67,7 +67,11 @@ GEMINI_API_KEY=<nøglen>
 # PHOTOS_CACHE_MB=300           cache af web-versioner på serveren
 ```
 
-`env` er kun læsbar for root og scoreline. Nøglerne står aldrig i koden eller i git.
+Nøglerne står aldrig i koden eller i git. **Lås filen, før nøglerne lægges i:** den var 30. sep. 2026 læsbar for alle brugere på serveren (644). systemd læser den som root, så appen virker uændret:
+
+```bash
+chmod 600 /opt/scoreline/env
+```
 
 ### 5. Installér tjenesten og timeren
 
