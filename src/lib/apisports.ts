@@ -3,7 +3,7 @@ import { runsJobs } from './role'
 import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Incident, MatchState, SportId } from '../types'
+import type { Incident, MatchState, PeriodScore, SportId } from '../types'
 import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
 import { alike } from '../data/aliases'
 import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
@@ -110,8 +110,43 @@ function v1Game(sport: SportId) {
       label: state === 'live' ? liveLabel(short, r.status?.timer) : undefined,
       homeScore: total(r.scores?.home),
       awayScore: total(r.scores?.away),
+      periods: periodsOf(sport, r),
     }
   }
+}
+
+/**
+ * The score of each set, period, half or quarter from the v1 format: volleyball
+ * and handball have periods.first … as {home, away}, ice hockey "1-0" strings,
+ * basketball the quarters in scores.home/away. Only the ones played (or being played).
+ */
+function periodsOf(sport: SportId, r: Raw): PeriodScore[] | undefined {
+  const out: PeriodScore[] = []
+  const pair = (label: string, h: unknown, a: unknown) => {
+    const home = num(h)
+    const away = num(a)
+    if (home !== undefined && away !== undefined) out.push({ label, home, away })
+  }
+  if (sport === 'volleyball' || sport === 'handball') {
+    const names = ['first', 'second', 'third', 'fourth', 'fifth']
+    names.forEach((k, i) => {
+      const p = r.periods?.[k]
+      if (p) pair(sport === 'volleyball' ? `${i + 1}. sæt` : `${i + 1}. halvleg`, p.home, p.away)
+    })
+    for (const [k, label] of [['extra', 'Forlænget'], ['overtime', 'Forlænget'], ['penalties', 'Straffe']] as const) {
+      const p = r.periods?.[k]
+      if (p && typeof p === 'object') pair(label, p.home, p.away)
+    }
+  } else if (sport === 'ice_hockey') {
+    for (const [k, label] of [['first', '1. periode'], ['second', '2. periode'], ['third', '3. periode'], ['overtime', 'Forlænget'], ['penalties', 'Straffeslag']] as const) {
+      const v = r.periods?.[k]
+      const m = typeof v === 'string' ? /^(\d+)\s*-\s*(\d+)$/.exec(v) : null
+      if (m) pair(label, m[1], m[2])
+    }
+  } else if (sport === 'basketball') {
+    for (const [k, label] of [['quarter_1', '1. kvt.'], ['quarter_2', '2. kvt.'], ['quarter_3', '3. kvt.'], ['quarter_4', '4. kvt.'], ['over_time', 'Forlænget']] as const) pair(label, r.scores?.home?.[k], r.scores?.away?.[k])
+  }
+  return out.length ? out : undefined
 }
 
 const APIS: Record<Api, ApiDef> = {

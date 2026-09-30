@@ -51,6 +51,15 @@ export interface Match {
   real?: boolean
   /** Goals and cards, in match order, when a source has them */
   incidents?: Incident[]
+  /** The score of each set, period, half or quarter (volleyball, ice hockey, handball, basketball) */
+  periods?: PeriodScore[]
+}
+
+/** One set, period, half or quarter: its name and each side's points or goals in it */
+export interface PeriodScore {
+  label: string
+  home: number
+  away: number
 }
 
 export interface LeagueGroup {

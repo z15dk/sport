@@ -363,6 +363,7 @@ function MatchBody({
 
       <div className="match-page__cols">
         <div className="match-page__col">
+          {match.periods && match.periods.length > 0 && <PeriodScores match={match} />}
           <section className="sheet__section">
             <h2 className="sheet__title">Kampfakta</h2>
             <dl className="facts">
@@ -726,5 +727,66 @@ function CompareHead({ home, away }: { home: Match['home']; away: Match['away'] 
         <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={24} />
       </span>
     </div>
+  )
+}
+
+/** The score of each set, period, half or quarter, with the total (volleyball, ice hockey, handball, basketball) */
+function PeriodScores({ match }: { match: Match }) {
+  const periods = match.periods ?? []
+  const title = match.sport === 'volleyball' ? 'Sæt' : match.sport === 'ice_hockey' ? 'Perioder' : match.sport === 'handball' ? 'Halvlege' : 'Quarters'
+  // "3. sæt" -> "3", "Forlænget" -> "F", "Straffe" -> "S"
+  const short = (label: string) => /^(\d+)\./.exec(label)?.[1] ?? label.slice(0, 1)
+  const live = match.state === 'live'
+  const row = (side: 'home' | 'away') => {
+    const team = match[side]
+    return (
+      <tr>
+        <th scope="row">
+          <span className="periods__team">
+            <TeamBadge name={team.name} src={team.badge} colors={team.colors} size={20} />
+            {team.name}
+          </span>
+        </th>
+        {periods.map((p, i) => {
+          const mine = p[side]
+          const other = p[side === 'home' ? 'away' : 'home']
+          // The set or period won (not the one being played)
+          const won = mine > other && !(live && i === periods.length - 1)
+          return (
+            <td key={p.label} className={`num${won ? ' is-win' : ''}${live && i === periods.length - 1 ? ' is-now' : ''}`}>
+              {mine}
+            </td>
+          )
+        })}
+        <td className="num periods__total">{team.score ?? ''}</td>
+      </tr>
+    )
+  }
+  return (
+    <section className="sheet__section periods">
+      <h2 className="sheet__title">{title}</h2>
+      <div className="table-wrap">
+        <table className="periods__table">
+          <thead>
+            <tr>
+              <th />
+              {periods.map((p) => (
+                <th key={p.label} className="num" title={p.label}>
+                  {short(p.label)}
+                </th>
+              ))}
+              <th className="num" title={match.sport === 'volleyball' ? 'Vundne sæt' : 'I alt'}>
+                {match.sport === 'volleyball' ? 'Sæt' : 'I alt'}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {row('home')}
+            {row('away')}
+          </tbody>
+        </table>
+      </div>
+      {live && <p className="muted small periods__note">{periods.at(-1)?.label} spilles nu.</p>}
+    </section>
   )
 }

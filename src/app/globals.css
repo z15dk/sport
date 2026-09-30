@@ -2169,3 +2169,15 @@ a.player-games__match:hover { text-decoration: underline; }
 .pair-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (min-width: 1000px) { .pair-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .pair-2 > .league, .pair-2 > .panel { margin: 0; min-width: 0; }
+
+/* A match's sets, periods, halves or quarters */
+.periods__table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.periods__table th, .periods__table td { padding: 8px 6px; border-bottom: 1px solid var(--line, #e3e5de); }
+.periods__table thead th { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; }
+.periods__table tbody tr:last-child th, .periods__table tbody tr:last-child td { border-bottom: 0; }
+.periods__table tbody th { text-align: left; font-weight: 600; }
+.periods__team { display: inline-flex; align-items: center; gap: 8px; }
+.periods__table td.is-win { font-weight: 800; color: var(--lime-deep); }
+.periods__table td.is-now { background: var(--surface-2); border-radius: 6px; }
+.periods__total { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; }
+.periods__note { margin: 6px 0 0; }

@@ -1,4 +1,4 @@
-import type { Incident, Match, MatchState, SportId } from '../types'
+import type { Incident, Match, MatchState, PeriodScore, SportId } from '../types'
 import { matchSlug, slugify } from '../lib/slug'
 import { isoDate } from '../lib/time'
 import { normalize } from './aliases'
@@ -30,6 +30,8 @@ export interface ExternalGame {
   ht?: [number, number]
   /** Goals and cards, when the source has them */
   incidents?: Incident[]
+  /** The score of each set, period, half or quarter (volleyball, ice hockey, handball, basketball) */
+  periods?: PeriodScore[]
   /** What the goals and cards were fetched for ("state|score"), so they are fetched again when it changes */
   eventsFor?: string
 }
@@ -127,6 +129,7 @@ export function externalToMatch(g: ExternalGame): Match {
     venue: g.venue,
     real: true,
     ...(g.incidents?.length && { incidents: g.incidents }),
+    ...(g.periods?.length && { periods: g.periods }),
     winner:
       g.state !== 'finished' || !hasScore
         ? undefined

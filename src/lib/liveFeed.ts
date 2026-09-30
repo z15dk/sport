@@ -28,7 +28,7 @@ const feed: Feed = (holder.__scorelineLive ??= { epoch: Date.now().toString(36),
 
 /** What a page shows of a game: when it changes, open pages get the game */
 const fingerprint = (g: ExternalGame) =>
-  `${g.state}|${g.homeScore ?? ''}-${g.awayScore ?? ''}|${g.label ?? ''}|${g.kickoff}|${g.incidents?.length ?? 0}|${g.ht?.join('-') ?? ''}`
+  `${g.state}|${g.homeScore ?? ''}-${g.awayScore ?? ''}|${g.label ?? ''}|${g.kickoff}|${g.incidents?.length ?? 0}|${g.ht?.join('-') ?? ''}|${g.periods?.map((p) => `${p.home}-${p.away}`).join(',') ?? ''}`
 
 /**
  * Everything besides the games' own state, as one short string: only the
