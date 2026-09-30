@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pickName, squadsFromSheets, type SquadRow } from '../../src/lib/photos/names.ts'
+import { backNameFits, pickName, squadsFromSheets, type SquadRow } from '../../src/lib/photos/names.ts'
 
 const squad: SquadRow[] = [
   { number: 9, name: 'Anders Angriber', validFrom: '2026-07-01', validTo: '2026-08-31' },
@@ -57,4 +57,14 @@ test('trup fra holdkort: perioder, nummerskift og konflikter', () => {
   assert.equal(get(7, 'A').uncertain, true)
   assert.equal(get(7, 'B').uncertain, true)
   assert.equal(get(28, 'Søren').uncertain, false)
+})
+
+test('rygnavn: efternavn, forkortelser og danske bogstaver', () => {
+  assert.equal(backNameFits('BRYLD', 'August Andreas Rømer Bryld'), true)
+  assert.equal(backNameFits('BREDAHL', 'Andreas Pedersen Bredahl'), true)
+  assert.equal(backNameFits('M. JENSEN', 'Mikkel Jensen'), true)
+  assert.equal(backNameFits('SØRENSEN', 'Casper Sorensen'), false)
+  assert.equal(backNameFits('SOERENSEN', 'Casper Sørensen'), true)
+  assert.equal(backNameFits('HANSEN', 'Mikkel Jensen'), false)
+  assert.equal(backNameFits('J.', 'Mikkel Jensen'), false)
 })

@@ -22,11 +22,12 @@ test('ukendte ord giver ingen farve', () => {
   assert.deepEqual(colorFamilies(undefined), [])
 })
 
-test('score: hovedfarve = 2, nabonuance = 1, ellers 0', () => {
-  assert.equal(colorScore(['rød'], ['rød', 'hvid']), 2)
+test('score: klubbens hovedfarve = 3, anden farve = 2, nabonuance = 1, ellers 0', () => {
+  assert.equal(colorScore(['rød'], ['rød', 'hvid']), 3)
+  assert.equal(colorScore(['hvid'], ['rød', 'hvid']), 2)
   assert.equal(colorScore(['blå'], ['lyseblå']), 1)
   assert.equal(colorScore(['grøn'], ['rød']), 0)
-  // En bifarve alene er ikke nok til 2
+  // Trøjens bifarve alene er ikke nok
   assert.equal(colorScore(['rød', 'hvid'], ['hvid']), 1)
 })
 
@@ -55,7 +56,13 @@ test('modstanderens farver mangler: egen farve er ikke sikker nok', () => {
   assert.equal(decideSide('grøn', ['rød'], undefined).side, 'modstander')
 })
 
-test('flerfarvet klub (Skive: gul/blå)', () => {
+test('flerfarvet klub (Skive: gul/blå) mod et blåt hold', () => {
   assert.equal(decideSide('gul', ['gul', 'blå'], ['grøn']).side, 'egen')
-  assert.equal(decideSide('blå', ['gul', 'blå'], ['blå']).side, 'ukendt')
+  // Blå er Fremad Amagers hovedfarve, men kun Skives anden farve
+  assert.equal(decideSide('blå', ['gul', 'blå'], ['blå']).side, 'modstander')
+  assert.equal(decideSide('blå', ['blå'], ['gul', 'blå']).side, 'egen')
+  // Thisted (blå/hvid) i hvidt mod Brabrand (blå)
+  assert.equal(decideSide('hvid', ['blå', 'hvid'], ['blå']).side, 'egen')
+  // Begge har blå som anden farve
+  assert.equal(decideSide('blå', ['gul', 'blå'], ['hvid', 'blå']).side, 'ukendt')
 })

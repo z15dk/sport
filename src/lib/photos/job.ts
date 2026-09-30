@@ -266,7 +266,7 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
       countCall(db, vision.name, e instanceof QuotaError)
       throw e
     }
-    db.prepare('UPDATE photos SET vision_json = ?, vision_model = ? WHERE id = ?').run(JSON.stringify({ spillere: result.players.map((x) => ({ nummer: x.number, troejefarve: x.jerseyColor, tillid: x.confidence, boks: x.box })), situation: result.situation }), result.model, id)
+    db.prepare('UPDATE photos SET vision_json = ?, vision_model = ? WHERE id = ?').run(JSON.stringify({ spillere: result.players.map((x) => ({ nummer: x.number, troejefarve: x.jerseyColor, tillid: x.confidence, boks: x.box, rygnavn: x.backName ?? null })), situation: result.situation }), result.model, id)
   }
 
   writeFileSync(path.join(cfg.thumbDir, `${id}.webp`), v.thumb)
@@ -277,10 +277,10 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
   transaction(db, () => {
     db.prepare(`DELETE FROM tags WHERE photo_id = ? AND source = 'ai'`).run(id)
     const ins = db.prepare(
-      `INSERT INTO tags (photo_id, number, jersey_color, side, confidence, ymin, xmin, ymax, xmax, player_name, name_source, note, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai', ?)`,
+      `INSERT INTO tags (photo_id, number, jersey_color, side, confidence, ymin, xmin, ymax, xmax, player_name, name_source, back_name, note, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai', ?)`,
     )
-    for (const t of tagging.tags) ins.run(id, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.note ?? null, nowIso())
+    for (const t of tagging.tags) ins.run(id, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.backName ?? null, t.note ?? null, nowIso())
     db.prepare(
       `UPDATE photos SET status = 'tagget', situation = ?, taken_at = ?, width = ?, height = ?, review = ?, review_reasons = ?, review_cost = ?,
          web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar' WHERE id = ?`,

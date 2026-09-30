@@ -1,5 +1,5 @@
 import { decideSide, type Side } from './colors.ts'
-import { pickName, type LineupPlayer, type SquadRow } from './names.ts'
+import { backNameFits, pickName, type LineupPlayer, type SquadRow } from './names.ts'
 import type { VisionResult } from './vision.ts'
 
 // From the AI's answer to tags: own club or opponent, name, and whether the
@@ -18,6 +18,7 @@ export interface TagDraft {
   box?: [number, number, number, number]
   playerName?: string
   nameSource?: 'kamp' | 'trup'
+  backName?: string
   note?: string
 }
 
@@ -46,7 +47,7 @@ export function tagPhoto(vision: VisionResult, ctx: TaggingContext): Tagging {
   const reasons = new Set<string>()
   let cost = 0
   const tags: TagDraft[] = vision.players.map((p) => {
-    const tag: TagDraft = { number: p.number, jerseyColor: p.jerseyColor, side: 'ukendt', confidence: p.confidence, box: p.box }
+    const tag: TagDraft = { number: p.number, jerseyColor: p.jerseyColor, side: 'ukendt', confidence: p.confidence, box: p.box, backName: p.backName }
     if (!ctx.clubKnown) {
       tag.note = 'klubben i mappenavnet er ukendt'
       return tag
@@ -67,6 +68,13 @@ export function tagPhoto(vision: VisionResult, ctx: TaggingContext): Tagging {
       return tag
     }
     const name = pickName(p.number, ctx.matchDate, ctx.lineup, ctx.squad)
+    // The name on the shirt must agree with the looked-up name; if not, the number or the date is wrong
+    if (name.name && p.backName && !backNameFits(p.backName, name.name)) {
+      tag.note = `trøjen siger "${p.backName}", men #${p.number} er ${name.name} ifølge ${name.source === 'kamp' ? 'holdkortet' : 'truppen'}`
+      reasons.add('navn passer ikke')
+      cost += 1
+      return tag
+    }
     if (name.name) {
       tag.playerName = name.name
       tag.nameSource = name.source

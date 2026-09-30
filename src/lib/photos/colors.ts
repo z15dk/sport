@@ -61,12 +61,17 @@ function familyOfCompound(word: string): string | undefined {
   return undefined
 }
 
-/** 2 = the jersey's main colour is one of the club's, 1 = only a neighbouring shade, 0 = no */
-export function colorScore(jersey: string[], club: string[]): 0 | 1 | 2 {
-  const clubFams = club.flatMap((c) => colorFamilies(c))
-  if (!jersey.length || !clubFams.length) return 0
-  if (clubFams.includes(jersey[0])) return 2
-  return jersey.some((j) => clubFams.some((c) => c === j || near(c, j))) ? 1 : 0
+/**
+ * 3 = the jersey's main colour is the club's main shirt colour, 2 = one of its other
+ * colours (Skive "gul/blå": blå), 1 = only a neighbouring shade, 0 = no
+ */
+export function colorScore(jersey: string[], club: string[]): 0 | 1 | 2 | 3 {
+  const primary = colorFamilies(club[0])
+  const all = club.flatMap((c) => colorFamilies(c))
+  if (!jersey.length || !all.length) return 0
+  if (primary.includes(jersey[0])) return 3
+  if (all.includes(jersey[0])) return 2
+  return jersey.some((j) => all.some((c) => c === j || near(c, j))) ? 1 : 0
 }
 
 export interface SideResult {
@@ -87,14 +92,16 @@ export function decideSide(jersey: string | undefined | null, ownColors: string[
   const own = colorScore(fams, ownColors)
   if (!opponentColors?.length) {
     // Without the opponent's colours a match on our colours cannot rule out that they wear the same
-    if (own === 2) return { side: 'ukendt', note: 'modstanderens farver mangler' }
+    if (own >= 2) return { side: 'ukendt', note: 'modstanderens farver mangler' }
     if (own === 0) return { side: 'modstander' }
     return { side: 'ukendt', note: `farven ${fams[0]} ligner klubbens` }
   }
   const opp = colorScore(fams, opponentColors)
-  if (own === 2 && opp === 0) return { side: 'egen' }
-  if (opp === 2 && own === 0) return { side: 'modstander' }
-  if (own === 2 && opp === 2) return { side: 'ukendt', note: `begge hold spiller i ${fams[0]}` }
+  // Clear when one club has the colour as its main shirt colour (or at all) and the other does not;
+  // a neighbouring shade on the other side (blå/lyseblå) is never clear enough
+  if ((own === 3 && (opp === 0 || opp === 2)) || (own === 2 && opp === 0)) return { side: 'egen' }
+  if ((opp === 3 && (own === 0 || own === 2)) || (opp === 2 && own === 0)) return { side: 'modstander' }
+  if (own >= 2 && own === opp) return { side: 'ukendt', note: `begge hold spiller i ${fams[0]}` }
   if (own === 0 && opp === 0) return { side: 'ukendt', note: `farven ${fams[0]} passer til ingen af holdene` }
   return { side: 'ukendt', note: `farven ${fams[0]} ligner begge holds` }
 }

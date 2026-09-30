@@ -106,3 +106,21 @@ export function squadsFromSheets(matches: SheetMatch[]): (SquadRow & { clubId: s
   }
   return out.sort((a, b) => a.clubId.localeCompare(b.clubId) || a.number - b.number || String(a.validFrom).localeCompare(String(b.validFrom)))
 }
+
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'oe')
+    .replace(/å/g, 'aa')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z]+/)
+    .filter(Boolean)
+
+/** Does the name on the shirt ("BRYLD", "M. JENSEN") fit the player's full name? */
+export function backNameFits(backName: string, fullName: string) {
+  const back = fold(backName).filter((w) => w.length >= 3)
+  const full = fold(fullName)
+  return back.length > 0 && back.every((b) => full.some((f) => f === b || (b.length >= 4 && f.startsWith(b))))
+}

@@ -9,6 +9,8 @@ export interface VisionPlayer {
   confidence: number
   /** [ymin, xmin, ymax, xmax], 0–1000 */
   box?: [number, number, number, number]
+  /** The name printed on the shirt above the number, when readable */
+  backName?: string
 }
 
 export interface VisionResult {
@@ -37,7 +39,7 @@ tydeligt læseligt. Gæt ALDRIG et nummer, du ikke kan se klart.
 Svar KUN med JSON i dette format:
 {
   "spillere": [
-    {"nummer": 9, "troejefarve": "rød", "tillid": 0.95, "boks": [120, 340, 880, 610]}
+    {"nummer": 9, "troejefarve": "rød", "tillid": 0.95, "boks": [120, 340, 880, 610], "rygnavn": "HANSEN"}
   ],
   "situation": "ét eller to ord, fx jubel, tackling, målmand, duel, hovedstød, skud, publikum"
 }
@@ -45,6 +47,8 @@ Svar KUN med JSON i dette format:
 - "troejefarve": ét dansk farveord for trøjens hovedfarve.
 - "tillid": tal mellem 0 og 1 for hvor sikker du er på nummeret.
 - "boks": [ymin, xmin, ymax, xmax] om hele spilleren, normaliseret 0 til 1000.
+- "rygnavn": navnet trykt på trøjen over nummeret, præcis som det står. null hvis der
+  ikke står et navn, eller det ikke kan læses helt. Gæt ALDRIG et navn.
 Er der ingen læselige numre, så returnér en tom liste i "spillere".`
 
 /** The AI's answer checked field by field; anything that does not fit is dropped, never guessed */
@@ -71,6 +75,7 @@ export function parseVisionJson(text: string, model: string): VisionResult {
       jerseyColor: typeof s.troejefarve === 'string' ? s.troejefarve.trim().toLowerCase().slice(0, 40) : '',
       confidence: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : 0,
       box: box && box[0] < box[2] && box[1] < box[3] ? box : undefined,
+      backName: typeof s.rygnavn === 'string' && s.rygnavn.trim() ? s.rygnavn.trim().slice(0, 40) : undefined,
     })
   }
   const situation = typeof d.situation === 'string' ? d.situation.trim().toLowerCase().slice(0, 60) || undefined : undefined
