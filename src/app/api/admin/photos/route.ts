@@ -1,6 +1,6 @@
 import { isAdmin, sameOrigin } from '../../../../lib/admin'
 import { photoConfig } from '../../../../lib/photos/config'
-import { withPhotoDb } from '../../../../lib/photos/server'
+import { requestSync, withPhotoDb } from '../../../../lib/photos/server'
 import { addSquadRow, addTag, deleteSquadRow, deleteTag, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
 
 // Changes from the photo admin: JSON { action, … }.
@@ -10,6 +10,7 @@ import { addSquadRow, addTag, deleteSquadRow, deleteTag, setApproved, setMatch, 
 //   add-squad { club, number, name, validFrom?, validTo? }   delete-squad { id }
 //   update-club { club, extraColors?, aliases? }
 //   set-rights { photo, credit?, licenseUntil?, wholeMatch? }
+//   sync {}                               (run the job now)
 
 type Body = Record<string, unknown>
 
@@ -24,6 +25,10 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === 's
 export async function POST(request: Request) {
   if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
   const b = (await request.json().catch(() => ({}))) as Body
+  if (b.action === 'sync') {
+    const r = requestSync()
+    return Response.json(r.started ? { ok: true } : { error: r.reason }, { status: r.started ? 200 : 409 })
+  }
   const result = withPhotoDb((db): { error?: string; name?: string | null; note?: string | null; count?: number } => {
     switch (b.action) {
       case 'approve':

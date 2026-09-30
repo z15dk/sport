@@ -187,3 +187,14 @@ test('et lånt billede slettes, når låneperioden er udløbet', async () => {
   // Miniaturen er væk fra serveren
   assert.equal(existsSync(path.join(dir, 'fotos', 'miniaturer', `${String(a.id)}.webp`)), false)
 })
+
+test('natkørslen tager ingen billeder efter nattens slut, og "kører nu" ryddes bagefter', async () => {
+  process.env.PHOTOS_NIGHT_END_HOUR = '0'
+  const s = await runPhotoJob({ dbu: 'skip', night: true, log: () => {} })
+  delete process.env.PHOTOS_NIGHT_END_HOUR
+  assert.equal(s.processed, 0)
+  assert.match(s.stoppedBecause!, /nattens vindue/)
+  const d = db()
+  assert.equal(d.prepare(`SELECT value FROM meta WHERE key = 'running'`).get(), undefined)
+  d.close()
+})

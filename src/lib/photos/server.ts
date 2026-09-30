@@ -1,9 +1,10 @@
 import 'server-only'
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { photoConfig } from './config.ts'
 import type { SomeFormat } from './crop.ts'
 import { openPhotoDb, type Db } from './db.ts'
+import { runningSince } from './store.ts'
 import { driveClient } from './drive.ts'
 import { cropToJpeg } from './some.ts'
 
@@ -96,3 +97,19 @@ export async function someImage(id: number, format: SomeFormat, tagId?: number):
     .replace(/^-|-$/g, '')
   return { jpeg, name: `${slug || `billede-${id}`}_${format}.jpg`, source }
 }
+
+/** Asks systemd to run the job now (scoreline-photos-sync.path watches the file); no-op while one is asked for or running */
+export function requestSync(): { started: boolean; reason?: string } {
+  const cfg = photoConfig()
+  if (withPhotoDb((db) => runningSince(db))) return { started: false, reason: 'Jobbet kører allerede' }
+  if (existsSync(cfg.syncRequestFile)) {
+    // Not picked up within two minutes: systemd is not watching (the path unit is not installed)
+    if (Date.now() - statSync(cfg.syncRequestFile).mtimeMs > 120_000) return { started: false, reason: 'Sync blev bestilt, men jobbet startede ikke – er scoreline-photos-sync.path installeret? (se driftsvejledningen)' }
+    return { started: false, reason: 'Sync er allerede bestilt' }
+  }
+  mkdirSync(cfg.dir, { recursive: true })
+  writeFileSync(cfg.syncRequestFile, new Date().toISOString())
+  return { started: true }
+}
+
+export const syncRequested = () => existsSync(photoConfig().syncRequestFile)

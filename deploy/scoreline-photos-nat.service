@@ -1,0 +1,18 @@
+# Matchly billeder om natten (scoreline-photos-nat.timer): som scoreline-photos.service,
+# men tager ingen nye billeder efter kl. 06 (--nat). Deler lås med Sync-kørslen.
+[Unit]
+Description=Matchly billeder (nat, lav prioritet)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=scoreline
+WorkingDirectory=/opt/scoreline/current
+EnvironmentFile=/opt/scoreline/env
+ExecStart=/usr/bin/flock -n -E 0 /opt/scoreline/data/fotos/.job.lock /usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts run --nat
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=700M
+TimeoutStartSec=55min

@@ -1,0 +1,11 @@
+# Sync-knappen i admin skriver /opt/scoreline/data/fotos/sync-request; så startes billedjobbet
+# (scoreline-photos.service fjerner filen, før det kører). Webprocessen får ingen rettigheder.
+[Unit]
+Description=Matchly billeder: Sync fra admin
+
+[Path]
+PathExists=/opt/scoreline/data/fotos/sync-request
+Unit=scoreline-photos.service
+
+[Install]
+WantedBy=multi-user.target

@@ -125,7 +125,16 @@ export function overview(db: Db, dailyLimit: number) {
     quota: { ...quotaUsed(db, 'gemini'), dailyLimit },
     lastRun: lastRun ? (JSON.parse(lastRun) as { finishedAt?: string; processed?: number; failed?: number; stoppedBecause?: string }) : undefined,
     dbu: getMeta(db, 'dbu_synced_at'),
+    running: runningSince(db),
   }
+}
+
+/** When the job started, while it runs (a record older than an hour is a run that died) */
+export function runningSince(db: Db): string | undefined {
+  const r = getMeta(db, 'running')
+  if (!r) return undefined
+  const at = (JSON.parse(r) as { startedAt?: string }).startedAt
+  return at && Date.now() - Date.parse(at) < 3600_000 ? at : undefined
 }
 
 export function searchPhotos(db: Db, q: string, status = '', limit = 120): Photo[] {

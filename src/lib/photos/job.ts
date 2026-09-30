@@ -53,7 +53,7 @@ export function missingConfig(cfg: PhotoConfig) {
   ].filter(Boolean) as string[]
 }
 
-export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto' | 'skip' | 'force' } = {}): Promise<RunSummary> {
+export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto' | 'skip' | 'force'; night?: boolean } = {}): Promise<RunSummary> {
   const cfg = photoConfig()
   const log = opts.log ?? console.log
   const missing = missingConfig(cfg)
@@ -61,6 +61,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
   const db = openPhotoDb(cfg.db)
   const summary: RunSummary = { startedAt: nowIso(), queued: 0, processed: 0, review: 0, failed: 0, released: 0, aiCalls: 0, deleted: 0, deleteErrors: 0 }
   const t0 = Date.now()
+  setMeta(db, 'running', JSON.stringify({ startedAt: summary.startedAt, pid: process.pid, night: !!opts.night }))
   try {
     summary.released = Number(db.prepare(`UPDATE photos SET status = 'ny', lease_until = NULL WHERE status = 'behandles' AND lease_until < ?`).run(Date.now()).changes ?? 0)
     if (summary.released) log(`${summary.released} billede(r) fra en afbrudt kørsel sat tilbage i køen`)
@@ -89,6 +90,11 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     const limit = opts.limit ?? cfg.batch
     let transientInRow = 0
     while (summary.processed + summary.failed < limit) {
+      // The night runs leave the rest of the queue for the next night (or the Sync button)
+      if (opts.night && copenhagenHour() >= cfg.nightEndHour) {
+        summary.stoppedBecause = `nattens vindue sluttede kl. ${cfg.nightEndHour}`
+        break
+      }
       if (!(await waitForQuiet(cfg.maxLoad, log))) {
         summary.stoppedBecause = 'serveren har travlt'
         break
@@ -144,6 +150,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     summary.seconds = Math.round((Date.now() - t0) / 1000)
     try {
       setMeta(db, 'last_run', JSON.stringify(summary))
+      db.prepare(`DELETE FROM meta WHERE key = 'running'`).run()
     } catch {
       // The summary is also in the journal
     }
@@ -263,6 +270,8 @@ function claim(db: Db): Row | undefined {
 function release(db: Db, id: number, error: string, countAttempt: boolean) {
   db.prepare(`UPDATE photos SET status = 'ny', lease_until = NULL, error = ?, attempts = attempts - ? WHERE id = ?`).run(error.slice(0, 1000), countAttempt ? 0 : 1, id)
 }
+
+const copenhagenHour = () => Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Copenhagen', hour: '2-digit', hour12: false }))
 
 async function waitForQuiet(maxLoad: number, log: Log): Promise<boolean> {
   for (let i = 0; i < 20; i++) {

@@ -9,7 +9,7 @@ højst 50 % af én CPU og 700 MB hukommelse). Siden går altid forud.
 
 1. Du lægger billeder i det fælles drev: `Matchly Billeder/<Klub>/<ÅÅÅÅ-MM-DD>_<Modstander>/` (eller `<DDMMÅÅ> <Modstander>`, fx `300926 Thisted`)
    (fx `Brabrand/2026-08-01_Skive/IMG_0412.jpg`).
-2. Hvert 10. minut (10 min. efter forrige kørsel sluttede) finder jobbet nye billeder og sætter dem i kø.
+2. Hvert 10. minut mellem kl. 00 og 06 (dansk tid) – eller når du trykker **Sync** under Billeder i admin – finder jobbet nye billeder og sætter dem i kø. Natkørslerne tager ingen nye billeder efter kl. 06; resten venter til næste nat eller til Sync.
 3. Ét billede ad gangen: hent → ret orientering, læs optagelsesdato → lav versioner
    (miniature 480 px på serveren, web 1600 px i Drive-mappen `_web`, uden EXIF/GPS)
    → Gemini finder numre, farver og bokse → egen klub/modstander ud fra trøjefarven
@@ -73,26 +73,31 @@ Nøglerne står aldrig i koden eller i git. **Lås filen, før nøglerne lægges
 chmod 600 /opt/scoreline/env
 ```
 
-### 5. Installér tjenesten og timeren
+### 5. Installér tjenesterne, nat-timeren og Sync-knappen
 
 ```bash
 ssh root@178.104.121.60
-cp /opt/scoreline/current/deploy/scoreline-photos.service /opt/scoreline/current/deploy/scoreline-photos.timer /etc/systemd/system/
+cd /opt/scoreline/current/deploy
+cp scoreline-photos.service scoreline-photos-nat.service scoreline-photos-nat.timer scoreline-photos-sync.path /etc/systemd/system/
 systemctl daemon-reload
+systemctl enable --now scoreline-photos-nat.timer scoreline-photos-sync.path
 ```
 
-Timeren slås **ikke** til endnu – første kørsel tages i hånden (se nedenfor).
+- `scoreline-photos-nat.timer` → `scoreline-photos-nat.service`: hvert 10. minut kl. 00–06.
+- `scoreline-photos-sync.path` → `scoreline-photos.service`: når Sync-knappen lægger filen `/opt/scoreline/data/fotos/sync-request`. Webprocessen får ingen ekstra rettigheder.
+- Begge kører med `flock` på samme lås, så der aldrig kører to på én gang.
 
 ## Start og stop
 
 | Hvad | Kommando (på serveren) |
 |---|---|
-| Kør nu (højst `PHOTOS_BATCH` billeder) | `systemctl start scoreline-photos` |
+| Kør nu (højst `PHOTOS_BATCH` billeder) | Knappen **Sync** under Billeder i admin, eller `systemctl start scoreline-photos` |
 | Kør med et andet antal, fx 50 | `cd /opt/scoreline/current && sudo -u scoreline bash -c 'set -a; . /opt/scoreline/env; nice -n 19 npm run -s photos -- run --limit 50'` |
-| Følg med | `journalctl -u scoreline-photos -f` |
-| Slå automatisk kørsel til | `systemctl enable --now scoreline-photos.timer` |
-| Slå automatisk kørsel fra | `systemctl disable --now scoreline-photos.timer` |
-| Stop en kørsel | `systemctl stop scoreline-photos` (billedet der blev arbejdet på, tages op igen efter 15 min.) |
+| Følg med | `journalctl -u scoreline-photos -u scoreline-photos-nat -f` |
+| Slå natkørslerne til | `systemctl enable --now scoreline-photos-nat.timer` |
+| Slå natkørslerne fra | `systemctl disable --now scoreline-photos-nat.timer` |
+| Se næste natkørsel | `systemctl list-timers scoreline-photos-nat.timer` |
+| Stop en kørsel | `systemctl stop scoreline-photos scoreline-photos-nat` (billedet der blev arbejdet på, tages op igen efter 15 min.) |
 | Hent DBU nu | `… npm run -s photos -- dbu` (samme `sudo -u scoreline …` som ovenfor) |
 | Beregn navne igen (efter trup-rettelser, uden AI-kald) | `… npm run -s photos -- retag` |
 
@@ -125,10 +130,11 @@ Googles egen oversigt: <https://aistudio.google.com/usage>.
 | `midlertidig fejl, prøves igen senere` | Google/net svarede ikke | Intet – prøves op til 3 gange, derefter status `fejl` |
 | Mange billeder med `fejl` efter en rettelse | | `npm run -s photos -- retry` sætter dem i kø igen |
 | `Kunne ikke slette … (låneperioden er udløbet)` | Drive svarede ikke | Intet – prøves igen næste kørsel; kørslen står som fejlet i systemd, så det ses |
+| Sync-knappen: "jobbet startede ikke" | `scoreline-photos-sync.path` er ikke installeret/aktiv | Afsnit 5; tjek `systemctl status scoreline-photos-sync.path` |
 | `Serveren har travlt` | Belastningen er over `PHOTOS_MAX_LOAD` | Intet – jobbet venter eller prøver igen om 10 min. |
 
 Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og i journalen
-(`journalctl -u scoreline-photos --since today`).
+(`journalctl -u scoreline-photos -u scoreline-photos-nat --since today`).
 
 ## Admin
 

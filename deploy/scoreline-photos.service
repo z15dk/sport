@@ -1,8 +1,8 @@
 # Matchly billeder: tagger egne kampbilleder fra Drive (src/lib/photos, docs/billeder-drift.md).
-# Laveste CPU- og diskprioritet og et loft over CPU og hukommelse, så siden altid går forud.
-# Installeres én gang: se docs/billeder-drift.md
+# Startes af Sync-knappen i admin (scoreline-photos-sync.path). Laveste CPU- og diskprioritet
+# og et loft over CPU og hukommelse, så siden altid går forud. flock: aldrig to kørsler samtidig.
 [Unit]
-Description=Matchly billeder (tagging, lav prioritet)
+Description=Matchly billeder (Sync fra admin, lav prioritet)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,7 +11,8 @@ Type=oneshot
 User=scoreline
 WorkingDirectory=/opt/scoreline/current
 EnvironmentFile=/opt/scoreline/env
-ExecStart=/usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts run
+ExecStartPre=/bin/rm -f /opt/scoreline/data/fotos/sync-request
+ExecStart=/usr/bin/flock -n -E 0 /opt/scoreline/data/fotos/.job.lock /usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts run
 Nice=19
 IOSchedulingClass=idle
 CPUQuota=50%

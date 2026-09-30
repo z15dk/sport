@@ -1,13 +1,14 @@
 // The photo job (src/lib/photos/job.ts) from the command line and systemd.
 // Runs with Node's own TypeScript support, outside Next:
 //
-//   node --experimental-strip-types scripts/photos-job.ts run [--limit 50] [--dbu]
+//   node --experimental-strip-types scripts/photos-job.ts run [--limit 50] [--dbu] [--nat]   (--nat: stop taking photos at 06)
 //   node --experimental-strip-types scripts/photos-job.ts status
 //   node --experimental-strip-types scripts/photos-job.ts dbu          (clubs and team sheets only)
 //   node --experimental-strip-types scripts/photos-job.ts retry        (photos with status fejl back in the queue)
 //   node --experimental-strip-types scripts/photos-job.ts retag        (names worked out again for tagged photos, no AI calls)
 //
-// On the VPS: sudo systemctl start scoreline-photos (see docs/billeder-drift.md).
+// On the VPS: every 10 min 00–06 (scoreline-photos-nat.timer) and on the admin Sync button
+// (scoreline-photos-sync.path → scoreline-photos.service); see docs/billeder-drift.md.
 
 import { photoConfig } from '../src/lib/photos/config.ts'
 import { nowIso, openPhotoDb, setMeta } from '../src/lib/photos/db.ts'
@@ -25,7 +26,7 @@ const stamp = (s: string) => console.log(`${new Date().toLocaleTimeString('da-DK
 
 try {
   if (cmd === 'run') {
-    const s = await runPhotoJob({ limit: value('limit') ? Number(value('limit')) : undefined, dbu: flag('dbu') ? 'force' : 'auto', log: stamp })
+    const s = await runPhotoJob({ limit: value('limit') ? Number(value('limit')) : undefined, dbu: flag('dbu') ? 'force' : 'auto', night: flag('nat'), log: stamp })
     stamp(`Færdig: ${s.processed} tagget (${s.review} til gennemgang), ${s.failed} fejl, ${s.aiCalls} AI-kald${s.deleted || s.deleteErrors ? `, ${s.deleted} lånte slettet${s.deleteErrors ? ` (${s.deleteErrors} kunne ikke slettes)` : ''}` : ''}, ${s.seconds} s${s.stoppedBecause ? ` – stoppede: ${s.stoppedBecause}` : ''}`)
     if (s.deleteErrors) process.exitCode = 1
   } else if (cmd === 'status') {

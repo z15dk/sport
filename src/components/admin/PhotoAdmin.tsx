@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FORMATS, type SomeFormat } from '../../lib/photos/crop'
 import s from './photos.module.css'
@@ -300,5 +300,27 @@ export function RightsEditor({ photoId, credit, licenseUntil, defaultCredit, tod
       {saved && <span className={s.muted}>{saved}</span>}
       {error && <span className={s.error}>{error}</span>}
     </form>
+  )
+}
+
+/** Runs the photo job now; while it runs the page refreshes itself every 10 seconds */
+export function SyncButton({ running, requested }: { running?: string; requested: boolean }) {
+  const router = useRouter()
+  const { busy, error, run } = useAction()
+  const active = !!running || requested
+  useEffect(() => {
+    if (!active) return
+    const t = setInterval(() => router.refresh(), 10_000)
+    return () => clearInterval(t)
+  }, [active, router])
+  const since = running ? new Date(running).toLocaleTimeString('da-DK', { timeZone: 'Europe/Copenhagen', hour: '2-digit', minute: '2-digit' }) : undefined
+  return (
+    <span className={s.some}>
+      <button className="pill is-active" disabled={busy || active} onClick={() => void run({ action: 'sync' })}>
+        {running ? 'Sync kører…' : requested ? 'Sync starter…' : 'Sync'}
+      </button>
+      <span className={s.muted}>{running ? `Startet ${since} – henter nye billeder fra Drive og tagger dem` : requested ? 'Starter om et øjeblik' : 'Kører også selv hvert 10. minut kl. 00–06'}</span>
+      {error && <span className={s.error}>{error}</span>}
+    </span>
   )
 }

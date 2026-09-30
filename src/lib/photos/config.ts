@@ -25,6 +25,8 @@ export function photoConfig() {
     /** Thumbnails (kept) and a small cache of web versions (pruned) */
     dir,
     thumbDir: path.join(dir, 'miniaturer'),
+    /** The Sync button writes this file; systemd (scoreline-photos-sync.path) starts the job and removes it */
+    syncRequestFile: path.join(dir, 'sync-request'),
     cacheDir: path.join(dir, 'cache'),
     cacheMaxBytes: num(e.PHOTOS_CACHE_MB, 300) * 1_000_000,
     /** Path to the service account's JSON key (chmod 600, owned by scoreline) */
@@ -48,6 +50,8 @@ export function photoConfig() {
     /** DBU pools whose clubs and team sheets give the names (comma separated) */
     dbuPools: (e.PHOTOS_DBU_POOLS ?? '508656').split(',').map((s) => s.trim()).filter(Boolean),
     dbuPauseMs: num(e.PHOTOS_DBU_PAUSE_MS, 2_000),
+    /** The automatic runs only take photos before this hour (Danish time); they start at midnight */
+    nightEndHour: num(e.PHOTOS_NIGHT_END_HOUR, 6),
     /** The credit shown with our own photos; borrowed ones get their own in admin */
     defaultCredit: e.PHOTOS_DEFAULT_CREDIT || 'Matchly.dk',
   }

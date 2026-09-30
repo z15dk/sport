@@ -2,11 +2,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
+import { SyncButton } from '../../../components/admin/PhotoAdmin'
 import { Legend, PhotoCard } from '../../../components/admin/PhotoCards'
 import s from '../../../components/admin/photos.module.css'
 import { isAdmin } from '../../../lib/admin'
 import { photoConfig } from '../../../lib/photos/config'
-import { withPhotoDb } from '../../../lib/photos/server'
+import { syncRequested, withPhotoDb } from '../../../lib/photos/server'
 import { overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +35,9 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
             {info.total} billeder · sidste kørsel {info.lastRun?.finishedAt ? new Date(info.lastRun.finishedAt).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen', dateStyle: 'short', timeStyle: 'short' }) : 'aldrig'}
           </span>
         </h1>
+        <p style={{ margin: '0 0 12px' }}>
+          <SyncButton running={info.running} requested={syncRequested()} />
+        </p>
         <div className={s.stats}>
           <div className={s.stat}><b>{(c.tagget ?? 0) + (c.godkendt ?? 0)}</b><span>tagget ({c.godkendt ?? 0} godkendt)</span></div>
           <div className={s.stat}><b>{info.review}</b><span><Link href="/admin/billeder/gennemgang">til gennemgang</Link></span></div>

@@ -1,0 +1,11 @@
+# Billedjobbet hvert 10. minut mellem kl. 00 og 06 (dansk tid). En kørsel der stadig er i gang,
+# springes blot over (systemd starter ikke en aktiv tjeneste igen).
+[Unit]
+Description=Matchly billeder hvert 10. minut kl. 00-06
+
+[Timer]
+OnCalendar=*-*-* 00..05:00/10:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target
