@@ -4,7 +4,7 @@ import { loadavg } from 'node:os'
 import path from 'node:path'
 import { ensurePhotoDirs, photoConfig, type PhotoConfig } from './config.ts'
 import { countCall, getMeta, logStep, nowIso, openPhotoDb, quotaUsed, setMeta, transaction, type Db, type Row } from './db.ts'
-import { syncDbu } from './dbu.ts'
+import { fetchMatchesForQueue, syncDbu } from './dbu.ts'
 import { DriveError, driveClient, type DriveClient, type DriveFile } from './drive.ts'
 import { geminiProvider } from './gemini.ts'
 import { parseList, taggingContext } from './context.ts'
@@ -81,6 +81,8 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     summary.deleted = gone.deleted
     summary.deleteErrors = gone.errors
     summary.queued = await syncDrive(db, drive, cfg.folderId!, log)
+    // Between the 14-day fetches: the sheet and result of each match the new photos are from
+    if (opts.dbu !== 'skip' && summary.queued) await fetchMatchesForQueue(db, cfg.dbuPauseMs, log)
 
     const vision = geminiProvider(cfg.geminiKey!, cfg.geminiModel)
     const webFolder = getMeta(db, 'drive_web_folder') ?? (await drive.ensureFolder('_web', cfg.folderId!))

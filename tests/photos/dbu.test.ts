@@ -57,3 +57,38 @@ test('resultat og målscorere fra kampsiden (nyeste først på siden)', () => {
   })
   assert.equal(parseResult('<h2>Kampinfo</h2>'), undefined)
 })
+
+test('nye billeder fra en ukendt kamp: netop den kampside hentes', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const path = await import('node:path')
+  const { openPhotoDb } = await import('../../src/lib/photos/db.ts')
+  const { fetchMatchesForQueue } = await import('../../src/lib/photos/dbu.ts')
+  const dir = mkdtempSync(path.join(tmpdir(), 'dbu-'))
+  const db = openPhotoDb(path.join(dir, 'b.db'))
+  const now = new Date().toISOString()
+  db.exec(`INSERT INTO matches (match_key, date, home_id, away_id, source, url, has_lineups, has_events) VALUES
+    ('dbu:1_1', '2026-09-20', 'agf', 'fcm', 'dbu', '/resultater/kamp/1_1/kampinfo', 0, 0),
+    ('dbu:2_1', '2026-09-21', 'agf', 'ob', 'dbu', '/resultater/kamp/2_1/kampinfo', 0, 0)`)
+  db.prepare(`INSERT INTO photos (drive_id, name, path, club_id, opponent_id, match_date, status, created_at) VALUES ('a', 'a', 'p', 'agf', 'fcm', '2026-09-20', 'ny', ?)`).run(now)
+  const urls: string[] = []
+  const real = globalThis.fetch
+  globalThis.fetch = (async (u: string) => {
+    urls.push(String(u))
+    return new Response(`<div class="sr--match--live-score--result--home"><div class="sr--match--live-score--result--scoreboard--content">2</div></div><div class="sr--match--live-score--result--away"><div class="sr--match--live-score--result--scoreboard--content">0</div></div>
+      <h2>Holdopstillinger</h2><table class="dbu-data-table home-team"><thead><tr><th><span>AGF</span></th></tr></thead><tr><td class="shirt-number"><span>9</span></td><td><span>Ni Nisen</span></td></tr></table>`)
+  }) as typeof fetch
+  try {
+    assert.equal(await fetchMatchesForQueue(db, 0), 1)
+  } finally {
+    globalThis.fetch = real
+  }
+  // Kun kampen med nye billeder – ikke den anden
+  assert.deepEqual(urls, ['https://www.dbu.dk/resultater/kamp/1_1/kampinfo'])
+  assert.deepEqual(db.prepare(`SELECT number, name FROM lineups WHERE match_key = 'dbu:1_1'`).all().map((r) => [r.number, r.name]), [[9, 'Ni Nisen']])
+  assert.equal(db.prepare(`SELECT home_score FROM matches WHERE match_key = 'dbu:1_1'`).get()!.home_score, 2)
+  // Hentet for nylig: ikke igen
+  assert.equal(await fetchMatchesForQueue(db, 0), 0)
+  db.close()
+  rmSync(dir, { recursive: true, force: true })
+})

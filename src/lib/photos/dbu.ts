@@ -1,8 +1,8 @@
-import { nowIso, transaction, type Db } from './db.ts'
+import { nowIso, transaction, type Db, type Row } from './db.ts'
 import { squadsFromSheets, type LineupPlayer, type SheetMatch } from './names.ts'
 import { clubKey, clubSlug } from './paths.ts'
 
-// Clubs, kits and team sheets from dbu.dk's public pages (per pool):
+// Clubs, kits, team sheets, results and goals from dbu.dk's public pages (per pool):
 //   /resultater/pulje/<pool>/holdoversigt     clubs, ground, shirt/shorts/socks
 //   /resultater/pulje/<pool>/kampprogramFuld  every match with date and teams
 //   /resultater/kamp/<match>_<pool>/kampinfo  team sheets with shirt numbers
@@ -161,31 +161,7 @@ export async function syncDbu(db: Db, pools: string[], pauseMs: number, log: (s:
         .all(today, `dbu:%_${pool}`, new Date(Date.now() - 12 * 3600_000).toISOString())
       for (const m of due) {
         try {
-          const html = await get(String(m.url))
-          const sheet = parseSheet(html)
-          const result = parseResult(html)
-          transaction(db, () => {
-            db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ?, has_events = ?, home_score = ?, away_score = ? WHERE match_key = ?').run(
-              nowIso(),
-              sheet || m.has_lineups ? 1 : 0,
-              result ? 1 : 0,
-              result?.home ?? null,
-              result?.away ?? null,
-              m.match_key,
-            )
-            if (sheet) {
-              db.prepare('DELETE FROM lineups WHERE match_key = ?').run(m.match_key)
-              const ins = db.prepare('INSERT OR IGNORE INTO lineups (match_key, club_id, number, name, reserve) VALUES (?, ?, ?, ?, ?)')
-              for (const p of sheet.home) ins.run(m.match_key, m.home_id, p.number, p.name, p.reserve ? 1 : 0)
-              for (const p of sheet.away) ins.run(m.match_key, m.away_id, p.number, p.name, p.reserve ? 1 : 0)
-            }
-            if (result) {
-              db.prepare('DELETE FROM goals WHERE match_key = ?').run(m.match_key)
-              const g = db.prepare('INSERT INTO goals (match_key, club_id, minute, name, seq) VALUES (?, ?, ?, ?, ?)')
-              result.goals.forEach((x, i) => g.run(m.match_key, x.side === 'home' ? m.home_id : m.away_id, x.minute, x.name, i))
-            }
-          })
-          if (sheet) res.sheetsFetched++
+          if (await fetchMatch(db, m)) res.sheetsFetched++
         } catch (e) {
           res.errors.push(`${String(m.url)}: ${(e as Error).message}`)
         }
@@ -198,6 +174,63 @@ export async function syncDbu(db: Db, pools: string[], pauseMs: number, log: (s:
   }
   res.squadRows = rebuildDbuSquads(db)
   return res
+}
+
+/** One match page: team sheets, result and goals stored; true when the sheets were there */
+async function fetchMatch(db: Db, m: Row): Promise<boolean> {
+  const html = await get(String(m.url))
+  const sheet = parseSheet(html)
+  const result = parseResult(html)
+  transaction(db, () => {
+    db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ?, has_events = ?, home_score = ?, away_score = ? WHERE match_key = ?').run(
+      nowIso(),
+      sheet || m.has_lineups ? 1 : 0,
+      result ? 1 : 0,
+      result?.home ?? null,
+      result?.away ?? null,
+      m.match_key,
+    )
+    if (sheet) {
+      db.prepare('DELETE FROM lineups WHERE match_key = ?').run(m.match_key)
+      const ins = db.prepare('INSERT OR IGNORE INTO lineups (match_key, club_id, number, name, reserve) VALUES (?, ?, ?, ?, ?)')
+      for (const p of sheet.home) ins.run(m.match_key, m.home_id, p.number, p.name, p.reserve ? 1 : 0)
+      for (const p of sheet.away) ins.run(m.match_key, m.away_id, p.number, p.name, p.reserve ? 1 : 0)
+    }
+    if (result) {
+      db.prepare('DELETE FROM goals WHERE match_key = ?').run(m.match_key)
+      const g = db.prepare('INSERT INTO goals (match_key, club_id, minute, name, seq) VALUES (?, ?, ?, ?, ?)')
+      result.goals.forEach((x, i) => g.run(m.match_key, x.side === 'home' ? m.home_id : m.away_id, x.minute, x.name, i))
+    }
+  })
+  return !!sheet
+}
+
+/**
+ * Between the full fetches: the page of each match that new photos come from, when its
+ * sheet or result is missing (one request per match, at most every 6 hours). Squads are
+ * rebuilt when a sheet arrives.
+ */
+export async function fetchMatchesForQueue(db: Db, pauseMs: number, log: (s: string) => void = () => {}): Promise<number> {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const due = db
+    .prepare(
+      `SELECT DISTINCT m.match_key, m.url, m.home_id, m.away_id, m.has_lineups FROM photos p
+       JOIN matches m ON m.date = p.match_date AND ((m.home_id = p.club_id AND m.away_id = p.opponent_id) OR (m.away_id = p.club_id AND m.home_id = p.opponent_id))
+       WHERE p.status = 'ny' AND m.source = 'dbu' AND (m.has_lineups = 0 OR m.has_events = 0) AND m.date <= ? AND (m.fetched_at IS NULL OR m.fetched_at < ?)`,
+    )
+    .all(today, new Date(Date.now() - 6 * 3600_000).toISOString())
+  let sheets = 0
+  for (const m of due) {
+    try {
+      if (await fetchMatch(db, m)) sheets++
+    } catch (e) {
+      log(`DBU ${String(m.url)}: ${(e as Error).message}`)
+    }
+    await sleep(pauseMs)
+  }
+  if (sheets) rebuildDbuSquads(db)
+  if (due.length) log(`DBU: ${due.length} kampside${due.length === 1 ? '' : 'r'} hentet til nye billeder (${sheets} med holdkort)`)
+  return due.length
 }
 
 function upsertClub(db: Db, c: DbuClub): string {
