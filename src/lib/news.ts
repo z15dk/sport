@@ -67,9 +67,16 @@ const dir = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data')
 const feedsFile = (): string => process.env.NEWS_FEEDS_FILE ?? path.join(dir(), 'news-feeds.json')
 const storeFile = (): string => process.env.NEWS_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'news.json')
 
+// Read again only when the file has changed (this is asked for on every page and merge): the parsed file is kept
+const parsed = new Map<string, { mtime: number; value: unknown }>()
 function readJson<T>(file: string): { mtime: number; value?: T } {
   try {
-    return { mtime: statSync(file).mtimeMs, value: JSON.parse(readFileSync(file, 'utf8')) as T }
+    const mtime = statSync(file).mtimeMs
+    const have = parsed.get(file)
+    if (have?.mtime === mtime) return { mtime, value: have.value as T }
+    const value = JSON.parse(readFileSync(file, 'utf8')) as T
+    parsed.set(file, { mtime, value })
+    return { mtime, value }
   } catch {
     return { mtime: -1 }
   }

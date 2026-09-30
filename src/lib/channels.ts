@@ -39,10 +39,16 @@ const DEFAULT: Config = {
   overrides: {},
 }
 
+// Read again only when the file has changed (this is asked for on every page and merge): the parsed file is kept
+const parsed = new Map<string, { mtime: number; value: unknown }>()
 function readJson<T>(file: string): { mtime: number; value?: T } {
   try {
     const mtime = statSync(file).mtimeMs
-    return { mtime, value: JSON.parse(readFileSync(file, 'utf8')) as T }
+    const have = parsed.get(file)
+    if (have?.mtime === mtime) return { mtime, value: have.value as T }
+    const value = JSON.parse(readFileSync(file, 'utf8')) as T
+    parsed.set(file, { mtime, value })
+    return { mtime, value }
   } catch {
     return { mtime: 0 }
   }
@@ -188,11 +194,19 @@ function tvStore(): TvStore {
 }
 
 let tvRead = { mtime: -1 }
-/** Channels and match -> channel ids from the TV listings, with a version */
-function tvListings(): { version: string; channels: ChannelDef[]; byMatch: Record<string, string[]> } {
+type TvListings = { version: string; channels: ChannelDef[]; byMatch: Record<string, string[]> }
+let tvMemo: { mtime: number; store: TvStore; out: TvListings } | undefined
+/** Channels and match -> channel ids from the TV listings, with a version (worked out again only when they change) */
+function tvListings(): TvListings {
   const read = readJson<TvStore>(tvFile())
   if (read.mtime !== tvRead.mtime && read.value) holder.__scorelineTv = read.value
   tvRead = { mtime: read.mtime }
+  if (tvMemo && tvMemo.mtime === read.mtime && tvMemo.store === tvStore()) return tvMemo.out
+  const out = tvListingsNow()
+  tvMemo = { mtime: read.mtime, store: tvStore(), out }
+  return out
+}
+function tvListingsNow(): TvListings {
   const channels = new Map<string, ChannelDef>()
   const byMatch: Record<string, string[]> = {}
   for (const [date, day] of Object.entries(tvStore().days)) {
@@ -208,7 +222,7 @@ function tvListings(): { version: string; channels: ChannelDef[]; byMatch: Recor
       if (home && away) add(gameKey(`${date}T12:00:00Z`, home, away))
     }
   }
-  return { version: String(Math.round(read.mtime)), channels: [...channels.values()], byMatch }
+  return { version: String(Math.round(tvRead.mtime)), channels: [...channels.values()], byMatch }
 }
 
 async function fetchTv() {

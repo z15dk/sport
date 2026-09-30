@@ -1,4 +1,5 @@
 import 'server-only'
+import { runsJobs } from './role'
 import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -389,6 +390,8 @@ function load() {
 }
 
 function save() {
+  // Only the process running the jobs writes the file (the site process of a split server only reads it)
+  if (!runsJobs()) return
   try {
     mkdirSync(path.dirname(file()), { recursive: true })
     timed('apisports.json gemmes', () => writeFileSync(`${file()}.tmp`, JSON.stringify(mem.store)))

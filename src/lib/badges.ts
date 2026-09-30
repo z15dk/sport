@@ -1,6 +1,7 @@
 import 'server-only'
+import { runsJobs } from './role'
 import { proxyImage } from './imageProxy'
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, allClubs } from '../data/leagues'
 import { slugify } from './slug'
@@ -91,6 +92,9 @@ function cacheFile() {
 const state: {
   cache: CacheFile
   loaded: boolean
+  /** The site process of a split server: when the file was last looked at, and its time */
+  checkedAt?: number
+  mtime?: number
   running: boolean
   lastRun?: number
   lastError?: string
@@ -99,7 +103,18 @@ const state: {
 } = { cache: { entries: {} }, loaded: false, running: false, failed: false }
 
 function load() {
-  if (state.loaded) return
+  if (state.loaded) {
+    // The site process of a split server reads the logos the background process finds (looked at every 30 seconds)
+    if (runsJobs() || Date.now() - (state.checkedAt ?? 0) < 30_000) return
+    state.checkedAt = Date.now()
+    try {
+      const mtime = statSync(cacheFile()).mtimeMs
+      if (mtime === state.mtime) return
+      state.mtime = mtime
+    } catch {
+      return
+    }
+  }
   state.loaded = true
   try {
     state.cache = JSON.parse(readFileSync(cacheFile(), 'utf8')) as CacheFile

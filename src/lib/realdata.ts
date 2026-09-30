@@ -1,5 +1,6 @@
 import 'server-only'
 import { timed } from './slow'
+import { role } from './role'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, seasonOf, sportOf, type Division } from '../data/leagues'
@@ -366,6 +367,11 @@ let fileMtime = 0
 
 /** Reads the cache file (and the match database) when they have changed; checked at most every 15 seconds */
 function loadFromDisk() {
+  // The site process of a split server reads what the background process merged (it merges nothing itself)
+  if (role() === 'web' && loadFromSnapshot()) return
+  loadMerged()
+}
+function loadMerged() {
   const now = Date.now()
   if (now - readAt < 15_000) return
   readAt = now
@@ -403,6 +409,78 @@ function publish(leagues: Record<string, RealEvent[]>, checked = base()?.checked
 }
 
 setRealDataLoader(loadFromDisk)
+
+// ---------------------------------------------------------------- the merged data between the two processes
+// With the jobs in a process of their own (src/lib/role.ts) the background
+// process writes the merged data to two files: our leagues' season (changes
+// seldom, many MB) and the rest (the day's games, names, channels, settings –
+// changes with every live score). The site process reads them when they change.
+
+const snapshotFile = (part: 'season' | 'live') => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', `merged-${part}.json`)
+const written = { version: '', leagues: undefined as unknown, seq: 0 }
+
+/** Background process: writes the merged data when it has changed (checked every three seconds) */
+export function startSnapshotWriter() {
+  const write = (part: 'season' | 'live', value: unknown) => {
+    const f = snapshotFile(part)
+    mkdirSync(path.dirname(f), { recursive: true })
+    writeFileSync(`${f}.tmp`, JSON.stringify(value))
+    renameSync(`${f}.tmp`, f)
+  }
+  const tick = () => {
+    try {
+      loadFromDisk()
+      const d = getRealData()
+      if (!d || d.version === written.version) return
+      // The season first, so the rest never points at a season not yet written
+      if (d.leagues !== written.leagues) {
+        written.seq = written.seq ? written.seq + 1 : Date.now()
+        write('season', { seq: written.seq, leagues: d.leagues })
+        written.leagues = d.leagues
+      }
+      write('live', { seasonSeq: written.seq, data: { ...d, leagues: undefined } })
+      written.version = d.version
+    } catch {
+      // Tried again in three seconds
+    }
+  }
+  tick()
+  setInterval(tick, 3_000).unref()
+}
+
+const snap = { readAt: 0, liveMtime: 0, seasonSeq: -1, leagues: {} as RealData['leagues'] }
+/**
+ * Site process: the merged data from the background process, read when its
+ * files change (looked at every two seconds). False while there are none yet
+ * (the background process's very first start): the site then merges itself.
+ */
+function loadFromSnapshot(): boolean {
+  const now = Date.now()
+  if (now - snap.readAt < 2_000) return snap.liveMtime > 0
+  snap.readAt = now
+  let mtime: number
+  try {
+    mtime = statSync(snapshotFile('live')).mtimeMs
+  } catch {
+    return false
+  }
+  try {
+    if (mtime === snap.liveMtime) return true
+    const live = timed('Data læses fra baggrundsprocessen', () => JSON.parse(readFileSync(snapshotFile('live'), 'utf8'))) as { seasonSeq: number; data: RealData }
+    if (live.seasonSeq !== snap.seasonSeq) {
+      const season = timed('Sæsonen læses fra baggrundsprocessen', () => JSON.parse(readFileSync(snapshotFile('season'), 'utf8'))) as { seq: number; leagues: RealData['leagues'] }
+      // Written in between: read both again in a moment
+      if (season.seq !== live.seasonSeq) return snap.liveMtime > 0
+      snap.leagues = season.leagues
+      snap.seasonSeq = season.seq
+    }
+    snap.liveMtime = mtime
+    setRealData({ ...live.data, leagues: snap.leagues })
+  } catch {
+    // Being written: tried again in two seconds
+  }
+  return snap.liveMtime > 0
+}
 
 // ---------------------------------------------------------------- TheSportsDB
 
@@ -668,6 +746,17 @@ export function refreshRealData() {
 export function loadRealData(): RealData | undefined {
   loadFromDisk()
   return getRealData()
+}
+
+/** The fetching job's own state (for the split server's status file, src/lib/workerStatus.ts) */
+export function realDataJobStatus() {
+  return {
+    running: state.running,
+    lastFull: state.lastFull ? new Date(state.lastFull).toISOString() : null,
+    lastHot: state.lastHot ? new Date(state.lastHot).toISOString() : null,
+    requests: state.requests,
+    lastError: state.lastError ?? null,
+  }
 }
 
 /** Numbers for the status page */

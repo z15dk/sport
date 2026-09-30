@@ -7,7 +7,23 @@ export async function register() {
   guardProcess()
   const { startLagMonitor } = await import('./lib/slow')
   startLagMonitor()
-  const [{ startIndexNow }, { startLogoSync }, { startRealDataSync }] = await Promise.all([
+  // SCORELINE_WORKER=on: the jobs run in a process of their own (src/lib/role.ts, src/lib/worker.ts); this one only serves pages
+  if (process.env.SCORELINE_WORKER === 'on' && process.env.SCORELINE_ROLE !== 'worker') {
+    process.env.SCORELINE_ROLE = 'web'
+    const { startWorker } = await import('./lib/worker')
+    startWorker()
+    // What every page needs, built before the first visitor (the data, the history, the season)
+    try {
+      const [{ loadRealData }, { warmHistory }, { seasonClubs }] = await Promise.all([import('./lib/realdata'), import('./lib/history'), import('./data/season')])
+      loadRealData()
+      warmHistory()
+      seasonClubs()
+    } catch {
+      // Built by the first page instead
+    }
+    return
+  }
+  const [{ startIndexNow }, { startLogoSync }, { startRealDataSync, startSnapshotWriter }] = await Promise.all([
     import('./lib/indexnow'),
     import('./lib/badges'),
     import('./lib/realdata'),
@@ -33,4 +49,10 @@ export async function register() {
   // Social media posts (does nothing until it is switched on in /admin/sociale)
   const { startSocialEngine } = await import('./lib/socialEngine')
   startSocialEngine()
+  // The background process: the merged data and its own status for the site process
+  if (process.env.SCORELINE_ROLE === 'worker') {
+    startSnapshotWriter()
+    const [{ startWorkerStatus }, { realDataJobStatus }, { archiveJobStatus }] = await Promise.all([import('./lib/workerStatus'), import('./lib/realdata'), import('./lib/archive')])
+    startWorkerStatus(() => ({ realData: realDataJobStatus(), archive: archiveJobStatus() }))
+  }
 }

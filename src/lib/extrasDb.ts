@@ -65,8 +65,10 @@ export function kvStore<E extends { fetchedAt: number }>(file: string, legacyJso
       cache.delete(oldest)
     }
   }
+  // Read from disk again after half a minute: another process (the split server's background process) may have written it
+  const readAt = new Map<string, number>()
   const read = (key: string): E | undefined => {
-    if (cache.has(key)) {
+    if (cache.has(key) && (dirty.has(key) || Date.now() - (readAt.get(key) ?? 0) < 30_000)) {
       const e = cache.get(key)!
       remember(key, e)
       return e ?? undefined
@@ -79,6 +81,8 @@ export function kvStore<E extends { fetchedAt: number }>(file: string, legacyJso
       e = null
     }
     remember(key, e)
+    readAt.set(key, Date.now())
+    if (readAt.size > CACHE * 4) for (const k of readAt.keys()) if (!cache.has(k)) readAt.delete(k)
     return e ?? undefined
   }
 

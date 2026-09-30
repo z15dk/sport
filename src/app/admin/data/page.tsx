@@ -10,6 +10,8 @@ import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
 import { slowStatus } from '../../../lib/slow'
+import { role } from '../../../lib/role'
+import { workerStatus } from '../../../lib/workerStatus'
 import { archiveFile } from '../../../lib/archive'
 import { DIVISIONS, allClubs, sportOf } from '../../../data/leagues'
 import { clubAliasList } from '../../../lib/clubAliases'
@@ -91,9 +93,11 @@ function Bars({ values, labels, unit, limit }: { values: number[]; labels: strin
 
 export default async function DataStatusPage() {
   if (!(await isAdmin())) redirect('/admin')
-  const s = realDataStatus()
+  // A split server (src/lib/role.ts): the jobs' own state comes from the background process's status file
+  const worker = role() === 'web' ? workerStatus() : undefined
+  const s = { ...realDataStatus(), ...(worker?.realData ?? {}) }
   const h = historyStatus()
-  const a = archiveStatus()
+  const a = { ...archiveStatus(), ...(worker?.archive ?? {}) }
   const pg = playerGamesStatus()
   const apis = apiSportsStatus()
   const danish = tsdbDanishLeagues()
@@ -152,7 +156,12 @@ export default async function DataStatusPage() {
             sub={slow.minutes ? `længste ventetid, sidste 15 min. · ${slow.stalls} min. over 1 sek. (3 t.)` : 'fra serverstart'}
             level={lastHour >= 3000 ? 'bad' : lastHour >= 1000 ? 'warn' : 'ok'}
           />
-          <Tile label="Hukommelse" value={`${num(mem.rss)} MB`} sub={`JavaScript ${num(mem.heap)} MB`} level={mem.rss > 1500 ? 'bad' : mem.rss > 900 ? 'warn' : 'ok'} />
+          <Tile
+            label="Hukommelse"
+            value={`${num(mem.rss + (worker?.rss ?? 0))} MB`}
+            sub={worker ? `siden ${num(mem.rss)} MB · baggrund ${num(worker.rss)} MB` : `JavaScript ${num(mem.heap)} MB`}
+            level={mem.rss + (worker?.rss ?? 0) > 1800 ? 'bad' : mem.rss + (worker?.rss ?? 0) > 1100 ? 'warn' : 'ok'}
+          />
           <Tile
             label="Fodbold-kald tilbage"
             value={football?.hasKey ? `${num(fbLeft)}${football.limit ? ` / ${num(football.limit)}` : ''}` : 'ingen nøgle'}
@@ -214,6 +223,34 @@ export default async function DataStatusPage() {
             </table>
           </section>
 
+          {role() === 'web' && (
+            <section className="panel dash-card">
+              <h2 className="panel__title">Baggrundsprocessen</h2>
+              {!worker ? (
+                <p className="is-bad small">Har ikke skrevet endnu – den starter (eller kan ikke starte).</p>
+              ) : (
+                <>
+                  <p className={`small${worker.stale ? ' is-bad' : ''}`}>
+                    {worker.stale ? 'Svarer ikke: sidst hørt fra ' : 'Kører · sidst hørt fra '}
+                    {clock(worker.at)} · startet {clock(worker.startedAt)} · {num(worker.rss)} MB · længste ventetid sidste 15 min.{' '}
+                    {num(worker.slow.recent.length ? Math.max(...worker.slow.recent.map((m) => m.max)) : 0)} ms (det mærker siden ikke)
+                  </p>
+                  <table className="dash-table">
+                    <tbody>
+                      {worker.slow.tasks.slice(0, 6).map((x) => (
+                        <tr key={x.label}>
+                          <td>{x.label}</td>
+                          <td>{num(x.max)} ms</td>
+                          <td>{x.count}</td>
+                          <td>{clock(x.last)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </section>
+          )}
           <section className="panel dash-card">
             <h2 className="panel__title">Filer og kilder</h2>
             <table className="dash-table">

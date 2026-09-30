@@ -81,7 +81,7 @@ interface Db {
 
 // On globalThis: the background jobs (started from instrumentation) and the pages load separate copies of this module, and the data is big
 const historyHolder = globalThis as typeof globalThis & {
-  __scorelineHistory?: { loaded?: Loaded; checkedAt: number; lastError?: string }
+  __scorelineHistory?: { loaded?: Loaded; checkedAt: number; lastError?: string; building?: boolean; lastBuildMs?: number }
   __scorelineHistoryDb?: { dbTime: number; rows: DbMatch[] }
   __scorelineHistoryRows?: WeakMap<ArchivedMatch, DbMatch>
   __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] }
@@ -180,17 +180,29 @@ function dbRows(file: string | undefined): DbMatch[] {
   return out
 }
 
-function read(file: string | undefined, mtime: number): Loaded {
+/**
+ * The history built from both databases, step by step: it pauses (yield)
+ * every couple of thousand matches, so a rebuild can run in small slices while
+ * pages keep using the history already built (runSliced); the very first build
+ * runs in one go (runNow).
+ */
+function* readSteps(file: string | undefined, mtime: number): Generator<void, Loaded> {
+  let n = 0
   const fromDb = dbRows(file)
 
   // Our own statistics bank: every other league, and anything football.db no longer has
-  const seen = new Set(fromDb.map((m) => matchKey(m.date.toISOString(), m.homeName, m.awayName)))
+  const seen = new Set<string>()
+  for (const m of fromDb) {
+    seen.add(matchKey(m.date.toISOString(), m.homeName, m.awayName))
+    if (++n % 2000 === 0) yield
+  }
   // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
   const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
   // The same archive row gives the same match object each time (the archive keeps its rows between reads)
   const made = (historyHolder.__scorelineHistoryRows ??= new WeakMap())
   const fromArchive: DbMatch[] = []
   for (const a of readArchive()) {
+    if (++n % 2000 === 0) yield
     if (seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName))) continue
     const have = made.get(a)
     if (have) {
@@ -221,6 +233,7 @@ function read(file: string | undefined, mtime: number): Loaded {
     fromArchive.push(m)
   }
   const matches = [...fromDb, ...fromArchive].sort((a, b) => b.date.getTime() - a.date.getTime())
+  yield
 
   // Newest name per team id (clubs get renamed), then matched to our register
   const names = new Map<number, { name: string; sport: SportId }>()
@@ -233,12 +246,14 @@ function read(file: string | undefined, mtime: number): Loaded {
   const clubOf = new Map<number, Club>()
   const unmatched: string[] = []
   for (const [id, { name, sport }] of names) {
+    if (++n % 500 === 0) yield
     const club = find(name, sport)
     if (club) clubOf.set(id, club)
     else unmatched.push(name)
   }
   const byClub = new Map<string, DbMatch[]>()
   for (const m of matches) {
+    if (++n % 5000 === 0) yield
     const clubs = new Set([clubOf.get(m.homeId)?.id, clubOf.get(m.awayId)?.id])
     for (const id of clubs) {
       if (!id) continue
@@ -247,6 +262,37 @@ function read(file: string | undefined, mtime: number): Loaded {
     }
   }
   return { mtime, matches, clubOf, byClub, unmatched: unmatched.sort((a, b) => a.localeCompare(b, 'da')) }
+}
+
+/** Runs the steps in one go */
+function runNow<T>(steps: Generator<void, T>): T {
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/** Runs the steps a few milliseconds at a time, letting pages be served in between; `done` gets the result */
+function runSliced<T>(steps: Generator<void, T>, done: (value: T) => void, fail: (err: unknown) => void) {
+  const slice = () => {
+    try {
+      const end = performance.now() + 12
+      for (;;) {
+        const r = steps.next()
+        if (r.done) return done(r.value)
+        if (performance.now() > end) break
+      }
+      setImmediate(slice)
+    } catch (err) {
+      fail(err)
+    }
+  }
+  setImmediate(slice)
+}
+
+/** Builds the history now (the site process before it takes visitors, so no visitor waits for the first build) */
+export function warmHistory() {
+  data()
 }
 
 /** After names are added in the admin pages: every team name is looked up again, and the data rebuilt */
@@ -274,7 +320,26 @@ function data(): Loaded | undefined {
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
     const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 60 * 60_000)
-    if (stale) hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => read(hasDb ? file : undefined, mtime)), dbTime, readAt: now }
+    if (stale && !hist.loaded) {
+      // The first build: in one go
+      hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => runNow(readSteps(hasDb ? file : undefined, mtime))), dbTime, readAt: now }
+    } else if (stale && !hist.building) {
+      // A rebuild: in small slices while pages keep the history they have
+      hist.building = true
+      const began = Date.now()
+      runSliced(
+        readSteps(hasDb ? file : undefined, mtime),
+        (built) => {
+          hist.loaded = { ...built, dbTime, readAt: Date.now() }
+          hist.building = false
+          hist.lastBuildMs = Date.now() - began
+        },
+        (err) => {
+          hist.building = false
+          hist.lastError = (err as Error).message
+        },
+      )
+    }
     hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
     hist.lastError = (err as Error).message

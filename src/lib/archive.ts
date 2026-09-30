@@ -389,6 +389,9 @@ export function archiveIncidents(ids: string[]): Map<string, import('../types').
   return out
 }
 
+/** The saving job's own state (for the split server's status file, src/lib/workerStatus.ts) */
+export const archiveJobStatus = () => ({ lastRun: state.lastRun ?? null, lastError: state.lastError ?? null })
+
 /** The statistics bank's numbers for /admin/data; counting a big archive takes seconds, so it is kept ten minutes */
 export function archiveStatus() {
   const holder = globalThis as typeof globalThis & { __scorelineArchiveStatus?: { at: number; value: ReturnType<typeof archiveStatusNow> } }

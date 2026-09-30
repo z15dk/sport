@@ -42,6 +42,12 @@ function saveSoon() {
     r.dirty = false
     try {
       mkdirSync(dir(), { recursive: true })
+      // With the jobs in a process of their own both processes add pictures: what the other wrote is kept
+      try {
+        for (const [id, url] of Object.entries(JSON.parse(readFileSync(indexFile(), 'utf8')) as Record<string, string>)) if (!r.byId.has(id)) r.byId.set(id, url)
+      } catch {
+        // First picture
+      }
       writeFileSync(`${indexFile()}.tmp`, JSON.stringify(Object.fromEntries(r.byId)))
       renameSync(`${indexFile()}.tmp`, indexFile())
     } catch {
@@ -62,6 +68,7 @@ const allowed = (url: string) => {
 
 /** A source's picture address as our own ("/billede/<id>"); other addresses are left as they are */
 const idOf = new Map<string, string>()
+let reread = 0
 export function proxyImage(url: string): string
 export function proxyImage(url: string | undefined): string | undefined
 export function proxyImage(url: string | undefined): string | undefined {
@@ -91,6 +98,15 @@ async function original(id: string): Promise<Buffer | undefined> {
     return readFileSync(file)
   } catch {
     // Not fetched yet
+  }
+  // A picture the other process registered (split server): the index file read again, at most every five seconds
+  if (!registry().byId.has(id) && Date.now() - reread > 5_000) {
+    reread = Date.now()
+    try {
+      for (const [k, v] of Object.entries(JSON.parse(readFileSync(indexFile(), 'utf8')) as Record<string, string>)) if (!registry().byId.has(k)) registry().byId.set(k, v)
+    } catch {
+      // No index yet
+    }
   }
   const url = registry().byId.get(id)
   if (!url || !allowed(url)) return undefined
