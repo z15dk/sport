@@ -2164,3 +2164,8 @@ a.player-games__match:hover { text-decoration: underline; }
 
 .bracket__lines { position: absolute; left: -28px; top: 0; width: 28px; height: 100%; overflow: visible; fill: none; stroke: var(--line, #d9dcd3); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .bracket__lines path { vector-effect: non-scaling-stroke; }
+
+/* Two panels side by side on wide screens (a tournament's coming matches and its table) */
+.pair-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1000px) { .pair-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pair-2 > .league, .pair-2 > .panel { margin: 0; min-width: 0; }

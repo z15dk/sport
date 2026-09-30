@@ -59,72 +59,8 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
   const hasDraws = rows.some((r) => r.drawn !== undefined)
   const hasScore = rows.some((r) => r.for !== undefined)
   const leader = groups[0]?.[0]
-  return (
-    <div className="page">
-      <JsonLd
-        data={{
-          '@context': 'https://schema.org',
-          '@type': 'SportsOrganization',
-          name: league.name,
-          sport,
-          url: `${SITE_URL}${path}`,
-          ...(league.logo && { logo: absoluteImage(league.logo) }),
-        }}
-      />
-      <JsonLd data={webPageLd(path, league.name, new Date(now))} />
-      <JsonLd data={breadcrumbLd([{ name: 'Kampe', path: '/' }, { name: league.name, path }])} />
-      <div className="clubs">
-        <div className="clubs__head">
-          <h1 className="feed__title league-title">
-            <span className="league-title__row">
-              <TeamBadge link={false} name={league.name} src={league.logo} colors={['#0f110c', '#c6f135']} size={56} />
-              {league.name}
-            </span>
-            <span>
-              {sport} · {danishCountry(league.country)}
-            </span>
-          </h1>
-        </div>
-        {rounds && (
-          <p className="lead">
-            {rounds.length
-              ? `${league.name}: ${rounds.reduce((n, r) => n + r.matches.length, 0)} kampe spillet, senest ${rounds[0].name.toLowerCase()}.`
-              : `${league.name}: resultater og kommende kampe.`}
-            {upcoming[0] && ` Næste kamp: ${upcoming[0].home.name} – ${upcoming[0].away.name}.`}
-          </p>
-        )}
-        {!rounds && leader && (
-          <p className="lead">
-            {leader.name} fører {league.name} efter {leader.played} kampe
-            {hasPoints ? ` med ${leader.points} point` : ` med ${leader.won} sejre`}.
-          </p>
-        )}
-        <Updated at={now} />
-        <CalendarButton kind="turnering" slug={league.key} name={league.name} />
-        <LiveNow matches={upcoming} />
-
-        {bracket && <KnockoutBracket rounds={bracket} />}
-        {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
-        {rounds?.map((r) => (
-          <section key={r.name} className="league">
-            <header className="league__header">
-              <div className="league__toggle">
-                <span className="league__titles">
-                  <h2 className="league__name">{r.name}</h2>
-                </span>
-              </div>
-            </header>
-            <ul className="league__matches">
-              {r.matches.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
-          </section>
-        ))}
-        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
-        {(!rounds || rows.length > 1) && (
-          <div className={leaders ? 'table-duo' : 'table-solo'}>
-          <div className="table-duo__main">
+  const showTable = !rounds || rows.length > 1
+  const tableSection = (
           <section className="panel table-panel">
             <header className="table-panel__head">
               <h2 className="panel__title">Stilling</h2>
@@ -189,14 +125,95 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                   : `Beregnet af Matchly ud fra de ${matches ?? 0} kampe, vi har gemt${since ? ` siden ${formatShortYear(since)}` : ''} (3 point for sejr).`}
             </p>
           </section>
-          <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
-          </div>
-          {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-          </div>
+  )
+  return (
+    <div className="page">
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'SportsOrganization',
+          name: league.name,
+          sport,
+          url: `${SITE_URL}${path}`,
+          ...(league.logo && { logo: absoluteImage(league.logo) }),
+        }}
+      />
+      <JsonLd data={webPageLd(path, league.name, new Date(now))} />
+      <JsonLd data={breadcrumbLd([{ name: 'Kampe', path: '/' }, { name: league.name, path }])} />
+      <div className="clubs">
+        <div className="clubs__head">
+          <h1 className="feed__title league-title">
+            <span className="league-title__row">
+              <TeamBadge link={false} name={league.name} src={league.logo} colors={['#0f110c', '#c6f135']} size={56} />
+              {league.name}
+            </span>
+            <span>
+              {sport} · {danishCountry(league.country)}
+            </span>
+          </h1>
+        </div>
+        {rounds && (
+          <p className="lead">
+            {rounds.length
+              ? `${league.name}: ${rounds.reduce((n, r) => n + r.matches.length, 0)} kampe spillet, senest ${rounds[0].name.toLowerCase()}.`
+              : `${league.name}: resultater og kommende kampe.`}
+            {upcoming[0] && ` Næste kamp: ${upcoming[0].home.name} – ${upcoming[0].away.name}.`}
+          </p>
         )}
-        {rounds && rows.length <= 1 && leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-        {rounds && rows.length <= 1 && <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />}
-        {!rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
+        {!rounds && leader && (
+          <p className="lead">
+            {leader.name} fører {league.name} efter {leader.played} kampe
+            {hasPoints ? ` med ${leader.points} point` : ` med ${leader.won} sejre`}.
+          </p>
+        )}
+        <Updated at={now} />
+        <CalendarButton kind="turnering" slug={league.key} name={league.name} />
+        <LiveNow matches={upcoming} />
+
+        {bracket && <KnockoutBracket rounds={bracket} />}
+        {/* The coming matches and the table side by side, the rest under them */}
+        {showTable && upcoming.length > 0 ? (
+          <div className="pair-2">
+            <Upcoming upcoming={upcoming} />
+            {tableSection}
+          </div>
+        ) : (
+          <>
+            {upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
+            {showTable && tableSection}
+          </>
+        )}
+        {rounds?.map((r) => (
+          <section key={r.name} className="league">
+            <header className="league__header">
+              <div className="league__toggle">
+                <span className="league__titles">
+                  <h2 className="league__name">{r.name}</h2>
+                </span>
+              </div>
+            </header>
+            <ul className="league__matches">
+              {r.matches.map((m) => (
+                <MatchRow key={m.id} match={m} showDate />
+              ))}
+            </ul>
+          </section>
+        ))}
+        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
+        {/* Stats and players after the coming matches, the table and the rounds */}
+        {showTable && stats && leaders ? (
+          <div className="table-duo">
+            <div className="table-duo__main">
+              <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
+            </div>
+            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          </div>
+        ) : (
+          <>
+            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+            <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
+          </>
+        )}
 
         {news}
         <AdSlot placement="feed" />
