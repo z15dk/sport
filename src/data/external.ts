@@ -73,6 +73,10 @@ export function danishRound(round?: string | number): string | undefined {
   if (/^finals?$/.test(lower)) return 'Finale'
   if (/preliminary/.test(lower)) return 'Indledende runde'
   const n = /(\d+)(?:st|nd|rd|th)?\s*round|round\s*(\d+)/.exec(lower)
+  // "Qualifying Round 1", "2nd Qualifying Round": the qualifying rounds before the tournament proper
+  if (n && /qualif/.test(lower)) return `Kvalifikation, ${n[1] ?? n[2]}. runde`
+  if (/qualif/.test(lower) && /play-?off/.test(lower)) return 'Kvalifikation, playoff'
+  if (/^play-?offs?$/.test(lower)) return 'Playoff'
   if (n) return `${n[1] ?? n[2]}. runde`
   if (/qualif/.test(lower)) return 'Kvalifikation'
   return r

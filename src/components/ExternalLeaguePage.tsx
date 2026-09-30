@@ -10,6 +10,8 @@ import { LiveNow } from './LiveNow'
 import { Updated } from './Updated'
 import { CalendarButton } from './CalendarButton'
 import { LeagueLeaders } from './LeagueLeaders'
+import { KnockoutBracket } from './KnockoutBracket'
+import type { BracketRound } from '../lib/bracket'
 import { LeagueStats } from './LeagueStats'
 import type { LeagueStats as LeagueStatsData } from '../data/stats'
 import type { Leaders } from '../data/matchExtra'
@@ -38,6 +40,8 @@ interface Props {
   now: number
   /** The starting table our own table builds on, when there is one */
   baseline?: Baseline
+  /** A knock-out tournament's bracket (shown instead of a table) */
+  bracket?: BracketRound[]
   /** A cup: its played rounds, newest first (shown instead of a table) */
   rounds?: { name: string; matches: Match[] }[]
   /** Top scorers, assists and cards */
@@ -47,7 +51,7 @@ interface Props {
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, leaders, stats, news }: Props) {
+export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, bracket, leaders, stats, news }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -99,6 +103,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         <CalendarButton kind="turnering" slug={league.key} name={league.name} />
         <LiveNow matches={upcoming} />
 
+        {bracket && <KnockoutBracket rounds={bracket} />}
         {rounds && upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
         {rounds?.map((r) => (
           <section key={r.name} className="league">

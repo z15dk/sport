@@ -2144,3 +2144,20 @@ a.player-games__match:hover { text-decoration: underline; }
 .dash-unknown .pill { padding: 3px 12px; font-size: 12px; }
 .dash-alias { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; }
 .dash-periods { margin: 0 18px 8px; }
+
+/* Knock-out tournaments: the rounds side by side (scrolls sideways on phones) */
+.bracket__scroll { overflow-x: auto; padding: 4px 16px 16px; scrollbar-width: thin; }
+.bracket__rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 14px; align-items: start; }
+.bracket__round { min-width: 0; }
+.bracket__name { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--ink-3); text-align: center; }
+.bracket { --tie-h: 82px; }
+.bracket__ties { position: relative; list-style: none; margin: 0; padding: 0; }
+.bracket__tie { position: absolute; left: 0; right: 0; height: calc(var(--tie-h) - 10px); }
+.bracket__tie > a, .bracket__tie > div { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 12px; background: var(--surface-2); color: var(--ink); }
+.bracket__tie > a:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.bracket__team { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; font-weight: 600; }
+.bracket__teamname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracket__team b { font-variant-numeric: tabular-nums; min-width: 14px; text-align: right; }
+.bracket__team.is-out { color: var(--ink-3); }
+.bracket__team.is-winner b { color: var(--lime-deep); }
+.bracket__legs { position: absolute; right: 10px; bottom: -7px; font-size: 10px; font-weight: 700; color: var(--ink-3); background: var(--surface); padding: 0 6px; border-radius: 999px; }
