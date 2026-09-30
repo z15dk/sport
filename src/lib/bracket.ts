@@ -28,6 +28,8 @@ export interface BracketTie {
   key: string
   /** Its place in the column, in tie heights from the top: midway between the ties its teams came from */
   pos: number
+  /** The places of the ties its teams came from in the round before (for the lines between them) */
+  from: number[]
   teams: [BracketTeam, BracketTeam]
   /** 0 or 1 when the tie is decided on goals over its legs */
   winner?: 0 | 1
@@ -53,6 +55,8 @@ export function isKnockout(rounds: (string | undefined)[]): boolean {
 }
 
 const key = (name: string) => normalize(name) || name.toLowerCase()
+/** A women's team without the " W" every team in a women's tournament has */
+const shown = (name: string) => name.replace(/\s+(w|women)$/i, '').trim() || name
 
 export function buildBracket(games: BracketGame[]): BracketRound[] {
   // By round, rounds in the order they were played
@@ -69,7 +73,7 @@ export function buildBracket(games: BracketGame[]): BracketRound[] {
       const pair = [key(g.home.name), key(g.away.name)].sort().join('|')
       let tie = ties.get(pair)
       if (!tie) {
-        tie = { key: pair, pos: 0, teams: [{ name: g.home.name, logo: g.home.logo }, { name: g.away.name, logo: g.away.logo }], legs: [] }
+        tie = { key: pair, pos: 0, from: [], teams: [{ name: shown(g.home.name), logo: g.home.logo }, { name: shown(g.away.name), logo: g.away.logo }], legs: [] }
         ties.set(pair, tie)
       }
       tie.legs.push({ slug: g.slug, date: g.date, finished: g.finished })
@@ -78,7 +82,7 @@ export function buildBracket(games: BracketGame[]): BracketRound[] {
         [g.home, g.homeScore],
         [g.away, g.awayScore],
       ] as const) {
-        const t = tie.teams.find((x) => key(x.name) === key(side.name))!
+        const t = tie.teams.find((x) => key(x.name) === key(shown(side.name)))!
         t.goals = (t.goals ?? 0) + goals
         t.logo ??= side.logo
       }
@@ -107,6 +111,7 @@ export function buildBracket(games: BracketGame[]): BracketRound[] {
     const wanted = rounds[i].ties.map((tie) => {
       const names = tie.teams.map((t) => key(t.name))
       const from = prev.filter((p) => p.teams.some((t) => names.includes(key(t.name))))
+      tie.from = from.map((p) => p.pos)
       return { tie, at: from.length ? from.reduce((n, p) => n + p.pos, 0) / from.length : undefined }
     })
     const taken: number[] = []

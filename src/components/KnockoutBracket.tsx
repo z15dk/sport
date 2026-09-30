@@ -21,6 +21,18 @@ export function KnockoutBracket({ rounds }: { rounds: BracketRound[] }) {
             <div key={r.name} className="bracket__round">
               <h3 className="bracket__name">{r.name}</h3>
               <ol className="bracket__ties" style={{ height: `calc(${rows} * var(--tie-h))` }}>
+                {/* Lines from the ties the teams came from to the tie they met in */}
+                {r.ties.some((t) => t.from.length) && (
+                  <svg className="bracket__lines" viewBox={`0 0 28 ${rows * 82}`} preserveAspectRatio="none" aria-hidden>
+                    {r.ties.flatMap((t) =>
+                      t.from.map((f) => {
+                        const y1 = f * 82 + 36
+                        const y2 = t.pos * 82 + 36
+                        return <path key={`${t.key}-${f}`} d={`M0 ${y1} H14 V${y2} H28`} />
+                      }),
+                    )}
+                  </svg>
+                )}
                 {r.ties.map((tie) => {
                   const link = tie.legs.find((l) => l.slug)?.slug
                   const body = tie.teams.map((t, i) => (

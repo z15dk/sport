@@ -2147,9 +2147,9 @@ a.player-games__match:hover { text-decoration: underline; }
 
 /* Knock-out tournaments: the rounds side by side (scrolls sideways on phones) */
 .bracket__scroll { overflow-x: auto; padding: 4px 16px 16px; scrollbar-width: thin; }
-.bracket__rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 14px; align-items: start; }
+.bracket__rounds { display: grid; grid-auto-flow: column; grid-auto-columns: 250px; column-gap: 28px; align-items: start; justify-content: start; }
 .bracket__round { min-width: 0; }
-.bracket__name { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--ink-3); text-align: center; }
+.bracket__name { margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: var(--ink-3); text-align: center; }
 .bracket { --tie-h: 82px; }
 .bracket__ties { position: relative; list-style: none; margin: 0; padding: 0; }
 .bracket__tie { position: absolute; left: 0; right: 0; height: calc(var(--tie-h) - 10px); }
@@ -2161,3 +2161,6 @@ a.player-games__match:hover { text-decoration: underline; }
 .bracket__team.is-out { color: var(--ink-3); }
 .bracket__team.is-winner b { color: var(--lime-deep); }
 .bracket__legs { position: absolute; right: 10px; bottom: -7px; font-size: 10px; font-weight: 700; color: var(--ink-3); background: var(--surface); padding: 0 6px; border-radius: 999px; }
+
+.bracket__lines { position: absolute; left: -28px; top: 0; width: 28px; height: 100%; overflow: visible; fill: none; stroke: var(--line, #d9dcd3); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.bracket__lines path { vector-effect: non-scaling-stroke; }
