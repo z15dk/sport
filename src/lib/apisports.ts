@@ -608,8 +608,20 @@ export const errorPause = (error: string | undefined) => (error && TRANSIENT.tes
 const pausedByError = (s: ApiState, api: Api, now: number) =>
   !!s.lastErrorAt && now - s.lastErrorAt < errorPause(s.lastError) && s.keyFingerprint === fingerprint(keyFor(api))
 
-/** Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics) */
-const extrasPerDay = (s: ApiState | undefined) => (isPaid(s) ? Math.max(30, Math.min(EXTRAS_MAX, Math.round((s!.limit ?? 100) * 0.2))) : 30)
+/**
+ * Requests a day for the match pages' extras (head-to-head, form, tables, events, statistics):
+ * on a paid plan a fixed part of the limit, plus half of what is left above the
+ * live scores' reserve (calls not needed tonight go to what visitors open)
+ */
+function extrasPerDay(api: Api, s: ApiState | undefined): number {
+  if (!isPaid(s)) return 30
+  const base = Math.max(30, Math.min(EXTRAS_MAX, Math.round((s!.limit ?? 100) * 0.2)))
+  const remaining = s!.quotaDay === utcDay() ? (s!.remaining ?? 0) : (s!.limit ?? 0)
+  const e = extrasStore().spent[api]
+  const spent = e?.day === utcDay() ? e.count : 0
+  // What is spent already counts back in, so the cap doesn't shrink as the extras use calls
+  return base + Math.max(0, Math.round((remaining + spent - base - backgroundReserve(s)) / 2))
+}
 /** At most this many a day for what visitors (and search engines) open: match, team, league and player pages */
 const EXTRAS_MAX = 1_500
 /** Requests a paid plan always keeps for the live scores: everything else may use the rest */
@@ -1278,7 +1290,7 @@ export function apiSportsStatus() {
         const e = extrasStore().spent[api]
         return e?.day === utcDay() ? e.count : 0
       })(),
-      extrasMax: extrasPerDay(s),
+      extrasMax: extrasPerDay(api as Api, s),
       reserveNow: backgroundReserve(s),
     }
   })
@@ -1307,11 +1319,11 @@ function spendExtra(api: Api, cost = 1, kind?: 'players'): boolean {
   const remaining = s?.quotaDay === utcDay() ? (s.remaining ?? 100) : (s?.limit ?? 100)
   const spent = store.spent[api]?.day === utcDay() ? store.spent[api].count : 0
   const floor = isPaid(s) ? backgroundReserve(s) : EXTRAS_KEEP_REMAINING
-  if (remaining - cost < floor || spent + cost > extrasPerDay(s)) return false
+  if (remaining - cost < floor || spent + cost > extrasPerDay(api, s)) return false
   // Player pages (crawlers follow every player link) get at most a third, so match pages keep theirs
   const own = kind ? `${api}|${kind}` : undefined
   const ownSpent = own && store.spent[own]?.day === utcDay() ? store.spent[own].count : 0
-  if (own && ownSpent + cost > Math.round(extrasPerDay(s) / 3)) return false
+  if (own && ownSpent + cost > Math.round(extrasPerDay(api, s) / 3)) return false
   if (own) store.spent[own] = { day: utcDay(), count: ownSpent + cost }
   store.spent[api] = { day: utcDay(), count: spent + cost }
   store.touch()
