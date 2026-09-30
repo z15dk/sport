@@ -61,8 +61,9 @@ test('flerfarvet klub (Skive: gul/blå) mod et blåt hold', () => {
   // Blå er Fremad Amagers hovedfarve, men kun Skives anden farve
   assert.equal(decideSide('blå', ['gul', 'blå'], ['blå']).side, 'modstander')
   assert.equal(decideSide('blå', ['blå'], ['gul', 'blå']).side, 'egen')
-  // Thisted (blå/hvid) i hvidt mod Brabrand (blå)
-  assert.equal(decideSide('hvid', ['blå', 'hvid'], ['blå']).side, 'egen')
+  // En anden farve alene afgør ikke: hvidt mod Thisted (blå/hvid) kan være shorts eller en træningstrøje
+  assert.equal(decideSide('hvid', ['blå', 'hvid'], ['blå']).side, 'ukendt')
+  assert.equal(decideSide('hvid', ['grøn'], ['blå', 'hvid']).side, 'ukendt')
   // Begge har blå som anden farve
   assert.equal(decideSide('blå', ['gul', 'blå'], ['hvid', 'blå']).side, 'ukendt')
 })

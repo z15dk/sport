@@ -97,10 +97,11 @@ export function decideSide(jersey: string | undefined | null, ownColors: string[
     return { side: 'ukendt', note: `farven ${fams[0]} ligner klubbens` }
   }
   const opp = colorScore(fams, opponentColors)
-  // Clear when one club has the colour as its main shirt colour (or at all) and the other does not;
-  // a neighbouring shade on the other side (blå/lyseblå) is never clear enough
-  if ((own === 3 && (opp === 0 || opp === 2)) || (own === 2 && opp === 0)) return { side: 'egen' }
-  if ((opp === 3 && (own === 0 || own === 2)) || (opp === 2 && own === 0)) return { side: 'modstander' }
+  // Clear only when the colour is one club's main shirt colour and not the other's (a second colour
+  // there is fine: Skive's blue sleeves). A second colour alone never decides – white or black is
+  // as often shorts, socks or a training top – and a neighbouring shade (blå/lyseblå) never does
+  if (own === 3 && (opp === 0 || opp === 2)) return { side: 'egen' }
+  if (opp === 3 && (own === 0 || own === 2)) return { side: 'modstander' }
   if (own >= 2 && own === opp) return { side: 'ukendt', note: `begge hold spiller i ${fams[0]}` }
   if (own === 0 && opp === 0) return { side: 'ukendt', note: `farven ${fams[0]} passer til ingen af holdene` }
   return { side: 'ukendt', note: `farven ${fams[0]} ligner begge holds` }
