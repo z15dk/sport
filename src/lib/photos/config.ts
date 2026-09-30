@@ -33,7 +33,8 @@ export function photoConfig() {
     driveId: e.PHOTOS_DRIVE_ID,
     folderId: e.PHOTOS_FOLDER_ID || e.PHOTOS_DRIVE_ID,
     geminiKey: e.GEMINI_API_KEY,
-    geminiModel: e.GEMINI_MODEL || 'gemini-2.5-flash',
+    // Free tier 2026: Flash Lite allows 500 calls a day (Flash: 20); 2.5 is closed to new keys
+    geminiModel: e.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     /** Wait between two AI calls (the free quota counts calls per minute) */
     pauseMs: num(e.PHOTOS_PAUSE_MS, 6_000),
     /** Never more AI calls than this per day (Pacific time, like Google's quota) */

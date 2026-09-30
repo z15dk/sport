@@ -25,7 +25,7 @@ export function geminiProvider(apiKey: string, model: string, timeoutMs = 90_000
       const text = await res.text()
       if (res.status === 429 || /RESOURCE_EXHAUSTED/.test(text)) throw new QuotaError(`Gemini-kvoten er brugt (${res.status}): ${message(text)}`)
       if (res.status === 401 || res.status === 403) throw new FatalError(`Gemini afviste nøglen (${res.status}): ${message(text)}`)
-      if (res.status === 404) throw new FatalError(`Gemini-modellen "${model}" findes ikke (404) – ret GEMINI_MODEL`)
+      if (res.status === 404) throw new FatalError(`Gemini-modellen "${model}" kan ikke bruges (404) – ret GEMINI_MODEL: ${message(text)}`)
       if (res.status >= 500) throw new TransientError(`Gemini-fejl ${res.status}: ${message(text)}`)
       if (!res.ok) throw new PhotoError(`Gemini afviste billedet (${res.status}): ${message(text)}`)
       let data: { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; promptFeedback?: { blockReason?: string } }

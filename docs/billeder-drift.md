@@ -57,7 +57,7 @@ PHOTOS_DRIVE_ID=<DREV-ID>
 PHOTOS_FOLDER_ID=<MAPPE-ID>
 GEMINI_API_KEY=<nøglen>
 # Valgfrie (standard i parentes):
-# GEMINI_MODEL=gemini-2.5-flash
+# GEMINI_MODEL=gemini-3.5-flash-lite  (gratis: 500 kald/døgn, 15/min; Flash-modellerne kun 20/døgn)
 # PHOTOS_PAUSE_MS=6000          pause efter hvert AI-kald
 # PHOTOS_DAILY_LIMIT=200        højst så mange AI-kald pr. døgn
 # PHOTOS_BATCH=50               højst så mange billeder pr. kørsel
@@ -116,7 +116,7 @@ Googles egen oversigt: <https://aistudio.google.com/usage>.
 | `Mangler i /opt/scoreline/env: …` | Opsætningen er ikke færdig | Udfyld de nævnte linjer (afsnit 4) |
 | `Gemini-kvoten er brugt (429)` / `Dagens grænse … er nået` | Dagens gratiskvote er brugt | Intet. Jobbet stoppede pænt og fortsætter selv næste kørsel |
 | `Gemini afviste nøglen (401/403)` | Nøglen er forkert eller slettet | Ny nøgle i AI Studio → `GEMINI_API_KEY` |
-| `Gemini-modellen … findes ikke (404)` | Google har udfaset modellen | Sæt `GEMINI_MODEL` til en aktuel gratis model |
+| `Gemini-modellen … kan ikke bruges (404)` | Google har udfaset modellen (Googles besked står med) | Sæt `GEMINI_MODEL` til en aktuel gratis model – se grænserne på <https://aistudio.google.com/rate-limit> |
 | `Servicekontoen kunne ikke logge ind` | JSON-nøglen er forkert/slettet | Ny nøgle (afsnit 1), tjek `GOOGLE_SA_FILE` og rettigheder |
 | `Drive … 404` på mappen | Servicekontoen er ikke medlem af drevet, eller id er forkert | Afsnit 2 |
 | Billede med status `fejl`: `Kampmappen … skal hedde ÅÅÅÅ-MM-DD_Modstander (eller DDMMÅÅ Modstander)` | Billedet ligger forkert | Flyt det i Drive – det tages op igen af sig selv |
