@@ -108,7 +108,14 @@ export function ourClubByName(name: string, sport: SportId) {
       }
     }
   }
-  const found = n ? (exactMemo.byName.get(`${sport}|${n}`) ?? []) : []
+  let found = n ? (exactMemo.byName.get(`${sport}|${n}`) ?? []) : []
+  // The source's short name for one of our clubs in the other sports ("Gladsaxe" is Gladsaxe Basketball, "Horsens" Horsens IC):
+  // the name is the start of exactly one club's name. Not football, where a town has several clubs ("Aarhus" is AGF, not Aarhus Fremad)
+  if (!found.length && sport !== 'soccer' && n.length >= 4) {
+    const starts = new Set<(typeof found)[number]>()
+    for (const [k, list] of exactMemo.byName) if (k.startsWith(`${sport}|${n} `)) for (const e of list) starts.add(e)
+    found = [...starts]
+  }
   const club = found.length === 1 ? found[0] : undefined
   exactMemo.map.set(key, club)
   return club
