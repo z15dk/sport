@@ -2047,8 +2047,8 @@ a.player-games__match:hover { text-decoration: underline; }
   .women-hero__m { font-size: 380px; right: -34%; bottom: -8%; opacity: 0.25; }
   .women-hero__lead { font-size: 15px; }
   .women-hero__btn { padding: 11px 16px; font-size: 14px; }
-  .women-hero__numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
-  .women-hero__numbers dd { font-size: 32px; }
+  /* The numbers take a phone's whole screen: left out there */
+  .women-hero__numbers { display: none; }
 }
 
 /* /admin/kvindesport: the top's picture and texts, with a preview */
