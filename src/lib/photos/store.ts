@@ -137,7 +137,16 @@ export function runningSince(db: Db): string | undefined {
   return at && Date.now() - Date.parse(at) < 3600_000 ? at : undefined
 }
 
-export function searchPhotos(db: Db, q: string, status = '', limit = 120): Photo[] {
+export interface PhotoFilters {
+  clubId?: string
+  opponentId?: string
+  situation?: string
+  player?: string
+  from?: string
+  to?: string
+}
+
+export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: PhotoFilters = {}): Photo[] {
   const { sql, params } = searchWhere(parseQuery(q, clubList(db)))
   const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
   const statusSql =
@@ -147,10 +156,56 @@ export function searchPhotos(db: Db, q: string, status = '', limit = 120): Photo
     : status ? ' AND p.status = ?'
     : ` AND p.status NOT IN ('ny', 'behandles', 'slettet')`
   const statusParams = status === 'udloeber' ? [soon] : status && !['gennemgang', 'laant'].includes(status) ? [status] : []
+  const extra: string[] = []
+  const extraParams: unknown[] = []
+  if (f.clubId) {
+    extra.push('p.club_id = ?')
+    extraParams.push(f.clubId)
+  }
+  if (f.opponentId) {
+    extra.push('p.opponent_id = ?')
+    extraParams.push(f.opponentId)
+  }
+  if (f.situation) {
+    extra.push('p.situation = ?')
+    extraParams.push(f.situation)
+  }
+  if (f.player) {
+    extra.push(`EXISTS (SELECT 1 FROM tags t WHERE t.photo_id = p.id AND t.side = 'egen' AND t.player_name = ?)`)
+    extraParams.push(f.player)
+  }
+  if (f.from && isIsoDate(f.from)) {
+    extra.push('p.match_date >= ?')
+    extraParams.push(f.from)
+  }
+  if (f.to && isIsoDate(f.to)) {
+    extra.push('p.match_date <= ?')
+    extraParams.push(f.to)
+  }
+  const extraSql = extra.map((e) => ` AND ${e}`).join('')
   return db
-    .prepare(`SELECT p.* FROM photos p WHERE ${sql}${statusSql} ORDER BY p.match_date DESC, p.id DESC LIMIT ?`)
-    .all(...params, ...statusParams, limit)
+    .prepare(`SELECT p.* FROM photos p WHERE ${sql}${statusSql}${extraSql} ORDER BY p.match_date DESC, p.id DESC LIMIT ?`)
+    .all(...params, ...statusParams, ...extraParams, limit)
     .map(toPhoto)
+}
+
+/** What the filters can offer: clubs and opponents with photos, situations and tagged own players (of one club), with counts */
+export function filterOptions(db: Db, clubId?: string) {
+  const live = `status NOT IN ('ny', 'behandles', 'slettet')`
+  const count = (rows: Row[]) => rows.map((r) => ({ value: String(r.v), label: String(r.l ?? r.v), n: Number(r.n) }))
+  return {
+    clubs: count(db.prepare(`SELECT club_id v, club l, COUNT(*) n FROM photos WHERE ${live} AND club_id IS NOT NULL GROUP BY club_id ORDER BY l`).all()),
+    opponents: count(db.prepare(`SELECT opponent_id v, opponent l, COUNT(*) n FROM photos WHERE ${live} AND opponent_id IS NOT NULL GROUP BY opponent_id ORDER BY l`).all()),
+    situations: count(db.prepare(`SELECT situation v, COUNT(*) n FROM photos WHERE ${live} AND situation IS NOT NULL AND situation != '' GROUP BY situation ORDER BY n DESC, v`).all()),
+    players: count(
+      db
+        .prepare(
+          `SELECT t.player_name v, COUNT(DISTINCT t.photo_id) n FROM tags t JOIN photos p ON p.id = t.photo_id
+           WHERE t.side = 'egen' AND t.player_name IS NOT NULL AND p.${live}${clubId ? ' AND p.club_id = ?' : ''} GROUP BY t.player_name ORDER BY t.player_name`,
+        )
+        .all(...(clubId ? [clubId] : [])),
+    ),
+  }
 }
 
 export function tagsFor(db: Db, photoIds: number[]): Map<number, Tag[]> {
@@ -306,7 +361,9 @@ export function retag(db: Db, photoId: number, minConfidence: number) {
 
 // ---------- rights ----------
 
-export const isIsoDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d
+export function isIsoDate(d: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d
+}
 
 /**
  * The credit (empty = our own) and, for a borrowed photo, the last day we may keep it

@@ -324,3 +324,20 @@ export function SyncButton({ running, requested }: { running?: string; requested
     </span>
   )
 }
+
+/** A GET filter form that sends itself when a select or date changes (text fields on Enter) */
+export function AutoFilterForm({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return (
+    <form
+      className={className}
+      style={style}
+      method="get"
+      onChange={(e) => {
+        const t = e.target as HTMLElement
+        if (t.tagName === 'SELECT' || (t as HTMLInputElement).type === 'date') (e.currentTarget as HTMLFormElement).requestSubmit()
+      }}
+    >
+      {children}
+    </form>
+  )
+}

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { openPhotoDb, type Db } from '../../src/lib/photos/db.ts'
 import { parseQuery } from '../../src/lib/photos/search.ts'
-import { addSquadRow, addTag, clubList, deleteSquadRow, expiredLoans, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
+import { addSquadRow, addTag, clubList, deleteSquadRow, expiredLoans, filterOptions, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
 
 // Search, corrections and approval against a small temporary database
 
@@ -116,4 +116,17 @@ test('rettigheder: lånte billeder, hele kampen og kontrol af input', () => {
   // Tilbage til vores eget
   assert.deepEqual(setRights(db, 5, { credit: '', licenseUntil: '' }), { count: 1 })
   assert.equal(getPhoto(db, 5)!.photo.licenseUntil, null)
+})
+
+test('filtre: klub, modstander, situation, spiller og periode – også sammen med søgning', () => {
+  assert.deepEqual(searchPhotos(db, '', '', 120, { clubId: 'brabrand' }).map((p) => p.id).sort(), [2, 5])
+  assert.deepEqual(searchPhotos(db, '', '', 120, { situation: 'duel' }).map((p) => p.id), [2])
+  assert.deepEqual(searchPhotos(db, '', '', 120, { player: 'Elias Granlund Astola' }).map((p) => p.id), [2])
+  assert.deepEqual(searchPhotos(db, '', '', 120, { opponentId: 'skive', clubId: 'fremad-amager' }).map((p) => p.id), [1])
+  assert.deepEqual(searchPhotos(db, '', '', 120, { from: '2026-08-10', to: '2026-08-31' }).map((p) => p.id), [1])
+  assert.deepEqual(searchPhotos(db, 'Astola', '', 120, { clubId: 'fremad-amager' }).map((p) => p.id), [])
+  const o = filterOptions(db, 'brabrand')
+  assert.ok(o.situations.some((x) => x.value === 'duel' && x.n === 1))
+  assert.deepEqual(o.players.map((x) => x.value), ['Elias Granlund Astola'])
+  assert.ok(o.clubs.some((x) => x.value === 'fremad-amager'))
 })

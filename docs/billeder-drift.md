@@ -138,7 +138,7 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 
 ## Admin
 
-<https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere), **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent JPEG i 4:5, story, kvadrat og 16:9 centreret på en spiller. Udsnittet tages fra originalen, så længe den ligger i Drive (skarpest), ellers fra 1600 px-versionen.
+<https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere) med filtre for klub, modstander, situation, spiller, periode, status og lånte billeder, **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent JPEG i 4:5, story, kvadrat og 16:9 centreret på en spiller. Udsnittet tages fra originalen, så længe den ligger i Drive (skarpest), ellers fra 1600 px-versionen.
 
 ### Rettigheder og lånte billeder
 

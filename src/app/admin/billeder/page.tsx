@@ -2,28 +2,29 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
-import { SyncButton } from '../../../components/admin/PhotoAdmin'
+import { AutoFilterForm, SyncButton } from '../../../components/admin/PhotoAdmin'
 import { Legend, PhotoCard } from '../../../components/admin/PhotoCards'
 import s from '../../../components/admin/photos.module.css'
 import { isAdmin } from '../../../lib/admin'
 import { photoConfig } from '../../../lib/photos/config'
 import { syncRequested, withPhotoDb } from '../../../lib/photos/server'
-import { overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
+import { filterOptions, overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Billeder · Admin', robots: { index: false, follow: false } }
 
-type SearchParams = Promise<{ q?: string; status?: string }>
+type SearchParams = Promise<{ q?: string; status?: string; klub?: string; modstander?: string; situation?: string; spiller?: string; fra?: string; til?: string }>
 
 /** The owner's match photos: search by club and number, name, match or situation */
 export default async function AdminPhotos({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect('/admin')
-  const { q = '', status = '' } = await searchParams
+  const { q = '', status = '', klub = '', modstander = '', situation = '', spiller = '', fra = '', til = '' } = await searchParams
   const cfg = photoConfig()
-  const { info, photos, tags } = withPhotoDb((db) => {
-    const photos = searchPhotos(db, q, status)
-    return { info: overview(db, cfg.dailyLimit), photos, tags: tagsFor(db, photos.map((p) => p.id)) }
+  const { info, photos, tags, options } = withPhotoDb((db) => {
+    const photos = searchPhotos(db, q, status, 200, { clubId: klub, opponentId: modstander, situation, player: spiller, from: fra, to: til })
+    return { info: overview(db, cfg.dailyLimit), photos, tags: tagsFor(db, photos.map((p) => p.id)), options: filterOptions(db, klub || undefined) }
   })
+  const filtered = !!(q || status || klub || modstander || situation || spiller || fra || til)
   const c = info.counts
   return (
     <div className="page">
@@ -48,8 +49,46 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
         </div>
         {info.lastRun?.stoppedBecause && <p className={s.note}>Seneste kørsel stoppede: {info.lastRun.stoppedBecause}</p>}
 
-        <form className="panel admin-filter" method="get" style={{ margin: '14px 0' }}>
-          <input type="search" name="q" defaultValue={q} placeholder="Fx Brabrand 9, Bryld, Skive jubel" aria-label="Søg" />
+        <AutoFilterForm className="panel admin-filter" style={{ margin: '14px 0' }}>
+          <input type="search" name="q" defaultValue={q} placeholder="Søg: Brabrand 9, Bryld, Skive jubel" aria-label="Søg" />
+          <select name="klub" defaultValue={klub} aria-label="Klub">
+            <option value="">Alle klubber</option>
+            {options.clubs.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label} ({o.n})
+              </option>
+            ))}
+          </select>
+          <select name="modstander" defaultValue={modstander} aria-label="Modstander">
+            <option value="">Alle modstandere</option>
+            {options.opponents.map((o) => (
+              <option key={o.value} value={o.value}>
+                mod {o.label} ({o.n})
+              </option>
+            ))}
+          </select>
+          <select name="situation" defaultValue={situation} aria-label="Situation">
+            <option value="">Alle situationer</option>
+            {options.situations.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label} ({o.n})
+              </option>
+            ))}
+          </select>
+          <select name="spiller" defaultValue={spiller} aria-label="Spiller">
+            <option value="">{klub ? 'Alle spillere i klubben' : 'Alle spillere'}</option>
+            {options.players.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label} ({o.n})
+              </option>
+            ))}
+          </select>
+          <label className={s.muted} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            Fra <input type="date" name="fra" defaultValue={fra} aria-label="Fra dato" style={{ flex: '0 0 auto' }} />
+          </label>
+          <label className={s.muted} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            Til <input type="date" name="til" defaultValue={til} aria-label="Til dato" style={{ flex: '0 0 auto' }} />
+          </label>
           <select name="status" defaultValue={status} aria-label="Status">
             <option value="">Alle behandlede</option>
             <option value="tagget">Tagget</option>
@@ -62,11 +101,17 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
             <option value="ny">I kø</option>
           </select>
           <button className="pill is-active">Søg</button>
-        </form>
+          {filtered && (
+            <Link href="/admin/billeder" className="text-btn" style={{ marginLeft: 0 }}>
+              Nulstil
+            </Link>
+          )}
+        </AutoFilterForm>
         <Legend />
         <p className={s.muted}>
           {photos.length} billede{photos.length === 1 ? '' : 'r'}
           {q ? ` for "${q}" – et nummer viser kun klubbens egne spillere` : ''}
+          {photos.length === 200 ? ' (de 200 nyeste – filtrér mere for at se resten)' : ''}
         </p>
         <div className={s.grid}>
           {photos.map((p) => (
