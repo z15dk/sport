@@ -230,7 +230,7 @@ export default async function DataStatusPage() {
                   </p>
                   <table className="dash-table">
                     <tbody>
-                      {worker.slow.tasks.slice(0, 6).map((x) => (
+                      {worker.slow.tasks.slice(0, 12).map((x) => (
                         <tr key={x.label}>
                           <td>{x.label}</td>
                           <td>{num(x.max)} ms</td>
@@ -244,35 +244,6 @@ export default async function DataStatusPage() {
               )}
             </section>
           )}
-          <section className="panel dash-card">
-            <h2 className="panel__title">Hvad blokerede serveren</h2>
-            <p className="muted small">Hver periode over 0,5 sek. uden pause, målt løbende: vores funktioner (fil og linje) efter tid, og hvor tiden selv gik.</p>
-            {stalls.length ? (
-              <table className="dash-table">
-                <tbody>
-                  {stalls.map((x) => (
-                    <tr key={`${x.where}${x.at}`}>
-                      <td>
-                        {clock(x.at)}
-                        {x.where && <div className="muted small">{x.where}</div>}
-                      </td>
-                      <td className={x.ms >= 1000 ? 'is-bad' : undefined}>{num(x.ms)} ms</td>
-                      <td className="small">
-                        {x.top.slice(0, 5).map((f) => (
-                          <div key={f.fn}>
-                            <code>{f.fn}</code> {num(f.ms)} ms
-                          </div>
-                        ))}
-                        <div className="muted">Selve tiden: {x.self.slice(0, 4).map((f) => `${f.fn} ${num(f.ms)} ms`).join(' · ')}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="muted small">Ingen siden start (måles hvert minut).</p>
-            )}
-          </section>
           <section className="panel dash-card">
             <h2 className="panel__title">Filer og kilder</h2>
             <table className="dash-table">
@@ -363,6 +334,50 @@ export default async function DataStatusPage() {
 
         </div>
 
+        <section className="panel dash-card dash-wide">
+          <h2 className="panel__title">Hvad blokerede serveren</h2>
+          <p className="muted small">Hver periode over 0,5 sek. uden pause, målt løbende: vores funktioner (fil og linje) efter tid, og hvor tiden selv gik.</p>
+          {stalls.length ? (
+            <table className="dash-table dash-stalls">
+              <thead>
+                <tr>
+                  <th>Tid</th>
+                  <th>Varighed</th>
+                  <th>Vores funktioner (tid på stakken)</th>
+                  <th>Hvor tiden selv gik</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stalls.map((x) => (
+                  <tr key={`${x.where}${x.at}`}>
+                    <td>
+                      {clock(x.at)}
+                      {x.where && <div className="muted small">{x.where}</div>}
+                    </td>
+                    <td className={x.ms >= 1000 ? 'is-bad' : undefined}>{num(x.ms)} ms</td>
+                    <td className="small">
+                      {x.top.slice(0, 6).map((f) => (
+                        <div key={f.fn}>
+                          <code>{f.fn}</code> {num(f.ms)} ms
+                        </div>
+                      ))}
+                      {!x.top.length && <span className="muted">Ingen af vores egne</span>}
+                    </td>
+                    <td className="small">
+                      {x.self.map((f) => (
+                        <div key={f.fn}>
+                          <code>{f.fn}</code> {num(f.ms)} ms
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="muted small">Ingen siden start (måles hvert minut).</p>
+          )}
+        </section>
         <div className="dash-details">
           <details className="panel">
             <summary>Statistikbanken pr. turnering ({a.byDivision.length})</summary>

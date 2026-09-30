@@ -146,12 +146,15 @@ function sameLeague<G extends { league: { name: string; country?: string; logo?:
  */
 let seasonMerge: { key: string; leagues: Record<string, RealEvent[]> } | undefined
 function mergedLeagues(tsdbData: RealData | undefined, db: ReturnType<typeof databaseSeason>): Record<string, RealEvent[]> {
-  const season = seasonGames()
-  let h = season.length
-  for (const g of season) {
-    const s = `${g.id}${g.state}${g.homeScore ?? ''}${g.awayScore ?? ''}${g.incidents?.length ?? 0}`
-    for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
-  }
+  const h = timed('Fletning: sæsonens kampe tjekkes', () => {
+    const season = seasonGames()
+    let h = season.length
+    for (const g of season) {
+      const s = `${g.id}${g.state}${g.homeScore ?? ''}${g.awayScore ?? ''}${g.incidents?.length ?? 0}`
+      for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+    }
+    return h
+  })
   const key = `${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${h}`
   if (seasonMerge?.key === key) return seasonMerge.leagues
   const leagues = timed('Fletning: sæsonen i vores ligaer', () => {
@@ -200,15 +203,17 @@ const base = () => holder.__scorelineTsdb
 function apply() {
   const tsdbData = base()
   const db = timed('Fletning: historik til sæsonen', databaseSeason)
-  const external = externalGames()
-  const names = clubNameOverrides()
-  const aliases = clubAliasList()
-  const channels = channelData()
-  const settings = siteSettings()
-  const leagueNames = leagueNameOverrides()
-  const logos = Object.keys(customLogos()).length
-  const { tables, tablesKey } = tablesOf(tableTeams(), leagueNames)
-  const key = `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`
+  const external = timed('Fletning: API-Sports-kampe', externalGames)
+  const { names, aliases, channels, settings, leagueNames, logos } = timed('Fletning: navne, kanaler og indstillinger', () => ({
+    names: clubNameOverrides(),
+    aliases: clubAliasList(),
+    channels: channelData(),
+    settings: siteSettings(),
+    leagueNames: leagueNameOverrides(),
+    logos: Object.keys(customLogos()).length,
+  }))
+  const { tables, tablesKey } = timed('Fletning: tabellerne', () => tablesOf(tableTeams(), leagueNames))
+  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
