@@ -1,7 +1,7 @@
 import 'server-only'
-import { existsSync, mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { photoConfig } from './config.ts'
+import { ensurePhotoDirs, photoConfig } from './config.ts'
 import type { SomeFormat } from './crop.ts'
 import { openPhotoDb, type Db } from './db.ts'
 import { runningSince } from './store.ts'
@@ -41,8 +41,8 @@ export async function photoImage(id: number, variant: 'thumb' | 'web'): Promise<
   const webId = withPhotoDb((db) => db.prepare('SELECT web_drive_id FROM photos WHERE id = ?').get(id)?.web_drive_id)
   if (!webId || !cfg.serviceAccountFile || !cfg.driveId) return undefined
   const bytes = await driveClient(cfg.serviceAccountFile, cfg.driveId).download(String(webId))
-  mkdirSync(cfg.cacheDir, { recursive: true })
-  writeFileSync(cached, bytes)
+  ensurePhotoDirs(cfg)
+  writeFileSync(cached, bytes, { mode: 0o600 })
   return bytes
 }
 
@@ -107,8 +107,8 @@ export function requestSync(): { started: boolean; reason?: string } {
     if (Date.now() - statSync(cfg.syncRequestFile).mtimeMs > 120_000) return { started: false, reason: 'Sync blev bestilt, men jobbet startede ikke – er scoreline-photos-sync.path installeret? (se driftsvejledningen)' }
     return { started: false, reason: 'Sync er allerede bestilt' }
   }
-  mkdirSync(cfg.dir, { recursive: true })
-  writeFileSync(cfg.syncRequestFile, new Date().toISOString())
+  ensurePhotoDirs(cfg)
+  writeFileSync(cfg.syncRequestFile, new Date().toISOString(), { mode: 0o600 })
   return { started: true }
 }
 

@@ -12,6 +12,7 @@ WorkingDirectory=/opt/scoreline/current
 EnvironmentFile=/opt/scoreline/env
 ExecStart=/usr/bin/flock -n -E 0 /opt/scoreline/data/fotos/.job.lock /usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts run --nat
 Nice=19
+UMask=0077
 IOSchedulingClass=idle
 CPUQuota=50%
 MemoryMax=700M

@@ -144,6 +144,13 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 
 Hvert billede har "Foto:" – som standard `Matchly.dk` (`PHOTOS_DEFAULT_CREDIT`). Lånte billeder får fotografens/klubbens navn og en dato under "Lånt til og med" (på ét billede eller alle billeder fra samme kamp). Dagen efter sletter billedjobbet billedet: original og web-version flyttes til det fælles drevs papirkurv (Google tømmer den efter 30 dage), miniature og cache slettes på serveren, tags slettes, og billedet står tilbage som `slettet` med grunden i loggen. Et udløbet billede kan ikke hentes til SoMe, heller ikke før jobbet har kørt. Lånte billeder arkiveres aldrig på NAS'en. Oversigten viser, hvor mange lån der udløber inden for 14 dage.
 
+## Adgang
+
+- Web: alt under `/admin/billeder` og `/api/admin/photos` kræver admin-login (uden: viderestilling eller 401), også direkte på port 3010. `robots.txt` forbyder `/admin` og `/api/`, siderne er `noindex`.
+- Serveren: `/opt/scoreline/data/fotos` er 700 og `billeder.db` 600 – kun brugeren `scoreline` kan læse dem (serveren har andre brugere og sites). Tjenesterne kører med `UMask=0077`.
+- Drive: det fælles drev er kun delt med ejeren og servicekontoen, uden delingslink.
+- Gemini: billedet sendes til Googles gratis API, hvis vilkår tillader Google at bruge det til at forbedre produkter.
+
 ## Data
 
 - Database: `/opt/scoreline/data/billeder.db` (SQLite) – kø, tags, klubber, holdkort, trupper, log, kvote.

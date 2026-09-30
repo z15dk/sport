@@ -1,3 +1,4 @@
+import { chmodSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 
 // Settings for the photo system (tagging of the owner's own match photos).
@@ -58,3 +59,15 @@ export function photoConfig() {
 }
 
 export type PhotoConfig = ReturnType<typeof photoConfig>
+
+/** The photo folders, readable by the app's own user only (the server has other users and sites) */
+export function ensurePhotoDirs(cfg: PhotoConfig) {
+  for (const d of [cfg.dir, cfg.thumbDir, cfg.cacheDir]) {
+    mkdirSync(d, { recursive: true, mode: 0o700 })
+  }
+  try {
+    chmodSync(cfg.dir, 0o700)
+  } catch {
+    // Not ours to change
+  }
+}

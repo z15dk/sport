@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 
 // billeder.db (SQLite): the photo queue, tags, clubs, DBU team sheets and squads,
@@ -154,6 +154,12 @@ export function openPhotoDb(file: string): Db {
   if (!lib) throw new Error('node:sqlite findes ikke i denne Node-version (kræver Node 22.5+)')
   mkdirSync(path.dirname(file), { recursive: true })
   const db = new lib.DatabaseSync(file)
+  // Only the app's own user may read it (the server has other users; SQLite gives -wal/-shm the same mode)
+  try {
+    chmodSync(file, 0o600)
+  } catch {
+    // Not ours to change (tests, read-only copies)
+  }
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
   // Columns added after the first release

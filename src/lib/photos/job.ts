@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { loadavg } from 'node:os'
 import path from 'node:path'
-import { photoConfig, type PhotoConfig } from './config.ts'
+import { ensurePhotoDirs, photoConfig, type PhotoConfig } from './config.ts'
 import { countCall, getMeta, logStep, nowIso, openPhotoDb, quotaUsed, setMeta, transaction, type Db, type Row } from './db.ts'
 import { syncDbu } from './dbu.ts'
 import { DriveError, driveClient, type DriveClient, type DriveFile } from './drive.ts'
@@ -84,8 +84,7 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     const vision = geminiProvider(cfg.geminiKey!, cfg.geminiModel)
     const webFolder = getMeta(db, 'drive_web_folder') ?? (await drive.ensureFolder('_web', cfg.folderId!))
     setMeta(db, 'drive_web_folder', webFolder)
-    mkdirSync(cfg.thumbDir, { recursive: true })
-    mkdirSync(cfg.cacheDir, { recursive: true })
+    ensurePhotoDirs(cfg)
 
     const limit = opts.limit ?? cfg.batch
     let transientInRow = 0
