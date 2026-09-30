@@ -68,3 +68,11 @@ test('rygnavn: efternavn, forkortelser og danske bogstaver', () => {
   assert.equal(backNameFits('HANSEN', 'Mikkel Jensen'), false)
   assert.equal(backNameFits('J.', 'Mikkel Jensen'), false)
 })
+
+test('en rettelse i admin vinder over holdkortenes trup', () => {
+  const rows: SquadRow[] = [
+    { number: 7, name: 'Fra Holdkort', validFrom: '2026-07-01', validTo: null, uncertain: true },
+    { number: 7, name: 'Rettet I Admin', validFrom: null, validTo: null, manual: true },
+  ]
+  assert.deepEqual(pickName(7, '2026-08-15', undefined, rows), { name: 'Rettet I Admin', source: 'trup' })
+})

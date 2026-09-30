@@ -19,6 +19,8 @@ export interface SquadRow {
   validTo?: string | null
   /** The number was used by two players in the same period */
   uncertain?: boolean
+  /** Added or corrected by hand in admin: wins over the rows from team sheets */
+  manual?: boolean
 }
 
 export interface NameResult {
@@ -36,7 +38,8 @@ export function pickName(number: number, date: string | undefined, lineup: Lineu
     // The sheet is the truth for that match: a number not on it is misread or not ours
     return { note: `#${number} står ikke på kampens holdkort` }
   }
-  const valid = squad.filter((r) => r.number === number && inPeriod(date, r.validFrom, r.validTo))
+  let valid = squad.filter((r) => r.number === number && inPeriod(date, r.validFrom, r.validTo))
+  if (valid.some((r) => r.manual)) valid = valid.filter((r) => r.manual)
   const names = unique(valid.map((r) => r.name))
   if (names.length === 1 && !valid.some((r) => r.uncertain)) return { name: names[0], source: 'trup' }
   if (names.length === 1) return { note: `#${number} er usikkert i truppen (brugt af flere spillere)` }

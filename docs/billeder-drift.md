@@ -94,6 +94,7 @@ Timeren slås **ikke** til endnu – første kørsel tages i hånden (se nedenfo
 | Slå automatisk kørsel fra | `systemctl disable --now scoreline-photos.timer` |
 | Stop en kørsel | `systemctl stop scoreline-photos` (billedet der blev arbejdet på, tages op igen efter 15 min.) |
 | Hent DBU nu | `… npm run -s photos -- dbu` (samme `sudo -u scoreline …` som ovenfor) |
+| Beregn navne igen (efter trup-rettelser, uden AI-kald) | `… npm run -s photos -- retag` |
 
 Jobbet kan stoppes når som helst. Et billede, der var i gang, frigives efter 15 minutter.
 Svarede AI'en før stoppet, genbruges svaret, så det samme billede aldrig koster to kald.
@@ -127,6 +128,10 @@ Googles egen oversigt: <https://aistudio.google.com/usage>.
 
 Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og i journalen
 (`journalctl -u scoreline-photos --since today`).
+
+## Admin
+
+<https://matchly.dk/admin/billeder> (Matchlys admin-login): **Søg** ("Brabrand 9", navn, kamp, situation; numre finder kun egne spillere), **Gennemgang** (usikre billeder, hurtigste først, forslag ud fra rygnavnet), **Trupper** (DBU-trup, rettelser, udebanetrøjer, andre klubnavne). På et billede: ret nummer/navn/hold, tilføj og slet spillere, ret kamp og dato (navnene findes igen uden nyt AI-kald), godkend og hent SoMe-JPEG (4:5, story, kvadrat) centreret på en spiller.
 
 ## Data
 
