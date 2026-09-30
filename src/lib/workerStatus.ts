@@ -16,7 +16,7 @@ export interface WorkerStatus {
   slow: ReturnType<typeof slowStatus>
   /** The fetching job's state (it lives in this process's memory) */
   realData?: { running: boolean; lastFull: string | null; lastHot: string | null; requests: number; lastError: string | null }
-  archive?: { lastRun: string | null; lastError: string | null }
+  archive?: { lastRun: string | null; lastError: string | null; file?: string; total?: number; byDivision?: { division: string; matches: number; incidents: number }[] }
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'worker-status.json')

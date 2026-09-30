@@ -52,7 +52,7 @@ export async function register() {
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()
-    const [{ startWorkerStatus }, { realDataJobStatus }, { archiveJobStatus }] = await Promise.all([import('./lib/workerStatus'), import('./lib/realdata'), import('./lib/archive')])
-    startWorkerStatus(() => ({ realData: realDataJobStatus(), archive: archiveJobStatus() }))
+    const [{ startWorkerStatus }, { realDataJobStatus }, { archiveJobStatus, archiveStatus }] = await Promise.all([import('./lib/workerStatus'), import('./lib/realdata'), import('./lib/archive')])
+    startWorkerStatus(() => ({ realData: realDataJobStatus(), archive: { ...archiveStatus(), ...archiveJobStatus() } }))
   }
 }
