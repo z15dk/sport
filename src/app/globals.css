@@ -2046,7 +2046,9 @@ a.player-games__match:hover { text-decoration: underline; }
   }
   .women-hero__m { font-size: 380px; right: -34%; bottom: -8%; opacity: 0.25; }
   .women-hero__lead { font-size: 15px; }
-  .women-hero__btn { padding: 11px 16px; font-size: 14px; }
+  /* The two buttons side by side, each half the width */
+  .women-hero__cta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .women-hero__btn { justify-content: center; padding: 11px 8px; font-size: 14px; white-space: nowrap; }
   /* The numbers take a phone's whole screen: left out there */
   .women-hero__numbers { display: none; }
 }
