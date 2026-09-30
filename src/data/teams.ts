@@ -167,7 +167,12 @@ export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 
 /** In the browser: the server's name index, so a link never needs the whole register built there */
 const browserIndex = () => (typeof window === 'undefined' ? undefined : getRealData()?.teamIndex)
-const fromIndex = (name: string, slug: string | undefined) => (slug === undefined ? undefined : ({ slug: slug || slugify(name), name } as TeamEntry))
+// '' = the name's own slug; 'slug' = another slug; 'slug|Name' = a team shown under another name (a name it also goes by)
+const fromIndex = (name: string, value: string | undefined) => {
+  if (value === undefined) return undefined
+  const bar = value.indexOf('|')
+  return (bar < 0 ? { slug: value || slugify(name), name } : { slug: value.slice(0, bar), name: value.slice(bar + 1) }) as TeamEntry
+}
 
 export const teamByName = (name: string): TeamEntry | undefined => {
   const index = browserIndex()
@@ -175,10 +180,10 @@ export const teamByName = (name: string): TeamEntry | undefined => {
   return teams().byName.get(name)
 }
 
-/** Every team name's slug, '' when it is the name's own slug (sent to the browser as RealData.teamIndex) */
+/** Every team name's slug, '' when it is the name's own slug, and the team's name when it is shown under another (sent to the browser as RealData.teamIndex) */
 export function teamNameIndex(): Record<string, string> {
   const index: Record<string, string> = {}
-  for (const [name, t] of teams().byName) index[name] = t.slug === slugify(name) ? '' : t.slug
+  for (const [name, t] of teams().byName) index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug
   return index
 }
 

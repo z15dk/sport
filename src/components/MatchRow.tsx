@@ -3,7 +3,7 @@ import { formatDayMonth, formatTime, isoDate } from '../lib/time'
 import { paths } from '../lib/site'
 import type { Incident, Match, Team } from '../types'
 import { TeamBadge } from './TeamBadge'
-import { SportIcon } from './SportIcon'
+import { SportIconUse } from './SportIcon'
 import { MatchChannel, MatchOdds } from './MatchExtras'
 import { oddsFor } from '../data/odds'
 
@@ -61,7 +61,7 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
       <div className="match__teams">
         {showLeague && (
           <span className="match__league">
-            {showSport && <SportIcon sport={match.sport} size={11} />}
+            {showSport && <SportIconUse sport={match.sport} size={11} />}
             {match.league}
           </span>
         )}

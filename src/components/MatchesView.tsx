@@ -1,6 +1,7 @@
 'use client'
 
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, startTransition, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { SportSprite } from './SportIcon'
 import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
 import { FilterBar } from './FilterBar'
@@ -92,6 +93,9 @@ interface Props {
   below?: ReactNode
 }
 
+/** Matches in the page's HTML; the rest follow in the browser */
+const FIRST_ROWS = 150
+
 export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
   const dayMatches = (d: string, n: number) => (women ? getMatches(d, sport, n).filter(isWomenMatch) : getMatches(d, sport, n))
@@ -149,7 +153,20 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   )
 
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
-  const groups = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
+  // The page's HTML carries the first matches only (a busy day has more than a thousand, megabytes of HTML);
+  // the rest are drawn in the browser right after it has started
+  const [whole, setWhole] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => startTransition(() => setWhole(true)), 0)
+    return () => clearTimeout(t)
+  }, [])
+  const cap = whole ? Infinity : FIRST_ROWS
+  const allGroups0 = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
+  const groups = useMemo(() => {
+    if (cap === Infinity) return allGroups0
+    let n = 0
+    return allGroups0.filter((g) => (n += g.matches.length) - g.matches.length < cap)
+  }, [allGroups0, cap])
   // One section per day: matches being played right now first, then the rest by kick-off and league order
   const days = useMemo(() => {
     const liveFirst = (m: Match) => (m.state === 'live' ? 0 : 1)
@@ -162,8 +179,15 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
       if (!byDay.has(d)) byDay.set(d, [])
       byDay.get(d)!.push(m)
     }
+    let n = 0
     return [...byDay.entries()]
-  }, [visible])
+      .map(([d, list]): [string, Match[], number] => {
+        const shown = list.slice(0, Math.max(0, cap - n))
+        n += shown.length
+        return [d, shown, list.length]
+      })
+      .filter(([, list]) => list.length > 0)
+  }, [visible, cap])
   // The sidebar lists every league we cover in the chosen sport, also those without matches this day
   const allGroups = useMemo(() => {
     const groups = groupByLeague(matches, pinned)
@@ -223,6 +247,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
         </div>
       )}
 
+      <SportSprite />
       <div className="grid">
         <Sidebar groups={allGroups} pinned={pinned} selected={league} onSelect={setLeague} />
 
@@ -267,13 +292,13 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
             </div>
           ) : order === 'time' ? (
             <div className="league-list">
-              {days.map(([day, list], i) => (
+              {days.map(([day, list, total], i) => (
                 <Fragment key={day}>
                   <section className="league">
                     <header className="league__header">
                       <div className="league__toggle">
                         <span className="league__titles">
-                          <span className="league__country">{list.length === 1 ? '1 kamp' : `${list.length} kampe`}</span>
+                          <span className="league__country">{total === 1 ? '1 kamp' : `${total} kampe`}</span>
                           <h2 className="league__name">{day === today ? `I dag · ${formatLong(day)}` : formatLong(day)}</h2>
                         </span>
                         {list.some((m) => m.state === 'upcoming') && oddsEnabled() && <OddsBy />}

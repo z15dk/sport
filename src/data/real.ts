@@ -5,7 +5,6 @@
 
 import type { Incident, MatchState, SportId } from '../types'
 import type { ExternalGame } from './external'
-import { isoDate } from '../lib/time'
 import type { ChannelData } from './channels'
 import type { SiteSettings } from './settingsDef'
 
@@ -137,17 +136,14 @@ export function patchRealData(games: ExternalGame[], version: string | null) {
   if (typeof window === 'undefined') return
   const cur = holder.__scorelineReal
   if (!cur || !games.length) return
-  const today = isoDate(Date.now())
   const byId = new Map(games.map((g) => [g.id, g]))
   const external = (cur.external ?? []).map((g) => {
     const n = byId.get(g.id)
     if (n) byId.delete(g.id)
     return n ?? g
   })
-  // New to the page: only what the page would have had from the server (today and games in play)
-  for (const g of byId.values()) {
-    if (g.state === 'live' || isoDate(new Date(g.kickoff)) === today) external.push(g)
-  }
+  // New to the page: only what the page would have had from the server (games in play)
+  for (const g of byId.values()) if (g.state === 'live') external.push(g)
   holder.__scorelineReal = { ...cur, external, version: version ?? `${cur.version}+` }
   for (const l of listeners) l()
 }
