@@ -16,7 +16,7 @@ const when = (ts: number) => {
   const d = new Date(ts)
   return `${d.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', timeZone: 'Europe/Copenhagen' })} ${d.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' })}`
 }
-const leagueName = (slug: string) => divisionBySlug(slug)?.name ?? slug
+const leagueName = (slug: string) => (slug === 'kampe' ? 'Kommende kampe' : divisionBySlug(slug)?.name ?? slug)
 
 /** Who uses the league table widget, and whether the link back to us is still there (src/lib/widgetStats.ts) */
 export default async function WidgetAdminPage() {

@@ -12,7 +12,7 @@ import { WidgetShowcase } from '../../components/WidgetShowcase'
 export const metadata: Metadata = {
   title: { absolute: 'Gratis ligatabel til din hjemmeside – Superligaen og flere | Matchly' },
   description:
-    'Sæt en gratis, automatisk opdateret ligatabel på din klub- eller fanside: Superligaen, 1. division, Premier League, Bundesliga og flere. Vælg liga, fremhæv dit hold, og kopiér koden.',
+    'Sæt en gratis, automatisk opdateret ligatabel eller dit holds kommende kampe på din klub- eller fanside: Superligaen, 1. division, Premier League, Bundesliga og flere. Vælg, tilpas og kopiér koden.',
   alternates: { canonical: '/widget' },
 }
 
@@ -38,8 +38,9 @@ const BENEFITS = [
   { icon: ICON.free, title: 'Helt gratis', text: 'Ingen konto, ingen reklamer i tabellen, ingen binding. Kopiér, indsæt, færdig.' },
 ]
 
-export default async function WidgetPage({ searchParams }: { searchParams: Promise<{ liga?: string }> }) {
-  const initial = (await searchParams).liga
+export default async function WidgetPage({ searchParams }: { searchParams: Promise<{ liga?: string; type?: string }> }) {
+  const sp = await searchParams
+  const initial = sp.liga
   loadRealData()
   const leagues: WidgetLeague[] = shownDivisions()
     .filter((d) => standings(d, Date.now()).length > 1)
@@ -73,7 +74,7 @@ export default async function WidgetPage({ searchParams }: { searchParams: Promi
             <em>på din side.</em>
           </h1>
           <p className="wg-hero__lead">
-            Giv dine besøgende den aktuelle stilling – live, flot og uden besvær. Vælg liga, fremhæv dit hold og indsæt én linje kode.
+            Giv dine besøgende den aktuelle stilling og jeres kommende kampe – live, flot og uden besvær. Vælg liga eller klub, og indsæt én linje kode.
           </p>
           <div className="wg-hero__cta">
             <a className="wg-btn wg-btn--lime" href="#lav">
@@ -154,7 +155,7 @@ export default async function WidgetPage({ searchParams }: { searchParams: Promi
             </a>
           ))}
         </div>
-        <WidgetBuilder key={initial ?? ''} leagues={leagues} site={SITE_URL} initial={initial} aside={<Faq items={FAQ} />} />
+        <WidgetBuilder key={initial ?? ''} leagues={leagues} site={SITE_URL} initial={initial} initialKind={sp.type === 'kampe' ? 'kampe' : 'tabel'} aside={<Faq items={FAQ} />} />
       </section>
     </div>
   )

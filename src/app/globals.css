@@ -2210,6 +2210,10 @@ a.player-games__match:hover { text-decoration: underline; }
 .widget-builder__form label > span, .widget-builder__form fieldset > span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #6b7064); }
 .widget-builder__form select, .widget-builder__form textarea { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
 .widget-builder__form textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; }
+.widget-builder__kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.widget-builder__kinds button { padding: 9px 10px; border: 0; border-radius: 999px; background: none; font: inherit; font-weight: 800; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.widget-builder__kinds button.is-on { background: var(--ink); color: #fff; }
+.widget-builder__row select { width: auto; }
 .widget-builder__colors { display: flex; flex-wrap: wrap; gap: 6px; }
 .widget-builder__colors button, .widget-builder__form .widget-builder__pick { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border: 1.5px solid var(--line); border-radius: 999px; background: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink); }
 .widget-builder__colors button.is-on, .widget-builder__pick.is-on { border-color: var(--ink); }
