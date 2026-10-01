@@ -25,5 +25,5 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   const s = sportFilterBySlug(sport)
   // Other days have their own address (/kampe/i-gaar, /kampe/2026-10-04)
   if (isValidIsoDate(dato) && dato !== today) permanentRedirect(paths.home({ sport: s.slug, dato, today }))
-  return <DayPage sport={s.id} date={today} today={today} now={now} live={!!live} />
+  return <DayPage sport={s.id} date={today} today={today} now={now} live={!!live} frontPage />
 }

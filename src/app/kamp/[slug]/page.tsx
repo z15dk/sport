@@ -74,7 +74,6 @@ function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
       />
       <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} />
       <div className="match-page match-page--after">
-        <AdSlot placement="scroll" />
         <AdSlot placement="content" />
       </div>
     </div>
@@ -235,7 +234,6 @@ export default async function MatchPage({ params }: { params: Params }) {
           />
       } />
       <div className="match-page match-page--after">
-        <AdSlot placement="scroll" />
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>

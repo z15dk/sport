@@ -384,7 +384,6 @@ export default async function LeaguePage({ params }: { params: Params }) {
         )}
 
 
-        <AdSlot placement="scroll" />
         <AboutText title={`Om ${division.name}`} paragraphs={leagueAbout(division, now)} />
         <AdSlot placement="content" />
         <Faq items={faq} />

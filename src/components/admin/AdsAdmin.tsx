@@ -14,7 +14,7 @@ const WHERE: Record<AdPlacementId, string> = {
   side: 'Højre kolonne på forsiden (følger med ned). Vises ikke på mobil',
   content: 'På kamp-, klub-, liga-, spiller- og artikelsider',
   scroll:
-    'En hel skærm midt i siden, som man scroller forbi – billedet står stille, mens siden glider hen over det. Forsiden (efter 5. liga), ligasider og kampsider, én gang pr. side. Kun med annonce (ingen pladsholder). Motivet i midten: kanterne skæres af efter skærmens format',
+    'En hel skærm midt i siden, som man scroller forbi – billedet står stille, mens siden glider hen over det. Kun på forsiden, efter 5. liga. Motivet i midten: kanterne skæres af efter skærmens format',
 }
 
 type Msg = { text: string; error?: boolean }
@@ -66,8 +66,8 @@ export function AdsAdmin({ config, placements, enabled }: { config: AdsConfig; p
           <strong>Reklamer på siden er {on ? 'slået til' : 'slået fra'}</strong>
           <p className="muted small">
             {on
-              ? 'Pladserne vises med din annonce eller kode – pladser uden noget viser en pladsholder i den reserverede størrelse. Alle mærkes "Annonce".'
-              : 'Ingen reklamer eller pladsholdere vises nogen steder. Du kan godt lægge annoncer ind først og slå til bagefter.'}
+              ? 'Pladserne vises med din annonce eller kode og mærkes "Annonce". Pladser uden annonce vises slet ikke.'
+              : 'Ingen reklamer vises nogen steder. Du kan godt lægge annoncer ind først og slå til bagefter.'}
           </p>
         </div>
         <button type="button" className={`pill${on ? '' : ' is-active'}`} onClick={toggle}>
@@ -145,9 +145,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
         ? 'Annoncekode'
         : slot?.mode === 'image' && slot.desktop
           ? 'Dit banner'
-          : p.id === 'scroll'
-            ? 'Vises ikke'
-            : 'Pladsholder'
+          : 'Tom – vises ikke'
 
   async function upload(variant: 'desktop' | 'mobile', file?: File) {
     if (!file) return
@@ -199,7 +197,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
           </h2>
           <p className="muted small">{WHERE[p.id]}</p>
         </div>
-        <span className={`ads-admin__status is-${status === 'Pladsholder' || status === 'Vises ikke' ? 'empty' : status === 'Slået fra' ? 'off' : 'on'}`}>{status}</span>
+        <span className={`ads-admin__status is-${status === 'Tom – vises ikke' ? 'empty' : status === 'Slået fra' ? 'off' : 'on'}`}>{status}</span>
       </div>
       <div className="ads-admin__modes" role="radiogroup" aria-label={`Indhold for ${p.name}`}>
         {(
@@ -260,7 +258,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
 
       {mode === 'off' && (
         <div className="ads-admin__body">
-          <p className="muted small">Pladsen vises slet ikke – heller ikke som pladsholder.</p>
+          <p className="muted small">Pladsen vises slet ikke, heller ikke når der ligger et banner eller en kode.</p>
           <div>
             <button type="button" className="pill is-active" disabled={busy} onClick={save}>
               Gem

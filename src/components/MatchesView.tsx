@@ -86,6 +86,8 @@ interface Props {
   initialFilter?: StateFilter
   /** Women's games only (/kvindesport, /kvindefodbold): of `sport`, or of every sport */
   women?: boolean
+  /** The front page: the full-screen ad between the leagues (only there) */
+  scrollAd?: boolean
   /** First on the page (the women's pages' big top) */
   top?: ReactNode
   /** Above the list instead of the sports' tabs (the women's pages' own tabs) */
@@ -97,7 +99,7 @@ interface Props {
 /** Matches in the page's HTML; the rest follow in the browser */
 const FIRST_ROWS = 150
 
-export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, top, tabs, below }: Props) {
+export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, scrollAd, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
   const dayMatches = (d: string, n: number) => (women ? getMatches(d, sport, n).filter(isWomenMatch) : getMatches(d, sport, n))
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
@@ -319,7 +321,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {isFeedAdSpot(i, days.length) && (
                     <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
                   )}
-                  {i + 1 === SCROLL_AD_AFTER && i + 1 < days.length && <AdSlot placement="scroll" />}
+                  {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < days.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
             </div>
@@ -335,7 +337,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {isFeedAdSpot(i, groups.length) && (
                     <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
                   )}
-                  {i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
+                  {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
             </div>
