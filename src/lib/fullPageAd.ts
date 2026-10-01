@@ -129,7 +129,13 @@ export async function fullPageAdHtml(url: URL, now: number) {
   const home = go(q, '/')
   const refresh = new URLSearchParams(url.searchParams)
   refresh.set('del', 'live')
-  const feats = FEATURES.map((f) => `<a class="ft" href="${esc(go(q, f.path))}" target="_blank" rel="noopener"><b>${esc(f.title)}</b><span>${esc(f.text)}</span></a>`).join('')
+  // The offers as one running band in the display face (a stadium's light board), each a counted link;
+  // the band is written twice, so it runs without a gap – the copy is hidden from readers
+  const band = (hidden: boolean) =>
+    `<span class="run"${hidden ? ' aria-hidden="true"' : ''}>${FEATURES.map(
+      (f) => `<a class="ft" href="${esc(go(q, f.path))}" target="_blank" rel="noopener"${hidden ? ' tabindex="-1"' : ''}><em>${esc(f.title)}</em><small>${esc(f.text)}</small></a><i class="sep"></i>`,
+    ).join('')}</span>`
+  const feats = band(false) + band(true)
   return `<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Matchly – live score og stats</title>
 <style>
 @font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:800;font-display:swap;src:url(/widget-fonts/barlow-condensed-800-italic.woff2) format("woff2")}
@@ -186,10 +192,15 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 .dots{display:flex;justify-content:center;gap:5px;margin-top:8px}
 .dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25)}.dots i.on{background:var(--lime)}
 .empty{margin:14px 0;color:var(--ink3);text-align:center}
-.feats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:0 clamp(18px,4vw,44px) clamp(12px,2vh,22px)}
-.ft{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transition:border-color .15s,background .15s;min-width:0}
-.ft:hover{border-color:var(--lime);background:rgba(198,241,53,.06)}
-.ft b{font-size:13px;font-weight:700}.ft span{font-size:12px;color:var(--ink3);line-height:1.35}
+.feats{position:relative;overflow:hidden;display:flex;white-space:nowrap;margin:0 clamp(18px,4vw,44px) clamp(12px,2vh,22px);border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.run{display:inline-flex;align-items:center;flex:none;animation:run 42s linear infinite}
+.feats:hover .run{animation-play-state:paused}
+@keyframes run{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.ft{display:inline-flex;align-items:baseline;gap:10px;padding:12px 0;color:var(--ink)}
+.ft em{font:italic 800 clamp(20px,2.2vw,28px)/1 var(--d);text-transform:uppercase;letter-spacing:.01em;font-style:italic;transition:color .15s}
+.ft small{font-size:13px;color:var(--ink3)}
+.ft:hover em{color:var(--lime)}
+.sep{width:8px;height:8px;border-radius:50%;background:var(--lime);margin:0 22px;flex:none}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 clamp(18px,4vw,44px);height:58px;background:var(--bar);flex:none}
 .logo{font:italic 800 30px/1 var(--d);text-transform:uppercase;letter-spacing:-.01em}.logo i{color:var(--live);font-style:inherit}
 .tag{font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tag b{color:var(--lime);font-weight:700}
@@ -197,14 +208,12 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 @media (max-width:760px){
   .grid{grid-template-columns:1fr;align-items:start;gap:16px}
   h1{font-size:clamp(40px,13vw,64px)}
-  .feats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .nums{gap:18px}.lead{max-width:none}
-  .ft span{display:none}
+  .ft small{display:none}.run{animation-duration:28s}
 }
-@media (min-width:761px) and (max-width:1060px){.feats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-height:640px){.feats,.lead{display:none}.grid{align-items:center}}
 @media (max-height:520px){.nums{display:none}}
-@media (prefers-reduced-motion:reduce){.m,.dot,h1 span,.row[data-page].on,.sc.flash{animation:none}h1 span{opacity:1}}
+@media (prefers-reduced-motion:reduce){.m,.dot,h1 span,.row[data-page].on,.sc.flash,.run{animation:none}h1 span{opacity:1}.feats{mask-image:none;-webkit-mask-image:none;flex-wrap:wrap;white-space:normal}.run[aria-hidden]{display:none}.run{flex-wrap:wrap}}
 </style></head><body>
 <div class="ad">
 <div class="m">${M_SVG}</div>
