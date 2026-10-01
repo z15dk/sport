@@ -11,9 +11,10 @@ const slug = (s: string) => s.trim().toLowerCase().replace(/\s+/g, '-').replace(
 export function AdEmbedBuilder({ site }: { site: string }) {
   const [campaign, setCampaign] = useState('')
   const [height, setHeight] = useState('')
+  const [column, setColumn] = useState(false)
   const [copied, setCopied] = useState(false)
   const k = slug(campaign)
-  const attrs = [k && `data-kampagne="${k}"`, Number(height) > 0 && `data-hoejde="${Number(height)}"`].filter(Boolean).join(' ')
+  const attrs = [k && `data-kampagne="${k}"`, Number(height) > 0 && `data-hoejde="${Number(height)}"`, column && 'data-bredde="kolonne"'].filter(Boolean).join(' ')
   const code = `<div class="matchly-annonce"${attrs ? ` ${attrs}` : ''}><a href="${site}/">Matchly – live score og stats</a></div>\n<script async src="${site}/annonce.js"></script>`
   const preview = `/annonce/helside?id=preview${k ? `&kampagne=${encodeURIComponent(k)}` : ''}`
   const link = `${site}/annonce/klik?til=%2F${k ? `&kampagne=${encodeURIComponent(k)}` : ''}`
@@ -24,6 +25,9 @@ export function AdEmbedBuilder({ site }: { site: string }) {
           <span>Modtager / kampagne</span>
           <input type="text" value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="fx lokalavisen eller fanklub-ob" maxLength={60} />
           <small className="muted">Giv hver modtager sit eget navn, så du kan se, hvor klikkene kommer fra. Siden, annoncen står på, tælles også af sig selv.</small>
+        </label>
+        <label className="widget-builder__row">
+          <input type="checkbox" checked={column} onChange={(e) => setColumn(e.target.checked)} /> Hold annoncen inden i kolonnen (ellers fylder den hele skærmens bredde)
         </label>
         <label>
           <span>Højde (tom = hele skærmen)</span>
@@ -53,7 +57,7 @@ export function AdEmbedBuilder({ site }: { site: string }) {
       </section>
       <section className="panel widget-builder__preview ad-preview">
         <iframe key={preview} src={preview} title="Forhåndsvisning af annoncen" />
-        <p className="muted small">Forhåndsvisningen tælles ikke. Annoncen fylder modtagerens skærmhøjde og bliver smallere på mobil.</p>
+        <p className="muted small">Forhåndsvisningen tælles ikke. Annoncen fylder modtagerens skærm i bredden og højden, også når koden står i en smal kolonne, og bliver smallere på mobil.</p>
       </section>
     </div>
   )

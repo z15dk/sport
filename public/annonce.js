@@ -1,4 +1,4 @@
-/* Matchly – helsidesannonce til din side. Kode: https://matchly.dk/admin/annonce */
+/* Matchly – helsidesannonce til din side. Kode: https://matchly.dk/admin/annonce. Fylder hele skærmens bredde; data-bredde="kolonne" holder den i kolonnen. */
 ;(function () {
   var script = document.currentScript
   var origin = script && script.src ? new URL(script.src).origin : 'https://matchly.dk'
@@ -11,9 +11,35 @@
     var h = window.innerHeight || document.documentElement.clientHeight || 800
     return Math.max(480, Math.min(1100, h - 24))
   }
+  // Whether the ad may spread across the whole screen: not from inside something that clips
+  // its content to a narrower width (a scrolling column, a card with overflow hidden)
+  function mayBleed(box) {
+    if (box.getAttribute('data-bredde') === 'kolonne') return false
+    var wide = document.documentElement.clientWidth
+    for (var el = box.parentElement; el && el !== document.body; el = el.parentElement) {
+      var cs = getComputedStyle(el)
+      if ((cs.overflowX !== 'visible' || cs.overflow !== 'visible') && el.clientWidth < wide - 2) return false
+      if (cs.transform !== 'none' || cs.position === 'fixed') return false
+    }
+    return true
+  }
   function size(entry) {
+    var frame = entry.frame
+    // A whole page ("helside"): from the screen's left edge to its right, also when the code sits in a narrow column
+    if (mayBleed(entry.box)) {
+      frame.style.width = '100%'
+      frame.style.marginLeft = '0'
+      var left = entry.box.getBoundingClientRect().left
+      var wide = document.documentElement.clientWidth
+      frame.style.width = wide + 'px'
+      frame.style.marginLeft = -left + 'px'
+      frame.style.maxWidth = 'none'
+    } else {
+      frame.style.width = '100%'
+      frame.style.marginLeft = '0'
+    }
     var h = Math.max(wanted(entry.box), entry.need || 0)
-    entry.frame.style.height = Math.ceil(h) + 'px'
+    frame.style.height = Math.ceil(h) + 'px'
   }
   function mount(box) {
     if (box.getAttribute('data-matchly-ready')) return
@@ -28,7 +54,8 @@
     frame.src = origin + '/annonce/helside?' + q
     frame.title = 'Matchly – live score og stats (annonce)'
     frame.setAttribute('scrolling', 'no')
-    frame.style.cssText = 'display:block;width:100%;height:600px;border:0;overflow:hidden;color-scheme:normal;border-radius:' + (box.getAttribute('data-hjoerner') || '0') + 'px'
+    frame.style.cssText = 'display:block;width:100%;max-width:none;height:600px;border:0;overflow:hidden;color-scheme:normal;border-radius:' + (box.getAttribute('data-hjoerner') || '0') + 'px'
+    box.style.overflow = 'visible'
     frame.setAttribute('data-matchly-id', id)
     // The fallback link in the code is replaced by the ad itself
     while (box.firstChild) box.removeChild(box.firstChild)
@@ -46,9 +73,12 @@
         size(frames[i])
       }
   })
-  addEventListener('resize', function () {
+  function all_size() {
     for (var i = 0; i < frames.length; i++) size(frames[i])
-  })
+  }
+  addEventListener('resize', all_size)
+  addEventListener('load', all_size)
+  setTimeout(all_size, 1000)
   function all() {
     var boxes = document.querySelectorAll('.matchly-annonce')
     for (var i = 0; i < boxes.length; i++) mount(boxes[i])
