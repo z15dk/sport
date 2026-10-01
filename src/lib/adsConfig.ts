@@ -53,6 +53,8 @@ const link = (v: unknown, old?: string) => {
 /** The fields of one banner, changed by those in the input */
 function creative(input: Record<string, unknown>, old: AdBanner): AdBanner {
   return {
+    kind: input.kind === 'code' || input.kind === 'image' ? input.kind : old.kind,
+    code: 'code' in input ? text(input.code, 20_000) || undefined : old.code,
     desktop: 'desktop' in input ? upload(input.desktop, old.desktop) : old.desktop,
     mobile: 'mobile' in input ? upload(input.mobile, old.mobile) : old.mobile,
     href: 'href' in input ? link(input.href, old.href) : old.href,
@@ -71,7 +73,9 @@ export function saveAds(input: Record<string, unknown>): AdsConfig {
   const id = input.slot as AdPlacementId
   if (AD_PLACEMENT_IDS.includes(id)) {
     const old: AdSlotConfig = c.slots[id] ?? { mode: 'image' }
-    const mode = input.mode === 'off' || input.mode === 'image' || input.mode === 'code' ? input.mode : old.mode
+    // The first banner's kind is the placement's mode (picture or code)
+    const asked = input.mode ?? (Number(input.creative ?? 0) === 0 ? input.kind : undefined)
+    const mode = asked === 'off' || asked === 'image' || asked === 'code' ? asked : old.mode
     const n = Number(input.creative ?? 0)
     const remove = Number(input.removeCreative ?? 0)
     let more = [...(old.more ?? [])]
@@ -83,9 +87,12 @@ export function saveAds(input: Record<string, unknown>): AdsConfig {
       more[at] = creative(input, more[at] ?? {})
       slot = { ...old, mode }
     } else {
-      slot = { ...old, ...(remove ? {} : creative(input, old)), mode, code: 'code' in input ? text(input.code, 20_000) || undefined : old.code }
+      // The first banner's kind is the placement's mode
+      const first: AdBanner = remove ? {} : creative(input, old)
+      delete first.kind
+      slot = { ...old, ...first, mode }
     }
-    more = more.filter((m) => m.desktop || m.mobile || m.href)
+    more = more.filter((m) => m.desktop || m.mobile || m.href || m.code)
     slot.more = more.length ? more : undefined
     next.slots[id] = slot
   }

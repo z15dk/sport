@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MAX_CREATIVES, type AdBanner, type AdPlacement, type AdPlacementId, type AdSlotConfig, type AdsConfig } from '../../data/ads'
+import { MAX_CREATIVES, creativesOf, type AdBanner, type AdPlacement, type AdPlacementId, type AdSlotConfig, type AdsConfig } from '../../data/ads'
 
 // /admin/reklamer: the ads switch, and per placement an uploaded banner (computer and
 // phone) with a link, or an ad network's code, or off; the code for every page's
@@ -131,29 +131,19 @@ export function AdsAdmin({ config, placements, enabled }: { config: AdsConfig; p
 }
 
 function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run: (job: () => Promise<AdsConfig | void>, done: string) => Promise<void> }) {
-  const [mode, setMode] = useState<AdSlotConfig['mode'] | 'none'>(slot?.mode ?? 'none')
-  const [code, setCode] = useState(slot?.code ?? '')
   const [busy, setBusy] = useState(false)
-  // The full-screen ad shows up to four banners, one per visit in turn
-  const rotates = p.id === 'scroll'
+  const off = slot?.mode === 'off'
   const more = slot?.more ?? []
   const [adding, setAdding] = useState(false)
   const count = 1 + more.length + (adding ? 1 : 0)
+  const shown = creativesOf(slot).length
+  const firstKind: 'image' | 'code' = slot?.mode === 'code' ? 'code' : 'image'
 
-  const status =
-    slot?.mode === 'off'
-      ? 'Slået fra'
-      : slot?.mode === 'code' && slot.code
-        ? 'Annoncekode'
-        : slot?.mode === 'image' && slot.desktop
-          ? rotates && more.some((m) => m.desktop)
-            ? `${1 + more.filter((m) => m.desktop).length} bannere på skift`
-            : 'Dit banner'
-          : 'Tom – vises ikke'
+  const status = off ? 'Slået fra' : shown > 1 ? `${shown} annoncer på skift` : shown === 1 ? (firstKind === 'code' && creativesOf(slot)[0].kind === 'code' ? 'Annoncekode' : 'Dit banner') : 'Tom – vises ikke'
 
-  async function save(m: AdSlotConfig['mode']) {
+  async function setOff(value: boolean) {
     setBusy(true)
-    await run(() => post({ slot: p.id, mode: m, code }), m === 'off' ? `${p.name} er slået fra` : `${p.name} er gemt`)
+    await run(() => post({ slot: p.id, mode: value ? 'off' : firstOn(slot) }), value ? `${p.name} er slået fra` : `${p.name} er slået til`)
     setBusy(false)
   }
 
@@ -170,85 +160,62 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
         </div>
         <span className={`ads-admin__status is-${status === 'Tom – vises ikke' ? 'empty' : status === 'Slået fra' ? 'off' : 'on'}`}>{status}</span>
       </div>
-      <div className="ads-admin__modes" role="radiogroup" aria-label={`Indhold for ${p.name}`}>
-        {(
-          [
-            ['image', rotates ? 'Egne bannere' : 'Eget banner'],
-            ['code', 'Annoncekode'],
-            ['off', 'Slået fra'],
-          ] as const
-        ).map(([m, label]) => (
-          <button key={m} type="button" role="radio" aria-checked={(mode === 'none' ? 'image' : mode) === m} className={`pill${(mode === 'none' ? 'image' : mode) === m ? ' is-active' : ''}`} onClick={() => setMode(m)}>
-            {label}
-          </button>
-        ))}
+      <div className="ads-admin__modes" role="radiogroup" aria-label={`${p.name} til eller fra`}>
+        <button type="button" role="radio" aria-checked={!off} className={`pill${!off ? ' is-active' : ''}`} disabled={busy} onClick={() => off && setOff(false)}>
+          Vises
+        </button>
+        <button type="button" role="radio" aria-checked={off} className={`pill${off ? ' is-active' : ''}`} disabled={busy} onClick={() => !off && setOff(true)}>
+          Slået fra
+        </button>
       </div>
 
-      {(mode === 'image' || mode === 'none') && (
+      {off ? (
         <div className="ads-admin__body">
-          {rotates && (
-            <p className="muted small">
-              Op til {MAX_CREATIVES} bannere, der skiftes ved hvert besøg: en besøgende ser det samme banner på alle sider under besøget, og næste besøg viser det næste. Så deler de besøgende sig ligeligt mellem dem.
-            </p>
-          )}
-          {Array.from({ length: rotates ? count : 1 }, (_, n) => (
+          <p className="muted small">Pladsen vises slet ikke. Annoncerne er gemt og kommer igen, når den slås til.</p>
+        </div>
+      ) : (
+        <div className="ads-admin__body">
+          <p className="muted small">
+            Op til {MAX_CREATIVES} annoncer (fx én pr. kunde), der skiftes ved hvert besøg: en besøgende ser den samme annonce på alle sider under besøget, og næste besøg viser den næste. Så får kunderne lige mange besøgende hver. Hver annonce er et billede eller en annoncekode.
+          </p>
+          {Array.from({ length: count }, (_, n) => (
             <BannerEditor
-              key={`${n}-${n === 0 ? '' : (more[n - 1]?.desktop ?? 'ny')}`}
+              key={`${n}-${n === 0 ? firstKind : (more[n - 1]?.kind ?? 'ny')}-${n === 0 ? '' : (more[n - 1]?.desktop ?? more[n - 1]?.code?.length ?? 'ny')}`}
               p={p}
               n={n}
-              numbered={rotates && count > 1}
-              banner={n === 0 ? slot : more[n - 1]}
+              numbered={count > 1}
+              banner={n === 0 ? (slot ? { ...slot, kind: firstKind } : undefined) : more[n - 1]}
               run={run}
               onDone={() => setAdding(false)}
             />
           ))}
-          {rotates && count < MAX_CREATIVES && !adding && slot?.desktop && (
+          {count < MAX_CREATIVES && !adding && shown > 0 && (
             <div>
               <button type="button" className="pill" onClick={() => setAdding(true)}>
-                + Tilføj banner {count + 1}
+                + Tilføj annonce {count + 1}
               </button>
             </div>
           )}
-          <p className="muted small">JPG, PNG, WebP eller animeret GIF, max 10 MB. Billedet fylder hele pladsen og beskæres, hvis formatet ikke passer.</p>
-        </div>
-      )}
-
-      {mode === 'code' && (
-        <div className="ads-admin__body ads-admin__form">
-          <label>
-            Annoncekode til pladsen (HTML/script fra netværket, fx en AdSense-annonceenhed)
-            <textarea rows={6} value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} placeholder={'<ins class="adsbygoogle" …></ins>\n<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>'} />
-          </label>
-          <p className="muted small">Koden får pladsen {size('desktop')} px (mobil {size('mobile')}). Netværkets hovedscript sættes ind nederst under &quot;Kode på alle sider&quot;.</p>
-          <div>
-            <button type="button" className="pill is-active" disabled={busy} onClick={() => save('code')}>
-              Gem
-            </button>
-          </div>
-        </div>
-      )}
-
-      {mode === 'off' && (
-        <div className="ads-admin__body">
-          <p className="muted small">Pladsen vises slet ikke, heller ikke når der ligger et banner eller en kode.</p>
-          <div>
-            <button type="button" className="pill is-active" disabled={busy} onClick={() => save('off')}>
-              Gem
-            </button>
-          </div>
         </div>
       )}
     </section>
   )
 }
 
-/** One banner of a placement: the pictures for computer and phone, its link, advertiser and gambling mark (n: 0 = the first, 1–3 the ones shown in turn after it) */
+/** The mode a placement gets when it is switched on again: its first banner's kind */
+function firstOn(slot?: AdSlotConfig): 'image' | 'code' {
+  return slot?.code && !slot.desktop ? 'code' : 'image'
+}
+
+/** One advertiser's banner on a placement: a picture (computer and phone, link, advertiser, gambling mark) or an ad network's code (n: 0 = the first, 1–3 the ones shown in turn after it) */
 function BannerEditor({ p, n, numbered, banner, run, onDone }: { p: AdPlacement; n: number; numbered: boolean; banner?: AdBanner; run: (job: () => Promise<AdsConfig | void>, done: string) => Promise<void>; onDone: () => void }) {
+  const [kind, setKind] = useState<'image' | 'code'>(banner?.kind ?? 'image')
   const [href, setHref] = useState(banner?.href ?? '')
   const [alt, setAlt] = useState(banner?.alt ?? '')
   const [gambling, setGambling] = useState(!!banner?.gambling)
+  const [code, setCode] = useState(banner?.code ?? '')
   const [busy, setBusy] = useState(false)
-  const label = numbered ? `Banner ${n + 1}` : ''
+  const label = numbered ? `Annonce ${n + 1}` : ''
 
   async function upload(variant: 'desktop' | 'mobile', file?: File) {
     if (!file) return
@@ -265,7 +232,7 @@ function BannerEditor({ p, n, numbered, banner, run, onDone }: { p: AdPlacement;
 
   async function save() {
     setBusy(true)
-    await run(() => post({ slot: p.id, mode: 'image', creative: n, href, alt, gambling }), `${label || p.name} er gemt`)
+    await run(() => post({ slot: p.id, creative: n, kind, ...(n === 0 ? { mode: kind } : {}), href, alt, gambling, code }), `${label || p.name} er gemt`)
     setBusy(false)
     onDone()
   }
@@ -294,38 +261,69 @@ function BannerEditor({ p, n, numbered, banner, run, onDone }: { p: AdPlacement;
 
   return (
     <div className={numbered ? 'ads-admin__banner' : undefined}>
-      {numbered && (
-        <div className="ads-admin__banner-head">
-          <strong>{label}</strong>
-          {n > 0 && banner && (
-            <button type="button" className="pill" disabled={busy} onClick={() => run(() => post({ slot: p.id, removeCreative: n }), `${label} er fjernet`)}>
-              Fjern banner
+      <div className="ads-admin__banner-head">
+        {numbered && <strong>{label}</strong>}
+        <div className="ads-admin__modes" role="radiogroup" aria-label={`${label || 'Annoncen'}: billede eller kode`}>
+          {(
+            [
+              ['image', 'Billede'],
+              ['code', 'Annoncekode'],
+            ] as const
+          ).map(([k, text]) => (
+            <button key={k} type="button" role="radio" aria-checked={kind === k} className={`pill${kind === k ? ' is-active' : ''}`} onClick={() => setKind(k)}>
+              {text}
             </button>
-          )}
+          ))}
+        </div>
+        {n > 0 && banner && (
+          <button type="button" className="pill" disabled={busy} onClick={() => run(() => post({ slot: p.id, removeCreative: n }), `${label} er fjernet`)}>
+            Fjern annonce
+          </button>
+        )}
+      </div>
+      {kind === 'image' ? (
+        <>
+          <div className="ads-admin__pics">
+            {pictureBox('desktop', banner?.desktop)}
+            {p.id !== 'side' && pictureBox('mobile', banner?.mobile)}
+          </div>
+          <div className="ads-admin__form">
+            <label>
+              Link (hvor banneret fører hen)
+              <input value={href} onChange={(e) => setHref(e.target.value)} placeholder="https://annoncør.dk" inputMode="url" />
+            </label>
+            <label>
+              Annoncør (tekst til skærmlæsere)
+              <input value={alt} maxLength={120} onChange={(e) => setAlt(e.target.value)} placeholder="Annoncørens navn" />
+            </label>
+            <label className="ads-admin__check">
+              <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
+            </label>
+            <div>
+              <button type="button" className="pill is-active" disabled={busy} onClick={save}>
+                Gem
+              </button>
+            </div>
+          </div>
+          <p className="muted small">JPG, PNG, WebP eller animeret GIF, max 10 MB. Billedet fylder hele pladsen og beskæres, hvis formatet ikke passer.</p>
+        </>
+      ) : (
+        <div className="ads-admin__form">
+          <label>
+            Annoncekode (HTML/script fra kunden eller netværket, fx en AdSense-annonceenhed)
+            <textarea rows={6} value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} placeholder={'<ins class="adsbygoogle" …></ins>\n<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>'} />
+          </label>
+          <label className="ads-admin__check">
+            <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
+          </label>
+          <p className="muted small">Koden får pladsen {size('desktop')} px (mobil {size('mobile')}) og køres kun hos de besøgende, der får denne annonce. Netværkets hovedscript sættes ind nederst under &quot;Kode på alle sider&quot;.</p>
+          <div>
+            <button type="button" className="pill is-active" disabled={busy} onClick={save}>
+              Gem
+            </button>
+          </div>
         </div>
       )}
-      <div className="ads-admin__pics">
-        {pictureBox('desktop', banner?.desktop)}
-        {p.id !== 'side' && pictureBox('mobile', banner?.mobile)}
-      </div>
-      <div className="ads-admin__form">
-        <label>
-          Link (hvor banneret fører hen)
-          <input value={href} onChange={(e) => setHref(e.target.value)} placeholder="https://annoncør.dk" inputMode="url" />
-        </label>
-        <label>
-          Annoncør (tekst til skærmlæsere)
-          <input value={alt} maxLength={120} onChange={(e) => setAlt(e.target.value)} placeholder="Annoncørens navn" />
-        </label>
-        <label className="ads-admin__check">
-          <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
-        </label>
-        <div>
-          <button type="button" className="pill is-active" disabled={busy} onClick={save}>
-            Gem
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

@@ -21,17 +21,21 @@ function run(target: HTMLElement, code: string) {
   return nodes
 }
 
-/** A placement's code */
-export function AdCode({ code }: { code: string }) {
+/**
+ * A placement's code. On a placement shared by several advertisers (`turn` = its place in the
+ * rotation) it runs only when it is the visit's banner – the others stay hidden and never load.
+ */
+export function AdCode({ code, turn }: { code: string; turn?: number }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (turn !== undefined && getComputedStyle(el).display === 'none') return
     el.replaceChildren()
     run(el, code)
     return () => el.replaceChildren()
-  }, [code])
-  return <div ref={ref} className="ad__code" />
+  }, [code, turn])
+  return <div ref={ref} className="ad__code" data-ad-i={turn} />
 }
 
 const loaded = new Set<string>()

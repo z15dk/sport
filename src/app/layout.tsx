@@ -13,6 +13,7 @@ import { liveCursor } from '../lib/liveFeed'
 import { VisitBeacon } from '../components/VisitBeacon'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
+import { AD_TURN_SCRIPT, adTurnCss } from '../data/ads'
 // The site's fonts, served from our own domain (no request to Google that holds up the first paint)
 import '@fontsource/barlow-condensed/latin-600.css'
 import '@fontsource/barlow-condensed/latin-700.css'
@@ -57,7 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const badges = await getBadges()
   const real = loadRealData()
   return (
-    // The attribute below is set by the script before the page is drawn (not by React)
+    // The attribute and class below are set by the scripts before the page is drawn (not by React)
     <html lang="da" suppressHydrationWarning>
       <head>
         {/* A closed "Følg dine hold" stays closed from the first paint (the box itself reads the choice only after loading) */}
@@ -66,6 +67,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: "try{if(localStorage.getItem('myTeamsHintHidden')==='true')document.documentElement.setAttribute('data-teams-hint','hidden')}catch(e){}",
           }}
         />
+        {/* Placements shared by several advertisers show one banner per visit, chosen here before the page is drawn (src/data/ads.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: AD_TURN_SCRIPT }} />
+        <style dangerouslySetInnerHTML={{ __html: adTurnCss() }} />
       </head>
       <body>
         <JsonLd data={websiteLd()} />

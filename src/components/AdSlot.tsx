@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react'
-import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, creativesOf, type AdPlacementId } from '../data/ads'
+import type { CSSProperties, ReactNode } from 'react'
+import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, creativesOf, type AdBanner, type AdPlacementId } from '../data/ads'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { getRealData } from '../data/real'
 import { AdCode } from './AdCode'
@@ -12,24 +12,45 @@ interface Props {
   className?: string
 }
 
+/**
+ * One banner of a placement: a picture (with a link) or an ad network's code. With several banners
+ * on the placement every one is in the page, and the visit's turn (src/data/ads.ts) shows one of them
+ * before the page is drawn; hidden pictures are not loaded, hidden code is not run.
+ */
+export function AdBannerView({ banner, i, rotating, mobileBelow }: { banner: AdBanner; i: number; rotating: boolean; mobileBelow: number }): ReactNode {
+  if (banner.kind === 'code' && banner.code) return <AdCode key={i} code={banner.code} turn={rotating ? i : undefined} />
+  if (!banner.desktop) return null
+  const picture = (
+    <picture key={i} data-ad-i={banner.href ? undefined : i}>
+      {banner.mobile && <source media={`(max-width: ${mobileBelow}px)`} srcSet={banner.mobile} />}
+      {/* eslint-disable-next-line @next/next/no-img-element -- creatives come in any size and format */}
+      <img src={banner.desktop} alt={banner.alt ?? 'Annonce'} loading={rotating ? 'lazy' : undefined} />
+    </picture>
+  )
+  return banner.href ? (
+    <a key={i} data-ad-i={i} href={banner.href} target="_blank" rel="sponsored nofollow noopener">
+      {picture}
+    </a>
+  ) : (
+    picture
+  )
+}
+
 /** A reserved advertising space; always labelled "Annonce" as Danish marketing law requires */
 export function AdSlot({ placement, index, className }: Props) {
   // Switched on and off in the admin pages (off by default)
   const real = getRealData()
   if (real?.settings?.ads !== true) return null
   const p = AD_PLACEMENTS[placement]
-  // Set in /admin/reklamer: a banner, an ad network's code, or off
+  // Set in /admin/reklamer: up to four banners (pictures or code) shown one per visit, or off
   const set = real.ads?.slots?.[placement]
   if (set?.mode === 'off') return null
-  const banner = set?.mode === 'image' && set.desktop ? { src: set.desktop, mobile: set.mobile, href: set.href, alt: set.alt ?? 'Annonce', gambling: set.gambling } : undefined
-  const code = set?.mode === 'code' && set.code ? set.code : undefined
-  // The full-screen ad: only with an ad, never a placeholder; up to four banners shown in turn
-  if (placement === 'scroll') {
-    const items = set?.mode === 'image' ? creativesOf(set).map((c) => ({ desktop: c.desktop!, mobile: c.mobile, href: c.href, alt: c.alt ?? 'Annonce', gambling: !!c.gambling })) : []
-    return items.length || code ? <ScrollAd items={items} mobileBelow={p.mobileBelow ?? 700} code={code} gambling={RESPONSIBLE_GAMBLING} /> : null
-  }
-  const c = banner ?? (code ? undefined : p.creative)
-  if (!c && !code && !SHOW_AD_PLACEHOLDERS) return null
+  const banners = creativesOf(set)
+  const mobileBelow = p.mobileBelow ?? 700
+  // The full-screen ad: only with an ad, never a placeholder
+  if (placement === 'scroll') return banners.length ? <ScrollAd banners={banners} mobileBelow={mobileBelow} gambling={RESPONSIBLE_GAMBLING} /> : null
+  const fallback = banners.length ? undefined : p.creative
+  if (!banners.length && !fallback && !SHOW_AD_PLACEHOLDERS) return null
 
   const id = `ad-${placement}${index ? `-${index}` : ''}`
   const style = {
@@ -39,29 +60,16 @@ export function AdSlot({ placement, index, className }: Props) {
     '--ad-mh': `${p.mobile.height}px`,
     '--ad-mratio': `${p.mobile.width} / ${p.mobile.height}`,
   } as CSSProperties
-  const mobile = c && 'mobile' in c ? c.mobile : undefined
-  const picture = c && (
-    <picture>
-      {mobile && <source media={`(max-width: ${p.mobileBelow ?? 700}px)`} srcSet={mobile} />}
-      {/* eslint-disable-next-line @next/next/no-img-element -- creatives come in any size and format */}
-      <img src={c.src} alt={c.alt} />
-    </picture>
-  )
+  const shown: AdBanner[] = banners.length ? banners : fallback ? [{ kind: 'image', desktop: fallback.src, mobile: 'mobile' in fallback ? (fallback.mobile as string | undefined) : undefined, href: fallback.href, alt: fallback.alt, gambling: fallback.gambling }] : []
+  const rotating = shown.length > 1
+  const rot = rotating ? ` ad-rot ad-rot--${shown.length}` : ''
 
   return (
-    <aside className={`ad ad--${placement}${c || code ? ' ad--filled' : ''}${className ? ` ${className}` : ''}`} aria-label="Annonce" style={style}>
+    <aside className={`ad ad--${placement}${shown.length ? ' ad--filled' : ''}${className ? ` ${className}` : ''}`} aria-label="Annonce" style={style}>
       <span className="ad__label">Annonce</span>
-      <div className="ad__box" id={id} data-ad-placement={placement}>
-        {code ? (
-          <AdCode code={code} />
-        ) : c ? (
-          c.href ? (
-            <a href={c.href} target="_blank" rel="sponsored nofollow noopener">
-              {picture}
-            </a>
-          ) : (
-            picture
-          )
+      <div className={`ad__box${rot}`} id={id} data-ad-placement={placement}>
+        {shown.length ? (
+          shown.map((b, i) => <AdBannerView key={i} banner={b} i={i} rotating={rotating} mobileBelow={mobileBelow} />)
         ) : (
           <span className="ad__placeholder">
             <strong>{p.name}</strong>
@@ -74,10 +82,18 @@ export function AdSlot({ placement, index, className }: Props) {
           </span>
         )}
       </div>
-      {c?.gambling && (
-        <a className="ad__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
-          {RESPONSIBLE_GAMBLING.text}
-        </a>
+      {shown.some((b) => b.gambling) && (
+        <div className={rot.trim() || undefined}>
+          {shown.map((b, i) =>
+            b.gambling ? (
+              <a key={i} data-ad-i={i} className="ad__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
+                {RESPONSIBLE_GAMBLING.text}
+              </a>
+            ) : (
+              <span key={i} data-ad-i={i} hidden />
+            ),
+          )}
+        </div>
       )}
     </aside>
   )

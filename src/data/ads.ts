@@ -49,26 +49,51 @@ export interface AdSlotConfig {
   gambling?: boolean
   /** An ad network's HTML/script for the placement (run in the browser) */
   code?: string
-  /** More banners shown in turn with the first (the full-screen ad: up to MAX_CREATIVES in all) */
+  /** More banners shown in turn with the first, one per visit (up to MAX_CREATIVES in all) */
   more?: AdBanner[]
 }
 
-/** One banner of a placement that shows several in turn */
+/** One banner of a placement that shows several in turn: an uploaded picture or an ad network's code */
 export interface AdBanner {
+  kind?: 'image' | 'code'
   desktop?: string
   mobile?: string
   href?: string
   alt?: string
   gambling?: boolean
+  code?: string
 }
 
-/** Banners a placement can show in turn (the full-screen ad) */
+/** Banners a placement can show in turn, one per visit (several advertisers sharing a placement) */
 export const MAX_CREATIVES = 4
 
-/** A placement's banners with a picture, in order: the first is the slot's own */
-export function creativesOf(slot: AdSlotConfig | undefined): AdBanner[] {
-  if (!slot) return []
-  return [slot, ...(slot.more ?? [])].filter((c) => !!c.desktop)
+/** A placement's banners that have something to show, in order: the first is the slot's own (its mode says picture or code) */
+export function creativesOf(slot: AdSlotConfig | undefined): (AdBanner & { kind: 'image' | 'code' })[] {
+  if (!slot || slot.mode === 'off') return []
+  const first = { ...slot, kind: slot.mode === 'code' ? ('code' as const) : ('image' as const) }
+  return [first, ...(slot.more ?? []).map((m) => ({ ...m, kind: m.kind ?? ('image' as const) }))].filter((c) => (c.kind === 'code' ? !!c.code : !!c.desktop))
+}
+
+/**
+ * The visit's turn (src/app/layout.tsx sets the class adt-<0–11> on <html> before the page is drawn:
+ * the same all through a visit, the next one at the next visit; 12 so that 2, 3 and 4 banners all go round)
+ */
+export const AD_TURNS = 12
+export const AD_TURN_SCRIPT = `try{var s=sessionStorage,l=localStorage,t=s.getItem('adTurn');if(t===null){t=(Number(l.getItem('adTurn')||-1)+1)%${AD_TURNS};if(!(t>=0))t=0;l.setItem('adTurn',String(t));s.setItem('adTurn',String(t))}document.documentElement.classList.add('adt-'+(Number(t)%${AD_TURNS}))}catch(e){}`
+
+/** The visit's turn in the browser (0 on the server and without storage) */
+export function adTurn(): number {
+  if (typeof document === 'undefined') return 0
+  const m = /\badt-(\d+)\b/.exec(document.documentElement.className)
+  return m ? Number(m[1]) : 0
+}
+
+/** CSS that shows each rotating placement's banner for the visit's turn (`.ad-rot--<n>` with children `[data-ad-i]`) */
+export function adTurnCss(): string {
+  const rules = ['html:not([class*="adt-"]) .ad-rot > [data-ad-i]:not([data-ad-i="0"]){display:none!important}']
+  for (let t = 0; t < AD_TURNS; t++)
+    for (let n = 2; n <= MAX_CREATIVES; n++) rules.push(`.adt-${t} .ad-rot--${n} > [data-ad-i]:not([data-ad-i="${t % n}"]){display:none!important}`)
+  return rules.join('')
 }
 
 export interface AdsConfig {
