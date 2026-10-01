@@ -28,6 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ klub
   const dark = url.searchParams.get('tema') === 'mork'
   const count = Math.min(10, Math.max(1, Number(url.searchParams.get('antal')) || 5))
   const showLast = url.searchParams.get('seneste') !== '0'
+  const showTv = url.searchParams.get('tv') !== '0'
   const id = (url.searchParams.get('id') ?? '').replace(/[^\w-]/g, '').slice(0, 40)
   noteWidgetView({
     page: url.searchParams.get('side'),
@@ -52,7 +53,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ klub
   }
   const ours = (m: Match) => (m.home.name === team.name ? 'home' : 'away')
   const opponent = (m: Match) => (ours(m) === 'home' ? m.away : m.home)
-  const tv = (m: Match) => channelsFor(m).map((c) => c.name).join(', ')
+  const tv = (m: Match) => (showTv ? channelsFor(m).map((c) => c.name).join(', ') : '')
 
   const row = (m: Match) => {
     const day = isoDate(m.kickoff)
