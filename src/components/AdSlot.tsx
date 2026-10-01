@@ -45,6 +45,7 @@ export function AdSlot({ placement, index, className }: Props) {
     '--ad-h': `${p.desktop.height}px`,
     '--ad-mw': `${p.mobile.width}px`,
     '--ad-mh': `${p.mobile.height}px`,
+    '--ad-mratio': `${p.mobile.width} / ${p.mobile.height}`,
   } as CSSProperties
   const mobile = c && 'mobile' in c ? c.mobile : undefined
   const picture = c && (

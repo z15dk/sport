@@ -933,6 +933,11 @@ h2.league__name { margin: 0; }
   .ad__size--desktop { display: none; }
   .ad__size--mobile { display: inline; }
   .ad--top { padding: 12px 16px 0; }
+  /* In the page's flow the banner fills the phone's width, in its own proportions (a 300×250 grows to e.g. 358×298) */
+  .ad--content .ad__label, .ad--content .ad__box, .ad--feed .ad__label, .ad--feed .ad__box { width: 100%; }
+  .ad--content .ad__box, .ad--feed .ad__box { height: auto; aspect-ratio: var(--ad-mratio); }
+  .ad--content .ad__code a, .ad--content .ad__code picture, .ad--content .ad__code img,
+  .ad--feed .ad__code a, .ad--feed .ad__code picture, .ad--feed .ad__code img { display: block; width: 100%; height: auto; }
 }
 /* The top banner with an ad: a dark band across the page's width (like the live strip under it), the banner sharp in the middle */
 .ad--top.ad--filled .ad__label, .ad--top.ad--filled .ad__box { width: 100%; }
