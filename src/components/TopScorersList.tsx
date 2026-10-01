@@ -36,7 +36,6 @@ export function TopScorersList({ league, scorers }: { league: string; scorers: T
           </ol>
         </div>
       </div>
-      <p className="muted small topscorers__note">Pil op/ned: flyttet siden sidste spilledag.</p>
     </section>
   )
 }
