@@ -6,7 +6,7 @@ export interface WidgetLeague {
   slug: string
   name: string
   country: string
-  clubs: { slug: string; name: string }[]
+  clubs: { slug: string; name: string; color?: string }[]
 }
 
 /** /widget: choose a league, a team to highlight and a theme; a live preview and the code to copy */
@@ -14,19 +14,22 @@ export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: Widg
   const [liga, setLiga] = useState(leagues.find((l) => l.slug === initial)?.slug ?? leagues[0]?.slug ?? '')
   const [hold, setHold] = useState('')
   const [tema, setTema] = useState<'lys' | 'mork'>('lys')
+  const [farve, setFarve] = useState('c6f135')
   const [kompakt, setKompakt] = useState(false)
   const [copied, setCopied] = useState(false)
   const [height, setHeight] = useState(560)
   const frame = useRef<HTMLIFrameElement>(null)
   const league = leagues.find((l) => l.slug === liga) ?? leagues[0]
+  const clubHex = league?.clubs.find((c) => c.slug === hold)?.color?.replace('#', '').toLowerCase()
+  const clubColor = clubHex && /^[0-9a-f]{6}$/.test(clubHex) ? clubHex : undefined
 
   const code = useMemo(() => {
     if (!league) return ''
-    const attrs = [`data-liga="${league.slug}"`, hold && `data-hold="${hold}"`, tema === 'mork' && 'data-tema="mork"', kompakt && 'data-kompakt="1"'].filter(Boolean).join(' ')
+    const attrs = [`data-liga="${league.slug}"`, hold && `data-hold="${hold}"`, hold && farve !== 'c6f135' && `data-farve="${farve}"`, tema === 'mork' && 'data-tema="mork"', kompakt && 'data-kompakt="1"'].filter(Boolean).join(' ')
     return `<div class="matchly-tabel" ${attrs}>\n  <a href="${site}/turnering/${league.slug}">${league.name} stilling</a> · leveret af <a href="${site}">Matchly</a>\n</div>\n<script async src="${site}/widget.js"></script>`
-  }, [league, hold, tema, kompakt, site])
+  }, [league, hold, farve, tema, kompakt, site])
 
-  const preview = league ? `/widget/tabel/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(tema === 'mork' && { tema }), ...(kompakt && { kompakt: '1' }) })}` : ''
+  const preview = league ? `/widget/tabel/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(hold && farve !== 'c6f135' && { farve }), ...(tema === 'mork' && { tema }), ...(kompakt && { kompakt: '1' }) })}` : ''
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -67,6 +70,24 @@ export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: Widg
             ))}
           </select>
         </label>
+        {hold && (
+          <fieldset>
+            <span>Farve på dit hold</span>
+            <div className="widget-builder__colors">
+              {[
+                { hex: 'c6f135', label: 'Matchly-grøn' },
+                ...(clubColor && clubColor !== 'c6f135' ? [{ hex: clubColor, label: 'Klubbens farve' }] : []),
+              ].map((c) => (
+                <button key={c.hex} type="button" className={farve === c.hex ? 'is-on' : undefined} onClick={() => setFarve(c.hex)} title={c.label}>
+                  <i style={{ background: `#${c.hex}` }} /> {c.label}
+                </button>
+              ))}
+              <label className={`widget-builder__pick${![...['c6f135'], clubColor].includes(farve) ? ' is-on' : ''}`} title="Vælg selv">
+                <input type="color" value={`#${farve}`} onChange={(e) => setFarve(e.target.value.slice(1).toLowerCase())} /> Vælg selv
+              </label>
+            </div>
+          </fieldset>
+        )}
         <fieldset>
           <span>Udseende</span>
           <div className="widget-builder__row">
@@ -100,9 +121,6 @@ export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: Widg
       </section>
       <section className="panel widget-builder__preview">
         <iframe ref={frame} key={preview} src={preview} title="Forhåndsvisning af tabellen" style={{ height }} />
-        <p className="small muted">
-          <a href={`/turnering/${league.slug}`}>{league.name} stilling</a> · leveret af <a href="/">Matchly</a>
-        </p>
       </section>
       {aside && <aside className="widget-builder__aside">{aside}</aside>}
     </div>

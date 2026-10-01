@@ -49,7 +49,7 @@ export default async function WidgetPage({ searchParams }: { searchParams: Promi
       name: d.name,
       country: d.country,
       clubs: standings(d, Date.now())
-        .map((r) => ({ slug: r.club.slug, name: r.club.name }))
+        .map((r) => ({ slug: r.club.slug, name: r.club.name, color: r.club.colors?.[0] }))
         .sort((a, b) => a.name.localeCompare(b.name, 'da')),
     }))
   const clubs = leagues.reduce((n, l) => n + l.clubs.length, 0)

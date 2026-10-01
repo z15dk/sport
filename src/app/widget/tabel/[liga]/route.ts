@@ -28,6 +28,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   if (!division || !hasRealData(division.id)) return new Response('Ukendt liga', { status: 404, headers: { 'X-Robots-Tag': 'noindex' } })
   const url = new URL(request.url)
   const highlight = url.searchParams.get('hold') ?? ''
+  // The highlighted club's colour (?farve=1d4ed8), so the table fits the club's own site; the text turns light or dark to stay readable
+  const color = /^[0-9a-f]{6}$/i.test(url.searchParams.get('farve') ?? '') ? `#${url.searchParams.get('farve')!.toLowerCase()}` : '#c6f135'
+  const lum = (h: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const colorInk = lum(color) > 0.35 ? '#111' : '#fff'
   const dark = url.searchParams.get('tema') === 'mork'
   const compact = url.searchParams.get('kompakt') === '1'
   const id = (url.searchParams.get('id') ?? '').replace(/[^\w-]/g, '').slice(0, 40)
@@ -87,7 +94,7 @@ ${compact ? '' : `<td class="fm">${chips(r)}</td>`}
 <style>
 @font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:800;font-display:swap;src:url(/widget-fonts/barlow-condensed-800-italic.woff2) format("woff2")}
 @font-face{font-family:"DM Sans";font-style:normal;font-weight:100 1000;font-display:swap;src:url(/widget-fonts/dm-sans.woff2) format("woff2")}
-:root{--surface:#fff;--row:#f4f5f0;--ink:#0f110c;--ink2:#5a5f55;--ink3:#676c60;--line:#e1e4da;--lime:#c6f135;--deep:#6f8f00;--live:#ff4a1f;--d:"Barlow Condensed","Arial Narrow",sans-serif}
+:root{--me:${color};--me-ink:${colorInk};--surface:#fff;--row:#f4f5f0;--ink:#0f110c;--ink2:#5a5f55;--ink3:#676c60;--line:#e1e4da;--lime:#c6f135;--deep:#6f8f00;--live:#ff4a1f;--d:"Barlow Condensed","Arial Narrow",sans-serif}
 ${dark ? ':root{--surface:#15170f;--row:#1f2219;--ink:#f3f5ee;--ink2:#b9bdb0;--ink3:#9ea393;--line:#2a2d22;--deep:#a5d000}.bar{border-top:1px solid #2f3326}' : ''}
 *{box-sizing:border-box}html,body{margin:0;background:transparent;color:var(--ink);font:14px/1.4 "DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 .w{background:var(--surface);border-radius:22px;overflow:hidden}
@@ -102,7 +109,7 @@ td:first-child{border-radius:14px 0 0 14px;box-shadow:inset 4px 0 0 transparent}
 .n{text-align:center;width:1%}
 .pos{font:italic 800 18px/1 var(--d)}.pts{font:italic 800 20px/1 var(--d)}
 tr.up td:first-child{box-shadow:inset 4px 0 0 var(--deep)}tr.down td:first-child{box-shadow:inset 4px 0 0 var(--live)}
-tr.me td{background:var(--lime);color:#111}
+tr.me td{background:var(--me);color:var(--me-ink)}
 td.club{max-width:0;width:100%}
 .club a{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;min-width:0}
 .club strong{overflow:hidden;text-overflow:ellipsis;font-weight:700}.club a:hover strong{text-decoration:underline;text-underline-offset:3px}
@@ -110,7 +117,7 @@ img,.ini{width:24px;height:24px;flex:none;object-fit:contain}
 .ini{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:8px;font-weight:800}
 .form{display:inline-flex;align-items:center;gap:5px}.form i{width:12px;height:12px;border-radius:50%;display:inline-block}
 .form .V{background:#2fa84f;color:#2fa84f}.form .U{background:#a4a89c;color:#a4a89c}.form .T{background:var(--live);color:var(--live)}
-.form i.last{width:14px;height:14px;box-shadow:0 0 0 2px var(--row),0 0 0 3.5px currentColor}tr.me .form i.last{box-shadow:0 0 0 2px var(--lime),0 0 0 3.5px currentColor}
+.form i.last{width:14px;height:14px;box-shadow:0 0 0 2px var(--row),0 0 0 3.5px currentColor}tr.me .form i.last{box-shadow:0 0 0 2px var(--me),0 0 0 3.5px currentColor}
 .legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:8px 18px 14px;font-size:12px;color:var(--ink2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.dot{width:10px;height:10px;border-radius:3px;display:inline-block}.dot.up{background:var(--deep)}.dot.down{background:var(--live)}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;background:#0f110c;color:#fff;text-decoration:none}
