@@ -14,6 +14,8 @@ import { playerPath } from '../../../../data/player'
 import { SeasonLinks } from '../../../../components/SeasonLinks'
 import { PlayerPhoto } from '../../../../components/PlayerPhoto'
 import { playerFaces } from '../../../../lib/playerPhotos'
+import { hasRealData } from '../../../../data/real'
+import { LeagueSubPageView, isLeagueSubPage, leagueSubMetadata } from '../../../../components/LeagueSubPage'
 
 // An earlier season of one of our leagues (only seasons our partners' results
 // cover in full): final table, top scorers, every match and the season in numbers.
@@ -61,6 +63,11 @@ function facts(season: PastSeason) {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug, saeson } = await params
+  // The league's own pages: top scorers, fixture list, results (src/components/LeagueSubPage.tsx)
+  if (isLeagueSubPage(saeson)) {
+    const division = divisionBySlug(slug)
+    return division && hasRealData(division.id) ? leagueSubMetadata(division, saeson) : { title: 'Siden findes ikke' }
+  }
   const found = load(slug, saeson)
   if (!found) return { title: 'Sæsonen findes ikke' }
   const { division, season } = found
@@ -75,6 +82,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function SeasonPage({ params }: { params: Params }) {
   const { slug, saeson } = await params
+  if (isLeagueSubPage(saeson)) {
+    const division = divisionBySlug(slug)
+    if (!division || !hasRealData(division.id) || (saeson === 'topscorere' && sportOf(division) !== 'soccer')) notFound()
+    return <LeagueSubPageView division={division} page={saeson} />
+  }
   const found = load(slug, saeson)
   if (!found) notFound()
   const { division, season } = found

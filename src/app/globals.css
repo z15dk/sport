@@ -2450,3 +2450,6 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .topscorers__move.is-down { color: var(--live); }
 .topscorers__note { margin: 0; padding: 0 18px 16px; }
 .table-duo > .topscorers { position: sticky; top: 16px; }
+
+/* A league's own pages: table, fixture list, results, top scorers (LeagueSubNav) */
+.league-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

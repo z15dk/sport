@@ -1,8 +1,9 @@
 import 'server-only'
+import { LEAGUE_SUBPAGES } from '../components/LeagueSubPage'
 import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
-import { shownDivisions } from '../data/leagues'
+import { shownDivisions, sportOf } from '../data/leagues'
 import { allTeams } from '../data/teams'
 import { getMatches } from '../data/matches'
 import { allFixtures } from '../data/season'
@@ -43,6 +44,8 @@ export function pageEntries(): SitemapEntry[] {
     { path: paths.tv() },
     ...tvLeagues().map((l) => ({ path: paths.tv(l.slug) })),
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
+    // The leagues' own pages for fixture list, results and top scorers (src/components/LeagueSubPage.tsx)
+    ...shownDivisions().flatMap((d) => LEAGUE_SUBPAGES.filter((p) => p !== 'topscorere' || sportOf(d) === 'soccer').map((p) => ({ path: `${paths.league(d.slug)}/${p}` }))),
     ...shownDivisions().flatMap((d) => pastSeasons(d.id).map((s) => ({ path: `${paths.league(d.slug)}/${s.slug}`, lastModified: s.games.at(-1)?.date }))),
     ...tournaments.map((k) => ({ path: paths.league(k) })),
     { path: paths.clubs() },

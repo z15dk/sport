@@ -49,6 +49,7 @@ import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
 import { knownLeague } from '../../../lib/knownLeague'
 import { divisionOfGame } from '../../../data/ourLeagues'
+import { LeagueSubNav } from '../../../components/LeagueSubPage'
 
 export const dynamic = 'force-dynamic'
 
@@ -293,6 +294,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
             </span>
           </h1>
           <DivisionTabs active={division.slug} />
+          <LeagueSubNav division={division} active="stilling" />
         </div>
 
         <p className="lead">
