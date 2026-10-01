@@ -24,13 +24,7 @@ export function WidgetShowcase({ leagues }: { leagues: { slug: string; name: str
   const league = leagues[i]
   if (!league) return null
   return (
-    <div className="wg-window" aria-label="Eksempel: tabellen på en klubs hjemmeside">
-      <div className="wg-window__bar">
-        <i />
-        <i />
-        <i />
-        <span className="wg-window__url">dinklub.dk/stillingen</span>
-      </div>
+    <div className="wg-window" aria-label="Eksempel på tabellen">
       <div className="wg-window__body">
         <iframe
           key={league.slug}
@@ -42,9 +36,6 @@ export function WidgetShowcase({ leagues }: { leagues: { slug: string; name: str
           tabIndex={-1}
         />
       </div>
-      <span className="wg-window__live">
-        <b /> Opdateres efter hver kamp
-      </span>
       <div className="wg-window__dots" aria-hidden>
         {leagues.map((l, k) => (
           <button key={l.slug} type="button" className={k === i ? 'is-on' : undefined} onClick={() => setI(k)} tabIndex={-1} />

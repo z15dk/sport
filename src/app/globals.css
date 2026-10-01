@@ -2260,30 +2260,16 @@ a.player-games__match:hover { text-decoration: underline; }
 .wg-hero__numbers dd { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 44px; line-height: 1; }
 .wg-hero__show { position: relative; animation: wg-up 0.7s 0.15s ease both; }
 
-.wg-window {
-  position: relative; border-radius: 18px; background: #eceee7; overflow: visible;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08); transform: rotate(1.2deg);
-  transition: transform 0.3s;
-}
-.wg-window:hover { transform: rotate(0deg) scale(1.01); }
-.wg-window__bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #dfe2d8; border-radius: 18px 18px 0 0; }
-.wg-window__bar i { width: 10px; height: 10px; border-radius: 50%; background: #c3c7ba; }
-.wg-window__bar i:first-child { background: #ff5f57; } .wg-window__bar i:nth-child(2) { background: #febc2e; } .wg-window__bar i:nth-child(3) { background: #28c840; }
-.wg-window__url { margin-left: 10px; flex: 1; padding: 4px 12px; border-radius: 999px; background: #fff; color: var(--ink-3); font-size: 12px; }
+.wg-window { position: relative; }
 .wg-window__body {
-  height: 440px; overflow: hidden; padding: 14px; border-radius: 0 0 18px 18px;
+  height: 480px; overflow: hidden; border-radius: 22px; filter: drop-shadow(0 24px 50px rgba(0, 0, 0, 0.5));
   -webkit-mask-image: linear-gradient(#000 82%, transparent); mask-image: linear-gradient(#000 82%, transparent);
 }
 .wg-window__body iframe { width: 100%; height: 900px; border: 0; opacity: 0; transform: translateY(8px); transition: opacity 0.35s, transform 0.35s; pointer-events: none; }
 .wg-window__body iframe.is-shown { opacity: 1; transform: none; }
-.wg-window__live {
-  position: absolute; left: -18px; bottom: 58px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px;
-  background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-}
-.wg-window__live b { width: 9px; height: 9px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 0 rgba(255, 74, 31, 0.6); animation: wg-pulse 1.6s infinite; }
-.wg-window__dots { position: absolute; right: 16px; bottom: 14px; display: flex; gap: 6px; }
-.wg-window__dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(15, 17, 12, 0.25); cursor: pointer; transition: width 0.25s, background 0.25s; }
-.wg-window__dots button.is-on { width: 22px; background: var(--ink); }
+.wg-window__dots { display: flex; justify-content: center; gap: 6px; margin-top: 12px; }
+.wg-window__dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.3); cursor: pointer; transition: width 0.25s, background 0.25s; }
+.wg-window__dots button.is-on { width: 22px; background: var(--lime); }
 
 .wg-benefits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .wg-benefit { background: var(--surface); border-radius: var(--radius); padding: 22px; animation: wg-up 0.5s ease both; transition: transform 0.2s, box-shadow 0.2s; }
@@ -2309,17 +2295,15 @@ a.player-games__match:hover { text-decoration: underline; }
 
 @keyframes wg-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes wg-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 74, 31, 0.6); } 70% { box-shadow: 0 0 0 10px rgba(255, 74, 31, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 74, 31, 0); } }
-@media (prefers-reduced-motion: reduce) { .wg-hero__text, .wg-hero__show, .wg-benefit { animation: none; } .wg-window__live b { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .wg-hero__text, .wg-hero__show, .wg-benefit { animation: none; } }
 @media (max-width: 960px) {
   .wg-hero { grid-template-columns: 1fr; padding: 32px 22px; gap: 30px; }
   .wg-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wg-steps ol { grid-template-columns: 1fr; }
-  .wg-window { transform: none; }
-  .wg-window__live { left: 10px; }
 }
 @media (max-width: 520px) {
   .wg-benefits { grid-template-columns: 1fr; }
   .wg-hero__numbers dd { font-size: 36px; }
-  .wg-window__body { height: 360px; padding: 8px; }
+  .wg-window__body { height: 380px; }
   .wg-steps { padding: 22px 16px; }
 }
