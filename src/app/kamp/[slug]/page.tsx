@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
 import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
+import { rivalryPath } from '../../../lib/rivalry'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
@@ -224,7 +225,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

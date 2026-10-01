@@ -1,5 +1,6 @@
 import 'server-only'
 import { LEAGUE_SUBPAGES } from '../components/LeagueSubPage'
+import { rivalryPairs } from './rivalry'
 import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
@@ -44,6 +45,8 @@ export function pageEntries(): SitemapEntry[] {
     { path: paths.tv() },
     ...tvLeagues().map((l) => ({ path: paths.tv(l.slug) })),
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
+    // Head-to-heads between clubs of the same league with a few meetings (src/lib/rivalry.ts)
+    ...rivalryPairs().map((r) => ({ path: r.path, lastModified: r.last })),
     // The leagues' own pages for fixture list, results and top scorers (src/components/LeagueSubPage.tsx)
     ...shownDivisions().flatMap((d) => LEAGUE_SUBPAGES.filter((p) => p !== 'topscorere' || sportOf(d) === 'soccer').map((p) => ({ path: `${paths.league(d.slug)}/${p}` }))),
     ...shownDivisions().flatMap((d) => pastSeasons(d.id).map((s) => ({ path: `${paths.league(d.slug)}/${s.slug}`, lastModified: s.games.at(-1)?.date }))),

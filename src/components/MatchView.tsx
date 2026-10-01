@@ -57,10 +57,12 @@ interface Props {
   related?: Match[]
   /** Shown between the match and the round's other matches (the widget advert) */
   promo?: React.ReactNode
+  /** The page of every meeting between the two clubs (/opgoer/…), when they have one */
+  h2hHref?: string
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo, h2hHref }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -73,7 +75,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   if (!match) return null
   return (
     <>
-      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} />
+      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} h2hHref={h2hHref} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -143,6 +145,7 @@ function MatchBody({
   lineups,
   absent,
   promo,
+  h2hHref,
 }: {
   match: Match
   now: number
@@ -153,6 +156,7 @@ function MatchBody({
   lineups?: Lineup[]
   absent?: { home: Injury[]; away: Injury[] }
   promo?: React.ReactNode
+  h2hHref?: string
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -604,6 +608,13 @@ function MatchBody({
               )
             })}
           </ul>
+          {h2hHref && (
+            <p className="h2h__all">
+              <Link href={h2hHref}>
+                Alle opgør mellem {home.name} og {away.name} →
+              </Link>
+            </p>
+          )}
         </section>
         {/* The widget advert last in the flow: it fills the gap where one column ends early */}
         {promo && <div className="match-promo">{promo}</div>}

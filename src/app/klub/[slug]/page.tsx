@@ -17,6 +17,7 @@ import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AboutText } from '../../../components/AboutText'
+import { clubRivalries } from '../../../lib/rivalry'
 import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
 import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
@@ -187,6 +188,31 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
         <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />
+        {(() => {
+          // The head-to-heads with the league's other clubs (src/lib/rivalry.ts)
+          const rivals = clubRivalries(club, division, now)
+          if (!rivals.length) return null
+          return (
+            <section className="panel">
+              <h2 className="panel__title">Indbyrdes opgør</h2>
+              <ul className="rivals">
+                {rivals.map((x) => (
+                  <li key={x.path}>
+                    <Link href={x.path} prefetch={false}>
+                      <TeamBadge link={false} name={x.other.name} colors={x.other.colors} size={22} />
+                      <span className="rivals__name">
+                        {club.name} – {x.other.name}
+                      </span>
+                      <span className="rivals__rec muted small">
+                        {x.meetings} kampe · {x.record.a}-{x.record.draw}-{x.record.b}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        })()}
         <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
         <AdSlot placement="content" />
