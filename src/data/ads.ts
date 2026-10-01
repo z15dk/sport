@@ -49,6 +49,26 @@ export interface AdSlotConfig {
   gambling?: boolean
   /** An ad network's HTML/script for the placement (run in the browser) */
   code?: string
+  /** More banners shown in turn with the first (the full-screen ad: up to MAX_CREATIVES in all) */
+  more?: AdBanner[]
+}
+
+/** One banner of a placement that shows several in turn */
+export interface AdBanner {
+  desktop?: string
+  mobile?: string
+  href?: string
+  alt?: string
+  gambling?: boolean
+}
+
+/** Banners a placement can show in turn (the full-screen ad) */
+export const MAX_CREATIVES = 4
+
+/** A placement's banners with a picture, in order: the first is the slot's own */
+export function creativesOf(slot: AdSlotConfig | undefined): AdBanner[] {
+  if (!slot) return []
+  return [slot, ...(slot.more ?? [])].filter((c) => !!c.desktop)
 }
 
 export interface AdsConfig {

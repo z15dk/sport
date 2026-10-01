@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, type AdPlacementId } from '../data/ads'
+import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, creativesOf, type AdPlacementId } from '../data/ads'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { getRealData } from '../data/real'
 import { AdCode } from './AdCode'
@@ -23,19 +23,11 @@ export function AdSlot({ placement, index, className }: Props) {
   if (set?.mode === 'off') return null
   const banner = set?.mode === 'image' && set.desktop ? { src: set.desktop, mobile: set.mobile, href: set.href, alt: set.alt ?? 'Annonce', gambling: set.gambling } : undefined
   const code = set?.mode === 'code' && set.code ? set.code : undefined
-  // The full-screen ad: only with an ad, never a placeholder
-  if (placement === 'scroll')
-    return banner || code ? (
-      <ScrollAd
-        desktop={banner?.src}
-        mobile={banner?.mobile}
-        mobileBelow={p.mobileBelow ?? 700}
-        href={banner?.href}
-        alt={banner?.alt ?? 'Annonce'}
-        code={code}
-        gambling={banner?.gambling ? RESPONSIBLE_GAMBLING : undefined}
-      />
-    ) : null
+  // The full-screen ad: only with an ad, never a placeholder; up to four banners shown in turn
+  if (placement === 'scroll') {
+    const items = set?.mode === 'image' ? creativesOf(set).map((c) => ({ desktop: c.desktop!, mobile: c.mobile, href: c.href, alt: c.alt ?? 'Annonce', gambling: !!c.gambling })) : []
+    return items.length || code ? <ScrollAd items={items} mobileBelow={p.mobileBelow ?? 700} code={code} gambling={RESPONSIBLE_GAMBLING} /> : null
+  }
   const c = banner ?? (code ? undefined : p.creative)
   if (!c && !code && !SHOW_AD_PLACEHOLDERS) return null
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { AdPlacement, AdPlacementId, AdSlotConfig, AdsConfig } from '../../data/ads'
+import { MAX_CREATIVES, type AdBanner, type AdPlacement, type AdPlacementId, type AdSlotConfig, type AdsConfig } from '../../data/ads'
 
 // /admin/reklamer: the ads switch, and per placement an uploaded banner (computer and
 // phone) with a link, or an ad network's code, or off; the code for every page's
@@ -132,11 +132,13 @@ export function AdsAdmin({ config, placements, enabled }: { config: AdsConfig; p
 
 function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run: (job: () => Promise<AdsConfig | void>, done: string) => Promise<void> }) {
   const [mode, setMode] = useState<AdSlotConfig['mode'] | 'none'>(slot?.mode ?? 'none')
-  const [href, setHref] = useState(slot?.href ?? '')
-  const [alt, setAlt] = useState(slot?.alt ?? '')
-  const [gambling, setGambling] = useState(!!slot?.gambling)
   const [code, setCode] = useState(slot?.code ?? '')
   const [busy, setBusy] = useState(false)
+  // The full-screen ad shows up to four banners, one per visit in turn
+  const rotates = p.id === 'scroll'
+  const more = slot?.more ?? []
+  const [adding, setAdding] = useState(false)
+  const count = 1 + more.length + (adding ? 1 : 0)
 
   const status =
     slot?.mode === 'off'
@@ -144,49 +146,18 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
       : slot?.mode === 'code' && slot.code
         ? 'Annoncekode'
         : slot?.mode === 'image' && slot.desktop
-          ? 'Dit banner'
+          ? rotates && more.some((m) => m.desktop)
+            ? `${1 + more.filter((m) => m.desktop).length} bannere på skift`
+            : 'Dit banner'
           : 'Tom – vises ikke'
 
-  async function upload(variant: 'desktop' | 'mobile', file?: File) {
-    if (!file) return
+  async function save(m: AdSlotConfig['mode']) {
     setBusy(true)
-    const form = new FormData()
-    form.set('file', file)
-    form.set('slot', p.id)
-    form.set('variant', variant)
-    await run(() => post(form), variant === 'desktop' ? 'Banneret er lagt op' : 'Mobilbanneret er lagt op')
-    setMode('image')
-    setBusy(false)
-  }
-
-  async function save() {
-    setBusy(true)
-    const m = mode === 'none' ? 'image' : mode
-    await run(() => post({ slot: p.id, mode: m, href, alt, gambling, code }), m === 'off' ? `${p.name} er slået fra` : `${p.name} er gemt`)
+    await run(() => post({ slot: p.id, mode: m, code }), m === 'off' ? `${p.name} er slået fra` : `${p.name} er gemt`)
     setBusy(false)
   }
 
   const size = (v: 'desktop' | 'mobile') => `${p[v].width} × ${p[v].height}`
-  const pictureBox = (v: 'desktop' | 'mobile', src?: string) => (
-    <div className="ads-admin__pic">
-      <span className="small">
-        <strong>{v === 'desktop' ? 'Computer' : 'Mobil'}</strong>{v === 'mobile' && p.mobileBelow ? ` (under ${p.mobileBelow + 1} px)` : ''} · {size(v)} px{' '}
-        {p.id !== 'scroll' && <span className="muted">(gerne {p[v].width * 2} × {p[v].height * 2})</span>}
-      </span>
-      <div className="ads-admin__frame" style={{ aspectRatio: `${p[v].width} / ${p[v].height}`, maxWidth: Math.min(p[v].width, 520, Math.round((300 * p[v].width) / p[v].height)) }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- the uploaded banner as it is */}
-        {src ? <img src={src} alt="" /> : <span className="muted small">{v === 'mobile' ? 'Intet – computerens banner bruges' : 'Intet banner'}</span>}
-      </div>
-      <div className="ads-admin__row">
-        <input type="file" accept="image/*" disabled={busy} onChange={(e) => upload(v, e.target.files?.[0] ?? undefined).then(() => (e.target.value = ''))} aria-label={`Banner til ${v === 'desktop' ? 'computer' : 'mobil'}`} />
-        {src && (
-          <button type="button" className="pill" disabled={busy} onClick={() => run(() => post({ slot: p.id, [v]: null }), 'Banneret er fjernet')}>
-            Fjern
-          </button>
-        )}
-      </div>
-    </div>
-  )
 
   return (
     <section className="panel ads-admin__slot">
@@ -202,7 +173,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
       <div className="ads-admin__modes" role="radiogroup" aria-label={`Indhold for ${p.name}`}>
         {(
           [
-            ['image', 'Eget banner'],
+            ['image', rotates ? 'Egne bannere' : 'Eget banner'],
             ['code', 'Annoncekode'],
             ['off', 'Slået fra'],
           ] as const
@@ -215,28 +186,29 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
 
       {(mode === 'image' || mode === 'none') && (
         <div className="ads-admin__body">
-          <div className="ads-admin__pics">
-            {pictureBox('desktop', slot?.desktop)}
-            {p.id !== 'side' && pictureBox('mobile', slot?.mobile)}
-          </div>
-          <div className="ads-admin__form">
-            <label>
-              Link (hvor banneret fører hen)
-              <input value={href} onChange={(e) => setHref(e.target.value)} placeholder="https://annoncør.dk" inputMode="url" />
-            </label>
-            <label>
-              Annoncør (tekst til skærmlæsere)
-              <input value={alt} maxLength={120} onChange={(e) => setAlt(e.target.value)} placeholder="Annoncørens navn" />
-            </label>
-            <label className="ads-admin__check">
-              <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
-            </label>
+          {rotates && (
+            <p className="muted small">
+              Op til {MAX_CREATIVES} bannere, der skiftes ved hvert besøg: en besøgende ser det samme banner på alle sider under besøget, og næste besøg viser det næste. Så deler de besøgende sig ligeligt mellem dem.
+            </p>
+          )}
+          {Array.from({ length: rotates ? count : 1 }, (_, n) => (
+            <BannerEditor
+              key={`${n}-${n === 0 ? '' : (more[n - 1]?.desktop ?? 'ny')}`}
+              p={p}
+              n={n}
+              numbered={rotates && count > 1}
+              banner={n === 0 ? slot : more[n - 1]}
+              run={run}
+              onDone={() => setAdding(false)}
+            />
+          ))}
+          {rotates && count < MAX_CREATIVES && !adding && slot?.desktop && (
             <div>
-              <button type="button" className="pill is-active" disabled={busy} onClick={save}>
-                Gem
+              <button type="button" className="pill" onClick={() => setAdding(true)}>
+                + Tilføj banner {count + 1}
               </button>
             </div>
-          </div>
+          )}
           <p className="muted small">JPG, PNG, WebP eller animeret GIF, max 10 MB. Billedet fylder hele pladsen og beskæres, hvis formatet ikke passer.</p>
         </div>
       )}
@@ -249,7 +221,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
           </label>
           <p className="muted small">Koden får pladsen {size('desktop')} px (mobil {size('mobile')}). Netværkets hovedscript sættes ind nederst under &quot;Kode på alle sider&quot;.</p>
           <div>
-            <button type="button" className="pill is-active" disabled={busy} onClick={save}>
+            <button type="button" className="pill is-active" disabled={busy} onClick={() => save('code')}>
               Gem
             </button>
           </div>
@@ -260,12 +232,100 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
         <div className="ads-admin__body">
           <p className="muted small">Pladsen vises slet ikke, heller ikke når der ligger et banner eller en kode.</p>
           <div>
-            <button type="button" className="pill is-active" disabled={busy} onClick={save}>
+            <button type="button" className="pill is-active" disabled={busy} onClick={() => save('off')}>
               Gem
             </button>
           </div>
         </div>
       )}
     </section>
+  )
+}
+
+/** One banner of a placement: the pictures for computer and phone, its link, advertiser and gambling mark (n: 0 = the first, 1–3 the ones shown in turn after it) */
+function BannerEditor({ p, n, numbered, banner, run, onDone }: { p: AdPlacement; n: number; numbered: boolean; banner?: AdBanner; run: (job: () => Promise<AdsConfig | void>, done: string) => Promise<void>; onDone: () => void }) {
+  const [href, setHref] = useState(banner?.href ?? '')
+  const [alt, setAlt] = useState(banner?.alt ?? '')
+  const [gambling, setGambling] = useState(!!banner?.gambling)
+  const [busy, setBusy] = useState(false)
+  const label = numbered ? `Banner ${n + 1}` : ''
+
+  async function upload(variant: 'desktop' | 'mobile', file?: File) {
+    if (!file) return
+    setBusy(true)
+    const form = new FormData()
+    form.set('file', file)
+    form.set('slot', p.id)
+    form.set('variant', variant)
+    form.set('creative', String(n))
+    await run(() => post(form), `${label || 'Banneret'}${variant === 'mobile' ? ' (mobil)' : ''} er lagt op`)
+    setBusy(false)
+    onDone()
+  }
+
+  async function save() {
+    setBusy(true)
+    await run(() => post({ slot: p.id, mode: 'image', creative: n, href, alt, gambling }), `${label || p.name} er gemt`)
+    setBusy(false)
+    onDone()
+  }
+
+  const size = (v: 'desktop' | 'mobile') => `${p[v].width} × ${p[v].height}`
+  const pictureBox = (v: 'desktop' | 'mobile', src?: string) => (
+    <div className="ads-admin__pic">
+      <span className="small">
+        <strong>{v === 'desktop' ? 'Computer' : 'Mobil'}</strong>{v === 'mobile' && p.mobileBelow ? ` (under ${p.mobileBelow + 1} px)` : ''} · {size(v)} px{' '}
+        {p.id !== 'scroll' && <span className="muted">(gerne {p[v].width * 2} × {p[v].height * 2})</span>}
+      </span>
+      <div className="ads-admin__frame" style={{ aspectRatio: `${p[v].width} / ${p[v].height}`, maxWidth: Math.min(p[v].width, 520, Math.round((300 * p[v].width) / p[v].height)) }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- the uploaded banner as it is */}
+        {src ? <img src={src} alt="" /> : <span className="muted small">{v === 'mobile' ? 'Intet – computerens banner bruges' : 'Intet banner'}</span>}
+      </div>
+      <div className="ads-admin__row">
+        <input type="file" accept="image/*" disabled={busy} onChange={(e) => upload(v, e.target.files?.[0] ?? undefined).then(() => (e.target.value = ''))} aria-label={`${label || 'Banner'} til ${v === 'desktop' ? 'computer' : 'mobil'}`} />
+        {src && (
+          <button type="button" className="pill" disabled={busy} onClick={() => run(() => post({ slot: p.id, creative: n, [v]: null }), 'Billedet er fjernet')}>
+            Fjern
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className={numbered ? 'ads-admin__banner' : undefined}>
+      {numbered && (
+        <div className="ads-admin__banner-head">
+          <strong>{label}</strong>
+          {n > 0 && banner && (
+            <button type="button" className="pill" disabled={busy} onClick={() => run(() => post({ slot: p.id, removeCreative: n }), `${label} er fjernet`)}>
+              Fjern banner
+            </button>
+          )}
+        </div>
+      )}
+      <div className="ads-admin__pics">
+        {pictureBox('desktop', banner?.desktop)}
+        {p.id !== 'side' && pictureBox('mobile', banner?.mobile)}
+      </div>
+      <div className="ads-admin__form">
+        <label>
+          Link (hvor banneret fører hen)
+          <input value={href} onChange={(e) => setHref(e.target.value)} placeholder="https://annoncør.dk" inputMode="url" />
+        </label>
+        <label>
+          Annoncør (tekst til skærmlæsere)
+          <input value={alt} maxLength={120} onChange={(e) => setAlt(e.target.value)} placeholder="Annoncørens navn" />
+        </label>
+        <label className="ads-admin__check">
+          <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
+        </label>
+        <div>
+          <button type="button" className="pill is-active" disabled={busy} onClick={save}>
+            Gem
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

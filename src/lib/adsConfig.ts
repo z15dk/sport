@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
-import { AD_PLACEMENT_IDS, type AdPlacementId, type AdSlotConfig, type AdsConfig } from '../data/ads'
+import { AD_PLACEMENT_IDS, MAX_CREATIVES, type AdBanner, type AdPlacementId, type AdSlotConfig, type AdsConfig } from '../data/ads'
 
 // The ads set in /admin/reklamer: per placement an uploaded banner (computer and
 // phone) with a link, or an ad network's code, or off; code for every page's head
@@ -50,22 +50,43 @@ const link = (v: unknown, old?: string) => {
   }
 }
 
-/** Changes one placement ({ slot, …fields }) or the head code / ads.txt ({ head }, { adsTxt }) */
+/** The fields of one banner, changed by those in the input */
+function creative(input: Record<string, unknown>, old: AdBanner): AdBanner {
+  return {
+    desktop: 'desktop' in input ? upload(input.desktop, old.desktop) : old.desktop,
+    mobile: 'mobile' in input ? upload(input.mobile, old.mobile) : old.mobile,
+    href: 'href' in input ? link(input.href, old.href) : old.href,
+    alt: 'alt' in input ? text(input.alt, 120) || undefined : old.alt,
+    gambling: typeof input.gambling === 'boolean' ? input.gambling : old.gambling,
+  }
+}
+
+/**
+ * Changes one placement ({ slot, …fields }; with `creative: 1–3` one of the banners shown in turn
+ * after the first, `removeCreative: n` removes it) or the head code / ads.txt ({ head }, { adsTxt })
+ */
 export function saveAds(input: Record<string, unknown>): AdsConfig {
   const c = adsConfig().config
   const next: AdsConfig = { ...c, slots: { ...c.slots } }
   const id = input.slot as AdPlacementId
   if (AD_PLACEMENT_IDS.includes(id)) {
     const old: AdSlotConfig = c.slots[id] ?? { mode: 'image' }
-    const slot: AdSlotConfig = {
-      mode: input.mode === 'off' || input.mode === 'image' || input.mode === 'code' ? input.mode : old.mode,
-      desktop: 'desktop' in input ? upload(input.desktop, old.desktop) : old.desktop,
-      mobile: 'mobile' in input ? upload(input.mobile, old.mobile) : old.mobile,
-      href: 'href' in input ? link(input.href, old.href) : old.href,
-      alt: 'alt' in input ? text(input.alt, 120) || undefined : old.alt,
-      gambling: typeof input.gambling === 'boolean' ? input.gambling : old.gambling,
-      code: 'code' in input ? text(input.code, 20_000) || undefined : old.code,
+    const mode = input.mode === 'off' || input.mode === 'image' || input.mode === 'code' ? input.mode : old.mode
+    const n = Number(input.creative ?? 0)
+    const remove = Number(input.removeCreative ?? 0)
+    let more = [...(old.more ?? [])]
+    if (remove >= 1 && remove < MAX_CREATIVES) more.splice(remove - 1, 1)
+    let slot: AdSlotConfig
+    if (n >= 1 && n < MAX_CREATIVES) {
+      // One of the banners after the first (a new one goes last)
+      const at = Math.min(n - 1, more.length)
+      more[at] = creative(input, more[at] ?? {})
+      slot = { ...old, mode }
+    } else {
+      slot = { ...old, ...(remove ? {} : creative(input, old)), mode, code: 'code' in input ? text(input.code, 20_000) || undefined : old.code }
     }
+    more = more.filter((m) => m.desktop || m.mobile || m.href)
+    slot.more = more.length ? more : undefined
     next.slots[id] = slot
   }
   if ('head' in input) next.head = text(input.head, 20_000) || undefined
