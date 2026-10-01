@@ -104,7 +104,7 @@ ${baseCss(dark, a)}
 <div class="h"><span class="club">${badge({ name: team.name, colors: team.colors })}<h1>${esc(team.name)}</h1></span><span>Kommende kampe</span></div>
 ${last ? result(last) : ''}
 ${upcoming.length ? `<div class="list">${upcoming.map(row).join('')}</div>` : '<p class="empty">Ingen kampe i kalenderen lige nu.</p>'}
-${matchlyBar(paths.club(team.slug))}
+${matchlyBar(paths.club(team.slug), url)}
 </div>
 ${heightScript(id)}
 </body></html>`

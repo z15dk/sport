@@ -127,7 +127,7 @@ ${baseCss(dark, a)}
 <div class="w">
 <div class="h"><h1>${esc(division.name)}</h1><span class="r">${nav(rounds[at - 1], '←', 'Forrige runde')}<strong>${round}. runde</strong>${nav(rounds[at + 1], '→', 'Næste runde')}</span></div>
 ${matches.length ? `<div class="cards">${matches.map(card).join('')}</div>` : '<p class="empty">Ingen kampe i runden.</p>'}
-${matchlyBar(paths.league(division.slug))}
+${matchlyBar(paths.league(division.slug), url)}
 </div>
 ${heightScript(id)}
 </body></html>`

@@ -37,9 +37,13 @@ img,.ini{width:24px;height:24px;flex:none;object-fit:contain}
 .tag{font-size:12px;color:#b9bdb0;text-align:right}.bar:hover .tag{color:var(--lime)}`
 }
 
-/** The Matchly bar at the bottom, a link to the page the widget comes from */
-export const matchlyBar = (href: string) =>
-  `<a class="bar" href="${href}" target="_blank" rel="noopener"><span class="logo">Matchly<i>.</i></span><span class="tag">Live score og stats · matchly.dk</span></a>`
+/**
+ * The Matchly bar at the bottom, a link to the page the widget comes from. On another
+ * site (?credit=1) its right side is left empty: public/widget.js lays the host page's
+ * own link to us (the backlink) over it, so it shows inside the bar, not under the widget.
+ */
+export const matchlyBar = (href: string, url?: URL) =>
+  `<a class="bar" href="${href}" target="_blank" rel="noopener"><span class="logo">Matchly<i>.</i></span>${url?.searchParams.get('credit') === '1' ? '' : '<span class="tag">Live score og stats · matchly.dk</span>'}</a>`
 
 /** Tells the host page (public/widget.js) the widget's height, now and when it changes */
 export const heightScript = (id: string) =>

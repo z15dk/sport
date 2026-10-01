@@ -116,7 +116,7 @@ td.club{max-width:0;width:100%}
 <div class="tw"><table><thead><tr><th class="n">#</th><th>Klub</th><th class="n" title="Kampe">K</th>${compact ? '' : cols.map((c) => `<th class="n x" title="${c.title}">${c.label}</th>`).join('')}<th class="n" title="Målforskel">+/-</th><th class="n" title="Point">P</th>${compact ? '' : '<th class="fm">Form</th>'}</tr></thead>
 <tbody>${body}</tbody></table></div>
 ${legend}
-${matchlyBar(paths.league(division.slug))}
+${matchlyBar(paths.league(division.slug), url)}
 </div>
 ${heightScript(id)}
 </body></html>`

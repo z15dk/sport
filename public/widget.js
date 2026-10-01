@@ -23,6 +23,7 @@
     var linked = false
     for (var j = 0; j < links.length; j++) if (links[j].hostname.replace(/^www\./, '') === host) linked = true
     q.set('link', linked ? '1' : '0')
+    if (linked) q.set('credit', '1')
     var frame = document.createElement('iframe')
     // A league's round as cards: data-visning="runde" with data-liga
     var runde = box.getAttribute('data-visning') === 'runde' && liga
@@ -33,6 +34,29 @@
     frame.style.cssText = 'display:block;width:100%;height:560px;border:0;overflow:hidden;color-scheme:normal'
     frame.setAttribute('data-matchly-id', id)
     box.insertBefore(frame, box.firstChild)
+    if (linked) credit(box)
+  }
+  // The host page's link to us (the code's "<Liga> stilling · leveret af Matchly") is laid over
+  // the right side of the widget's black bar instead of standing under it: still visible and in
+  // the page's own HTML, just part of the design
+  function credit(box) {
+    var line = document.createElement('span')
+    line.className = 'matchly-credit'
+    line.style.cssText = 'position:absolute;right:18px;bottom:0;height:48px;display:flex;align-items:center;gap:5px;max-width:60%;overflow:hidden;white-space:nowrap;font:12px/1 system-ui,-apple-system,"Segoe UI",sans-serif;color:#b9bdb0'
+    var nodes = Array.prototype.slice.call(box.childNodes)
+    var first = true
+    nodes.forEach(function (node) {
+      if (node.nodeName === 'IFRAME' || node.nodeName === 'SCRIPT') return
+      if (node.nodeName === 'A') {
+        if (!first) line.appendChild(document.createTextNode('·'))
+        node.style.cssText = 'color:#b9bdb0;text-decoration:none;overflow:hidden;text-overflow:ellipsis'
+        node.target = '_blank'
+        line.appendChild(node)
+        first = false
+      } else box.removeChild(node)
+    })
+    box.style.position = 'relative'
+    box.appendChild(line)
   }
   addEventListener('message', function (e) {
     if (e.origin !== origin || !e.data || !e.data.matchly) return
