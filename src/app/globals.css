@@ -241,6 +241,8 @@ table.visually-hidden { display: block; }
 .star:hover, .star.is-on { color: var(--star); }
 .league__matches { list-style: none; margin: 0; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
 .league__matches--flush { padding: 0; }
+/* an ad inside a long league's list: between two parts of the list, with the list's own side padding */
+.league .ad--inside { width: auto; margin: 0 10px 10px; }
 
 /* Match row */
 .match {

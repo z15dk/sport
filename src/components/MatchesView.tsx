@@ -15,7 +15,7 @@ import { WidgetPromo } from './WidgetPromo'
 import { FeaturedMatch } from './FeaturedMatch'
 import { SportTabs } from './SportTabs'
 import { AdSlot } from './AdSlot'
-import { FEED_AD_EVERY, FEED_AD_FIRST, SCROLL_AD_AFTER } from '../data/ads'
+import { chunksWithAds, feedAdPlan, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
@@ -65,11 +65,6 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
 }
 
-/** Feed ads after the FEED_AD_FIRST-th league, then every FEED_AD_EVERY; never as the very last item */
-function isFeedAdSpot(i: number, total: number): boolean {
-  const n = i + 1
-  return n < total && n >= FEED_AD_FIRST && (n - FEED_AD_FIRST) % FEED_AD_EVERY === 0
-}
 
 interface Props {
   /** The page's heading instead of the sport's name ("Resultater i går") */
@@ -191,6 +186,9 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
       })
       .filter(([, list]) => list.length > 0)
   }, [visible, cap])
+  // Where the ads go in each view: counted in match rows, so they come at even intervals (src/data/ads.ts)
+  const groupPlan = useMemo(() => feedAdPlan(groups.map((g) => g.matches.length)), [groups])
+  const dayPlan = useMemo(() => feedAdPlan(days.map(([, list]) => list.length)), [days])
   // The sidebar lists every league we cover in the chosen sport, also those without matches this day
   const allGroups = useMemo(() => {
     const groups = groupByLeague(matches, pinned)
@@ -307,20 +305,23 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                         {list.some((m) => m.state === 'upcoming') && oddsEnabled() && <OddsBy />}
                       </div>
                     </header>
-                    <ul className="league__matches">
-                      {list.map((m) => (
-                        <MatchRow key={m.id} match={m} showLeague showSport={sport === 'all'} />
-                      ))}
-                    </ul>
+                    {chunksWithAds(list, dayPlan[i]).map((chunk, k) => (
+                      <Fragment key={k}>
+                        <ul className="league__matches">
+                          {chunk.rows.map((m) => (
+                            <MatchRow key={m.id} match={m} showLeague showSport={sport === 'all'} />
+                          ))}
+                        </ul>
+                        {chunk.ad && <AdSlot placement="feed" index={chunk.ad} className="ad--inside" />}
+                      </Fragment>
+                    ))}
                     {list.some((m) => m.state === 'upcoming') && oddsEnabled() && (
                       <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener nofollow">
                         {RESPONSIBLE_GAMBLING.text}
                       </a>
                     )}
                   </section>
-                  {isFeedAdSpot(i, days.length) && (
-                    <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
-                  )}
+                  {dayPlan[i].after && <AdSlot placement="feed" index={dayPlan[i].after} />}
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < days.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
@@ -333,10 +334,9 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                     group={g}
                     pinned={pinned.has(g.leagueId)}
                     onTogglePin={() => togglePin(g.leagueId)}
+                    ads={groupPlan[i]}
                   />
-                  {isFeedAdSpot(i, groups.length) && (
-                    <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
-                  )}
+                  {groupPlan[i].after && <AdSlot placement="feed" index={groupPlan[i].after} />}
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}

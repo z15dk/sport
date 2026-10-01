@@ -76,10 +76,60 @@ export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   scroll: { id: 'scroll', name: 'Helsidesannonce (scroll forbi)', desktop: { width: 1920, height: 1080 }, mobile: { width: 1080, height: 1920 }, mobileBelow: 999 },
 }
 
-/** On the front page: an ad after this many league sections, then again every FEED_AD_EVERY */
-export const FEED_AD_FIRST = 3
-export const FEED_AD_EVERY = 6
+/** On the front page: the first ad after about this many match rows, then one about every FEED_AD_EVERY_ROWS */
+export const FEED_AD_FIRST_ROWS = 8
+export const FEED_AD_EVERY_ROWS = 12
+/** An ad inside a long league only when at least this many of its matches follow it */
+const FEED_AD_MIN_TAIL = 4
+
+export interface FeedAdPlan {
+  /** Inside the section: after this many of its rows, the ad with this number */
+  inside: { at: number; index: number }[]
+  /** After the section: the ad with this number */
+  after?: number
+}
+
+/**
+ * Where the ads in the match list go, counted in match rows rather than leagues, so they
+ * come at even intervals whether the day has many small leagues or a few long ones:
+ * normally at a league boundary, inside a long league when the next spot falls well
+ * before its end; never as the very last item.
+ */
+export function feedAdPlan(sizes: number[]): FeedAdPlan[] {
+  let since = 0
+  let next = FEED_AD_FIRST_ROWS
+  let n = 0
+  return sizes.map((size, i) => {
+    const plan: FeedAdPlan = { inside: [] }
+    let pos = 0
+    while (size - pos >= next - since + FEED_AD_MIN_TAIL) {
+      pos += next - since
+      plan.inside.push({ at: pos, index: ++n })
+      since = 0
+      next = FEED_AD_EVERY_ROWS
+    }
+    since += size - pos
+    if (i < sizes.length - 1 && since >= next) {
+      plan.after = ++n
+      since = 0
+      next = FEED_AD_EVERY_ROWS
+    }
+    return plan
+  })
+}
 /** On the front page: the full-screen ad after this many league sections (once) */
 export const SCROLL_AD_AFTER = 5
+
+/** The rows in chunks, an ad between them where the plan says */
+export function chunksWithAds<T>(rows: T[], plan: FeedAdPlan): { rows: T[]; ad?: number }[] {
+  const out: { rows: T[]; ad?: number }[] = []
+  let from = 0
+  for (const { at, index } of plan.inside) {
+    out.push({ rows: rows.slice(from, at), ad: index })
+    from = at
+  }
+  out.push({ rows: rows.slice(from) })
+  return out
+}
 
 export const SHOW_AD_PLACEHOLDERS = process.env.NEXT_PUBLIC_AD_PLACEHOLDERS === 'true'

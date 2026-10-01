@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { LeagueGroup } from '../types'
+import { chunksWithAds, type FeedAdPlan } from '../data/ads'
+import { AdSlot } from './AdSlot'
 import { paths } from '../lib/site'
 import { MatchRow } from './MatchRow'
 import { competitionLabel } from '../data/leagues'
@@ -15,9 +17,11 @@ interface Props {
   group: LeagueGroup
   pinned: boolean
   onTogglePin: () => void
+  /** Ads inside a long league's list (the front page's plan, src/data/ads.ts) */
+  ads?: FeedAdPlan
 }
 
-export function LeagueSection({ group, pinned, onTogglePin }: Props) {
+export function LeagueSection({ group, pinned, onTogglePin, ads }: Props) {
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
   const hasOdds = oddsEnabled() && group.matches.some((m) => m.state === 'upcoming')
@@ -58,13 +62,17 @@ export function LeagueSection({ group, pinned, onTogglePin }: Props) {
           {pinned ? '★' : '☆'}
         </button>
       </header>
-      {open && (
-        <ul className="league__matches">
-          {group.matches.map((m) => (
-            <MatchRow key={m.id} match={m} />
-          ))}
-        </ul>
-      )}
+      {open &&
+        chunksWithAds(group.matches, ads ?? { inside: [] }).map((chunk, k) => (
+          <Fragment key={k}>
+            <ul className="league__matches">
+              {chunk.rows.map((m) => (
+                <MatchRow key={m.id} match={m} />
+              ))}
+            </ul>
+            {chunk.ad && <AdSlot placement="feed" index={chunk.ad} className="ad--inside" />}
+          </Fragment>
+        ))}
       {open && hasOdds && (
         <a className="league__rg" href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
           {RESPONSIBLE_GAMBLING.text}
