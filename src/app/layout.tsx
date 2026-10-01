@@ -3,6 +3,7 @@ import { SiteNav } from '../components/SiteNav'
 import { BadgeProvider } from '../components/BadgeProvider'
 import { Footer } from '../components/Footer'
 import { AdSlot } from '../components/AdSlot'
+import { AdHeadCode } from '../components/AdCode'
 import { JsonLd, organizationLd, websiteLd } from '../lib/jsonld'
 import { getBadges } from '../lib/badges'
 import { loadRealData } from '../lib/realdata'
@@ -80,6 +81,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
             <Footer />
             <VisitBeacon />
+            {/* An ad network's main script, set in /admin/reklamer */}
+            {real?.settings?.ads && real.ads?.head && <AdHeadCode code={real.ads.head} />}
           </BadgeProvider>
         </RealDataProvider>
       </body>

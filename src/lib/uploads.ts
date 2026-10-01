@@ -22,12 +22,14 @@ function isPicture(bytes: Buffer) {
   return head.startsWith('ftypavif') || head.startsWith('ftypheic') || head.startsWith('ftypmif1')
 }
 
-export async function saveUpload(bytes: Buffer, maxWidth = 1600): Promise<{ url?: string; width?: number; height?: number; error?: string }> {
+/** `animated`: an animated GIF/WebP keeps its frames (ad banners) */
+export async function saveUpload(bytes: Buffer, maxWidth = 1600, animated = false): Promise<{ url?: string; width?: number; height?: number; error?: string }> {
   if (!bytes.length) return { error: 'Filen er tom' }
   if (bytes.length > MAX_UPLOAD_BYTES) return { error: 'Billedet er større end 10 MB' }
   if (!isPicture(bytes)) return { error: 'Filen er ikke et billede (jpg, png, webp, gif eller avif)' }
   try {
-    const out = await sharp(bytes, { failOn: 'error' }).rotate().resize({ width: maxWidth, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer({ resolveWithObject: true })
+    const img = sharp(bytes, { failOn: 'error', animated })
+    const out = await (animated ? img : img.rotate()).resize({ width: maxWidth, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer({ resolveWithObject: true })
     const name = `${createHash('sha256').update(out.data).digest('hex').slice(0, 24)}.webp`
     mkdirSync(dir(), { recursive: true })
     writeFileSync(path.join(dir(), name), out.data)

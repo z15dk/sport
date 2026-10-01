@@ -27,6 +27,7 @@ import { externalLeagueKey } from '../data/leagues'
 import { danishLeagueName } from '../data/external'
 import { channelData } from './channels'
 import { siteSettings } from './settings'
+import { adsConfig } from './adsConfig'
 
 // Background job fetching real fixtures and results from TheSportsDB for
 // every division we list. The whole season is fetched round by round every
@@ -204,16 +205,17 @@ function apply() {
   const tsdbData = base()
   const db = timed('Fletning: historik til sæsonen', databaseSeason)
   const external = timed('Fletning: API-Sports-kampe', externalGames)
-  const { names, aliases, channels, settings, leagueNames, logos } = timed('Fletning: navne, kanaler og indstillinger', () => ({
+  const { names, aliases, channels, settings, ads, leagueNames, logos } = timed('Fletning: navne, kanaler og indstillinger', () => ({
     names: clubNameOverrides(),
     aliases: clubAliasList(),
     channels: channelData(),
     settings: siteSettings(),
+    ads: adsConfig(),
     leagueNames: leagueNameOverrides(),
     logos: Object.keys(customLogos()).length,
   }))
   const { tables, tablesKey } = timed('Fletning: tabellerne', () => tablesOf(tableTeams(), leagueNames))
-  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
+  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
@@ -239,6 +241,7 @@ function apply() {
     clubAliases: aliases.aliases,
     channels: channels.data,
     settings: settings.settings,
+    ads: ads.config,
   })
 }
 

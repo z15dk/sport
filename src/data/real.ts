@@ -7,6 +7,7 @@ import type { Incident, MatchState, SportId } from '../types'
 import type { ExternalGame } from './external'
 import type { ChannelData } from './channels'
 import type { SiteSettings } from './settingsDef'
+import type { AdsConfig } from './ads'
 
 export interface RealEvent {
   id: string
@@ -50,6 +51,8 @@ export interface RealData {
   channels?: ChannelData
   /** Settings from the admin pages */
   settings?: SiteSettings
+  /** The ads set in /admin/reklamer (banners, ad network code) */
+  ads?: AdsConfig
   /**
    * Browser only: every team name's page slug ('' when it is the name's own slug),
    * so the browser links teams without building the whole team register

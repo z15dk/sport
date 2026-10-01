@@ -31,6 +31,34 @@ export interface AdPlacement {
   creative?: AdCreative
 }
 
+/**
+ * A placement as set in /admin/reklamer (src/lib/adsConfig.ts, ads.json): its own
+ * banner (uploaded pictures for computer and phone, a link) or an ad network's code,
+ * or off. Without one the placement uses its `creative` below, else a placeholder.
+ */
+export interface AdSlotConfig {
+  mode: 'off' | 'image' | 'code'
+  /** Uploaded banner (/uploads/<hash>.webp) for computers, and for phones (else the computer's) */
+  desktop?: string
+  mobile?: string
+  href?: string
+  alt?: string
+  /** A gambling ad: the responsible-gambling line is shown under it */
+  gambling?: boolean
+  /** An ad network's HTML/script for the placement (run in the browser) */
+  code?: string
+}
+
+export interface AdsConfig {
+  slots: Partial<Record<AdPlacementId, AdSlotConfig>>
+  /** Code loaded once on every page (e.g. an ad network's main script) */
+  head?: string
+  /** Served as /ads.txt (the ad networks' list of authorised sellers) */
+  adsTxt?: string
+}
+
+export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'feed', 'side', 'content']
+
 export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   // Under the header on every page
   top: { id: 'top', name: 'Topbanner', desktop: { width: 970, height: 90 }, mobile: { width: 320, height: 100 } },

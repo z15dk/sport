@@ -37,6 +37,7 @@ const PAGES = [
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
   { href: '/admin/kvindesport', label: 'Kvindesport' },
+  { href: '/admin/reklamer', label: 'Reklamer' },
   { href: '/admin/sociale', label: 'Sociale medier', children: SOCIAL },
   { href: '/admin/billeder', label: 'Billeder', children: PHOTOS },
 ]

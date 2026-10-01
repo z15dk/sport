@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { AD_PLACEMENTS, SHOW_AD_PLACEHOLDERS, type AdPlacementId } from '../data/ads'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { getRealData } from '../data/real'
+import { AdCode } from './AdCode'
 
 interface Props {
   placement: AdPlacementId
@@ -13,10 +14,16 @@ interface Props {
 /** A reserved advertising space; always labelled "Annonce" as Danish marketing law requires */
 export function AdSlot({ placement, index, className }: Props) {
   // Switched on and off in the admin pages (off by default)
-  if (getRealData()?.settings?.ads !== true) return null
+  const real = getRealData()
+  if (real?.settings?.ads !== true) return null
   const p = AD_PLACEMENTS[placement]
-  const c = p.creative
-  if (!c && !SHOW_AD_PLACEHOLDERS) return null
+  // Set in /admin/reklamer: a banner, an ad network's code, or off
+  const set = real.ads?.slots?.[placement]
+  if (set?.mode === 'off') return null
+  const banner = set?.mode === 'image' && set.desktop ? { src: set.desktop, mobile: set.mobile, href: set.href, alt: set.alt ?? 'Annonce', gambling: set.gambling } : undefined
+  const code = set?.mode === 'code' && set.code ? set.code : undefined
+  const c = banner ?? (code ? undefined : p.creative)
+  if (!c && !code && !SHOW_AD_PLACEHOLDERS) return null
 
   const id = `ad-${placement}${index ? `-${index}` : ''}`
   const style = {
@@ -25,16 +32,29 @@ export function AdSlot({ placement, index, className }: Props) {
     '--ad-mw': `${p.mobile.width}px`,
     '--ad-mh': `${p.mobile.height}px`,
   } as CSSProperties
+  const mobile = c && 'mobile' in c ? c.mobile : undefined
+  const picture = c && (
+    <picture>
+      {mobile && <source media="(max-width: 700px)" srcSet={mobile} />}
+      {/* eslint-disable-next-line @next/next/no-img-element -- creatives come in any size and format */}
+      <img src={c.src} alt={c.alt} />
+    </picture>
+  )
 
   return (
     <aside className={`ad ad--${placement}${className ? ` ${className}` : ''}`} aria-label="Annonce" style={style}>
       <span className="ad__label">Annonce</span>
       <div className="ad__box" id={id} data-ad-placement={placement}>
-        {c ? (
-          <a href={c.href} target="_blank" rel="sponsored nofollow noopener">
-            {/* eslint-disable-next-line @next/next/no-img-element -- creatives come in any size and format */}
-            <img src={c.src} alt={c.alt} />
-          </a>
+        {code ? (
+          <AdCode code={code} />
+        ) : c ? (
+          c.href ? (
+            <a href={c.href} target="_blank" rel="sponsored nofollow noopener">
+              {picture}
+            </a>
+          ) : (
+            picture
+          )
         ) : (
           <span className="ad__placeholder">
             <strong>{p.name}</strong>
