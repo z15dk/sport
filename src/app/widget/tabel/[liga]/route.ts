@@ -5,6 +5,7 @@ import { loadRealData } from '../../../../lib/realdata'
 import { getBadges } from '../../../../lib/badges'
 import { sizedImage } from '../../../../lib/imageSize'
 import { paths } from '../../../../lib/site'
+import { noteWidgetView } from '../../../../lib/widgetStats'
 
 // The league table other sites embed (/widget: the code to copy; public/widget.js puts
 // it on their page in an iframe and keeps its height). A page of its own without the
@@ -38,6 +39,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   const dark = url.searchParams.get('tema') === 'mork'
   const compact = url.searchParams.get('kompakt') === '1'
   const id = (url.searchParams.get('id') ?? '').replace(/[^\w-]/g, '').slice(0, 40)
+  noteWidgetView({
+    page: url.searchParams.get('side'),
+    referer: request.headers.get('referer'),
+    liga: division.slug,
+    hold: highlight,
+    link: url.searchParams.get('link'),
+    ua: request.headers.get('user-agent'),
+    preview: id === 'preview',
+  })
   const rows = standings(division, Date.now())
   const badges = await getBadges()
   const sport = sportOf(division)

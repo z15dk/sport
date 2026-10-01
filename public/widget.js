@@ -14,6 +14,13 @@
       var v = box.getAttribute('data-' + k)
       if (v) q.set(k, v)
     })
+    // Which page it sits on, and whether the link back to us is still there (counted on /admin/widget)
+    q.set('side', location.href.split('#')[0].slice(0, 300))
+    var host = new URL(origin).hostname.replace(/^www\./, '')
+    var links = box.querySelectorAll('a[href]')
+    var linked = false
+    for (var j = 0; j < links.length; j++) if (links[j].hostname.replace(/^www\./, '') === host) linked = true
+    q.set('link', linked ? '1' : '0')
     var frame = document.createElement('iframe')
     frame.src = origin + '/widget/tabel/' + encodeURIComponent(liga) + '?' + q
     frame.title = 'Ligatabel fra Matchly'

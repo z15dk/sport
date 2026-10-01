@@ -27,6 +27,7 @@ const PHOTOS = [
 ]
 const PAGES = [
   { href: '/admin/besoegende', label: 'Besøgende' },
+  { href: '/admin/widget', label: 'Widget' },
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
   { href: '/admin/artikler', label: 'Artikler' },
   { href: '/admin/klubber', label: 'Klubber' },
