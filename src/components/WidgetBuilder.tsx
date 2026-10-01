@@ -6,7 +6,7 @@ export interface WidgetLeague {
   slug: string
   name: string
   country: string
-  clubs: { slug: string; name: string; color?: string }[]
+  clubs: { slug: string; name: string }[]
 }
 
 /** /widget: choose a league, a team to highlight and a theme; a live preview and the code to copy */
@@ -20,8 +20,6 @@ export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: Widg
   const [height, setHeight] = useState(560)
   const frame = useRef<HTMLIFrameElement>(null)
   const league = leagues.find((l) => l.slug === liga) ?? leagues[0]
-  const clubHex = league?.clubs.find((c) => c.slug === hold)?.color?.replace('#', '').toLowerCase()
-  const clubColor = clubHex && /^[0-9a-f]{6}$/.test(clubHex) ? clubHex : undefined
 
   const code = useMemo(() => {
     if (!league) return ''
@@ -74,15 +72,12 @@ export function WidgetBuilder({ leagues, site, initial, aside }: { leagues: Widg
           <fieldset>
             <span>Farve på dit hold</span>
             <div className="widget-builder__colors">
-              {[
-                { hex: 'c6f135', label: 'Matchly-grøn' },
-                ...(clubColor && clubColor !== 'c6f135' ? [{ hex: clubColor, label: 'Klubbens farve' }] : []),
-              ].map((c) => (
+              {[{ hex: 'c6f135', label: 'Matchly-grøn' }].map((c) => (
                 <button key={c.hex} type="button" className={farve === c.hex ? 'is-on' : undefined} onClick={() => setFarve(c.hex)} title={c.label}>
                   <i style={{ background: `#${c.hex}` }} /> {c.label}
                 </button>
               ))}
-              <label className={`widget-builder__pick${![...['c6f135'], clubColor].includes(farve) ? ' is-on' : ''}`} title="Vælg selv">
+              <label className={`widget-builder__pick${farve !== 'c6f135' ? ' is-on' : ''}`} title="Vælg selv">
                 <input type="color" value={`#${farve}`} onChange={(e) => setFarve(e.target.value.slice(1).toLowerCase())} /> Vælg selv
               </label>
             </div>
