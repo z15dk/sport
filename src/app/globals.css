@@ -2291,6 +2291,13 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 
 @media (max-width: 800px) { .widget-builder { grid-template-columns: 1fr; } .widget-builder__form { position: static; } }
 
+/* /admin/annonce: the code per recipient and the ad itself, the height of a screen, as it stands on the other site */
+.ad-builder { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+.ad-builder .widget-builder__form input[type='text'], .ad-builder .widget-builder__form input[type='number'] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+.ad-builder .widget-builder__form small { font-size: 12px; line-height: 1.4; }
+.ad-preview iframe { height: min(78vh, 820px); border-radius: 14px; background: #16181a; }
+.ad-preview p { margin: 10px 0 0; }
+
 /* /widget as a landing page: dark hero with the live table, benefits, steps, the builder */
 .wg { display: flex; flex-direction: column; gap: 16px; }
 .wg-hero {

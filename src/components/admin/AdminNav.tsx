@@ -3,7 +3,8 @@ import Link from 'next/link'
 // The admin pages' menu. Settings holds its own sub-pages (general settings
 // and the status pages for data, data quality and the logo job), and so does
 // the social media engine (plan, history, settings and templates) and the
-// photo system (search, review queue, squads), and the visitors (the site's own and the widget's).
+// photo system (search, review queue, squads), the visitors (the site's own and the widget's)
+// and the ads (the placements on our pages, and our own ad for other sites).
 
 const SETTINGS = [
   { href: '/admin/indstillinger', label: 'Generelt' },
@@ -29,6 +30,10 @@ const VISITORS = [
   { href: '/admin/besoegende', label: 'Siden' },
   { href: '/admin/widget', label: 'Widget' },
 ]
+const ADS = [
+  { href: '/admin/reklamer', label: 'Reklamepladser' },
+  { href: '/admin/annonce', label: 'Matchly-annoncen' },
+]
 const PAGES = [
   { href: '/admin/besoegende', label: 'Besøgende', children: VISITORS },
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
@@ -37,7 +42,7 @@ const PAGES = [
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
   { href: '/admin/kvindesport', label: 'Kvindesport' },
-  { href: '/admin/reklamer', label: 'Reklamer' },
+  { href: '/admin/reklamer', label: 'Reklamer', children: ADS },
   { href: '/admin/sociale', label: 'Sociale medier', children: SOCIAL },
   { href: '/admin/billeder', label: 'Billeder', children: PHOTOS },
 ]
