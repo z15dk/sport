@@ -55,10 +55,12 @@ interface Props {
   absent?: { home: Injury[]; away: Injury[] }
   /** The round's other matches in the league (server): links to their pages */
   related?: Match[]
+  /** Shown between the match and the round's other matches (the widget advert) */
+  promo?: React.ReactNode
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -71,7 +73,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   if (!match) return null
   return (
     <>
-      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} />
+      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -140,6 +142,7 @@ function MatchBody({
   cup,
   lineups,
   absent,
+  promo,
 }: {
   match: Match
   now: number
@@ -149,6 +152,7 @@ function MatchBody({
   cup?: boolean
   lineups?: Lineup[]
   absent?: { home: Injury[]; away: Injury[] }
+  promo?: React.ReactNode
 }) {
   const { home, away, state } = match
   const showScore = state === 'live' || state === 'finished'
@@ -601,6 +605,8 @@ function MatchBody({
             })}
           </ul>
         </section>
+        {/* The widget advert last in the flow: it fills the gap where one column ends early */}
+        {promo && <div className="match-promo">{promo}</div>}
       </div>
     </article>
   )

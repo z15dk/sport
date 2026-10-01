@@ -223,16 +223,17 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} />
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} promo={
+        <WidgetPromo
+            wide
+            title={['Kampprogrammet', 'på din side.']}
+            text={`Vis ${match.home.name}s eller ${match.away.name}s næste kampe – eller hele rundens kampe – på jeres egen side. Gratis, med TV-kanal og live-stilling.`}
+            href="/widget?type=kampe#lav"
+            cta="Lav dit kampprogram →"
+          />
+      } />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
-        <WidgetPromo
-          wide
-          title={['Kampprogrammet', 'på din side.']}
-          text={`Vis ${match.home.name}s eller ${match.away.name}s næste kampe – eller hele rundens kampe – på jeres egen side. Gratis, med TV-kanal og live-stilling.`}
-          href="/widget?type=kampe#lav"
-          cta="Lav dit kampprogram →"
-        />
         <Faq items={faq} />
       </div>
     </div>

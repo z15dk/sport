@@ -1577,7 +1577,9 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
 .match-page__flow { columns: 2; column-gap: 16px; }
 .match-page__flow .match-page__cols,
 .match-page__flow .match-page__col { display: contents; }
-.match-page__flow .sheet__section { break-inside: avoid; margin: 0 0 16px; }
+.match-page__flow .sheet__section, .match-page__flow .match-promo { break-inside: avoid; margin: 0 0 16px; }
+.match-promo .wpromo--wide { grid-template-columns: 1fr; gap: 16px; }
+.match-promo .wpromo--wide .wpromo__table { order: -1; }
 @media (max-width: 900px) { .match-page__flow { columns: 1; } }
 /* In the two-column flow the two teams' latest matches stack */
 .match-page__flow .form-cols { grid-template-columns: 1fr; }
