@@ -239,10 +239,10 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 .bn .dots{margin-top:4px}
 @media (max-width:700px){
   .bn{grid-template-columns:1fr;gap:8px;align-items:start;padding:12px 14px}
-  /* the sender stays visible: the logo at the top of the box and "matchly.dk · Annonce" beside the headline */
+  /* the sender stays visible: the logo at the top of the box (no ad label anywhere: the host site puts its own on) */
   .bn-say{flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px}
   .bn h1{font-size:19px;white-space:nowrap}.bn .cta,.bn .k{display:none}
-  .bn .site{font-size:10px;white-space:nowrap;flex:none}.bn .site-d{display:none}
+  .bn .site{display:none}
   .bn .row.on ~ .row.on ~ .row.on{display:none}
   .bn .plogo{margin-bottom:4px;padding-bottom:4px;font-size:17px}.bn .plogo img{width:18px;height:18px;border-radius:5px}
   .bn .live{padding:8px 12px 6px}
@@ -255,12 +255,12 @@ ${banner ? `<div class="ad bn">
 <a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a>
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
 <a class="cta" href="${esc(home)}" target="_blank" rel="noopener">Se dagens kampe <span aria-hidden="true">→</span></a>
-<span class="site"><span class="site-d">matchly.dk · </span>Annonce</span>
+<span class="site">matchly.dk</span>
 </div>
 <div class="live"><a class="plogo" href="${esc(home)}" target="_blank" rel="noopener"><img src="/icon-192.png" width="28" height="28" alt=""><span>Matchly<i>.</i></span></a><div id="live">${await adLiveHtml(q, now)}</div></div>
 </div>` : `<div class="ad">
 <div class="m">${M_SVG}</div>
-<header class="top"><a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a><span class="site">matchly.dk · Annonce</span></header>
+<header class="top"><a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a><span class="site">matchly.dk</span></header>
 <div class="grid">
 <div class="say">
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
