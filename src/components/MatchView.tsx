@@ -330,11 +330,15 @@ function MatchBody({
       <MatchTimeline match={match} />
       <MatchExtrasPanel match={match} withChannels={false} />
 
+      {/* The title and summary, and beside them on wide screens the written report or preview */}
+      <div className={`match-page__intro${story ? ' has-story' : ''}`}>
+      <div className="match-page__lede">
       <h1 className="match-page__title">
         {home.name} – {away.name}
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
+      </div>
 
       {/* The written report or preview right under the summary: the page's own text, high up for readers and search engines */}
       {story && (
@@ -348,6 +352,7 @@ function MatchBody({
           <p className="story__note">Automatisk skrevet ud fra kampdata.</p>
         </section>
       )}
+      </div>
 
       {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
       <div className="match-page__flow">

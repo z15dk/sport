@@ -2477,3 +2477,17 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .rivalry__record strong { font-size: 36px; }
   .rivalry__club strong { font-size: 18px; }
 }
+
+/* Match page on computers: the site's whole width (1400 px) and as much as possible on one screen */
+.match-page__intro { display: flex; flex-direction: column; gap: 16px; }
+.match-page__lede { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 1240px) {
+  .match-page, .match-related { max-width: none; }
+  .match-page .duel { padding: 18px 20px; }
+  .match-page__intro.has-story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+  .match-page__intro .story { margin: 0; }
+  .match-page__flow { columns: 3; }
+  .match-related .league__matches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+  .match-page--after .faq__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+  .match-page--after .faq__item:nth-child(2) { border-top: 0; }
+}
