@@ -168,7 +168,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
   const pictureBox = (v: 'desktop' | 'mobile', src?: string) => (
     <div className="ads-admin__pic">
       <span className="small">
-        <strong>{v === 'desktop' ? 'Computer' : 'Mobil'}</strong> · {size(v)} px{' '}
+        <strong>{v === 'desktop' ? 'Computer' : 'Mobil'}</strong>{v === 'mobile' && p.mobileBelow ? ` (under ${p.mobileBelow + 1} px)` : ''} · {size(v)} px{' '}
         <span className="muted">(gerne {p[v].width * 2} × {p[v].height * 2})</span>
       </span>
       <div className="ads-admin__frame" style={{ aspectRatio: `${p[v].width} / ${p[v].height}`, maxWidth: Math.min(p[v].width, 520, Math.round((300 * p[v].width) / p[v].height)) }}>

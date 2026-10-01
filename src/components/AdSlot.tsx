@@ -35,7 +35,7 @@ export function AdSlot({ placement, index, className }: Props) {
   const mobile = c && 'mobile' in c ? c.mobile : undefined
   const picture = c && (
     <picture>
-      {mobile && <source media="(max-width: 700px)" srcSet={mobile} />}
+      {mobile && <source media={`(max-width: ${p.mobileBelow ?? 700}px)`} srcSet={mobile} />}
       {/* eslint-disable-next-line @next/next/no-img-element -- creatives come in any size and format */}
       <img src={c.src} alt={c.alt} />
     </picture>

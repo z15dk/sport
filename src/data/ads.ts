@@ -28,6 +28,8 @@ export interface AdPlacement {
   name: string
   desktop: AdSize
   mobile: AdSize
+  /** The widest screen that gets the phone size (default 700 px) */
+  mobileBelow?: number
   creative?: AdCreative
 }
 
@@ -61,7 +63,7 @@ export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'feed', 'side', 'conten
 
 export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   // Under the header on every page
-  top: { id: 'top', name: 'Topbanner', desktop: { width: 970, height: 90 }, mobile: { width: 320, height: 100 } },
+  top: { id: 'top', name: 'Topbanner', desktop: { width: 970, height: 90 }, mobile: { width: 320, height: 100 }, mobileBelow: 999 },
   // Between the leagues on the front page and in the content on other pages
   feed: { id: 'feed', name: 'Kampliste', desktop: { width: 728, height: 90 }, mobile: { width: 320, height: 100 } },
   // Right-hand column on the front page, sticky with the column
