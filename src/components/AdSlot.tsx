@@ -42,7 +42,7 @@ export function AdSlot({ placement, index, className }: Props) {
   )
 
   return (
-    <aside className={`ad ad--${placement}${className ? ` ${className}` : ''}`} aria-label="Annonce" style={style}>
+    <aside className={`ad ad--${placement}${c || code ? ' ad--filled' : ''}${className ? ` ${className}` : ''}`} aria-label="Annonce" style={style}>
       <span className="ad__label">Annonce</span>
       <div className="ad__box" id={id} data-ad-placement={placement}>
         {code ? (
