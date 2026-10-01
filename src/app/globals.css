@@ -2478,6 +2478,8 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .rivalry__club strong { font-size: 18px; }
 }
 
+/* The live statistics' copy for the boxes' columns, shown only on computers */
+.match-stats--wide { display: none; }
 /* Match page on computers: the site's whole width (1400 px) and as much as possible on one screen */
 .match-page__intro { display: flex; flex-direction: column; gap: 16px; }
 .match-page__lede { display: flex; flex-direction: column; gap: 16px; }
@@ -2487,6 +2489,9 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .match-page__intro.has-story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
   .match-page__intro .story { margin: 0; }
   .match-page__flow { columns: 3; }
+  /* Live: the statistics among the boxes instead of across the page under the score */
+  .match-page__live-stats { display: none; }
+  .match-page__flow .match-stats--wide { display: block; }
   .match-related .league__matches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
   .match-page--after .faq__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
   .match-page--after .faq__item:nth-child(2) { border-top: 0; }
