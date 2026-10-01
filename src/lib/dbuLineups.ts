@@ -38,6 +38,8 @@ interface Store {
   sheets: Record<string, { at: number; sheet?: Sheet }>
   /** Each played match's score and goal scorers (the season, for the top scorers), by DBU's match key */
   results?: Record<string, { at: number; home?: number; away?: number; goals?: DbuGoal[] }>
+  /** The latest run, for /admin/data: when, and the latest error */
+  status?: { at: number; error?: string; errorAt?: number }
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'dbu-lineups.json')
@@ -83,15 +85,21 @@ const keyOf = (f: DbuFixture) => f.key
 async function run() {
   const store = load()
   const now = Date.now()
+  const fail = (what: string, e: unknown) => {
+    store.status = { ...store.status, at: Date.now(), error: `${what}: ${(e as Error).message}`, errorAt: Date.now() }
+  }
   const today = isoDate(now)
   for (const { pool } of POOLS) {
     const prog = store.programs[pool]
     if (prog && now - prog.at < 12 * 3_600_000) continue
     try {
-      store.programs[pool] = { at: now, fixtures: parseProgram(await get(`/resultater/pulje/${pool}/kampprogramFuld`)) }
+      const fixtures = parseProgram(await get(`/resultater/pulje/${pool}/kampprogramFuld`))
+      if (!fixtures.length) throw new Error('ingen kampe fundet på siden')
+      store.programs[pool] = { at: now, fixtures }
       save()
-    } catch {
+    } catch (e) {
       // Tried again next run
+      fail(`Kampprogram ${pool}`, e)
     }
     await sleep(3_000)
   }
@@ -104,17 +112,19 @@ async function run() {
       const r = results[keyOf(f)]
       return !r || (r.home === undefined && now - r.at > 6 * 3_600_000)
     })
-    .slice(0, 6)
+    .slice(0, 12)
   for (const f of played) {
     try {
       const r = parseResult(await get(f.url))
       results[keyOf(f)] = { at: Date.now(), ...(r ?? {}) }
-    } catch {
+    } catch (e) {
       results[keyOf(f)] = { ...results[keyOf(f)], at: Date.now() }
+      fail(`Kampside ${f.key}`, e)
     }
-    await sleep(3_000)
+    await sleep(2_000)
   }
-  if (played.length) save()
+  store.status = { ...store.status, at: Date.now() }
+  save()
   // The sheet is filled in before kick-off: read today's pages from the morning
   const hour = Number(new Date(now).toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Copenhagen' }))
   if (hour < 8 || hour > 22) return
@@ -249,6 +259,19 @@ export function dbuPoolStatus() {
   const today = isoDate(Date.now())
   return POOLS.map(({ pool, league }) => {
     const fixtures = store.programs[pool]?.fixtures ?? []
-    return { pool, league, fixtures: fixtures.length, upcoming: fixtures.filter((f) => f.date >= today).length, read: store.programs[pool]?.at }
+    const played = fixtures.filter((f) => f.date < today)
+    return {
+      pool,
+      league,
+      fixtures: fixtures.length,
+      upcoming: fixtures.filter((f) => f.date >= today).length,
+      played: played.length,
+      read: store.programs[pool]?.at,
+      /** Played matches whose page has been read with a score */
+      results: played.filter((f) => store.results?.[keyOf(f)]?.home !== undefined).length,
+    }
   })
 }
+
+/** The job's latest run and error, for /admin/data */
+export const dbuJobStatus = () => load().status

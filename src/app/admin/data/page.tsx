@@ -10,7 +10,7 @@ import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
 import { slowStatus } from '../../../lib/slow'
-import { dbuPoolStatus } from '../../../lib/dbuLineups'
+import { dbuJobStatus, dbuPoolStatus } from '../../../lib/dbuLineups'
 import { cpuStalls } from '../../../lib/cpuProfile'
 import { role } from '../../../lib/role'
 import { workerStatus } from '../../../lib/workerStatus'
@@ -87,6 +87,7 @@ export default async function DataStatusPage() {
   const worker = role() === 'web' ? workerStatus() : undefined
   // DBU's pools for 2. and 3. division: one with no matches left must be swapped for the next (winter break and new season)
   const poolStatus = dbuPoolStatus()
+  const dbuJob = dbuJobStatus()
   const pools = poolStatus.filter((p) => p.read && p.upcoming === 0 && !poolStatus.some((o) => o.league === p.league && o.upcoming > 0))
   // What blocked the server (sampled, src/lib/cpuProfile.ts): this process's and the background process's, newest first
   const stalls = [...cpuStalls().map((x) => ({ ...x, where: worker ? 'Siden' : '' })), ...(worker?.stalls ?? []).map((x) => ({ ...x, where: 'Baggrund' }))]
@@ -253,6 +254,33 @@ export default async function DataStatusPage() {
               )}
             </section>
           )}
+          <section className="panel dash-card">
+            <h2 className="panel__title">DBU (2. og 3. division)</h2>
+            <p className="muted small">
+              Holdopstillinger og topscorere fra kampsiderne · sidst kørt {dbuJob?.at ? clock(dbuJob.at) : 'ikke endnu'}
+              {dbuJob?.error && (
+                <span className="is-bad">
+                  {' '}
+                  · fejl {clock(dbuJob.errorAt ?? 0)}: {dbuJob.error}
+                </span>
+              )}
+            </p>
+            <table className="dash-table">
+              <tbody>
+                {poolStatus.map((p) => (
+                  <tr key={p.pool}>
+                    <td>
+                      Pulje {p.pool} <span className="muted">({p.league})</span>
+                    </td>
+                    <td>{p.read ? `${p.fixtures} kampe · ${p.upcoming} kommende` : 'kampprogram ikke hentet'}</td>
+                    <td className={p.played && p.results < p.played ? 'is-warn' : undefined}>
+                      {p.results}/{p.played} spillede læst
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
           <section className="panel dash-card">
             <h2 className="panel__title">Filer og kilder</h2>
             <table className="dash-table">
