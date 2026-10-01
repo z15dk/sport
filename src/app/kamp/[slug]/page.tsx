@@ -22,6 +22,7 @@ import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { WidgetPromo } from '../../../components/WidgetPromo'
+import { dbuLineups } from '../../../lib/dbuLineups'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
@@ -223,7 +224,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}
