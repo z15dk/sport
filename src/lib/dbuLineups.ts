@@ -1,7 +1,7 @@
 import 'server-only'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { parseProgram, parseSheet, type DbuFixture } from './photos/dbu.ts'
+import { parseProgram, parseResult, parseSheet, type DbuFixture, type DbuGoal } from './photos/dbu.ts'
 import type { LineupPlayer as SheetPlayer } from './photos/names.ts'
 import { cacheDir } from './tsdb'
 import { runsJobs } from './role'
@@ -36,6 +36,8 @@ interface Store {
   programs: Record<string, { at: number; fixtures: DbuFixture[] }>
   /** Each match's sheet (or none yet), by DBU's match key */
   sheets: Record<string, { at: number; sheet?: Sheet }>
+  /** Each played match's score and goal scorers (the season, for the top scorers), by DBU's match key */
+  results?: Record<string, { at: number; home?: number; away?: number; goals?: DbuGoal[] }>
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'dbu-lineups.json')
@@ -93,6 +95,26 @@ async function run() {
     }
     await sleep(3_000)
   }
+  // The season's played matches: each page once for its score and goal scorers (the top scorers),
+  // a few a run; one that had none yet is tried again after six hours
+  const results = (store.results ??= {})
+  const played = POOLS.flatMap(({ pool }) => store.programs[pool]?.fixtures ?? [])
+    .filter((f) => f.date < today)
+    .filter((f) => {
+      const r = results[keyOf(f)]
+      return !r || (r.home === undefined && now - r.at > 6 * 3_600_000)
+    })
+    .slice(0, 6)
+  for (const f of played) {
+    try {
+      const r = parseResult(await get(f.url))
+      results[keyOf(f)] = { at: Date.now(), ...(r ?? {}) }
+    } catch {
+      results[keyOf(f)] = { ...results[keyOf(f)], at: Date.now() }
+    }
+    await sleep(3_000)
+  }
+  if (played.length) save()
   // The sheet is filled in before kick-off: read today's pages from the morning
   const hour = Number(new Date(now).toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Copenhagen' }))
   if (hour < 8 || hour > 22) return
@@ -105,9 +127,12 @@ async function run() {
     .slice(0, 6)
   for (const f of due) {
     try {
-      const sheet = parseSheet(await get(f.url))
+      const html = await get(f.url)
+      const sheet = parseSheet(html)
       const old = store.sheets[keyOf(f)]
       store.sheets[keyOf(f)] = { at: Date.now(), sheet: sheet ?? old?.sheet }
+      const result = parseResult(html)
+      if (result) (store.results ??= {})[keyOf(f)] = { at: Date.now(), ...result }
     } catch {
       store.sheets[keyOf(f)] = { ...store.sheets[keyOf(f)], at: Date.now() }
     }
@@ -161,4 +186,69 @@ export function dbuLineups(match: Match): Lineup[] | undefined {
   const sheet = f && store.sheets[keyOf(f)]?.sheet
   if (!sheet || (!sheet.home.length && !sheet.away.length)) return undefined
   return [toLineup(match.home.name, sheet.home), toLineup(match.away.name, sheet.away)]
+}
+
+export interface TopScorer {
+  rank: number
+  name: string
+  /** The team as DBU writes it, and our club when we know it */
+  team: string
+  club?: string
+  goals: number
+  /** Places climbed (positive) or lost since the last match day; undefined when new on the list */
+  moved?: number
+}
+
+/** The season's top scorers in 2. or 3. division from the match pages read, with the change since the last match day */
+export function dbuTopScorers(leagueSlug: string, clubOf: (dbuName: string) => string | undefined): { scorers: TopScorer[]; goals: number; matches: number } | undefined {
+  const pools = POOLS.filter((p) => p.league === leagueSlug)
+  if (!pools.length) return undefined
+  const store = load()
+  const games = pools
+    .flatMap(({ pool }) => store.programs[pool]?.fixtures ?? [])
+    .map((f) => ({ f, r: store.results?.[keyOf(f)] }))
+    .filter((x): x is { f: DbuFixture; r: NonNullable<typeof x.r> } => x.r?.home !== undefined && x.r.away !== undefined)
+  if (!games.length) return undefined
+  const lastDay = games.reduce((d, x) => (x.f.date > d ? x.f.date : d), '')
+  const tally = (list: typeof games) => {
+    const by = new Map<string, { name: string; team: string; goals: number }>()
+    for (const { f, r } of list)
+      for (const g of r.goals ?? []) {
+        if (!g.name || /selvmål/i.test(g.name)) continue
+        const team = g.side === 'home' ? f.home : f.away
+        const k = `${g.name}|${team}`
+        const e = by.get(k) ?? by.set(k, { name: g.name, team, goals: 0 }).get(k)!
+        e.goals++
+      }
+    const sorted = [...by.values()].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name, 'da'))
+    const rank = new Map<string, number>()
+    sorted.forEach((e, i) => rank.set(`${e.name}|${e.team}`, i > 0 && sorted[i - 1].goals === e.goals ? rank.get(`${sorted[i - 1].name}|${sorted[i - 1].team}`)! : i + 1))
+    return { sorted, rank }
+  }
+  const now = tally(games)
+  const before = tally(games.filter((x) => x.f.date < lastDay))
+  return {
+    scorers: now.sorted.slice(0, 15).map((e) => {
+      const k = `${e.name}|${e.team}`
+      const was = before.rank.get(k)
+      return { rank: now.rank.get(k)!, name: e.name, team: e.team, club: clubOf(e.team), goals: e.goals, moved: was === undefined ? undefined : was - now.rank.get(k)! }
+    }),
+    goals: games.reduce((n, x) => n + (x.r.home ?? 0) + (x.r.away ?? 0), 0),
+    matches: games.length,
+  }
+}
+
+/**
+ * For /admin/data: each pool's matches and how many are still to be played. A pool with
+ * none left (the autumn's regular season or the season is over) needs the next pool
+ * number in DBU_LINEUP_POOLS (and PHOTOS_DBU_POOLS): DBU starts new pools for the spring's
+ * promotion and relegation groups and for every new season.
+ */
+export function dbuPoolStatus() {
+  const store = load()
+  const today = isoDate(Date.now())
+  return POOLS.map(({ pool, league }) => {
+    const fixtures = store.programs[pool]?.fixtures ?? []
+    return { pool, league, fixtures: fixtures.length, upcoming: fixtures.filter((f) => f.date >= today).length, read: store.programs[pool]?.at }
+  })
 }

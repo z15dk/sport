@@ -2366,3 +2366,14 @@ a.player-games__match:hover { text-decoration: underline; }
 }
 @keyframes wpromo-shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .wpromo__row, .wpromo__cta::after { animation: none; } }
+
+/* Top scorers counted from the match pages (2. and 3. division), beside the table */
+.topscorers__total { margin: 0; padding: 0 18px 10px; font-size: 13px; color: var(--ink-2); }
+.topscorers__total strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; color: var(--ink); }
+.topscorers__total span { color: var(--ink-3); }
+.leaders__list li.topscorers__row { grid-template-columns: 18px 12px 28px minmax(0, 1fr) auto; }
+.topscorers__move { font-size: 10px; text-align: center; color: var(--ink-3); }
+.topscorers__move.is-up, .topscorers__move.is-new { color: #2fa84f; }
+.topscorers__move.is-down { color: var(--live); }
+.topscorers__note { margin: 0; padding: 0 18px 16px; }
+.table-duo > .topscorers { position: sticky; top: 16px; }

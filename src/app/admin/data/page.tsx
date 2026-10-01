@@ -10,6 +10,7 @@ import { archiveStatus, playerGamesStatus } from '../../../lib/archive'
 import { apiSportsFiles, apiSportsStatus } from '../../../lib/apisports'
 import { memoryStatus } from '../../../lib/extrasDb'
 import { slowStatus } from '../../../lib/slow'
+import { dbuPoolStatus } from '../../../lib/dbuLineups'
 import { cpuStalls } from '../../../lib/cpuProfile'
 import { role } from '../../../lib/role'
 import { workerStatus } from '../../../lib/workerStatus'
@@ -84,6 +85,9 @@ export default async function DataStatusPage() {
   if (!(await isAdmin())) redirect('/admin')
   // A split server (src/lib/role.ts): the jobs' own state comes from the background process's status file
   const worker = role() === 'web' ? workerStatus() : undefined
+  // DBU's pools for 2. and 3. division: one with no matches left must be swapped for the next (winter break and new season)
+  const poolStatus = dbuPoolStatus()
+  const pools = poolStatus.filter((p) => p.read && p.upcoming === 0 && !poolStatus.some((o) => o.league === p.league && o.upcoming > 0))
   // What blocked the server (sampled, src/lib/cpuProfile.ts): this process's and the background process's, newest first
   const stalls = [...cpuStalls().map((x) => ({ ...x, where: worker ? 'Siden' : '' })), ...(worker?.stalls ?? []).map((x) => ({ ...x, where: 'Baggrund' }))]
     .sort((a, b) => b.at - a.at)
@@ -142,6 +146,11 @@ export default async function DataStatusPage() {
           </p>
         </div>
 
+        {pools.length > 0 && (
+          <p className="banner">
+            DBU-pulje{pools.length > 1 ? 'r' : ''} uden flere kampe: {pools.map((p) => `${p.pool} (${p.league})`).join(', ')}. Find de nye puljer (op- og nedrykningsspil eller ny sæson) på dbu.dk og tilføj dem i <code>DBU_LINEUP_POOLS</code> og <code>PHOTOS_DBU_POOLS</code> i /opt/scoreline/env – behold efterårets puljer i samme sæson, så topscorerne tæller hele sæsonen.
+          </p>
+        )}
         <div className="dash-tiles">
           <Tile
             label="Svartid"

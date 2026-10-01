@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
-import { allFixtures, isFinished, standings, toMatch } from '../../../data/season'
+import { allFixtures, clubInDivision, isFinished, standings, toMatch } from '../../../data/season'
 import { externalMatch, getMatches, isFriendly } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
@@ -14,6 +14,8 @@ import { newsFor, newsMentioning } from '../../../lib/news'
 import { allTeams, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { WidgetPromo } from '../../../components/WidgetPromo'
+import { TopScorersList } from '../../../components/TopScorersList'
+import { dbuTopScorers } from '../../../lib/dbuLineups'
 import { JsonLd, breadcrumbLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
@@ -254,6 +256,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
   // Top scorers, assists and cards (API-Sports, football)
   const leagueId = sportOf(division) === 'soccer' ? apiLeagueIdOf(division.id) : undefined
   const leaders = leagueId ? await apiLeagueLeaders(leagueId).catch(() => undefined) : undefined
+  // 2. and 3. division: counted from the season's match pages (our other sources have none)
+  const dbuScorers = leaders ? undefined : dbuTopScorers(division.slug, (team) => clubInDivision(division, team, getRealData()?.clubNames ?? {})?.name)
   // The league's ten latest results, newest first
   const results = allFixtures()
     .filter((f) => f.division?.id === division.id && isFinished(f) && f.kickoff.getTime() <= now)
@@ -298,7 +302,8 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
         <LiveNow matches={todays} />
 
-        <div className={leaders ? 'table-duo' : 'table-solo'}>
+        {/* 2. and 3. division: top scorers counted from the match pages, beside the table (no other source has them) */}
+        <div className={leaders || dbuScorers?.scorers.length ? 'table-duo' : 'table-solo'}>
         <div className="table-duo__main">
         <section className="panel table-panel">
           <header className="table-panel__head">
@@ -336,6 +341,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         )}
         </div>
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
+        {!leaders && dbuScorers && <TopScorersList league={division.name} {...dbuScorers} />}
         </div>
         {(() => {
           // Not on the Danish leagues' pages: their history in our data is too incomplete (and mixes in second teams)
