@@ -13,6 +13,8 @@ const WHERE: Record<AdPlacementId, string> = {
   feed: 'Mellem ligaerne på forsiden og inde i indholdet på liga- og turneringssider',
   side: 'Højre kolonne på forsiden (følger med ned). Vises ikke på mobil',
   content: 'På kamp-, klub-, liga-, spiller- og artikelsider',
+  scroll:
+    'En hel skærm midt i siden, som man scroller forbi – billedet står stille, mens siden glider hen over det. Forsiden (efter 5. liga), ligasider og kampsider, én gang pr. side. Kun med annonce (ingen pladsholder). Motivet i midten: kanterne skæres af efter skærmens format',
 }
 
 type Msg = { text: string; error?: boolean }
@@ -143,7 +145,9 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
         ? 'Annoncekode'
         : slot?.mode === 'image' && slot.desktop
           ? 'Dit banner'
-          : 'Pladsholder'
+          : p.id === 'scroll'
+            ? 'Vises ikke'
+            : 'Pladsholder'
 
   async function upload(variant: 'desktop' | 'mobile', file?: File) {
     if (!file) return
@@ -169,7 +173,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
     <div className="ads-admin__pic">
       <span className="small">
         <strong>{v === 'desktop' ? 'Computer' : 'Mobil'}</strong>{v === 'mobile' && p.mobileBelow ? ` (under ${p.mobileBelow + 1} px)` : ''} · {size(v)} px{' '}
-        <span className="muted">(gerne {p[v].width * 2} × {p[v].height * 2})</span>
+        {p.id !== 'scroll' && <span className="muted">(gerne {p[v].width * 2} × {p[v].height * 2})</span>}
       </span>
       <div className="ads-admin__frame" style={{ aspectRatio: `${p[v].width} / ${p[v].height}`, maxWidth: Math.min(p[v].width, 520, Math.round((300 * p[v].width) / p[v].height)) }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- the uploaded banner as it is */}
@@ -195,7 +199,7 @@ function SlotEditor({ p, slot, run }: { p: AdPlacement; slot?: AdSlotConfig; run
           </h2>
           <p className="muted small">{WHERE[p.id]}</p>
         </div>
-        <span className={`ads-admin__status is-${status === 'Pladsholder' ? 'empty' : status === 'Slået fra' ? 'off' : 'on'}`}>{status}</span>
+        <span className={`ads-admin__status is-${status === 'Pladsholder' || status === 'Vises ikke' ? 'empty' : status === 'Slået fra' ? 'off' : 'on'}`}>{status}</span>
       </div>
       <div className="ads-admin__modes" role="radiogroup" aria-label={`Indhold for ${p.name}`}>
         {(

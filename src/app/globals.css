@@ -941,6 +941,19 @@ h2.league__name { margin: 0; }
 @media (max-width: 999px) {
   .ad--top.ad--filled .ad__box > a, .ad--top.ad--filled .ad__box > picture { width: min(100%, var(--ad-mw)); }
 }
+/* The full-screen ad people scroll past: the picture is fixed to the screen and clipped to the band */
+.scroll-ad { width: 100%; }
+.scroll-ad__band { position: relative; z-index: 5; height: 100vh; height: 100svh; clip-path: inset(0); background: var(--ink); }
+.scroll-ad__layer { position: fixed; inset: 0; display: grid; place-items: center; }
+.scroll-ad__layer a, .scroll-ad__layer picture, .scroll-ad__layer img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.scroll-ad__layer .ad__code { width: 100%; height: 100%; }
+.scroll-ad__label, .scroll-ad__hint {
+  position: absolute; z-index: 1; top: 12px; padding: 5px 10px; border-radius: 999px; background: rgba(15, 17, 12, 0.72); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; pointer-events: none;
+}
+.scroll-ad__label { left: 16px; }
+.scroll-ad__hint { right: 16px; letter-spacing: 0.02em; text-transform: none; }
+.scroll-ad__rg { position: absolute; z-index: 1; bottom: 12px; left: 16px; padding: 4px 10px; border-radius: 999px; background: rgba(15, 17, 12, 0.72); color: #fff; font-size: 11px; }
 /* The top banner turns to its phone size below 1000 px, as the IAB banners do (970×90 needs the room) */
 @media (max-width: 999px) {
   .ad--top .ad__label, .ad--top .ad__box { width: min(100%, var(--ad-mw)); }

@@ -15,7 +15,7 @@ import { WidgetPromo } from './WidgetPromo'
 import { FeaturedMatch } from './FeaturedMatch'
 import { SportTabs } from './SportTabs'
 import { AdSlot } from './AdSlot'
-import { FEED_AD_EVERY, FEED_AD_FIRST } from '../data/ads'
+import { FEED_AD_EVERY, FEED_AD_FIRST, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
@@ -319,6 +319,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {isFeedAdSpot(i, days.length) && (
                     <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
                   )}
+                  {i + 1 === SCROLL_AD_AFTER && i + 1 < days.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
             </div>
@@ -334,6 +335,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {isFeedAdSpot(i, groups.length) && (
                     <AdSlot placement="feed" index={Math.floor((i + 1 - FEED_AD_FIRST) / FEED_AD_EVERY) + 1} />
                   )}
+                  {i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
             </div>

@@ -8,7 +8,7 @@
 //   creative: { src: '/ads/top.jpg', href: 'https://annoncør.dk', alt: 'Annoncør' }
 // Mark gambling ads with `gambling: true` so the responsible-gambling line is shown.
 
-export type AdPlacementId = 'top' | 'feed' | 'side' | 'content'
+export type AdPlacementId = 'top' | 'feed' | 'side' | 'content' | 'scroll'
 
 export interface AdSize {
   width: number
@@ -59,7 +59,7 @@ export interface AdsConfig {
   adsTxt?: string
 }
 
-export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'feed', 'side', 'content']
+export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'feed', 'side', 'content', 'scroll']
 
 export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   // Under the header on every page
@@ -70,10 +70,16 @@ export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   side: { id: 'side', name: 'Sidebanner', desktop: { width: 300, height: 600 }, mobile: { width: 300, height: 250 } },
   // Inside match, club and league pages
   content: { id: 'content', name: 'Artikelbanner', desktop: { width: 300, height: 250 }, mobile: { width: 300, height: 250 } },
+  // A whole screen in the page's flow that people scroll past: the picture stands still behind a
+  // window the size of the screen (an "interscroller"), across the page's full width. Once per page;
+  // never a placeholder (a screen of nothing). src/components/ScrollAd.tsx
+  scroll: { id: 'scroll', name: 'Helsidesannonce (scroll forbi)', desktop: { width: 1920, height: 1080 }, mobile: { width: 1080, height: 1920 }, mobileBelow: 999 },
 }
 
 /** On the front page: an ad after this many league sections, then again every FEED_AD_EVERY */
 export const FEED_AD_FIRST = 3
 export const FEED_AD_EVERY = 6
+/** On the front page: the full-screen ad after this many league sections (once) */
+export const SCROLL_AD_AFTER = 5
 
 export const SHOW_AD_PLACEHOLDERS = process.env.NEXT_PUBLIC_AD_PLACEHOLDERS !== 'false'

@@ -15,8 +15,10 @@ export async function POST(request: Request) {
     const variant = form?.get('variant') === 'mobile' ? 'mobile' : 'desktop'
     if (!AD_PLACEMENT_IDS.includes(slot)) return Response.json({ error: 'Ukendt reklameplads' }, { status: 400 })
     if (!file || typeof file === 'string') return Response.json({ error: 'Vælg et billede' }, { status: 400 })
-    // Twice the shown width, so it is sharp on phones and high-resolution screens; animated GIFs keep moving
-    const result = await saveUpload(Buffer.from(await file.arrayBuffer()), AD_PLACEMENTS[slot][variant].width * 2, true)
+    // Twice the shown width, so it is sharp on phones and high-resolution screens (the full-screen ad:
+    // a screen's width is enough); animated GIFs keep moving
+    const width = slot === 'scroll' ? (variant === 'desktop' ? 2560 : 1440) : AD_PLACEMENTS[slot][variant].width * 2
+    const result = await saveUpload(Buffer.from(await file.arrayBuffer()), width, true)
     if (result.error) return Response.json({ error: result.error }, { status: 400 })
     const ads = saveAds({ slot, [variant]: result.url, mode: 'image' })
     refreshRealData()
