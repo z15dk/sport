@@ -2483,11 +2483,17 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 /* Match page on computers: the site's whole width (1400 px) and as much as possible on one screen */
 .match-page__intro { display: flex; flex-direction: column; gap: 16px; }
 .match-page__lede { display: flex; flex-direction: column; gap: 16px; }
+.match-page__title-team { display: inline-flex; align-items: center; gap: 12px; vertical-align: middle; }
+.match-page__title-team .badge { flex: none; }
+@media (max-width: 640px) { .match-page__title-team { gap: 8px; } .match-page__title-team .badge { width: 30px !important; height: 30px !important; } }
 @media (min-width: 1240px) {
   .match-page, .match-related { max-width: none; }
   .match-page .duel { padding: 18px 20px; }
   .match-page__intro.has-story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
   .match-page__intro .story { margin: 0; }
+  /* The title and summary in a white box like the report beside them */
+  .match-page__intro.has-story .match-page__lede { background: var(--surface); border-radius: var(--radius, 16px); padding: 20px 22px; gap: 12px; align-self: stretch; }
+  .match-page__intro.has-story .match-page__summary { margin-top: 0; }
   .match-page__flow { columns: 3; }
   /* Live: the statistics among the boxes instead of across the page under the score */
   .match-page__live-stats { display: none; }

@@ -334,7 +334,14 @@ function MatchBody({
       <div className={`match-page__intro${story ? ' has-story' : ''}`}>
       <div className="match-page__lede">
       <h1 className="match-page__title">
-        {home.name} – {away.name}
+        <span className="match-page__title-team">
+          <TeamBadge link={false} name={home.name} src={home.badge} colors={home.colors} size={40} />
+          {home.name}
+        </span>{' '}
+        – <span className="match-page__title-team">
+          {away.name}
+          <TeamBadge link={false} name={away.name} src={away.badge} colors={away.colors} size={40} />
+        </span>
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
