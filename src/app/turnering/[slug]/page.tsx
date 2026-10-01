@@ -255,7 +255,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   // Top scorers, assists and cards (API-Sports, football)
   const leagueId = sportOf(division) === 'soccer' ? apiLeagueIdOf(division.id) : undefined
-  // 2. and 3. division: counted from the season's match pages, which have every goal (our other sources have few or none),
+  // 1., 2. and 3. division: counted from the season's match pages, which have every goal (our other sources have few or none),
   // so they replace the other player lists as soon as there are any
   const dbuScorers = dbuTopScorers(division.slug, (team) => clubInDivision(division, team, getRealData()?.clubNames ?? {})?.name)
   const useDbu = !!dbuScorers?.scorers.length
@@ -304,7 +304,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
         <LiveNow matches={todays} />
 
-        {/* 2. and 3. division: top scorers counted from the match pages, beside the table (no other source has them) */}
+        {/* 1., 2. and 3. division: top scorers counted from the match pages, beside the table (no other source has them) */}
         <div className={leaders || useDbu ? 'table-duo' : 'table-solo'}>
         <div className="table-duo__main">
         <section className="panel table-panel">

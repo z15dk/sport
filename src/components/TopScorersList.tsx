@@ -1,7 +1,7 @@
 import type { TopScorer } from '../lib/dbuLineups'
 import { TeamBadge } from './TeamBadge'
 
-/** A league's top scorers counted from the match pages (2. and 3. division): logo, name, goals and the move since the last match day */
+/** A league's top scorers counted from the match pages (1., 2. and 3. division): logo, name, goals and the move since the last match day */
 export function TopScorersList({ league, scorers }: { league: string; scorers: TopScorer[]; goals?: number; matches?: number }) {
   if (!scorers.length) return null
   return (

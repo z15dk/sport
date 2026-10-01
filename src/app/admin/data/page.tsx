@@ -255,7 +255,7 @@ export default async function DataStatusPage() {
             </section>
           )}
           <section className="panel dash-card">
-            <h2 className="panel__title">DBU (2. og 3. division)</h2>
+            <h2 className="panel__title">DBU (1., 2. og 3. division)</h2>
             <p className="muted small">
               Holdopstillinger og topscorere fra kampsiderne · sidst kørt {dbuJob?.at ? clock(dbuJob.at) : 'ikke endnu'}
               {dbuJob?.error && (

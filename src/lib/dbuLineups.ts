@@ -11,17 +11,17 @@ import { seasonClub } from '../data/season'
 import type { Lineup } from '../data/matchExtra'
 import type { Match } from '../types'
 
-// Team sheets for 2. and 3. division from the governing body's public match pages,
+// Team sheets for 1., 2. and 3. division from the governing body's public match pages,
 // which our other sources don't have for these leagues: on match day each match page is
 // read until its sheet is there (every 15 minutes, a few pages a run with a pause), then
 // hourly that day for late changes. Kept in data/dbu-lineups.json, which the site process
 // reads; the match page shows them as lists (no positions) when nothing else has them.
-// The pools change every season: DBU_LINEUP_POOLS="508656:2-division,508657:3-division".
+// The pools change every season: DBU_LINEUP_POOLS="507530:1-division,508656:2-division,508657:3-division".
 // DBU_LINEUPS=off switches it off.
 
 const BASE = 'https://www.dbu.dk'
 const UA = 'Mozilla/5.0 (compatible; Matchly; +https://matchly.dk)'
-const POOLS = (process.env.DBU_LINEUP_POOLS ?? '508656:2-division,508657:3-division')
+const POOLS = (process.env.DBU_LINEUP_POOLS ?? '507530:1-division,508656:2-division,508657:3-division')
   .split(',')
   .map((s) => s.trim().split(':'))
   .filter((p) => p[0] && p[1])
@@ -182,7 +182,7 @@ const toLineup = (team: string, players: SheetPlayer[]): Lineup => ({
   substitutes: players.filter((p) => p.reserve).map((p) => ({ name: p.name, number: p.number })),
 })
 
-/** A 2. or 3. division match's team sheets, home first, when they have been read */
+/** A 1., 2. or 3. division match's team sheets, home first, when they have been read */
 export function dbuLineups(match: Match): Lineup[] | undefined {
   if (match.sport !== 'soccer' || !POOLS.some((p) => p.league === match.leagueSlug)) return undefined
   const store = load()
@@ -213,7 +213,7 @@ export interface TopScorer {
   moved?: number
 }
 
-/** The season's top scorers in 2. or 3. division from the match pages read, with the change since the last match day */
+/** The season's top scorers in 1., 2. or 3. division from the match pages read, with the change since the last match day */
 export function dbuTopScorers(leagueSlug: string, clubOf: (dbuName: string) => string | undefined): { scorers: TopScorer[]; goals: number; matches: number } | undefined {
   const pools = POOLS.filter((p) => p.league === leagueSlug)
   if (!pools.length) return undefined
