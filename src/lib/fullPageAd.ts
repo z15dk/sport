@@ -239,10 +239,13 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 .bn .dots{margin-top:4px}
 @media (max-width:700px){
   .bn{grid-template-columns:1fr;gap:8px;align-items:start;padding:12px 14px}
-  .bn h1{font-size:22px}.bn .cta,.bn .site,.bn .k{display:none}
-  .bn-say{gap:4px}
+  /* the sender stays visible: the logo at the top of the box and "matchly.dk · Annonce" beside the headline */
+  .bn-say{flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px}
+  .bn h1{font-size:19px;white-space:nowrap}.bn .cta,.bn .k{display:none}
+  .bn .site{font-size:10px;white-space:nowrap;flex:none}.bn .site-d{display:none}
   .bn .row.on ~ .row.on ~ .row.on{display:none}
-  .bn .plogo{display:none}
+  .bn .plogo{margin-bottom:4px;padding-bottom:4px;font-size:17px}.bn .plogo img{width:18px;height:18px;border-radius:5px}
+  .bn .live{padding:8px 12px 6px}
 }
 @media (prefers-reduced-motion:reduce){.m,.dot,h1 span,.row[data-page].on,.sc.flash,.run{animation:none}h1 span{opacity:1}.feats{mask-image:none;-webkit-mask-image:none;flex-wrap:wrap;white-space:normal}.run[aria-hidden]{display:none}.run{flex-wrap:wrap}}
 </style></head><body>
@@ -252,7 +255,7 @@ ${banner ? `<div class="ad bn">
 <a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a>
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
 <a class="cta" href="${esc(home)}" target="_blank" rel="noopener">Se dagens kampe <span aria-hidden="true">→</span></a>
-<span class="site">matchly.dk · Annonce</span>
+<span class="site"><span class="site-d">matchly.dk · </span>Annonce</span>
 </div>
 <div class="live"><a class="plogo" href="${esc(home)}" target="_blank" rel="noopener"><img src="/icon-192.png" width="28" height="28" alt=""><span>Matchly<i>.</i></span></a><div id="live">${await adLiveHtml(q, now)}</div></div>
 </div>` : `<div class="ad">
