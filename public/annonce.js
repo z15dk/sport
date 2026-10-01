@@ -7,7 +7,9 @@
   function wanted(box) {
     // A whole screen ("helside"), unless the code names a height (data-hoejde="700")
     var fixed = parseInt(box.getAttribute('data-hoejde') || '', 10)
-    if (fixed > 0) return Math.max(360, Math.min(2000, fixed))
+    if (fixed > 0) return Math.max(200, Math.min(2000, fixed))
+    // The banner for the top of a page is 300 px
+    if (box.getAttribute('data-format') === 'banner') return 300
     var h = window.innerHeight || document.documentElement.clientHeight || 800
     return Math.max(480, Math.min(1100, h - 24))
   }
@@ -48,6 +50,7 @@
     var q = new URLSearchParams({ id: id })
     var campaign = box.getAttribute('data-kampagne')
     if (campaign) q.set('kampagne', campaign)
+    if (box.getAttribute('data-format') === 'banner') q.set('format', 'banner')
     // Which page the ad sits on (counted with the clicks on /admin/annonce)
     q.set('side', location.href.split('#')[0].slice(0, 300))
     var frame = document.createElement('iframe')

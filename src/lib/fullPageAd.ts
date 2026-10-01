@@ -42,10 +42,14 @@ const FEATURES = [
   { title: 'Ligatabel til din side', text: 'Gratis widget med den levende stilling.', path: '/widget' },
 ]
 
+export type AdFormat = 'helside' | 'banner'
+
 interface AdQuery {
   id: string
   campaign: string
   page: string
+  /** The whole screen, or a 300 px banner for the top of a page */
+  format: AdFormat
 }
 
 export function adQuery(url: URL): AdQuery {
@@ -53,6 +57,7 @@ export function adQuery(url: URL): AdQuery {
     id: (url.searchParams.get('id') ?? '').replace(/[^\w-]/g, '').slice(0, 40),
     campaign: campaignKey(url.searchParams.get('kampagne')),
     page: (url.searchParams.get('side') ?? '').slice(0, 300),
+    format: url.searchParams.get('format') === 'banner' ? 'banner' : 'helside',
   }
 }
 
@@ -86,7 +91,7 @@ function when(m: Match, today: string) {
   if (m.state === 'postponed') return 'Udsat'
   const date = isoDate(m.kickoff)
   const time = formatTime(m.kickoff)
-  if (date === today) return time
+  if (date === today) return 'I dag'
   if (date === addDays(today, 1)) return `I morgen ${time}`
   return `${formatWeekday(date)} ${time}`
 }
@@ -102,17 +107,20 @@ export async function adLiveHtml(q: AdQuery, now: number) {
     const [bg, fg] = t.colors ?? ['#2b3024', '#ffffff']
     return `<i class="ini" style="background:${esc(bg)};color:${esc(fg)}">${esc(t.name.slice(0, 2).toUpperCase())}</i>`
   }
-  const PER_PAGE = 5
+  // The banner is 300 px high: three short rows a page, the status on the league line instead of under the score
+  const banner = q.format === 'banner'
+  const PER_PAGE = banner ? 3 : 5
   const rows = matches
     .map((m, i) => {
       const tv = channelsFor(m)[0]?.name
       const s = score(m)
+      const status = when(m, today)
       return `<a class="row${m.state === 'live' ? ' is-live' : ''}" href="${esc(go(q, paths.match(m.slug)))}" target="_blank" rel="noopener" data-id="${esc(m.id)}" data-page="${Math.floor(i / PER_PAGE)}">
-<span class="lg">${esc(m.league)}${tv ? ` · ${esc(tv)}` : ''}</span>
+<span class="lg">${esc(m.league)}${banner ? ` · <b>${esc(status)}</b>` : tv ? ` · ${esc(tv)}` : ''}</span>
 <span class="t h">${badge(m.home)}<b>${esc(m.home.name)}</b></span>
 <span class="sc${s ? '' : ' tm'}" data-score="${esc(s)}">${s ? esc(s) : esc(formatTime(m.kickoff))}</span>
 <span class="t a"><b>${esc(m.away.name)}</b>${badge(m.away)}</span>
-<span class="st">${esc(when(m, today))}</span>
+${banner ? '' : `<span class="st">${esc(status)}</span>`}
 </a>`
     })
     .join('')
@@ -122,9 +130,10 @@ export async function adLiveHtml(q: AdQuery, now: number) {
 ${pages > 1 ? `<div class="dots">${Array.from({ length: pages }, (_, i) => `<i${i === 0 ? ' class="on"' : ''}></i>`).join('')}</div>` : ''}`
 }
 
-/** The whole ad as a page of its own */
+/** The whole ad as a page of its own: the whole screen, or the 300 px banner (?format=banner) */
 export async function fullPageAdHtml(url: URL, now: number) {
   const q = adQuery(url)
+  const banner = q.format === 'banner'
   const n = adNumbers()
   const home = go(q, '/')
   const refresh = new URLSearchParams(url.searchParams)
@@ -161,37 +170,36 @@ h1 span{display:block;opacity:0;animation:in .7s ease forwards}
 h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.3s}
 @keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .lead{margin:clamp(10px,1.8vh,18px) 0 0;max-width:46ch;font-size:clamp(14px,1.45vw,17px);color:var(--ink2)}
-.nums{list-style:none;margin:clamp(12px,2.2vh,22px) 0 0;padding:0;display:flex;flex-wrap:wrap;gap:clamp(12px,2.4vw,30px)}
-.nums li{display:flex;flex-direction:column;line-height:1}
-.nums b{font:italic 800 clamp(30px,3.8vw,48px)/1 var(--d);color:var(--lime);font-variant-numeric:tabular-nums}
-.nums span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-top:4px}
 .cta{display:inline-flex;align-items:center;gap:8px;margin-top:clamp(14px,2.6vh,26px);padding:12px 22px;border-radius:999px;background:var(--lime);color:#0f110c;font-weight:800;font-size:15px;box-shadow:0 10px 30px rgba(198,241,53,.3);transition:transform .15s,box-shadow .15s}
 .cta:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(198,241,53,.42)}
-.live{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px 16px 12px;backdrop-filter:blur(6px);min-width:0}
-.lh{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink2);margin-bottom:8px}
-.lh b{color:var(--ink);font-weight:700}
-.lt{margin-left:auto;color:var(--ink3)}
+.live{background:#fff;color:#0f110c;border-radius:18px;padding:14px 16px 12px;min-width:0;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.plogo{display:flex;align-items:center;gap:9px;margin:0 0 10px;padding-bottom:10px;border-bottom:1px solid #e1e4da;font:italic 800 24px/1 var(--d);text-transform:uppercase;letter-spacing:-.01em;color:#0f110c}
+.plogo img{width:28px;height:28px;border-radius:7px;flex:none}
+.plogo i{color:var(--live);font-style:inherit}
+.lh{display:flex;align-items:center;gap:9px;font-size:13px;color:#5a5f55;margin-bottom:8px}
+.lh b{color:#0f110c;font-weight:700}
+.lt{margin-left:auto;color:#8d9285}
 .rows{position:relative}
 .row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"lg lg lg" "h sc a" "st st st";align-items:center;gap:2px 10px;padding:9px 0;border-top:1px solid transparent;transition:background .15s;border-radius:8px}
-.row.on ~ .row.on{border-top-color:rgba(255,255,255,.08)}
-.row:hover{background:rgba(255,255,255,.05)}
+.row.on ~ .row.on{border-top-color:#e1e4da}
+.row:hover{background:#f4f5f0}
 .row[data-page]{display:none}.row[data-page].on{display:grid;animation:in .4s ease}
-.lg{grid-area:lg;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg{grid-area:lg;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#676c60;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .t{display:flex;align-items:center;gap:7px;min-width:0;font-size:14px}
 .t b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .t.h{grid-area:h}.t.a{grid-area:a;justify-content:flex-end;text-align:right}
 .t img,.ini{width:24px;height:24px;flex:none;object-fit:contain;border-radius:50%}
 .ini{display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;font-style:normal}
 .sc{grid-area:sc;font:italic 800 24px/1 var(--d);min-width:52px;text-align:center;padding:3px 8px;border-radius:8px;background:#0f110c;font-variant-numeric:tabular-nums}
-.sc.tm{font-size:17px;background:transparent;color:var(--ink2)}
+.sc{color:#fff}.sc.tm{font-size:17px;background:transparent;color:#5a5f55}
 .is-live .sc{color:var(--lime)}
 .sc.flash{animation:flash 1.2s ease}
 @keyframes flash{0%{background:var(--lime);color:#0f110c}100%{background:#0f110c}}
-.st{grid-area:st;font-size:11px;color:var(--ink3);text-align:center}
+.st{grid-area:st;font-size:11px;color:#676c60;text-align:center}
 .is-live .st{color:var(--live);font-weight:700}
 .dots{display:flex;justify-content:center;gap:5px;margin-top:8px}
-.dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25)}.dots i.on{background:var(--lime)}
-.empty{margin:14px 0;color:var(--ink3);text-align:center}
+.dots i{width:5px;height:5px;border-radius:50%;background:#d9dcd2}.dots i.on{background:#6f8f00}
+.empty{margin:14px 0;color:#676c60;text-align:center}
 .feats{position:relative;overflow:hidden;display:flex;white-space:nowrap;margin:0 clamp(18px,4vw,44px) clamp(12px,2vh,22px);border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
 .run{display:inline-flex;align-items:center;flex:none;animation:run 42s linear infinite}
 .feats:hover .run{animation-play-state:paused}
@@ -208,28 +216,59 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 @media (max-width:760px){
   .grid{grid-template-columns:1fr;align-items:start;gap:16px}
   h1{font-size:clamp(40px,13vw,64px)}
-  .nums{gap:18px}.lead{max-width:none}
+  .lead{max-width:none}
   .ft small{display:none}.run{animation-duration:28s}
 }
 @media (max-height:640px){.feats,.lead{display:none}.grid{align-items:center}}
-@media (max-height:520px){.nums{display:none}}
+/* the 300 px banner: the headline and the button at the left, the white panel at the right */
+.bn{height:300px;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,46%);gap:clamp(14px,3vw,36px);align-items:center;padding:14px clamp(16px,3vw,40px)}
+.bn .m{width:min(60vw,120vh);top:-30%;left:-6%}
+.bn-say{display:flex;flex-direction:column;align-items:flex-start;gap:clamp(8px,1.6vh,14px);min-width:0}
+.bn .k{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--lime)}
+.bn h1{font-size:clamp(30px,4.2vw,54px)}
+.bn h1 span{display:inline}.bn h1 span+span{margin-left:.22em}
+.bn .cta{margin-top:0;padding:10px 18px;font-size:14px}
+.bn .site{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.bn .live{padding:10px 14px 8px;box-shadow:0 14px 40px rgba(0,0,0,.35)}
+.bn .plogo{margin-bottom:6px;padding-bottom:6px;font-size:20px}.bn .plogo img{width:22px;height:22px;border-radius:6px}
+.bn .lh{margin-bottom:2px;font-size:12px}
+.bn .row{padding:5px 0;gap:0 8px}
+.bn .lg b{font-weight:700;color:#0f110c}.bn .is-live .lg b{color:var(--live)}
+.bn .t{font-size:13px}.bn .t img,.bn .ini{width:20px;height:20px}
+.bn .sc{font-size:19px;min-width:44px;padding:2px 6px}.bn .sc.tm{font-size:14px}
+.bn .dots{margin-top:4px}
+@media (max-width:700px){
+  .bn{grid-template-columns:1fr;gap:8px;align-items:start;padding:12px 14px}
+  .bn h1{font-size:22px}.bn .cta,.bn .site,.bn .k{display:none}
+  .bn-say{gap:4px}
+  .bn .row.on ~ .row.on ~ .row.on{display:none}
+  .bn .plogo{display:none}
+}
 @media (prefers-reduced-motion:reduce){.m,.dot,h1 span,.row[data-page].on,.sc.flash,.run{animation:none}h1 span{opacity:1}.feats{mask-image:none;-webkit-mask-image:none;flex-wrap:wrap;white-space:normal}.run[aria-hidden]{display:none}.run{flex-wrap:wrap}}
 </style></head><body>
-<div class="ad">
+${banner ? `<div class="ad bn">
+<div class="m">${M_SVG}</div>
+<div class="bn-say">
+<a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a>
+<h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
+<a class="cta" href="${esc(home)}" target="_blank" rel="noopener">Se dagens kampe <span aria-hidden="true">→</span></a>
+<span class="site">matchly.dk · Annonce</span>
+</div>
+<div class="live"><a class="plogo" href="${esc(home)}" target="_blank" rel="noopener"><img src="/icon-192.png" width="28" height="28" alt=""><span>Matchly<i>.</i></span></a><div id="live">${await adLiveHtml(q, now)}</div></div>
+</div>` : `<div class="ad">
 <div class="m">${M_SVG}</div>
 <header class="top"><a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a><span class="site">matchly.dk · Annonce</span></header>
 <div class="grid">
 <div class="say">
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
 <p class="lead">Dansk livescore for ${esc(n.sportNames.slice(0, -1).join(', '))} og ${esc(n.sportNames.at(-1) ?? '')}: Superligaen, 1.–3. division, Premier League, Bundesliga, La Liga, Champions League og pokalen. Resultater, stillinger, målscorere, opstillinger og TV-tider – gratis og uden login.</p>
-<ul class="nums"><li><b>${n.leagues}</b><span>ligaer</span></li><li><b>${n.clubs}</b><span>klubber</span></li><li><b>${n.countries}</b><span>lande</span></li><li><b>${n.sports}</b><span>sportsgrene</span></li></ul>
 <a class="cta" href="${esc(home)}" target="_blank" rel="noopener">Se dagens kampe <span aria-hidden="true">→</span></a>
 </div>
-<div class="live" id="live">${await adLiveHtml(q, now)}</div>
+<div class="live"><a class="plogo" href="${esc(home)}" target="_blank" rel="noopener"><img src="/icon-192.png" width="28" height="28" alt=""><span>Matchly<i>.</i></span></a><div id="live">${await adLiveHtml(q, now)}</div></div>
 </div>
 <div class="feats">${feats}</div>
 <a class="bar" href="${esc(home)}" target="_blank" rel="noopener"><span class="logo">Matchly<i>.</i></span><span class="tag"><b>Live score og stats</b> · matchly.dk</span></a>
-</div>
+</div>`}
 <script>
 (function(){
 var id=${JSON.stringify(q.id)},live=document.getElementById('live'),page=0,pages=1;
