@@ -2492,9 +2492,15 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .match-page__intro.has-story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
   .match-page__intro .story { margin: 0; }
   /* The title and summary in a white box like the report beside them */
-  .match-page__intro.has-story .match-page__lede { background: var(--surface); border-radius: var(--radius, 16px); padding: 20px 22px; gap: 12px; align-self: stretch; }
-  .match-page__intro.has-story .match-page__summary { margin-top: 0; }
+  .match-page__intro .match-page__lede { background: var(--surface); border-radius: var(--radius, 16px); padding: 20px 22px; gap: 12px; align-self: stretch; }
+  .match-page__intro .match-page__summary { margin-top: 0; }
   .match-page__flow { columns: 3; }
+  /* Measured in the browser: each box in the shortest column (src/hooks/useMasonry.ts) */
+  /* column-gap 8px: each break is a column of its own, so the gap between two boxes is 2 × 8 */
+  .match-page__flow.is-masonry { columns: auto; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; column-gap: 8px; }
+  .match-page__flow.is-masonry > *, .match-page__flow.is-masonry .sheet__section, .match-page__flow.is-masonry .match-promo { width: calc((100% - 32px) / 3); }
+  .match-page__flow.is-masonry::before, .match-page__flow.is-masonry::after { content: ''; flex-basis: 100%; width: 0; order: 2; }
+  .match-page__flow.is-masonry::after { order: 4; }
   /* Live: the statistics among the boxes instead of across the page under the score */
   .match-page__live-stats { display: none; }
   .match-page__flow .match-stats--wide { display: block; }

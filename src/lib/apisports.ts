@@ -719,7 +719,12 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
   const groups = await cached(api, `${api}|table|${league.id}|${league.season ?? ''}`, 6 * 3_600_000, def.standings(league.id, league.season), 'table', readTable).catch(
     () => undefined,
   )
-  const shown = groups?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, logo: realLogo(r.logo) })))
+  // A list that holds every group (rows marked with their group, as the Nations Leagues send them): one table per group
+  const split = groups?.flatMap((g) => {
+    const names = [...new Set(g.map((r) => r.group).filter(Boolean))] as string[]
+    return names.length > 1 ? names.map((n) => g.filter((r) => r.group === n)) : [g]
+  })
+  const shown = split?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, logo: realLogo(r.logo), group: r.group && /group|gruppe/i.test(r.group) ? danishGroup(r.group) : r.group })))
   return shown?.length ? shown : undefined
 }
 
@@ -1405,6 +1410,12 @@ function readTable(response: Raw[]): TableRow[][] {
   )
 }
 
+/** A group's name in Danish ("Group A" -> "Gruppe A", "League B, Group 2" -> "Liga B, gruppe 2") */
+function danishGroup(name: string) {
+  const s = name.replace(/^.*\s-\s(?=.*\bGroup\b)/, '').replace(/\bLeague ([A-Z])\b/g, 'Liga $1').replace(/\bGroup\b/g, 'Gruppe').trim()
+  return s.replace(/,\s*Gruppe/, ', gruppe')
+}
+
 /** API-Sports' round names in Danish ("Regular Season - 7" -> "7. runde") */
 
 /**
@@ -1451,8 +1462,14 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const awayForm = toForm(awayGames, game.away.id)
   if (homeForm.length || awayForm.length) extra.form = { home: homeForm, away: awayForm }
   // The group with either team in it
-  const group = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
-  if (group && group.length > 1) extra.table = { rows: group.map((r) => ({ ...r, logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
+  const list = table?.find((rows) => rows.some((r) => r.teamId === game.home.id || r.teamId === game.away.id))
+  // Some tournaments (the Nations Leagues) send every group in one list, each row marked with its group: only the teams' own
+  const own = list?.find((r) => r.teamId === game.home.id || r.teamId === game.away.id)?.group
+  const marked = new Set((list ?? []).map((r) => r.group).filter(Boolean))
+  const group = own && marked.size > 1 ? list!.filter((r) => r.group === own) : list
+  const groupName = own && /group|gruppe/i.test(own) ? danishGroup(own) : undefined
+  if (group && group.length > 1)
+    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
 }
 

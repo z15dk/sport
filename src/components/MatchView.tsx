@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { useMasonry } from '../hooks/useMasonry'
 import { wantPageRefresh } from '../data/real'
 import Link from 'next/link'
 import { formatDayMonth, formatFull, formatShortYear, formatTime, isoDate } from '../lib/time'
@@ -159,6 +160,9 @@ function MatchBody({
   h2hHref?: string
 }) {
   const { home, away, state } = match
+  // On computers each box goes into the shortest of the three columns (src/hooks/useMasonry.ts)
+  const flowRef = useRef<HTMLDivElement>(null)
+  useMasonry(flowRef)
   const showScore = state === 'live' || state === 'finished'
   const homeStats = clubStats(home.name, now)
   const awayStats = clubStats(away.name, now)
@@ -362,7 +366,7 @@ function MatchBody({
       </div>
 
       {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
-      <div className="match-page__flow">
+      <div className="match-page__flow" ref={flowRef}>
       {pairRow && (
         <div className={`match-page__cols${(stats || timeline) && lineups?.length === 2 ? '' : ' match-page__cols--one'}`}>
           {(stats || timeline) && (
@@ -445,7 +449,7 @@ function MatchBody({
 
           {table && table.rows.length > 1 && (
             <section className="sheet__section">
-              <h2 className="sheet__title">Stilling · {match.league}</h2>
+              <h2 className="sheet__title">Stilling · {match.league}{table.name ? ` · ${table.name}` : ''}</h2>
               <div className="table-wrap table-wrap--flush">
                 <table className="table table--compact">
                   <thead>
