@@ -12,7 +12,7 @@
     if (!liga && !klub) return
     var id = 'm' + ++n + Math.random().toString(36).slice(2, 7)
     var q = new URLSearchParams({ id: id })
-    ;['hold', 'farve', 'tema', 'kompakt', 'antal', 'seneste', 'tv'].forEach(function (k) {
+    ;['hold', 'farve', 'tema', 'kompakt', 'antal', 'seneste', 'tv', 'kort'].forEach(function (k) {
       var v = box.getAttribute('data-' + k)
       if (v) q.set(k, v)
     })

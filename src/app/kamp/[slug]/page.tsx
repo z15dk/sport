@@ -21,6 +21,7 @@ import type { Match } from '../../../types'
 import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
+import { WidgetPromo } from '../../../components/WidgetPromo'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
@@ -225,6 +226,13 @@ export default async function MatchPage({ params }: { params: Params }) {
       <MatchView slug={slug} date={date} initialNow={now} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups)} absent={absent} related={related} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
+        <WidgetPromo
+          wide
+          title={['Kampprogrammet', 'på din side.']}
+          text={`Vis ${match.home.name}s eller ${match.away.name}s næste kampe – eller hele rundens kampe – på jeres egen side. Gratis, med TV-kanal og live-stilling.`}
+          href="/widget?type=kampe#lav"
+          cta="Lav dit kampprogram →"
+        />
         <Faq items={faq} />
       </div>
     </div>

@@ -18,6 +18,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
   const [seneste, setSeneste] = useState(true)
   const [visTv, setVisTv] = useState(true)
   const [visning, setVisning] = useState<'liste' | 'runde'>('liste')
+  const [kort, setKort] = useState('15170f')
   const [liga, setLiga] = useState(leagues.find((l) => l.slug === initial)?.slug ?? leagues[0]?.slug ?? '')
   const [hold, setHold] = useState('')
   const [tema, setTema] = useState<'lys' | 'mork'>('lys')
@@ -38,7 +39,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
     if (!league) return ''
     const credit = ' · leveret af <a href="' + site + '">Matchly</a>'
     if (round) {
-      const attrs = [`data-liga="${league.slug}"`, 'data-visning="runde"', hold && `data-hold="${hold}"`, farve !== 'c6f135' && `data-farve="${farve}"`, !visTv && 'data-tv="0"', tema === 'mork' && 'data-tema="mork"'].filter(Boolean).join(' ')
+      const attrs = [`data-liga="${league.slug}"`, 'data-visning="runde"', hold && `data-hold="${hold}"`, kort !== '15170f' && `data-kort="${kort}"`, farve !== 'c6f135' && `data-farve="${farve}"`, !visTv && 'data-tv="0"', tema === 'mork' && 'data-tema="mork"'].filter(Boolean).join(' ')
       return `<div class="matchly-kampe" ${attrs}>\n  <a href="${site}/turnering/${league.slug}">${league.name} kampprogram</a>${credit}\n</div>\n<script async src="${site}/widget.js"></script>`
     }
     if (kind === 'kampe') {
@@ -47,12 +48,12 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
     }
     const attrs = [`data-liga="${league.slug}"`, hold && `data-hold="${hold}"`, hold && farve !== 'c6f135' && `data-farve="${farve}"`, tema === 'mork' && 'data-tema="mork"', kompakt && 'data-kompakt="1"'].filter(Boolean).join(' ')
     return `<div class="matchly-tabel" ${attrs}>\n  <a href="${site}/turnering/${league.slug}">${league.name} stilling</a>${credit}\n</div>\n<script async src="${site}/widget.js"></script>`
-  }, [kind, round, league, klub, klubName, hold, farve, antal, seneste, visTv, tema, kompakt, site])
+  }, [kind, round, league, klub, klubName, hold, kort, farve, antal, seneste, visTv, tema, kompakt, site])
 
   const preview = !league
     ? ''
     : round
-      ? `/widget/runde/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(farve !== 'c6f135' && { farve }), ...(!visTv && { tv: '0' }), ...(tema === 'mork' && { tema }) })}`
+      ? `/widget/runde/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(kort !== '15170f' && { kort }), ...(farve !== 'c6f135' && { farve }), ...(!visTv && { tv: '0' }), ...(tema === 'mork' && { tema }) })}`
       : kind === 'kampe'
       ? `/widget/kampe/${klub}?${new URLSearchParams({ id: 'preview', ...(farve !== 'c6f135' && { farve }), ...(antal !== 5 && { antal: String(antal) }), ...(!seneste && { seneste: '0' }), ...(!visTv && { tv: '0' }), ...(tema === 'mork' && { tema }) })}`
       : `/widget/tabel/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(hold && farve !== 'c6f135' && { farve }), ...(tema === 'mork' && { tema }), ...(kompakt && { kompakt: '1' }) })}`
@@ -147,7 +148,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
         )}
         {showColor && (
           <fieldset>
-            <span>{round ? 'Farve' : kind === 'kampe' ? 'Farve på datoerne' : 'Farve på dit hold'}</span>
+            <span>{round ? 'Farve på bjælken' : kind === 'kampe' ? 'Farve på datoerne' : 'Farve på dit hold'}</span>
             <div className="widget-builder__colors">
               {[{ hex: 'c6f135', label: 'Matchly-grøn' }].map((c) => (
                 <button key={c.hex} type="button" className={farve === c.hex ? 'is-on' : undefined} onClick={() => setFarve(c.hex)} title={c.label}>
@@ -156,6 +157,19 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
               ))}
               <label className={`widget-builder__pick${farve !== 'c6f135' ? ' is-on' : ''}`} title="Vælg selv">
                 <input type="color" value={`#${farve}`} onChange={(e) => setFarve(e.target.value.slice(1).toLowerCase())} /> Vælg selv
+              </label>
+            </div>
+          </fieldset>
+        )}
+        {round && (
+          <fieldset>
+            <span>Kortenes baggrund</span>
+            <div className="widget-builder__colors">
+              <button type="button" className={kort === '15170f' ? 'is-on' : undefined} onClick={() => setKort('15170f')}>
+                <i style={{ background: '#15170f' }} /> Sort
+              </button>
+              <label className={`widget-builder__pick${kort !== '15170f' ? ' is-on' : ''}`} title="Vælg selv">
+                <input type="color" value={`#${kort}`} onChange={(e) => setKort(e.target.value.slice(1).toLowerCase())} /> Vælg selv
               </label>
             </div>
           </fieldset>

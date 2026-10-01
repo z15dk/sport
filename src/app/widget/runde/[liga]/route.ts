@@ -33,6 +33,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   if (!division || !hasRealData(division.id)) return new Response('Ukendt liga', { status: 404, headers: { 'X-Robots-Tag': 'noindex' } })
   const url = new URL(request.url)
   const a = accent(url.searchParams.get('farve'))
+  // The cards' own colour (?kort=1d4ed8, else our near-black); text and the top strip follow it
+  const card0 = /^[0-9a-f]{6}$/i.test(url.searchParams.get('kort') ?? '') ? accent(url.searchParams.get('kort')) : { color: '#15170f', ink: '#fff' }
   const dark = url.searchParams.get('tema') === 'mork'
   const highlight = url.searchParams.get('hold') ?? ''
   const showTv = url.searchParams.get('tv') !== '0'
@@ -70,8 +72,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   }
   const clubSlug = (t: Team) => fixtures.find((f) => f.home.name === t.name)?.home.slug ?? fixtures.find((f) => f.away.name === t.name)?.away.slug
   const foot = (m: Match) => {
-    if (m.state === 'live') return `<span class="live"><i></i>Live</span><b>${m.home.score ?? 0}–${m.away.score ?? 0}</b>`
-    if (m.state === 'finished') return `<span>Slut</span><b>${m.home.score ?? 0}–${m.away.score ?? 0}</b>`
+    if (m.state === 'live') return `<span class="live"><i></i>Live${m.statusLabel ? ` · ${esc(m.statusLabel)}` : ''}</span>`
+    if (m.state === 'finished') return '<span>Slut</span>'
     const tv = showTv ? channelsFor(m).map((c) => c.name).join(', ') : ''
     return tv ? `<span>${esc(tv)}</span>` : '<span>Se kampen</span>'
   }
@@ -81,7 +83,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
     const mine = highlight && (clubSlug(m.home) === highlight || clubSlug(m.away) === highlight)
     return `<a class="c${mine ? ' me' : ''}${m.state === 'live' ? ' is-live' : ''}" href="${paths.match(m.slug)}" target="_blank" rel="noopener">
 <span class="when">${formatTime(m.kickoff)} | ${d}. ${MONTHS[mo - 1]}</span>
-<span class="teams"><span class="t">${badge(m.home)}<b title="${esc(m.home.name)}">${esc(code(m.home.name))}</b></span><span class="t">${badge(m.away)}<b title="${esc(m.away.name)}">${esc(code(m.away.name))}</b></span></span>
+<span class="teams"><span class="t">${badge(m.home)}<b title="${esc(m.home.name)}">${esc(code(m.home.name))}</b></span><span class="mid">${m.state === 'upcoming' ? '<i>–</i>' : `<strong>${m.home.score ?? 0}–${m.away.score ?? 0}</strong>`}</span><span class="t">${badge(m.away)}<b title="${esc(m.away.name)}">${esc(code(m.away.name))}</b></span></span>
 <span class="foot">${foot(m)}</span>
 </a>`
   }
@@ -99,16 +101,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
 <title>${esc(division.name)} ${round}. runde</title>
 <style>
 ${baseCss(dark, a)}
+:root{--card:${card0.color};--card-ink:${card0.ink}}
 .h{align-items:center}.h .r{display:flex;align-items:center;gap:10px}
 .h .r strong{font:italic 800 22px/1 var(--d);text-transform:uppercase;color:var(--ink)}
 .arrow{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--me);color:var(--me-ink);text-decoration:none;font-weight:800;font-size:18px}
 .arrow:hover{filter:brightness(.92)}.arrow.off{opacity:.3}
-.cards{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:8px;overflow-x:auto;padding:6px 14px 16px;scroll-snap-type:x mandatory;scrollbar-width:thin}
-.c{scroll-snap-align:start;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:#15170f;color:#fff;text-decoration:none;transition:transform .15s}
+.cards{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:8px;overflow-x:auto;padding:6px 14px 16px;scroll-snap-type:x mandatory;scrollbar-width:thin}
+.c{scroll-snap-align:start;min-width:170px;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--card);color:var(--card-ink);text-decoration:none;transition:transform .15s}
 .c:hover{transform:translateY(-2px)}
 .c.me{box-shadow:0 0 0 3px var(--me)}
-.when{padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;background:#0b0d07;color:#d7dacd}
-.teams{display:grid;grid-template-columns:1fr 1fr;padding:14px 8px 12px;gap:4px}
+.when{padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;background:color-mix(in srgb,var(--card) 78%,#000);color:var(--card-ink);opacity:.92}
+.teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;padding:14px 8px 12px;gap:4px}
+.mid{height:44px;display:grid;place-items:center;min-width:34px}.mid strong{font:italic 800 26px/1 var(--d);white-space:nowrap}.mid i{font-style:normal;opacity:.4;font-weight:800}
+.c.is-live .mid strong{color:var(--live)}
 .t{display:flex;flex-direction:column;align-items:center;gap:8px}
 .t img,.t .ini{width:44px;height:44px}.t .ini{font-size:12px}
 .t b{font:italic 800 22px/1 var(--d);letter-spacing:.01em}

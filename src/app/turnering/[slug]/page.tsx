@@ -13,6 +13,7 @@ import { NewsList } from '../../../components/NewsList'
 import { newsFor, newsMentioning } from '../../../lib/news'
 import { allTeams, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
+import { WidgetPromo } from '../../../components/WidgetPromo'
 import { JsonLd, breadcrumbLd, leagueLd, webPageLd } from '../../../lib/jsonld'
 import { getBadges } from '../../../lib/badges'
 import { Faq } from '../../../components/Faq'
@@ -305,6 +306,13 @@ export default async function LeaguePage({ params }: { params: Params }) {
           </header>
           <StandingsTable division={division} rows={rows} />
         </section>
+        <WidgetPromo
+          wide
+          title={[`${division.name}-tabellen`, 'på din side.']}
+          text={`Sæt den aktuelle stilling i ${division.name} på din klub-, fan- eller blogside. Gratis, opdateres efter hver kamp.`}
+          href={`/widget?liga=${division.slug}#lav`}
+          cta="Lav din tabel →"
+        />
         <LeagueStats division={division} leaders={leaders} />
         <NewsList articles={newsFor({ league: division.id }, 10)} division={division} />
         {/* The rounds under the statistics, beside the players */}
