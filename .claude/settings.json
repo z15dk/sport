@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push origin HEAD:claude/sofascore-alternativ-forside-r7xj0k)"
+    ]
+  }
+}
