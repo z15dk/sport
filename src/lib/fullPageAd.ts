@@ -159,7 +159,7 @@ a{color:inherit;text-decoration:none}
 @keyframes float{from{transform:translate(0,0) rotate(0)}to{transform:translate(2%,3%) rotate(1.5deg)}}
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(14px,2.4vh,24px) clamp(18px,4vw,44px) 0;font-weight:600;font-size:clamp(12px,1.3vw,14px);letter-spacing:.04em;text-transform:uppercase;color:var(--ink2)}
 .top .k{color:var(--lime);display:flex;align-items:center;gap:8px}
-.top .site{color:var(--ink3)}
+.top .site,.bn .site{color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 8px;line-height:1.2;white-space:nowrap}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none;display:inline-block}
 .dot.pulse{animation:pulse 1.4s ease-out infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,74,31,.7)}100%{box-shadow:0 0 0 10px rgba(255,74,31,0)}}
@@ -228,7 +228,7 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 .bn h1{font-size:clamp(30px,4.2vw,54px)}
 .bn h1 span{display:inline}.bn h1 span+span{margin-left:.22em}
 .bn .cta{margin-top:0;padding:10px 18px;font-size:14px}
-.bn .site{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.bn .site{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;justify-self:start}
 .bn .live{padding:10px 14px 8px;box-shadow:0 14px 40px rgba(0,0,0,.35)}
 .bn .plogo{margin-bottom:6px;padding-bottom:6px;font-size:20px}.bn .plogo img{width:22px;height:22px;border-radius:6px}
 .bn .lh{margin-bottom:2px;font-size:12px}
@@ -239,10 +239,10 @@ h1 span:nth-child(2){animation-delay:.15s}h1 span:nth-child(3){animation-delay:.
 .bn .dots{margin-top:4px}
 @media (max-width:700px){
   .bn{grid-template-columns:1fr;gap:8px;align-items:start;padding:12px 14px}
-  /* the sender stays visible: the logo at the top of the box (no ad label anywhere: the host site puts its own on) */
+  /* the sender stays visible: the logo at the top of the box and "matchly.dk · Annonce" beside the headline */
   .bn-say{flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px}
   .bn h1{font-size:19px;white-space:nowrap}.bn .cta,.bn .k{display:none}
-  .bn .site{display:none}
+  .bn .site{font-size:11px;padding:2px 6px;flex:none}.bn .site-d{display:none}
   .bn .row.on ~ .row.on ~ .row.on{display:none}
   .bn .plogo{margin-bottom:4px;padding-bottom:4px;font-size:17px}.bn .plogo img{width:18px;height:18px;border-radius:5px}
   .bn .live{padding:8px 12px 6px}
@@ -255,12 +255,12 @@ ${banner ? `<div class="ad bn">
 <a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a>
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
 <a class="cta" href="${esc(home)}" target="_blank" rel="noopener">Se dagens kampe <span aria-hidden="true">→</span></a>
-<span class="site">matchly.dk</span>
+<span class="site"><span class="site-d">matchly.dk · </span>Annonce</span>
 </div>
 <div class="live"><a class="plogo" href="${esc(home)}" target="_blank" rel="noopener"><img src="/icon-192.png" width="28" height="28" alt=""><span>Matchly<i>.</i></span></a><div id="live">${await adLiveHtml(q, now)}</div></div>
 </div>` : `<div class="ad">
 <div class="m">${M_SVG}</div>
-<header class="top"><a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a><span class="site">matchly.dk</span></header>
+<header class="top"><a class="k" href="${esc(home)}" target="_blank" rel="noopener"><span class="dot pulse"></span>Live score og stats</a><span class="site">matchly.dk · Annonce</span></header>
 <div class="grid">
 <div class="say">
 <h1><span>Alle kampe.</span><span>Alle mål.</span><span><em>Lige nu.</em></span></h1>
