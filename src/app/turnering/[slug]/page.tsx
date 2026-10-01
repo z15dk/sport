@@ -255,9 +255,11 @@ export default async function LeaguePage({ params }: { params: Params }) {
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   // Top scorers, assists and cards (API-Sports, football)
   const leagueId = sportOf(division) === 'soccer' ? apiLeagueIdOf(division.id) : undefined
-  const leaders = leagueId ? await apiLeagueLeaders(leagueId).catch(() => undefined) : undefined
-  // 2. and 3. division: counted from the season's match pages (our other sources have none)
-  const dbuScorers = leaders ? undefined : dbuTopScorers(division.slug, (team) => clubInDivision(division, team, getRealData()?.clubNames ?? {})?.name)
+  // 2. and 3. division: counted from the season's match pages, which have every goal (our other sources have few or none),
+  // so they replace the other player lists as soon as there are any
+  const dbuScorers = dbuTopScorers(division.slug, (team) => clubInDivision(division, team, getRealData()?.clubNames ?? {})?.name)
+  const useDbu = !!dbuScorers?.scorers.length
+  const leaders = leagueId && !useDbu ? await apiLeagueLeaders(leagueId).catch(() => undefined) : undefined
   // The league's ten latest results, newest first
   const results = allFixtures()
     .filter((f) => f.division?.id === division.id && isFinished(f) && f.kickoff.getTime() <= now)
@@ -303,7 +305,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         <LiveNow matches={todays} />
 
         {/* 2. and 3. division: top scorers counted from the match pages, beside the table (no other source has them) */}
-        <div className={leaders || dbuScorers?.scorers.length ? 'table-duo' : 'table-solo'}>
+        <div className={leaders || useDbu ? 'table-duo' : 'table-solo'}>
         <div className="table-duo__main">
         <section className="panel table-panel">
           <header className="table-panel__head">
@@ -341,7 +343,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
         )}
         </div>
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
-        {!leaders && dbuScorers && <TopScorersList league={division.name} {...dbuScorers} />}
+        {useDbu && dbuScorers && <TopScorersList league={division.name} {...dbuScorers} />}
         </div>
         {(() => {
           // Not on the Danish leagues' pages: their history in our data is too incomplete (and mixes in second teams)
