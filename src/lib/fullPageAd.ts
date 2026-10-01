@@ -279,7 +279,8 @@ function paint(){var rows=live.querySelectorAll('.row[data-page]'),box=live.quer
 for(var i=0;i<rows.length;i++)rows[i].classList.toggle('on',rows[i].getAttribute('data-page')==String(page));
 var dots=live.querySelectorAll('.dots i');for(var j=0;j<dots.length;j++)dots[j].classList.toggle('on',j===page);need()}
 function turn(){page=(page+1)%pages;paint()}
-function need(){parent.postMessage({matchlyAd:id,need:document.documentElement.scrollHeight},'*')}
+// What the content needs, told to the page only when it changes (the page then sets the frame's height, which this measures again)
+var told=-1;function need(){var n=document.documentElement.scrollHeight;if(Math.abs(n-told)<2)return;told=n;parent.postMessage({matchlyAd:id,need:n},'*')}
 // The matches again every half minute: a changed score flashes
 function refresh(){fetch(${JSON.stringify(`${url.pathname}?${refresh}`)},{cache:'no-store'}).then(function(r){return r.ok?r.text():''}).then(function(html){if(!html)return;
 var old={};live.querySelectorAll('.row').forEach(function(r){old[r.getAttribute('data-id')]=r.querySelector('.sc').getAttribute('data-score')});

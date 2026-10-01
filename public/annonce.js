@@ -4,14 +4,19 @@
   var origin = script && script.src ? new URL(script.src).origin : 'https://matchly.dk'
   var n = 0
   var frames = []
-  function wanted(box) {
+  function wanted(entry) {
+    var box = entry.box
     // A whole screen ("helside"), unless the code names a height (data-hoejde="700")
     var fixed = parseInt(box.getAttribute('data-hoejde') || '', 10)
     if (fixed > 0) return Math.max(200, Math.min(2000, fixed))
     // The banner for the top of a page is 300 px
     if (box.getAttribute('data-format') === 'banner') return 300
+    // The screen's height, kept while the phone's address bar comes and goes (it changes the height
+    // a little at every scroll); taken again only when the width changes (turned) or the height a lot
     var h = window.innerHeight || document.documentElement.clientHeight || 800
-    return Math.max(480, Math.min(1100, h - 24))
+    var w = document.documentElement.clientWidth
+    if (!entry.screen || entry.screen.w !== w || Math.abs(entry.screen.h - h) > 160) entry.screen = { w: w, h: h }
+    return Math.max(480, Math.min(1100, entry.screen.h - 24))
   }
   // Whether the ad may spread across the whole screen: not from inside something that clips
   // its content to a narrower width (a scrolling column, a card with overflow hidden)
@@ -25,23 +30,24 @@
     }
     return true
   }
+  // Sets a style only when it changes: every change makes the page lay itself out again
+  function set(frame, key, value) {
+    if (frame.style[key] !== value) frame.style[key] = value
+  }
   function size(entry) {
     var frame = entry.frame
-    // A whole page ("helside"): from the screen's left edge to its right, also when the code sits in a narrow column
+    // A whole page ("helside"): from the screen's left edge to its right, also when the code sits in a narrow column.
+    // Measured on the box around the ad (the ad's own width and margin do not move it)
     if (mayBleed(entry.box)) {
-      frame.style.width = '100%'
-      frame.style.marginLeft = '0'
-      var left = entry.box.getBoundingClientRect().left
-      var wide = document.documentElement.clientWidth
-      frame.style.width = wide + 'px'
-      frame.style.marginLeft = -left + 'px'
-      frame.style.maxWidth = 'none'
+      var left = Math.round(entry.box.getBoundingClientRect().left)
+      set(frame, 'width', document.documentElement.clientWidth + 'px')
+      set(frame, 'marginLeft', -left + 'px')
+      set(frame, 'maxWidth', 'none')
     } else {
-      frame.style.width = '100%'
-      frame.style.marginLeft = '0'
+      set(frame, 'width', '100%')
+      set(frame, 'marginLeft', '0px')
     }
-    var h = Math.max(wanted(entry.box), entry.need || 0)
-    frame.style.height = Math.ceil(h) + 'px'
+    set(frame, 'height', Math.ceil(Math.max(wanted(entry), entry.need || 0)) + 'px')
   }
   function mount(box) {
     if (box.getAttribute('data-matchly-ready')) return
@@ -71,8 +77,11 @@
     if (e.origin !== origin || !e.data || !e.data.matchlyAd) return
     for (var i = 0; i < frames.length; i++)
       if (frames[i].id === e.data.matchlyAd) {
-        // The ad's own content needs at least this much (then it is taller than the screen rather than cut off)
-        frames[i].need = e.data.need || 0
+        // The ad's own content needs at least this much (then it is taller than the screen rather than cut off);
+        // nothing to do when it is what the ad already has
+        var need = Math.ceil(e.data.need || 0)
+        if (Math.abs(need - frames[i].need) < 2) continue
+        frames[i].need = need
         size(frames[i])
       }
   })
