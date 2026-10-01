@@ -4,6 +4,7 @@ import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
 import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
 import { rivalryPath } from '../../../lib/rivalry'
+import { matchTicketUrl, ticketClickPath } from '../../../lib/tickets'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
@@ -124,6 +125,8 @@ export default async function MatchPage({ params }: { params: Params }) {
   const homeStats = clubStats(match.home.name, now)
   const awayStats = clubStats(match.away.name, now)
   const homeClub = findClub(match.home.name)?.club
+  // Where the tickets are sold (the home club's shop), while the match is still to be played
+  const ticketUrl = matchTicketUrl(match)
   const awayClub = findClub(match.away.name)?.club
   // Real meetings from the match database when both clubs are in it
   const dbH2h = homeClub && awayClub ? realHeadToHead(homeClub, awayClub, match.kickoff) : undefined
@@ -204,7 +207,7 @@ export default async function MatchPage({ params }: { params: Params }) {
 
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined))} />
+      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined), ticketUrl)} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
@@ -225,7 +228,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

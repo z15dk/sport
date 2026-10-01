@@ -60,10 +60,12 @@ interface Props {
   promo?: React.ReactNode
   /** The page of every meeting between the two clubs (/opgoer/…), when they have one */
   h2hHref?: string
+  /** "Køb billetter": our counting address for the home club's ticket shop (src/lib/tickets.ts) */
+  ticketHref?: string
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo, h2hHref }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo, h2hHref, ticketHref }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -76,7 +78,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   if (!match) return null
   return (
     <>
-      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} h2hHref={h2hHref} />
+      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -147,6 +149,7 @@ function MatchBody({
   absent,
   promo,
   h2hHref,
+  ticketHref,
 }: {
   match: Match
   now: number
@@ -158,6 +161,7 @@ function MatchBody({
   absent?: { home: Injury[]; away: Injury[] }
   promo?: React.ReactNode
   h2hHref?: string
+  ticketHref?: string
 }) {
   const { home, away, state } = match
   // On computers each box goes into the shortest of the three columns (src/hooks/useMasonry.ts)
@@ -319,6 +323,11 @@ function MatchBody({
             <span className="duel__score">{formatTime(match.kickoff)}</span>
           )}
           <span className={`status status--${state}`}>{match.statusLabel ?? 'Kommende'}</span>
+          {ticketHref && state === 'upcoming' && (
+            <a className="duel__tickets" href={ticketHref} target="_blank" rel="sponsored nofollow noopener">
+              Køb billetter
+            </a>
+          )}
         </div>
         <div className="duel__team">
           <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={72} />

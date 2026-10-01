@@ -27,7 +27,7 @@ const teamLd = (name: string, slug?: string, sport = 'Fodbold') => ({
 /** How long a match takes, for endDate (kick-off to full time with the break) */
 const DURATION_MS: Partial<Record<Match['sport'], number>> = { soccer: 115 * 60_000, ice_hockey: 150 * 60_000, basketball: 120 * 60_000 }
 
-export function matchLd(match: Match, clubSlug: (name: string) => string | undefined, description?: string) {
+export function matchLd(match: Match, clubSlug: (name: string) => string | undefined, description?: string, ticketUrl?: string) {
   const status =
     match.state === 'postponed' ? 'https://schema.org/EventPostponed' : 'https://schema.org/EventScheduled'
   const sport = sportById(match.sport).label
@@ -64,6 +64,8 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     },
     // The league or tournament runs the match (not us)
     organizer: { '@type': 'SportsOrganization', name: match.league, ...(league && { url: league }) },
+    // Where the tickets are sold (the home club's shop, src/lib/tickets.ts): Google can show it with the event
+    ...(ticketUrl && { offers: { '@type': 'Offer', url: ticketUrl, category: 'primary' } }),
   }
 }
 

@@ -2508,3 +2508,32 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .match-page--after .faq__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
   .match-page--after .faq__item:nth-child(2) { border-top: 0; }
 }
+
+/* "Køb billetter" (src/lib/tickets.ts): in the match page's score bar and on the club page */
+.duel__tickets { margin-top: 8px; display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.duel__tickets:hover { background: #000; }
+.tickets__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 0 4px; }
+.tickets__head .panel__title { margin-bottom: 2px; }
+.tickets__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.tickets__list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, #f4f5ef); }
+.tickets__list a { font-weight: 700; white-space: nowrap; }
+
+/* /admin/billetter */
+.ticket-league { margin: 18px 0 8px; font-size: 15px; }
+.ticket-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ticket-row { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; align-items: center; gap: 6px 14px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, #f4f5ef); }
+.ticket-row.is-missing { outline: 2px solid #f0b400; outline-offset: -2px; }
+.ticket-row__name { display: flex; flex-direction: column; gap: 2px; }
+.ticket-row__state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.ticket-row__state.is-missing { color: #b26a00; }
+.ticket-row__state.is-own { color: var(--lime-deep); }
+.ticket-row__form { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ticket-row__form input { flex: 1; min-width: 0; }
+.ticket-row > .small { grid-column: 2; }
+.ticket-more { margin-top: 18px; }
+.ticket-list__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ticket-list__form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 10px; }
+.ticket-list__form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; flex: 1 1 220px; }
+.ticket-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.ticket-stats h3 { font-size: 14px; margin: 0 0 6px; }
+@media (max-width: 640px) { .ticket-row { grid-template-columns: 1fr; } .ticket-row > .small { grid-column: 1; } }

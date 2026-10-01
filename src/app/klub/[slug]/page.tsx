@@ -18,6 +18,7 @@ import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../li
 import { Faq } from '../../../components/Faq'
 import { AboutText } from '../../../components/AboutText'
 import { clubRivalries } from '../../../lib/rivalry'
+import { clubTicketUrl, matchTicketUrl, ticketClickPath } from '../../../lib/tickets'
 import { ClubPastSeasons } from '../../../components/ClubPastSeasons'
 import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
@@ -138,6 +139,46 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         </p>
         <Updated at={now} />
         <CalendarButton kind="klub" slug={club.slug} name={club.name} />
+        {(() => {
+          // "Billetter": the club's ticket shop, and its next home matches with a link each (src/lib/tickets.ts)
+          if (!clubTicketUrl(club.id)) return null
+          const homes = season.filter((m) => m.state === 'upcoming' && m.home.name === club.name && matchTicketUrl(m)).slice(0, 3)
+          return (
+            <section className="panel tickets" aria-labelledby="tickets-title">
+              <div className="tickets__head">
+                <div>
+                  <h2 id="tickets-title" className="panel__title">
+                    Billetter til {club.name}
+                  </h2>
+                  <p className="muted small">Billetterne sælges af {club.name} selv. Knapperne åbner klubbens billetsalg.</p>
+                </div>
+                <a className="pill is-active" href={ticketClickPath({ klub: club.id })} target="_blank" rel="sponsored nofollow noopener">
+                  Køb billetter
+                </a>
+              </div>
+              {homes.length > 0 && (
+                <ul className="tickets__list">
+                  {homes.map((m) => (
+                    <li key={m.id}>
+                      <span>
+                        <strong>
+                          {m.home.name} – {m.away.name}
+                        </strong>
+                        <span className="muted small">
+                          {' '}
+                          · {m.league} · {formatLong(m.kickoff)} kl. {m.kickoff.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' })}
+                        </span>
+                      </span>
+                      <a href={ticketClickPath({ kamp: m.slug })} target="_blank" rel="sponsored nofollow noopener">
+                        Billetter →
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })()}
 
         <section className="tiles tiles--club" aria-label="Sæsonen i tal">
           <div className="tile tile--lime">
