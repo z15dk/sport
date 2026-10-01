@@ -11,6 +11,7 @@ import { OddsBy } from './MatchExtras'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { oddsEnabled } from '../data/odds'
 import { Sidebar } from './Sidebar'
+import { WidgetPromo } from './WidgetPromo'
 import { FeaturedMatch } from './FeaturedMatch'
 import { SportTabs } from './SportTabs'
 import { AdSlot } from './AdSlot'
@@ -341,6 +342,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
         <aside className="aside">
           <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${women ? 'women' : sport}|${hour}`} />
+          <WidgetPromo />
 
           <AdSlot placement="side" />
         </aside>

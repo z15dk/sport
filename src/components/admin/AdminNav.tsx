@@ -3,7 +3,7 @@ import Link from 'next/link'
 // The admin pages' menu. Settings holds its own sub-pages (general settings
 // and the status pages for data, data quality and the logo job), and so does
 // the social media engine (plan, history, settings and templates) and the
-// photo system (search, review queue, squads).
+// photo system (search, review queue, squads), and the visitors (the site's own and the widget's).
 
 const SETTINGS = [
   { href: '/admin/indstillinger', label: 'Generelt' },
@@ -25,9 +25,12 @@ const PHOTOS = [
   { href: '/admin/billeder/delinger', label: 'Delinger' },
   { href: '/admin/billeder/trupper', label: 'Trupper' },
 ]
-const PAGES = [
-  { href: '/admin/besoegende', label: 'Besøgende' },
+const VISITORS = [
+  { href: '/admin/besoegende', label: 'Siden' },
   { href: '/admin/widget', label: 'Widget' },
+]
+const PAGES = [
+  { href: '/admin/besoegende', label: 'Besøgende', children: VISITORS },
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
   { href: '/admin/artikler', label: 'Artikler' },
   { href: '/admin/klubber', label: 'Klubber' },

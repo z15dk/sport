@@ -17,6 +17,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
   const [antal, setAntal] = useState(5)
   const [seneste, setSeneste] = useState(true)
   const [visTv, setVisTv] = useState(true)
+  const [visning, setVisning] = useState<'liste' | 'runde'>('liste')
   const [liga, setLiga] = useState(leagues.find((l) => l.slug === initial)?.slug ?? leagues[0]?.slug ?? '')
   const [hold, setHold] = useState('')
   const [tema, setTema] = useState<'lys' | 'mork'>('lys')
@@ -28,24 +29,31 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
   const league = leagues.find((l) => l.slug === liga) ?? leagues[0]
 
   // A club's next matches need a club: the league's first until one is chosen
-  const klub = kind === 'kampe' ? hold || league?.clubs[0]?.slug || '' : ''
+  const round = kind === 'kampe' && visning === 'runde'
+  const klub = kind === 'kampe' && !round ? hold || league?.clubs[0]?.slug || '' : ''
   const klubName = league?.clubs.find((c) => c.slug === klub)?.name ?? ''
   const showColor = kind === 'kampe' || !!hold
 
   const code = useMemo(() => {
     if (!league) return ''
     const credit = ' · leveret af <a href="' + site + '">Matchly</a>'
+    if (round) {
+      const attrs = [`data-liga="${league.slug}"`, 'data-visning="runde"', hold && `data-hold="${hold}"`, farve !== 'c6f135' && `data-farve="${farve}"`, !visTv && 'data-tv="0"', tema === 'mork' && 'data-tema="mork"'].filter(Boolean).join(' ')
+      return `<div class="matchly-kampe" ${attrs}>\n  <a href="${site}/turnering/${league.slug}">${league.name} kampprogram</a>${credit}\n</div>\n<script async src="${site}/widget.js"></script>`
+    }
     if (kind === 'kampe') {
       const attrs = [`data-klub="${klub}"`, farve !== 'c6f135' && `data-farve="${farve}"`, antal !== 5 && `data-antal="${antal}"`, !seneste && 'data-seneste="0"', !visTv && 'data-tv="0"', tema === 'mork' && 'data-tema="mork"'].filter(Boolean).join(' ')
       return `<div class="matchly-kampe" ${attrs}>\n  <a href="${site}/klub/${klub}">${klubName} kampprogram</a>${credit}\n</div>\n<script async src="${site}/widget.js"></script>`
     }
     const attrs = [`data-liga="${league.slug}"`, hold && `data-hold="${hold}"`, hold && farve !== 'c6f135' && `data-farve="${farve}"`, tema === 'mork' && 'data-tema="mork"', kompakt && 'data-kompakt="1"'].filter(Boolean).join(' ')
     return `<div class="matchly-tabel" ${attrs}>\n  <a href="${site}/turnering/${league.slug}">${league.name} stilling</a>${credit}\n</div>\n<script async src="${site}/widget.js"></script>`
-  }, [kind, league, klub, klubName, hold, farve, antal, seneste, visTv, tema, kompakt, site])
+  }, [kind, round, league, klub, klubName, hold, farve, antal, seneste, visTv, tema, kompakt, site])
 
   const preview = !league
     ? ''
-    : kind === 'kampe'
+    : round
+      ? `/widget/runde/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(farve !== 'c6f135' && { farve }), ...(!visTv && { tv: '0' }), ...(tema === 'mork' && { tema }) })}`
+      : kind === 'kampe'
       ? `/widget/kampe/${klub}?${new URLSearchParams({ id: 'preview', ...(farve !== 'c6f135' && { farve }), ...(antal !== 5 && { antal: String(antal) }), ...(!seneste && { seneste: '0' }), ...(!visTv && { tv: '0' }), ...(tema === 'mork' && { tema }) })}`
       : `/widget/tabel/${league.slug}?${new URLSearchParams({ id: 'preview', ...(hold && { hold }), ...(hold && farve !== 'c6f135' && { farve }), ...(tema === 'mork' && { tema }), ...(kompakt && { kompakt: '1' }) })}`
 
@@ -73,6 +81,19 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
             </button>
           ))}
         </div>
+        {kind === 'kampe' && (
+          <fieldset>
+            <span>Visning</span>
+            <div className="widget-builder__row">
+              <label>
+                <input type="radio" checked={visning === 'liste'} onChange={() => setVisning('liste')} /> Klubbens kampe (liste)
+              </label>
+              <label>
+                <input type="radio" checked={visning === 'runde'} onChange={() => setVisning('runde')} /> Ligaens runde (kort)
+              </label>
+            </div>
+          </fieldset>
+        )}
         <label>
           <span>Liga</span>
           <select
@@ -90,9 +111,9 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
           </select>
         </label>
         <label>
-          <span>{kind === 'kampe' ? 'Klub' : 'Fremhæv hold'}</span>
-          <select value={kind === 'kampe' ? klub : hold} onChange={(e) => setHold(e.target.value)}>
-            {kind === 'tabel' && <option value="">Intet</option>}
+          <span>{kind === 'kampe' && !round ? 'Klub' : 'Fremhæv hold'}</span>
+          <select value={kind === 'kampe' && !round ? klub : hold} onChange={(e) => setHold(e.target.value)}>
+            {(kind === 'tabel' || round) && <option value="">Intet</option>}
             {league.clubs.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
@@ -104,6 +125,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
           <fieldset>
             <span>Kampe</span>
             <div className="widget-builder__row">
+              {!round && (
               <select value={antal} onChange={(e) => setAntal(Number(e.target.value))} aria-label="Antal kampe">
                 {[3, 5, 8, 10].map((n) => (
                   <option key={n} value={n}>
@@ -111,9 +133,12 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
                   </option>
                 ))}
               </select>
+              )}
+              {!round && (
               <label>
                 <input type="checkbox" checked={seneste} onChange={(e) => setSeneste(e.target.checked)} /> Vis seneste resultat
               </label>
+              )}
               <label>
                 <input type="checkbox" checked={visTv} onChange={(e) => setVisTv(e.target.checked)} /> Vis TV-kanal
               </label>
@@ -122,7 +147,7 @@ export function WidgetBuilder({ leagues, site, initial, initialKind = 'tabel', a
         )}
         {showColor && (
           <fieldset>
-            <span>{kind === 'kampe' ? 'Farve på datoerne' : 'Farve på dit hold'}</span>
+            <span>{round ? 'Farve' : kind === 'kampe' ? 'Farve på datoerne' : 'Farve på dit hold'}</span>
             <div className="widget-builder__colors">
               {[{ hex: 'c6f135', label: 'Matchly-grøn' }].map((c) => (
                 <button key={c.hex} type="button" className={farve === c.hex ? 'is-on' : undefined} onClick={() => setFarve(c.hex)} title={c.label}>

@@ -24,8 +24,10 @@
     for (var j = 0; j < links.length; j++) if (links[j].hostname.replace(/^www\./, '') === host) linked = true
     q.set('link', linked ? '1' : '0')
     var frame = document.createElement('iframe')
-    frame.src = origin + (klub ? '/widget/kampe/' + encodeURIComponent(klub) : '/widget/tabel/' + encodeURIComponent(liga)) + '?' + q
-    frame.title = klub ? 'Kommende kampe fra Matchly' : 'Ligatabel fra Matchly'
+    // A league's round as cards: data-visning="runde" with data-liga
+    var runde = box.getAttribute('data-visning') === 'runde' && liga
+    frame.src = origin + (runde ? '/widget/runde/' + encodeURIComponent(liga) : klub ? '/widget/kampe/' + encodeURIComponent(klub) : '/widget/tabel/' + encodeURIComponent(liga)) + '?' + q
+    frame.title = runde ? 'Rundens kampe fra Matchly' : klub ? 'Kommende kampe fra Matchly' : 'Ligatabel fra Matchly'
     frame.loading = 'lazy'
     frame.setAttribute('scrolling', 'no')
     frame.style.cssText = 'display:block;width:100%;height:560px;border:0;overflow:hidden;color-scheme:normal'
