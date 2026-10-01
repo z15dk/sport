@@ -106,13 +106,17 @@ async function run() {
   // The season's played matches: each page once for its score and goal scorers (the top scorers),
   // a few a run; one that had none yet is tried again after six hours
   const results = (store.results ??= {})
-  const played = POOLS.flatMap(({ pool }) => store.programs[pool]?.fixtures ?? [])
-    .filter((f) => f.date < today)
-    .filter((f) => {
-      const r = results[keyOf(f)]
-      return !r || (r.home === undefined && now - r.at > 6 * 3_600_000)
-    })
-    .slice(0, 12)
+  // An equal share from every pool each run, so 3. division fills up alongside 2. division
+  const per = Math.max(2, Math.floor(12 / Math.max(1, POOLS.length)))
+  const played = POOLS.flatMap(({ pool }) =>
+    (store.programs[pool]?.fixtures ?? [])
+      .filter((f) => f.date < today)
+      .filter((f) => {
+        const r = results[keyOf(f)]
+        return !r || (r.home === undefined && now - r.at > 6 * 3_600_000)
+      })
+      .slice(0, per),
+  )
   for (const f of played) {
     try {
       const r = parseResult(await get(f.url))

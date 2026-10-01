@@ -2,7 +2,7 @@ import type { TopScorer } from '../lib/dbuLineups'
 import { TeamBadge } from './TeamBadge'
 
 /** A league's top scorers counted from the match pages (2. and 3. division): logo, name, goals and the move since the last match day */
-export function TopScorersList({ league, scorers, goals, matches }: { league: string; scorers: TopScorer[]; goals: number; matches: number }) {
+export function TopScorersList({ league, scorers }: { league: string; scorers: TopScorer[]; goals?: number; matches?: number }) {
   if (!scorers.length) return null
   return (
     <section className="panel leaders topscorers" aria-labelledby="topscorers-title">
@@ -11,9 +11,6 @@ export function TopScorersList({ league, scorers, goals, matches }: { league: st
           Topscorere · {league}
         </h2>
       </header>
-      <p className="topscorers__total">
-        <strong>{goals}</strong> mål i sæsonen <span>· {matches} kampe</span>
-      </p>
       <div className="leaders__grid leaders__grid--one">
         <div className="leaders__list">
           <ol>
