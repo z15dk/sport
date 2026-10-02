@@ -75,11 +75,12 @@ export function creativesOf(slot: AdSlotConfig | undefined): (AdBanner & { kind:
 }
 
 /**
- * The visit's turn (src/app/layout.tsx sets the class adt-<0–11> on <html> before the page is drawn:
- * the same all through a visit, the next one at the next visit; 12 so that 2, 3 and 4 banners all go round)
+ * The turn (src/app/layout.tsx sets the class adt-<0–11> on <html> before the page is drawn): the half hour
+ * of the day, so a visit keeps its banner and the advertisers share the day evenly – without storing
+ * anything in the browser (no consent needed). 12 so that 2, 3 and 4 banners all go round.
  */
 export const AD_TURNS = 12
-export const AD_TURN_SCRIPT = `try{var s=sessionStorage,l=localStorage,t=s.getItem('adTurn');if(t===null){t=(Number(l.getItem('adTurn')||-1)+1)%${AD_TURNS};if(!(t>=0))t=0;l.setItem('adTurn',String(t));s.setItem('adTurn',String(t))}document.documentElement.classList.add('adt-'+(Number(t)%${AD_TURNS}))}catch(e){}`
+export const AD_TURN_SCRIPT = `try{try{localStorage.removeItem('adTurn');sessionStorage.removeItem('adTurn')}catch(e){}document.documentElement.classList.add('adt-'+(Math.floor(Date.now()/1800000)%${AD_TURNS}))}catch(e){}`
 
 /** The visit's turn in the browser (0 on the server and without storage) */
 export function adTurn(): number {

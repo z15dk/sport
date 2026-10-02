@@ -39,7 +39,7 @@ export default function PrivacyPage() {
           <h2 className="panel__title">Cookies</h2>
           <p>
             Siden sætter ingen cookies for besøgende. Den eneste cookie bruges af redaktionen, når vi logger ind for at redigere siden, og den er nødvendig for
-            login.
+            login. Annoncerne på siden er vores egne aftaler med annoncører: et billede og et link, uden sporing og uden cookies.
           </p>
         </section>
 
