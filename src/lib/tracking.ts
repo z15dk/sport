@@ -13,6 +13,8 @@ export interface TrackingConfig {
   ga?: string
   /** Meta Pixel: digits */
   metaPixel?: string
+  /** Meta's domain verification code (the content of <meta name="facebook-domain-verification">) */
+  metaVerify?: string
   /** Who is responsible for the data (GDPR art. 13), shown on /privatliv */
   owner?: Owner
 }
@@ -48,6 +50,13 @@ export function trackingConfig(): TrackingConfig {
 
 const GA = /^G-[A-Z0-9]{4,16}$/
 const PIXEL = /^\d{8,20}$/
+const VERIFY = /^[a-z0-9]{10,60}$/
+
+/** The code alone, also when the whole meta tag Meta shows is pasted */
+const verifyCode = (v: unknown) => {
+  const t = String(v ?? '').trim()
+  return (/content=["']([^"']+)["']/.exec(t)?.[1] ?? t).trim().toLowerCase()
+}
 
 const text = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n)
 
@@ -62,19 +71,22 @@ function clean(v: Record<string, unknown>): TrackingConfig {
   const ga = String(v.ga ?? '').trim().toUpperCase()
   const pixel = String(v.metaPixel ?? '').trim()
   const owner = cleanOwner(v.owner)
-  return { ...(GA.test(ga) && { ga }), ...(PIXEL.test(pixel) && { metaPixel: pixel }), ...(owner && { owner }) }
+  const verify = verifyCode(v.metaVerify)
+  return { ...(GA.test(ga) && { ga }), ...(PIXEL.test(pixel) && { metaPixel: pixel }), ...(VERIFY.test(verify) && { metaVerify: verify }), ...(owner && { owner }) }
 }
 
 /** Saves the ids; an empty field turns that service off */
-export function saveTracking(v: { ga?: unknown; metaPixel?: unknown; owner?: unknown }): { error?: string } {
+export function saveTracking(v: { ga?: unknown; metaPixel?: unknown; metaVerify?: unknown; owner?: unknown }): { error?: string } {
   const ga = String(v.ga ?? '').trim().toUpperCase()
   const pixel = String(v.metaPixel ?? '').trim()
   if (ga && !GA.test(ga)) return { error: 'Google Analytics-id ser sådan ud: G-ABC123XYZ' }
   if (pixel && !PIXEL.test(pixel)) return { error: 'Meta Pixel-id er kun tal (fx 123456789012345)' }
+  const verify = verifyCode(v.metaVerify)
+  if (verify && !VERIFY.test(verify)) return { error: 'Metas bekræftelseskode ser forkert ud – indsæt koden eller hele meta-tagget fra Meta' }
   const email = text((v.owner as Record<string, unknown> | undefined)?.email, 120)
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Kontakt-mailen ser forkert ud' }
   mkdirSync(path.dirname(file()), { recursive: true })
-  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel, owner: v.owner }), null, 2))
+  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel, metaVerify: verify, owner: v.owner }), null, 2))
   renameSync(`${file()}.tmp`, file())
   cache = { mtime: -1, config: {} }
   return {}

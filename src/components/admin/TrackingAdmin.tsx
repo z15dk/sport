@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 // /admin/indstillinger → Sporing: the Google Analytics and Meta Pixel ids (src/lib/tracking.ts)
-export function TrackingAdmin({ ga, metaPixel, owner }: { ga?: string; metaPixel?: string; owner?: { name?: string; cvr?: string; address?: string; email?: string } }) {
+export function TrackingAdmin({ ga, metaPixel, metaVerify, owner }: { ga?: string; metaPixel?: string; metaVerify?: string; owner?: { name?: string; cvr?: string; address?: string; email?: string } }) {
   const router = useRouter()
   const [g, setG] = useState(ga ?? '')
   const [p, setP] = useState(metaPixel ?? '')
+  const [mv, setMv] = useState(metaVerify ?? '')
   const [o, setO] = useState({ name: owner?.name ?? '', cvr: owner?.cvr ?? '', address: owner?.address ?? '', email: owner?.email ?? '' })
   const field = (k: keyof typeof o) => ({ value: o[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setO((x) => ({ ...x, [k]: e.target.value })) })
   const [msg, setMsg] = useState<{ text: string; error?: boolean }>()
@@ -16,7 +17,7 @@ export function TrackingAdmin({ ga, metaPixel, owner }: { ga?: string; metaPixel
   async function save() {
     setBusy(true)
     setMsg(undefined)
-    const res = await fetch('/api/admin/tracking', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ga: g, metaPixel: p, owner: o }) }).catch(() => undefined)
+    const res = await fetch('/api/admin/tracking', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ga: g, metaPixel: p, metaVerify: mv, owner: o }) }).catch(() => undefined)
     const r = (await res?.json().catch(() => ({}))) as { error?: string } | undefined
     setBusy(false)
     if (res?.ok) {
@@ -40,6 +41,10 @@ export function TrackingAdmin({ ga, metaPixel, owner }: { ga?: string; metaPixel
       <label>
         Meta Pixel (pixel-id)
         <input value={p} onChange={(e) => setP(e.target.value)} placeholder="123456789012345" inputMode="numeric" />
+      </label>
+      <label>
+        Meta domænebekræftelse (valgfri)
+        <input value={mv} onChange={(e) => setMv(e.target.value)} placeholder='kode eller <meta name="facebook-domain-verification" …>' />
       </label>
       <fieldset className="tracking-form__owner">
         <legend>Dataansvarlig (vises på /privatliv)</legend>
