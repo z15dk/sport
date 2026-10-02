@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { formatLong, formatTime } from '../../../../lib/time'
 import { TicketScanner } from '../../../../components/TicketScanner'
 import { demoMatch } from '../../../../lib/ticketDemo'
 import { loadRealData } from '../../../../lib/realdata'
@@ -22,11 +23,16 @@ export default async function DemoScanner({ searchParams }: { searchParams: Prom
           <span aria-hidden>/</span>
           <span>Scanner</span>
         </nav>
-        <h1 className="feed__title">
-          Scanner
-          <span>{m ? `${m.home.name} – ${m.away.name}` : 'Alle demo-kampe'}</span>
-        </h1>
-        <TicketScanner match={m?.slug} />
+        <div className="bs-scanpage">
+          <header className="bs-hero bs-hero--compact">
+            <div>
+              <span className="bs-hero__kicker is-plain">Indgangen</span>
+              <h1>Scanner</h1>
+              <p className="bs-hero__lead">{m ? `${m.home.name} – ${m.away.name} · ${formatLong(m.kickoff)} kl. ${formatTime(m.kickoff)}` : 'Alle demo-kampe'}</p>
+            </div>
+          </header>
+          <TicketScanner match={m?.slug} />
+        </div>
       </div>
     </div>
   )

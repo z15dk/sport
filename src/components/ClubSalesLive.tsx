@@ -39,60 +39,72 @@ export function ClubSalesLive({ match }: { match: string }) {
     }
   }, [match])
   if (s === undefined) return <p className="muted">Henter …</p>
-  if (!s || !s.sold) return <p className="panel muted pad">Ingen billetter solgt endnu. Køb en i demoen – så dukker den op her med det samme.</p>
+  if (!s || !s.sold) return <p className="bs-empty">Ingen billetter solgt endnu. Køb en i demoen – så dukker den op her med det samme.</p>
+  const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0)
   return (
-    <>
-      <section className="tiles tiles--club" aria-label="Salget">
-        <div className="tile tile--lime">
-          <span className="tile__label">Billetter solgt</span>
-          <strong className="tile__value">{s.sold}</strong>
+    <div className="bs-club">
+      <section className="bs-kpis" aria-label="Salget">
+        <div className="bs-kpi is-lime">
+          <span>Billetter solgt</span>
+          <strong>{s.sold}</strong>
+          <em>{s.orders === 1 ? '1 køb' : `${s.orders} køb`}</em>
         </div>
-        <div className="tile tile--ink">
-          <span className="tile__label">Til klubben</span>
-          <strong className="tile__value">{kr(s.revenue)}</strong>
+        <div className="bs-kpi">
+          <span>Til klubben</span>
+          <strong>{kr(s.revenue)}</strong>
+          <em>Hele billetprisen</em>
         </div>
-        <div className="tile tile--blush">
-          <span className="tile__label">Scannet ved indgangen</span>
-          <strong className="tile__value">
-            {s.used} / {s.sold}
+        <div className="bs-kpi">
+          <span>Lukket ind</span>
+          <strong>
+            {s.used}
+            <small> / {s.sold}</small>
           </strong>
+          <i className="bs-bar" aria-hidden>
+            <b style={{ width: `${pct(s.used, s.sold)}%` }} />
+          </i>
         </div>
-        <div className="tile tile--lime">
-          <span className="tile__label">Køb</span>
-          <strong className="tile__value">{s.orders}</strong>
-        </div>
       </section>
-      <section className="panel">
-        <h2 className="panel__title">Pr. billettype</h2>
-        <ul className="admin-list">
-          {s.types.map((t) => (
-            <li key={t.type} className="bs-salesrow">
-              <span>
-                <strong>{t.label}</strong> <span className="muted small">{t.price ? kr(t.price) : 'gratis'}</span>
-              </span>
-              <span>
-                {t.sold} solgt · {t.used} scannet · <strong>{kr(t.sold * t.price)}</strong>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="panel">
-        <h2 className="panel__title">Seneste køb</h2>
-        <ul className="admin-list">
-          {s.latest.map((o) => (
-            <li key={o.id} className="bs-salesrow">
-              <span>
-                {clock(o.created)} · {short(o.name)}
-              </span>
-              <span>
-                {o.tickets} {o.tickets === 1 ? 'billet' : 'billetter'} · <strong>{kr(o.total)}</strong>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="muted small pad">Køberens gebyr ({kr(s.fee)} i alt) går til Matchly – klubben får hele billetprisen.</p>
-      </section>
-    </>
+      <div className="bs-club__cols">
+        <section className="bs-card">
+          <h2 className="bs-card__title">Pr. billettype</h2>
+          <ul className="bs-typerows">
+            {s.types.map((t) => (
+              <li key={t.type}>
+                <span className="bs-typerows__name">
+                  <strong>{t.label}</strong>
+                  <span>{t.price ? kr(t.price) : 'Gratis'}</span>
+                </span>
+                <span className="bs-typerows__nums">
+                  <strong>{t.sold}</strong> solgt · {t.used} inde
+                </span>
+                <span className="bs-typerows__sum">{kr(t.sold * t.price)}</span>
+                <i className="bs-bar" aria-hidden>
+                  <b style={{ width: `${pct(t.used, t.sold)}%` }} />
+                </i>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="bs-card">
+          <h2 className="bs-card__title">Seneste køb</h2>
+          <ul className="bs-feed">
+            {s.latest.map((o) => (
+              <li key={o.id}>
+                <span className="bs-feed__dot" aria-hidden />
+                <span className="bs-feed__who">
+                  <strong>{short(o.name)}</strong>
+                  <span>
+                    {clock(o.created)} · {o.tickets} {o.tickets === 1 ? 'billet' : 'billetter'}
+                  </span>
+                </span>
+                <strong className="bs-feed__sum">{kr(o.total)}</strong>
+              </li>
+            ))}
+          </ul>
+          <p className="bs-card__note">Køberens gebyr ({kr(s.fee)} i alt) går til Matchly – klubben får hele billetprisen.</p>
+        </section>
+      </div>
+    </div>
   )
 }

@@ -24,20 +24,43 @@ export default async function DemoOrder({ params }: { params: Params }) {
   const when = `${formatLong(kickoff)} kl. ${formatTime(kickoff)}`
   return (
     <div className="page">
-      <div className="clubs bs-demo bs-order">
+      <div className="clubs bs-demo bs-tix">
         {o.demo && (
           <p className="bs-banner">
             <strong>Demo</strong> – billetterne kan scannes i demo-scanneren, men gælder ikke ved stadion.
           </p>
         )}
-        <h1 className="feed__title">
-          Dine billetter
-          <span>
-            {o.title} · {when}
-          </span>
-        </h1>
-        <p className="muted">
-          {o.tickets.length === 1 ? '1 billet' : `${o.tickets.length} billetter`} · betalt {kr(o.total + o.fee)} (heraf gebyr {kr(o.fee)}). Vis QR-koden ved indgangen – én kode pr. person.
+        <header className="bs-hero">
+          <div className="bs-hero__main">
+            <span className="bs-hero__kicker">{o.tickets.length === 1 ? 'Din billet er klar' : `Dine ${o.tickets.length} billetter er klar`}</span>
+            <h1>
+              {home}
+              <span> mod </span>
+              {away}
+            </h1>
+            <ul className="bs-hero__chips">
+              <li>{formatLong(kickoff)}</li>
+              <li>Kl. {formatTime(kickoff)}</li>
+              {o.venue && <li>{o.venue}</li>}
+            </ul>
+          </div>
+          <dl className="bs-hero__sum">
+            <div>
+              <dt>Billetter</dt>
+              <dd>{o.tickets.length}</dd>
+            </div>
+            <div>
+              <dt>Betalt</dt>
+              <dd>{kr(o.total + o.fee)}</dd>
+            </div>
+            <div className="is-small">
+              <dt>Heraf gebyr</dt>
+              <dd>{kr(o.fee)}</dd>
+            </div>
+          </dl>
+        </header>
+        <p className="bs-tix-note">
+          Vis QR-koden ved indgangen – én kode pr. person. Skru gerne op for lysstyrken.
           {o.demo && ' I den rigtige version kommer billetterne også på mail og i Wallet.'}
         </p>
         <div className="bs-order__tickets">

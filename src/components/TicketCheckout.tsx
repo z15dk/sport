@@ -94,11 +94,11 @@ export function TicketCheckout({ match, types }: { match: string; types: Type[] 
           <p className="bs-step__note">Billetterne sendes til din mail og kan lægges i Wallet.</p>
         </section>
       </div>
-      <aside className="bs-order">
+      <aside className="bs-summary">
         <h2 className="bs-step__title">
           <b>3</b> Din ordre
         </h2>
-        <ul className="bs-order__lines">
+        <ul className="bs-summary__lines">
           {lines.length ? (
             lines.map((t) => (
               <li key={t.id}>
@@ -118,20 +118,20 @@ export function TicketCheckout({ match, types }: { match: string; types: Type[] 
             </li>
           )}
         </ul>
-        <div className="bs-order__total">
+        <div className="bs-summary__total">
           <span>I alt</span>
           <strong>{kr(tickets + fees)}</strong>
         </div>
         <button type="button" className="wg-btn wg-btn--lime bs-buy__go" onClick={buy} disabled={busy || count === 0}>
           {busy ? 'Køber …' : count === 0 ? 'Vælg billetter' : `Køb ${count === 1 ? 'billet' : `${count} billetter`}`}
         </button>
-        <div className="bs-order__methods" aria-label="Betalingsmåder">
+        <div className="bs-summary__methods" aria-label="Betalingsmåder">
           <span>MobilePay</span>
           <span>Apple Pay</span>
           <span>Google Pay</span>
           <span>Kort</span>
         </div>
-        <p className="bs-order__note">Demo – der trækkes ingen penge.</p>
+        <p className="bs-summary__note">Demo – der trækkes ingen penge.</p>
         {error && <p className="is-error small">{error}</p>}
       </aside>
     </div>

@@ -29,16 +29,30 @@ export default async function DemoClub({ params }: { params: Params }) {
         <p className="bs-banner">
           <strong>Demo</strong> – sådan ser {m.home.name} salget til kampen. Tallene er demo-køb, ikke rigtige billetter.
         </p>
-        <h1 className="feed__title">
-          {m.home.name} – {m.away.name}
-          <span>
-            {formatLong(m.kickoff)} kl. {formatTime(m.kickoff)} · klubbens salg
-          </span>
-        </h1>
+        <header className="bs-hero">
+          <div>
+            <span className="bs-hero__kicker is-live">Klubbens salg · live</span>
+            <h1>
+              {m.home.name}
+              <span> mod </span>
+              {m.away.name}
+            </h1>
+            <ul className="bs-hero__chips">
+              <li>{formatLong(m.kickoff)}</li>
+              <li>Kl. {formatTime(m.kickoff)}</li>
+              {m.venue && <li>{m.venue}</li>}
+            </ul>
+          </div>
+          <div className="bs-hero__actions">
+            <Link className="wg-btn wg-btn--lime" href={`/billetsystem/demo/scanner?kamp=${m.slug}`}>
+              Scanner til indgangen
+            </Link>
+            <Link className="wg-btn" href={`/billetsystem/demo/${m.slug}`}>
+              Køb flere billetter
+            </Link>
+          </div>
+        </header>
         <ClubSalesLive match={m.slug} />
-        <p className="muted small">
-          <Link href={`/billetsystem/demo/${m.slug}`}>Køb flere billetter</Link> · <Link href={`/billetsystem/demo/scanner?kamp=${m.slug}`}>Scanner til indgangen</Link>
-        </p>
       </div>
     </div>
   )

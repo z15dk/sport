@@ -196,6 +196,7 @@ export function TicketScanner({ match }: { match?: string }) {
       <div className="bs-scan__cam">
         <video ref={video} playsInline muted className={on ? 'is-on' : ''} />
         <canvas ref={canvas} hidden />
+        {on && <span className="bs-scan__frame" aria-hidden />}
         {!on && (
           <button
             type="button"

@@ -23,13 +23,21 @@ export default function TicketDemo() {
         <p className="bs-banner">
           <strong>Demo</strong> – rigtige kampe, men der trækkes ingen penge, og billetterne gælder ikke ved stadion.
         </p>
-        <h1 className="feed__title">
-          Vælg en kamp
-          <span>Kommende hjemmekampe i dansk fodbold</span>
-        </h1>
-        <p className="muted small">
-          Prøv også <Link href="/billetsystem/demo/scanner">scanneren</Link> på en anden telefon, og følg salget i klubbens oversigt fra kampens side.
-        </p>
+        <header className="bs-hero">
+          <div>
+            <span className="bs-hero__kicker is-plain">Demo · rigtige kampe</span>
+            <h1>Vælg en kamp</h1>
+            <p className="bs-hero__lead">Kommende hjemmekampe i dansk fodbold. Køb billetter, scan dem på en anden telefon, og se salget hos klubben – live.</p>
+          </div>
+          <div className="bs-hero__actions">
+            <Link className="wg-btn wg-btn--lime" href="/billetsystem/demo/scanner">
+              Åbn scanneren
+            </Link>
+            <Link className="wg-btn" href="/billetsystem">
+              Om billetsystemet
+            </Link>
+          </div>
+        </header>
         {matches.length === 0 ? (
           <p className="panel muted pad">Ingen kommende kampe lige nu.</p>
         ) : (
@@ -38,19 +46,22 @@ export default function TicketDemo() {
               <li key={m.id}>
                 <Link href={`/billetsystem/demo/${m.slug}`} prefetch={false}>
                   <span className="bs-matches__when">
-                    {formatLong(m.kickoff)}
-                    <strong>{formatTime(m.kickoff)}</strong>
+                    <b>{m.kickoff.toLocaleDateString('da-DK', { day: 'numeric', timeZone: 'Europe/Copenhagen' })}</b>
+                    <span>{m.kickoff.toLocaleDateString('da-DK', { month: 'short', timeZone: 'Europe/Copenhagen' }).replace('.', '')}</span>
                   </span>
                   <span className="bs-matches__teams">
                     <span>
-                      <TeamBadge link={false} name={m.home.name} src={m.home.badge} colors={m.home.colors} size={24} /> {m.home.name}
+                      <TeamBadge link={false} name={m.home.name} src={m.home.badge} colors={m.home.colors} size={28} /> {m.home.name}
                     </span>
                     <span>
-                      <TeamBadge link={false} name={m.away.name} src={m.away.badge} colors={m.away.colors} size={24} /> {m.away.name}
+                      <TeamBadge link={false} name={m.away.name} src={m.away.badge} colors={m.away.colors} size={28} /> {m.away.name}
                     </span>
                   </span>
-                  <span className="bs-matches__league muted small">{m.league}</span>
-                  <span className="bs-matches__go">Køb billetter →</span>
+                  <span className="bs-matches__league">
+                    {formatLong(m.kickoff)} · kl. {formatTime(m.kickoff)}
+                    <em>{m.league}</em>
+                  </span>
+                  <span className="bs-matches__go">Køb billetter</span>
                 </Link>
               </li>
             ))}

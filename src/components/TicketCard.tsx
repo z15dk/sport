@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import QRCode from 'qrcode'
 import { TeamBadge } from './TeamBadge'
 
@@ -22,29 +23,34 @@ const kr = (n: number) => (n ? `${n.toLocaleString('da-DK', { minimumFractionDig
 
 export async function TicketCard(p: TicketCardProps) {
   const svg = await QRCode.toString(p.code, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0f110c', light: '#ffffff' } })
+  // The clubs' colours run through the ticket's top, as on a printed season card
+  const c1 = p.homeColors?.[0] ?? '#c6f135'
+  const c2 = p.awayColors?.[0] ?? '#c6f135'
   return (
-    <article className={`tk${p.used ? ' is-used' : ''}`}>
-      <header className="tk__top">
-        <span className="tk__brand">
-          Matchly<i>.</i> <span>billet</span>
-        </span>
-        {p.demo && <span className="tk__demo">Demo</span>}
-      </header>
-      <div className="tk__teams">
-        <span className="tk__team">
-          <TeamBadge link={false} name={p.home} colors={p.homeColors} size={40} />
-          <strong>{p.home}</strong>
-        </span>
-        <span className="tk__vs">–</span>
-        <span className="tk__team">
-          <TeamBadge link={false} name={p.away} colors={p.awayColors} size={40} />
-          <strong>{p.away}</strong>
-        </span>
+    <article className={`tk${p.used ? ' is-used' : ''}`} style={{ '--c1': c1, '--c2': c2 } as CSSProperties}>
+      <div className="tk__head">
+        <header className="tk__top">
+          <span className="tk__brand">
+            Matchly<i>.</i>
+          </span>
+          <span className="tk__kind">{p.demo ? 'Demo-billet' : 'Billet'}</span>
+        </header>
+        <div className="tk__teams">
+          <span className="tk__team">
+            <TeamBadge link={false} name={p.home} colors={p.homeColors} size={48} />
+            <strong>{p.home}</strong>
+          </span>
+          <span className="tk__vs">mod</span>
+          <span className="tk__team">
+            <TeamBadge link={false} name={p.away} colors={p.awayColors} size={48} />
+            <strong>{p.away}</strong>
+          </span>
+        </div>
+        <p className="tk__when">
+          {p.when}
+          {p.venue ? ` · ${p.venue}` : ''}
+        </p>
       </div>
-      <p className="tk__when">
-        {p.when}
-        {p.venue ? ` · ${p.venue}` : ''}
-      </p>
       <div className="tk__cut" aria-hidden />
       <div className="tk__body">
         <div className="tk__qr" role="img" aria-label="QR-kode til indgangen" dangerouslySetInnerHTML={{ __html: svg }} />
@@ -65,7 +71,11 @@ export async function TicketCard(p: TicketCardProps) {
           )}
         </dl>
       </div>
-      {p.used && <p className="tk__used">Brugt ved indgangen</p>}
+      {p.used && (
+        <p className="tk__used">
+          <span>Brugt</span>
+        </p>
+      )}
     </article>
   )
 }
