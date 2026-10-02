@@ -177,7 +177,13 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
   return (
     <div className="consent" role="dialog" aria-modal="false" aria-labelledby="consent-title">
       <div className="consent__box">
-        <h2 id="consent-title">Må vi bruge cookies?</h2>
+        <span className="consent__m" aria-hidden>
+          M
+        </span>
+        <span className="consent__kicker">Cookies på Matchly</span>
+        <h2 id="consent-title">
+          Må vi bruge <em>cookies?</em>
+        </h2>
         <p>
           Vi vil gerne måle, hvordan siden bruges{metaPixel ? ', og vise vores annoncer på Facebook og Instagram til dem, der kender Matchly' : ''}. Det kræver cookies fra{' '}
           {[ga && 'Google', metaPixel && 'Meta'].filter(Boolean).join(' og ')}. Siden virker fuldt ud uden. <Link href="/privatliv">Læs mere</Link>
@@ -232,6 +238,12 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
               Tilpas
             </button>
           )}
+        </div>
+        <div className="consent__bar" aria-hidden>
+          <b>
+            Matchly<i>.</i>
+          </b>
+          <span>Live score og stats · matchly.dk</span>
         </div>
       </div>
     </div>
