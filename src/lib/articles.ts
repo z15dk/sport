@@ -132,8 +132,8 @@ function toArticle(r: Row): Article {
 /** The editor's HTML, reduced to what an article may contain (no scripts, styles or event handlers) */
 export function cleanHtml(html: string): string {
   return sanitizeHtml(html, {
-    allowedTags: ['p', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote', 'img', 'figure', 'figcaption', 'br', 'hr', 'code', 'pre'],
-    allowedAttributes: { a: ['href', 'target', 'rel'], img: ['src', 'alt', 'title', 'width', 'height'] },
+    allowedTags: ['p', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote', 'img', 'figure', 'figcaption', 'br', 'hr', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    allowedAttributes: { a: ['href', 'target', 'rel'], img: ['src', 'alt', 'title', 'width', 'height'], th: ['colspan'], td: ['colspan'] },
     allowedSchemes: ['https', 'http', 'mailto'],
     // Pictures only from our own uploads or https
     allowedSchemesByTag: { img: ['https'] },
