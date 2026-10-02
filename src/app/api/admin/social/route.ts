@@ -165,7 +165,7 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
     }
     case 'publish': {
       const id = str(b.id, 80)
-      await publishOne(id)
+      await publishOne(id, b.again === true)
       const p = findPost(id)
       return { message: p ? STATUS_NAMES[p.status] : 'Postet' }
     }

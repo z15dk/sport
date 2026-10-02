@@ -128,6 +128,14 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
             confirm="Post opslaget nu på de valgte platforme?"
           />
         )}
+        {p.kind === 'own' && p.images.length > 0 && (p.status === 'published' || p.status === 'partly') && Object.values(p.results).some((r) => r.status === 'ok') && (
+          <ActionButton
+            body={{ action: 'publish', id: p.id, again: true }}
+            label="Send igen"
+            busyLabel="Sender …"
+            confirm="Send opslaget igen? Kom det ud første gang, står det der nu to gange."
+          />
+        )}
       </footer>
     </article>
   )

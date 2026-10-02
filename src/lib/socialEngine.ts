@@ -309,10 +309,15 @@ export function targetsOf(p: SocialPost): { platform: Platform; surface: Surface
 const busy = new Set<string>()
 
 /** Posts it on every platform it goes to (only where it isn't out already) */
-export async function publishOne(id: string) {
+export async function publishOne(id: string, again = false) {
   if (busy.has(id)) return
   busy.add(id)
   try {
+    // Sent again (an own post after a fix in Make): every platform once more
+    if (again)
+      patch(id, (p) => {
+        p.results = {}
+      })
     const post = findPost(id)
     if (!post || !post.images.length) throw new Error('Opslaget har ingen billeder endnu')
     const cfg = socialConfig()
