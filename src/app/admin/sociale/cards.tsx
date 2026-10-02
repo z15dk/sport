@@ -975,19 +975,21 @@ export function TableCards({ division, rows, logos }: { division: Division; rows
 }
 
 /** The fact and its numbers, as on the preview story */
-function FactBlock({ p, size = 7 }: { p: Pick; size?: number }) {
+/** The match's fact and its proof; `rows` limits the proof to the newest meetings, so the text never runs off the card */
+function FactBlock({ p, size = 7, rows }: { p: Pick; size?: number; rows?: number }) {
   if (!p.fact) return null
+  const proof = rows ? p.fact.proof.slice(0, rows) : p.fact.proof
   return (
     <>
       <p className={s.serif} style={{ fontSize: `${size}cqw`, lineHeight: 1.05 }}>
         {p.fact.text}
       </p>
       <div className={s.sub} style={{ marginTop: '4cqw', marginBottom: '1cqw' }}>
-        {p.fact.proofTitle}
+        {proof.length < p.fact.proof.length ? `De ${proof.length} nyeste opgør` : p.fact.proofTitle}
       </div>
       <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.3cqw' }}>
         <tbody>
-          {p.fact.proof.map((r) => (
+          {proof.map((r) => (
             <tr key={r.label}>
               <td>{r.label}</td>
               <td className={s.r}>{r.value}</td>
@@ -1099,7 +1101,8 @@ export function FactsCards({ date, picks, logos }: { date: string; picks: Pick[]
           foot={`${i + 2}/${total}`}
           logos={logos}
         >
-          <FactBlock p={p} />
+          {/* Headline, crests and the fact take most of the card: the three newest meetings fit under them */}
+          <FactBlock p={p} size={6} rows={3} />
         </StoryCard>
       ))}
     </div>

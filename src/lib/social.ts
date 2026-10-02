@@ -2,7 +2,7 @@ import 'server-only'
 import type { Incident, Match, SportId } from '../types'
 import type { Club, Division } from '../data/leagues'
 import { DIVISIONS, sportOf } from '../data/leagues'
-import { allFixtures, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
+import { allFixtures, clubInDivision, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
 import { leagueStats, type ScorerRow } from '../data/stats'
 import { alike } from '../data/aliases'
 import { getMatches, isWomenMatch } from '../data/matches'
@@ -11,6 +11,9 @@ import { ourClubByName } from '../data/cups'
 import { addDays, isoDate } from './time'
 import { realHeadToHead } from './history'
 import { EXTERNAL_PRIORITIES, socialConfig } from './socialStore'
+import { dbuTopScorers } from './dbuLineups'
+import { getRealData } from '../data/real'
+import { slugify } from './slug'
 
 // Test of posts for Facebook and Instagram (/admin/sociale): which matches a
 // day's posts would pick, and the numbers each card shows. Everything comes
@@ -450,7 +453,13 @@ export function topicDivision(): Division | undefined {
 
 /** The league's top scorers (at least 5 with goals) */
 export function scorersTopic(div: Division): { division: Division; rows: ScorerRow[] } | undefined {
-  const rows = leagueStats(div)?.scorers.filter((r) => r.goals > 0).slice(0, 10) ?? []
+  // 1.–3. division: the goals from DBU's match pages (as on the league page), else the league's statistics
+  const dbu = dbuTopScorers(div.slug, (team) => clubInDivision(div, team, getRealData()?.clubNames ?? {})?.name)
+  const fromDbu: ScorerRow[] = (dbu?.scorers ?? []).map((r) => {
+    const club = clubInDivision(div, r.team, getRealData()?.clubNames ?? {})
+    return { player: r.name, club: club ? { id: club.id, name: club.name, colors: club.colors } : { id: slugify(r.team), name: r.team }, goals: r.goals, penalties: 0 }
+  })
+  const rows = (fromDbu.length ? fromDbu : (leagueStats(div)?.scorers ?? [])).filter((r) => r.goals > 0).slice(0, 10)
   return rows.length >= 5 ? { division: div, rows } : undefined
 }
 
