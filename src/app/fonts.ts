@@ -31,3 +31,17 @@ export const body = localFont({
   adjustFontFallback: 'Arial',
   variable: '--font-body',
 })
+
+/** The ticket system's own headline face (/billetsystem, a more exclusive look than the rest of the site): Cormorant Garamond */
+export const serif = localFont({
+  src: [
+    { path: '../fonts/cormorant-garamond-latin-600-normal.woff2', weight: '600', style: 'normal' },
+    { path: '../fonts/cormorant-garamond-latin-700-normal.woff2', weight: '700', style: 'normal' },
+    { path: '../fonts/cormorant-garamond-latin-500-italic.woff2', weight: '500', style: 'italic' },
+    { path: '../fonts/cormorant-garamond-latin-600-italic.woff2', weight: '600', style: 'italic' },
+  ],
+  display: 'swap',
+  preload: false,
+  adjustFontFallback: 'Times New Roman',
+  variable: '--font-serif',
+})
