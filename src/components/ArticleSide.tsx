@@ -10,7 +10,7 @@ import type { Match } from '../types'
 import { MatchRow } from './MatchRow'
 import { StandingsTable } from './StandingsTable'
 
-// The living side column of an article: the table and the next matches of the league
+// The living side column of an article: the table, the next matches and the latest results of the league
 // or club the article is about (found from its title, lead, tags and category), else
 // today's matches. Real data, the same as the league and club pages show.
 
@@ -48,6 +48,17 @@ function leagueMatches(division: Division, now: number, limit: number): Match[] 
   return out
 }
 
+/** The league's latest results, newest first, up to `limit`, from the last three weeks */
+function leagueResults(division: Division, now: number, limit: number): Match[] {
+  const today = isoDate(now)
+  const out: Match[] = []
+  for (let i = 0; i < 21 && out.length < limit; i++) {
+    const day = getMatches(addDays(today, -i), 'all', now).filter((m) => m.leagueSlug === division.slug && m.state === 'finished')
+    out.push(...day.sort((a, b) => b.kickoff.getTime() - a.kickoff.getTime()))
+  }
+  return out.slice(0, limit)
+}
+
 export function ArticleSide({ subject, now }: { subject?: Subject; now: number }) {
   if (!subject) {
     const today = getMatches(isoDate(now), 'all', now)
@@ -81,6 +92,12 @@ export function ArticleSide({ subject, now }: { subject?: Subject; now: number }
         .filter((m) => m.state !== 'finished' && m.state !== 'postponed' && m.kickoff.getTime() > now - 3 * 3_600_000)
         .slice(0, 4)
     : leagueMatches(division, now, 4)
+  const results = club
+    ? clubMatches(club.name, now)
+        .filter((m) => m.state === 'finished')
+        .slice(-4)
+        .reverse()
+    : leagueResults(division, now, 4)
   return (
     <aside className="article-side">
       {slice.length > 0 && (
@@ -94,14 +111,27 @@ export function ArticleSide({ subject, now }: { subject?: Subject; now: number }
       )}
       {next.length > 0 && (
         <section className="panel">
-          <h2 className="panel__title">{club ? `${club.name}s næste kampe` : `Næste kampe i ${division.short}`}</h2>
+          <h2 className="panel__title">{club ? `${club.name}s næste kampe` : `Kommende kampe i ${division.name}`}</h2>
           <ul className="league__matches">
             {next.map((m) => (
-              <MatchRow key={m.id} match={m} showLeague={!!club} />
+              <MatchRow key={m.id} match={m} showDate showLeague={!!club} />
             ))}
           </ul>
           <Link className="article-side__more" href={club ? paths.club(club.slug) : paths.league(division.slug)}>
             {club ? `Alt om ${club.name} →` : `Alt om ${division.name} →`}
+          </Link>
+        </section>
+      )}
+      {results.length > 0 && (
+        <section className="panel">
+          <h2 className="panel__title">{club ? `${club.name}s seneste kampe` : `Seneste resultater i ${division.name}`}</h2>
+          <ul className="league__matches">
+            {results.map((m) => (
+              <MatchRow key={m.id} match={m} showDate showLeague={!!club} />
+            ))}
+          </ul>
+          <Link className="article-side__more" href={club ? paths.club(club.slug) : paths.league(division.slug)}>
+            {club ? `Alle ${club.name}s kampe →` : `Alle resultater →`}
           </Link>
         </section>
       )}

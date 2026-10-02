@@ -39,6 +39,10 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
             { key: 't', label: 'T', title: 'Nederlag', value: (r) => r.lost },
           ]
   const scoreLabel = sport === 'basketball' ? 'Score' : 'Mål'
+  // A part of the table explains only the zones it shows
+  const part = rows.length < total
+  const showsUp = !part || offset < division.zones.top
+  const showsDown = division.zones.bottom > 0 && (!part || offset + rows.length > total - division.zones.bottom)
   return (
     <>
       <div className="table-wrap">
@@ -100,10 +104,12 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
         </table>
       </div>
       <footer className="table-legend">
-        <span>
-          <i className="zone-dot zone-dot--up" /> {division.zones.topLabel}
-        </span>
-        {division.zones.bottom > 0 && (
+        {showsUp && (
+          <span>
+            <i className="zone-dot zone-dot--up" /> {division.zones.topLabel}
+          </span>
+        )}
+        {showsDown && (
           <span>
             <i className="zone-dot zone-dot--down" /> Nedrykning
           </span>
