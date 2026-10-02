@@ -56,8 +56,10 @@ export type SignalId = 'mem' | 'load' | 'lag'
 export const LIMITS = {
   /** Share of the machine's memory in use */
   memPct: 85,
-  /** Swap in use (MB): swapping makes every page slow at once */
+  /** Swap in use (MB): swapping makes every page slow at once ... */
   swapMb: 512,
+  /** ... but only counts while the memory is also this full; stale swap with free memory is harmless */
+  swapMemPct: 70,
   /** 5-minute load per core: work queues up above 100 % */
   loadPct: 100,
   /** Minutes in an hour where the site could not answer for a second */
@@ -160,7 +162,8 @@ function sample() {
 }
 
 const SIGNALS: { id: SignalId; name: string; over: (h: Hour) => boolean; limit: string }[] = [
-  { id: 'mem', name: 'Hukommelse', over: (h) => h.mem >= LIMITS.memPct || h.swap >= LIMITS.swapMb, limit: `grænse ${LIMITS.memPct} % eller ${LIMITS.swapMb} MB swap` },
+  // Swap counts only while memory is also tight: after an upgrade (or a quiet night) Linux leaves old pages in swap for days although nothing is short
+  { id: 'mem', name: 'Hukommelse', over: (h) => h.mem >= LIMITS.memPct || (h.swap >= LIMITS.swapMb && h.mem >= LIMITS.swapMemPct), limit: `grænse ${LIMITS.memPct} %, eller ${LIMITS.swapMb} MB swap ved over ${LIMITS.swapMemPct} %` },
   { id: 'load', name: 'CPU (load)', over: (h) => h.load >= LIMITS.loadPct, limit: `grænse ${LIMITS.loadPct} % af kernerne` },
   { id: 'lag', name: 'Ventetid', over: (h) => h.stalls >= LIMITS.stallMin, limit: `grænse ${LIMITS.stallMin} min./time over 1 sek.` },
 ]

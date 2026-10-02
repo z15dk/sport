@@ -170,7 +170,7 @@ export default async function DataStatusPage() {
             label="Hukommelse"
             value={`${num(mem.rss + (worker?.rss ?? 0))} MB`}
             sub={`${worker ? `siden ${num(mem.rss)} · baggrund ${num(worker.rss)} MB` : `JavaScript ${num(mem.heap)} MB`} · maskinen ${cap.machine.pct} % brugt`}
-            level={cap.machine.pct >= LIMITS.memPct || cap.machine.swapMb >= LIMITS.swapMb ? 'bad' : cap.machine.pct >= 75 ? 'warn' : 'ok'}
+            level={cap.machine.pct >= LIMITS.memPct || (cap.machine.swapMb >= LIMITS.swapMb && cap.machine.pct >= LIMITS.swapMemPct) ? 'bad' : cap.machine.pct >= 75 ? 'warn' : 'ok'}
           />
           <Tile
             label="Fodbold-kald tilbage"
