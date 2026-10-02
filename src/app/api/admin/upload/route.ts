@@ -1,11 +1,12 @@
-import { isAdmin, sameOrigin } from '../../../../lib/admin'
+import { adminDenied } from '../../../../lib/admin'
 import { saveUpload } from '../../../../lib/uploads'
 import { withPhotoDb } from '../../../../lib/photos/server'
 import { registerArticleUpload } from '../../../../lib/photos/store'
 
 /** Uploads a picture for an article (multipart field "file"); it also goes into the photo archive, whose metadata the editor asks for */
 export async function POST(request: Request) {
-  if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const denied = await adminDenied(request)
+  if (denied) return Response.json({ error: denied }, { status: 401 })
   const form = await request.formData().catch(() => undefined)
   const file = form?.get('file')
   if (!file || typeof file === 'string') return Response.json({ error: 'Vælg et billede' }, { status: 400 })

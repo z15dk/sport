@@ -1,4 +1,4 @@
-import { isAdmin, sameOrigin } from '../../../../lib/admin'
+import { adminDenied } from '../../../../lib/admin'
 import {
   KINDS,
   PLATFORMS,
@@ -192,7 +192,8 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const denied = await adminDenied(request)
+  if (denied) return Response.json({ error: denied }, { status: 401 })
   const body = (await request.json().catch(() => ({}))) as Body
   try {
     return Response.json({ ok: true, ...(await act(body)) })

@@ -1,10 +1,11 @@
-import { isAdmin, sameOrigin } from '../../../../lib/admin'
+import { adminDenied } from '../../../../lib/admin'
 import { cleanTicketUrl, saveTicketConfig, ticketConfig, type TicketConfig } from '../../../../lib/tickets'
 
 // /admin/billetter: one ticket link changed – JSON { kind: 'club' | 'league' | 'match' | 'partner', key, value }.
 // value: the link (or the partner code); '' = none (no button); null = back to what it was (for a club: the link we found)
 export async function POST(request: Request) {
-  if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const denied = await adminDenied(request)
+  if (denied) return Response.json({ error: denied }, { status: 401 })
   const body = (await request.json().catch(() => ({}))) as { kind?: unknown; key?: unknown; value?: unknown }
   const kinds = { club: 'clubs', league: 'leagues', match: 'matches', partner: 'partners' } as const
   const kind = kinds[String(body.kind) as keyof typeof kinds]

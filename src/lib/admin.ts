@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
+import { SITE_URL } from './site'
 
 // Access to the admin pages (/admin). The password is ADMIN_PASSWORD in the
 // server's environment (/opt/scoreline/env on the VPS); without it the admin
@@ -58,16 +59,35 @@ export const cookieOptions = {
 
 export const barCookieOptions = { ...cookieOptions, httpOnly: false }
 
+/** The hosts a request may come from: the site's own address, what the proxy says the browser asked for, and the server itself */
+function ownHosts(request: Request): string[] {
+  const hosts = [request.headers.get('x-forwarded-host'), request.headers.get('host')]
+  try {
+    hosts.push(new URL(SITE_URL).host)
+  } catch {
+    // No site address set
+  }
+  return [...new Set(hosts.flatMap((h) => (h ? h.split(',').map((x) => x.trim()) : [])).filter(Boolean))]
+}
+
 /** Requests that change something must come from our own pages */
 export function sameOrigin(request: Request) {
   const origin = request.headers.get('origin')
   if (!origin) return true // same-origin form posts from older browsers
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
   try {
-    return new URL(origin).host === host
+    const host = new URL(origin).host
+    // The site's own hosts, and the local checkout (npm run live / next start)
+    return ownHosts(request).includes(host) || /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)
   } catch {
     return false
   }
+}
+
+/** Why a request to an admin API is refused, or undefined when it is allowed: the text goes back to the page, so the cause is visible */
+export async function adminDenied(request: Request): Promise<string | undefined> {
+  if (!(await isAdmin())) return 'Ikke logget ind – log ind på /admin igen'
+  if (!sameOrigin(request)) return `Afvist afsender: siden er åbnet på ${request.headers.get('origin')}, men serveren kender kun ${ownHosts(request).join(', ') || '(ingen adresse)'}`
+  return undefined
 }
 
 // A few wrong passwords per minute per address, then wait
