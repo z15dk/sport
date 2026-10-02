@@ -372,6 +372,9 @@ function isWomen(text: string[]) {
   return text.some((w) => WOMEN_WORDS.test(w)) || mentions(text, ['a', 'liga']) || mentions(text, ['liga', 'f'])
 }
 
+/** Which of our clubs and leagues a text is about (our own articles use it for their side column) */
+export const articleSubjects = (title: string, text: string, cats: string[] = []) => match(title, text, cats)
+
 function match(title: string, standfirst: string, cats: string[] = []) {
   const text = words(`${title} ${standfirst}`)
   const women = isWomen(text) || isWomen(words(cats.join(' ')))
