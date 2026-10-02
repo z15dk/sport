@@ -343,7 +343,11 @@ export default async function DataStatusPage() {
                 <Bars values={football.usage.hours} labels={football.usage.hours.map((_, i) => `kl. ${hourLabel(i)}`)} unit="kald" />
                 <p className="dash-axis muted small">
                   <span>{hourLabel(0)}</span>
-                  <span>baggrund og opslag stopper under {num(football.reserveNow)} tilbage</span>
+                  <span>
+                    baggrund og opslag stopper under {num(football.reserveNow)} tilbage
+                    {football.shared ? ` · delt pulje for alle sportsgrene${Number.isFinite(football.poolRemaining) ? `, ${num(football.poolRemaining!)} tilbage` : ''}` : ''}
+                    {football.endgame ? ` · slutspurt: nulstilling om ${football.resetInMinutes} min., resten bruges på historik` : ''}
+                  </span>
                   <span>{hourLabel(23)}</span>
                 </p>
                 <ul className="dash-chips">
