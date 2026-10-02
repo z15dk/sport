@@ -42,7 +42,7 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
   const c = info.counts
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder" />
         <h1 className="feed__title">
           Billeder

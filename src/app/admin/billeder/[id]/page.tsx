@@ -39,7 +39,7 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
   const boxClass = (t: Tag) => (t.side === 'egen' && t.playerName ? s.box : t.side === 'modstander' ? `${s.box} ${s.boxOpp}` : `${s.box} ${s.boxUnknown}`)
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder" />
         <p>
           <Link href="/admin/billeder" className="text-btn" style={{ marginLeft: 0 }}>

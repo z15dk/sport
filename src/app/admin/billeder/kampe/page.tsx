@@ -20,7 +20,7 @@ export default async function AdminPhotoMatches() {
   const matches = withPhotoDb((db) => matchOverview(db, photoConfig().defaultCredit))
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder/kampe" />
         <h1 className="feed__title">
           Kampe og opslag

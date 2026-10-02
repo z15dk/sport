@@ -18,7 +18,7 @@ export default async function AdminPhotoReview() {
   const queue = withPhotoDb((db) => reviewQueue(db))
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder/gennemgang" />
         <h1 className="feed__title">
           Gennemgang

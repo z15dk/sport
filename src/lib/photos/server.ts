@@ -228,8 +228,9 @@ export async function publishForArticle(photoId: number): Promise<{ url?: string
   return { url, credit: (p.credit as string) ?? cfg.defaultCredit, borrowed: !!p.license_until }
 }
 
-/** "Foto: Jens Hansen" – the stored credit with or without the word, our own photos with the default */
-export const creditText = (credit: string | null | undefined, fallback: string) => `Foto: ${(credit || fallback).replace(/^\s*foto\s*:\s*/i, '').trim()}`
+/** "Foto: Jens Hansen" (or "Grafik: Matchly.dk" for a graphic) – the stored credit with or without the word, our own with the default */
+export const creditText = (credit: string | null | undefined, fallback: string, kind?: string) =>
+  `${kind === 'grafik' ? 'Grafik' : 'Foto'}: ${(credit || fallback).replace(/^\s*(foto|grafik)\s*:\s*/i, '').trim()}`
 
 /**
  * The photographer for pictures shown in articles, by their /uploads address: known when the picture
@@ -243,10 +244,10 @@ export function photoCredits(urls: (string | undefined | null)[]): Map<string, s
     const fallback = photoConfig().defaultCredit
     const rows = withPhotoDb((db) =>
       db
-        .prepare(`SELECT ai.upload_name, p.credit FROM article_images ai JOIN photos p ON p.id = ai.photo_id WHERE ai.upload_name IN (${names.map(() => '?').join(', ')}) AND p.status != 'slettet'`)
+        .prepare(`SELECT ai.upload_name, p.credit, p.kind FROM article_images ai JOIN photos p ON p.id = ai.photo_id WHERE ai.upload_name IN (${names.map(() => '?').join(', ')}) AND p.status != 'slettet'`)
         .all(...names),
     )
-    for (const r of rows) out.set(`/uploads/${String(r.upload_name)}`, creditText(r.credit as string | null, fallback))
+    for (const r of rows) out.set(`/uploads/${String(r.upload_name)}`, creditText(r.credit as string | null, fallback, String(r.kind ?? '')))
   } catch {
     // No photo archive (yet): the pictures just have no credit
   }
@@ -261,7 +262,7 @@ export function withPhotoCredits(html: string): string {
   const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   return html
     // The old credit line under borrowed pictures is now in the corner instead
-    .replace(/(<img[^>]*src="\/uploads\/[^"]+"[^>]*>)\s*<p><em>Foto:[^<]*<\/em><\/p>/g, '$1')
+    .replace(/(<img[^>]*src="\/uploads\/[^"]+"[^>]*>)\s*<p><em>(?:Foto|Grafik):[^<]*<\/em><\/p>/g, '$1')
     .replace(/<img[^>]*src="(\/uploads\/[^"]+)"[^>]*>/g, (tag, url: string) => {
       const c = credits.get(url)
       return c ? `<span class="photo-credit-wrap">${tag}<span class="photo-credit">${esc(c)}</span></span>` : tag

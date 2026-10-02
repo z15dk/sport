@@ -27,7 +27,7 @@ export default async function AdminSquads({ searchParams }: { searchParams: Sear
   const club = clubs.find((c) => c.id === klub) ?? clubs[0]
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder/trupper" />
         <h1 className="feed__title">
           Trupper
