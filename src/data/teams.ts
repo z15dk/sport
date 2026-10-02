@@ -152,16 +152,19 @@ function build(): TeamEntry[] {
  * second with every page waiting, so it only happens when this changes.
  */
 function teamSignature(external: ExternalGame[] | undefined): number {
-  let sum = 0
-  const add = (key: string) => {
+  // Every team once: a team playing three games, or a new game of a team we have, changes nothing
+  // (before, every game counted, so each new game or each day falling off rebuilt the register)
+  const keys = new Set<string>()
+  for (const g of external ?? []) {
+    const league = `${g.league.id}|${g.league.name}|${g.league.country ?? ''}`
+    keys.add(`${league}|${g.home.name}|${g.home.logo ? 1 : 0}`)
+    keys.add(`${league}|${g.away.name}|${g.away.logo ? 1 : 0}`)
+  }
+  let sum = keys.size
+  for (const key of keys) {
     let h = 2166136261
     for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619)
     sum = (sum + (h >>> 0)) % Number.MAX_SAFE_INTEGER
-  }
-  for (const g of external ?? []) {
-    const league = `${g.league.id}|${g.league.name}|${g.league.country ?? ''}`
-    add(`${league}|${g.home.name}|${g.home.logo ? 1 : 0}`)
-    add(`${league}|${g.away.name}|${g.away.logo ? 1 : 0}`)
   }
   return sum
 }
@@ -204,9 +207,14 @@ export const teamByName = (name: string): TeamEntry | undefined => {
 }
 
 /** Every team name's slug, '' when it is the name's own slug, and the team's name when it is shown under another (sent to the browser as RealData.teamIndex) */
+let nameIndex: { for: Map<string, TeamEntry>; index: Record<string, string> } | undefined
 export function teamNameIndex(): Record<string, string> {
+  // Made once per register (the layout asks for it on every page; it took up to 100 ms each time)
+  const byName = teams().byName
+  if (nameIndex?.for === byName) return nameIndex.index
   const index: Record<string, string> = {}
-  for (const [name, t] of teams().byName) index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug
+  for (const [name, t] of byName) index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug
+  nameIndex = { for: byName, index }
   return index
 }
 
