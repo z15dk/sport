@@ -1,11 +1,11 @@
 import 'server-only'
 import { createHmac, randomBytes } from 'node:crypto'
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
 import { captionFor, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
-import { renderPost } from './socialRender'
+import { renderPost, renderSpec } from './socialRender'
 import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
 import {
@@ -468,7 +468,7 @@ export const OWN_MAX_IMAGES = 10
  * platform), the platforms and the time. It is approved by being written, so it goes out at its time
  * (or at once with `now`), also while the engine is switched off.
  */
-export async function createOwnPost(input: { text: string; link?: string; images: string[]; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
+export async function createOwnPost(input: { text: string; link?: string; images: string[]; storyImage?: string; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
   const text = input.text.trim()
   if (!text) throw new Error('Skriv en tekst')
   if (!input.images.length) throw new Error('Vælg mindst ét billede (Facebook og Instagram poster billeder)')
@@ -482,6 +482,12 @@ export async function createOwnPost(input: { text: string; link?: string; images
   mkdirSync(imageDir(), { recursive: true })
   const images: SocialPost['images'] = []
   for (const [i, url] of input.images.slice(0, OWN_MAX_IMAGES).entries()) {
+    // A template's card, already made on the server
+    const made = templateFile(url)
+    if (made) {
+      images.push({ file: made, surface: 'feed' })
+      continue
+    }
     const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(url)
     if (!m) throw new Error(`Billede ${i + 1} kan ikke læses`)
     // Upright, at most 2048 px, as JPEG (Instagram takes nothing else)
@@ -490,7 +496,8 @@ export async function createOwnPost(input: { text: string; link?: string; images
     writeFileSync(path.join(imageDir(), file), jpeg)
     images.push({ file, surface: 'feed' })
   }
-  if (input.story) images.push({ file: images[0].file, surface: 'story' })
+  // The story: the template's own story card when it has one, else the first picture
+  if (input.story) images.push({ file: templateFile(input.storyImage ?? '') ?? images[0].file, surface: 'story' })
   const post: SocialPost = {
     id,
     date: isoDate(at),
@@ -533,5 +540,46 @@ export function deleteOwnPost(id: string) {
     } catch {
       // already gone (the story uses the first picture too)
     }
+  }
+}
+
+/** "file:<name>" for a template's card made by ownTemplate (only those names, and only when the file is there) */
+function templateFile(ref: string): string | undefined {
+  const m = /^file:(tpl-[a-z0-9-]+\.jpg)$/i.exec(ref)
+  return m && existsSync(path.join(imageDir(), m[1])) ? m[1] : undefined
+}
+
+/**
+ * One of the engine's templates as the start of an own post: its cards made into pictures now,
+ * with its text and link. The admin edits the text and adds pictures before planning it.
+ */
+export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; date: string; now?: number }) {
+  const now = input.now ?? Date.now()
+  const spec: PostSpec = {
+    kind: input.kind,
+    topic: input.kind === 'topic' ? input.topic : undefined,
+    date: input.date,
+    league: input.league || undefined,
+    // The day's matches as planned, else as the engine would pick them now
+    matchIds: readPosts().days[input.date]?.matchIds ?? pickMatches(input.date, now).map((p) => p.fixture.id),
+  }
+  const content = contentFor(spec, now)
+  if (!content) throw new Error('Skabelonen har ingen data den dag (prøv en anden liga eller dato)')
+  dropUnusedTemplates()
+  const images = await renderSpec(`tpl-${Date.now().toString(36)}${randomBytes(2).toString('hex')}`, spec)
+  return { images, caption: captionFor(content), link: linkFor(content), title: titleFor(spec) }
+}
+
+/** Template pictures made but never used in a post, after two days */
+function dropUnusedTemplates() {
+  const used = new Set(readPosts().posts.flatMap((p) => p.images.map((i) => i.file)))
+  try {
+    for (const f of readdirSync(imageDir())) {
+      if (!f.startsWith('tpl-') || used.has(f)) continue
+      const full = path.join(imageDir(), f)
+      if (Date.now() - statSync(full).mtimeMs > 2 * 86_400_000) unlinkSync(full)
+    }
+  } catch {
+    // no pictures yet
   }
 }

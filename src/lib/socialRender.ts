@@ -53,12 +53,19 @@ let queue: Promise<unknown> = Promise.resolve()
 
 /** The post's cards as JPEG files in the images folder, in carousel order */
 export function renderPost(postId: string): Promise<{ file: string; surface: Surface }[]> {
-  const job = queue.then(() => render(postId))
+  const job = queue.then(() => render(postId, `post=${encodeURIComponent(postId)}`))
   queue = job.catch(() => undefined)
   return job
 }
 
-async function render(postId: string): Promise<{ file: string; surface: Surface }[]> {
+/** A template's cards for an own post (kind, date, topic, league), saved as `<prefix>-…jpg` */
+export function renderSpec(prefix: string, spec: object): Promise<{ file: string; surface: Surface }[]> {
+  const job = queue.then(() => render(prefix, `spec=${Buffer.from(JSON.stringify(spec)).toString('base64url')}`))
+  queue = job.catch(() => undefined)
+  return job
+}
+
+async function render(postId: string, query: string): Promise<{ file: string; surface: Surface }[]> {
   const executablePath = chromiumPath()
   if (!executablePath) throw new Error('Chromium er ikke installeret på serveren (deploy/update.sh installerer det)')
   const { chromium } = await import('playwright-core')
@@ -67,7 +74,7 @@ async function render(postId: string): Promise<{ file: string; surface: Surface 
     const context = await browser.newContext({ viewport: { width: 1200, height: 1000 }, deviceScaleFactor: SCALE })
     await context.addCookies([{ name: COOKIE, value: sessionToken(), url: selfUrl() }])
     const page = await context.newPage()
-    const res = await page.goto(`${selfUrl()}/admin/sociale/kort?post=${encodeURIComponent(postId)}`, { waitUntil: 'networkidle', timeout: 60_000 })
+    const res = await page.goto(`${selfUrl()}/admin/sociale/kort?${query}`, { waitUntil: 'networkidle', timeout: 60_000 })
     if (!res?.ok()) throw new Error(`Kortsiden svarede ${res?.status() ?? 'intet'}`)
     // The web fonts and every logo in, and the rows that don't fit hidden (FitRows)
     await page.evaluate(async () => {

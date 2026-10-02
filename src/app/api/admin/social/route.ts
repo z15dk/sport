@@ -15,7 +15,7 @@ import {
   type SocialConfig,
 } from '../../../../lib/socialStore'
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
-import { approve, createOwnPost, deleteOwnPost, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
+import { approve, createOwnPost, deleteOwnPost, ownTemplate, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
 
@@ -204,8 +204,17 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(when)
       const at = m ? danishTime(m[1], m[2]).getTime() : NaN
       if (!b.now && !m) throw new Error('Vælg dato og klokkeslæt')
-      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, platforms, story: b.story === true, at, now: b.now === true })
+      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
+    }
+    case 'ownTemplate': {
+      // A template's cards and text as the start of an own post
+      const kind = KINDS.find((k) => k === b.kind)
+      if (!kind || kind === 'story') throw new Error('Vælg en skabelon')
+      const date = str(b.date, 10)
+      if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
+      const r = await ownTemplate({ kind, topic: isTopic(b.topic) ? b.topic : undefined, league: str(b.league, 100), date })
+      return { message: `${r.title}: ${r.images.length} billeder`, data: r }
     }
     case 'ownDelete':
       deleteOwnPost(str(b.id, 80))

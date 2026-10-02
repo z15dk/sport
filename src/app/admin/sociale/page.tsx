@@ -9,8 +9,9 @@ import { targetsOf } from '../../../lib/socialEngine'
 import { connected, platformCaption, storyOk } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
 import { mailReady } from '../../../lib/mail'
-import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
+import { KIND_NAMES, TOPICS, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
+import { shownDivisions } from '../../../data/leagues'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sociale medier · Admin', robots: { index: false, follow: false } }
@@ -188,6 +189,12 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             dagens plan herunder.
           </p>
           <OwnPostForm
+            templates={[
+              { value: 'programme', label: 'Dagens kampe' },
+              { value: 'results', label: 'Resultater' },
+              ...TOPICS.map((t) => ({ value: `topic:${t.id}`, label: t.name })),
+            ]}
+            leagues={shownDivisions().map((d) => ({ id: d.id, name: d.name }))}
             platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: storyOk(p, secrets) }))}
           />
           {(() => {

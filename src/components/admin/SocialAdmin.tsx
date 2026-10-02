@@ -652,8 +652,21 @@ function nextHour() {
  * Write a post by hand: text, an optional link, 1–10 pictures, the platforms and a time – or
  * out at once. It goes in the same queue as the engine's posts and is posted at its time.
  */
-export function OwnPostForm({ platforms }: { platforms: { id: string; name: string; connected: boolean; story: boolean }[] }) {
+export function OwnPostForm({
+  platforms,
+  templates,
+  leagues,
+}: {
+  platforms: { id: string; name: string; connected: boolean; story: boolean }[]
+  /** The engine's templates: "programme", "results" or "topic:<id>" */
+  templates: { value: string; label: string }[]
+  leagues: { id: string; name: string }[]
+}) {
   const { busy, msg, run } = useAction()
+  const tplAction = useAction()
+  const [tpl, setTpl] = useState('')
+  const [league, setLeague] = useState('')
+  const [storyImage, setStoryImage] = useState<string>()
   const [text, setText] = useState('')
   const [link, setLink] = useState('')
   const [images, setImages] = useState<string[]>([])
@@ -673,18 +686,64 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
   }
   const submit = async (now: boolean) => {
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
-    const r = await run({ action: 'own', text, link, images, platforms: chosen, story, at, now })
+    const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now })
     if (!r.error) {
       setText('')
       setLink('')
       setImages([])
       setStory(false)
+      setStoryImage(undefined)
       setAt(nextHour())
     }
   }
+  // A template's cards (made on the server for the chosen day) and its text as the start of the post
+  const applyTemplate = async () => {
+    if (!tpl) return
+    const [kind, topic] = tpl.split(':')
+    const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league, date: at.slice(0, 10) })
+    const d = r.data as { images: { file: string; surface: string }[]; caption: string; link: string } | undefined
+    if (r.error || !d) return
+    const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
+    const st = d.images.find((i) => i.surface === 'story')
+    setImages((x) => [...feed, ...x.filter((y) => !y.startsWith('file:'))].slice(0, 10))
+    setStoryImage(st ? `file:${st.file}` : undefined)
+    if (st) setStory(true)
+    if (!text.trim() || window.confirm('Erstat teksten med skabelonens tekst?')) setText(d.caption)
+    if (!link.trim()) setLink(d.link)
+  }
+  const thumb = (ref: string) => (ref.startsWith('file:') ? `/sociale-billeder/${ref.slice(5)}` : ref)
   const canStory = chosen.some((id) => platforms.find((p) => p.id === id)?.story)
   return (
     <div className="own-post">
+      <div className="own-post__tpl">
+        <label>
+          <span>Skabelon (valgfri)</span>
+          <select value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <option value="">Ingen – mine egne billeder</option>
+            {templates.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Liga</span>
+          <select value={league} onChange={(e) => setLeague(e.target.value)} disabled={!tpl}>
+            <option value="">Dagens udvalgte</option>
+            {leagues.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
+          {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
+        </button>
+        <Msg msg={tplAction.msg} />
+        <small className="muted own-post__tpl-note">Billederne laves til dagen under &quot;Udgiv&quot;. Du kan rette teksten og tilføje egne billeder bagefter.</small>
+      </div>
       <label className="own-post__text">
         <span>Tekst</span>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Skriv opslaget …" maxLength={5000} />
@@ -700,7 +759,7 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
           {images.map((src, i) => (
             <figure key={i}>
               {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
-              <img src={src} alt="" />
+              <img src={thumb(src)} alt="" />
               <button type="button" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
                 ×
               </button>
