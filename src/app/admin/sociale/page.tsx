@@ -12,6 +12,7 @@ import { mailReady } from '../../../lib/mail'
 import { KIND_NAMES, TOPICS, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 import { shownDivisions } from '../../../data/leagues'
+import { allArticles } from '../../../lib/articles'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sociale medier · Admin', robots: { index: false, follow: false } }
@@ -202,6 +203,61 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
           </p>
         </section>
 
+        {(() => {
+          // Everything that is to go out, whatever the day: posts waiting for their time (or approval), and
+          // scheduled articles that are shared by themselves when they go live
+          const waiting = data.posts.filter((p) => p.status === 'waiting' && p.expiresAt > now).sort((a, b) => a.scheduledAt - b.scheduledAt)
+          const articles = cfg.articles.enabled
+            ? allArticles()
+                .filter((a) => a.status === 'published' && a.publishedAt && Date.parse(a.publishedAt) > now && !data.posts.some((p) => p.article === a.id))
+                .sort((a, b) => Date.parse(a.publishedAt!) - Date.parse(b.publishedAt!))
+            : []
+          const when = (t: number) => `${formatLong(new Date(t))} kl. ${clock(t)}`
+          return (
+            <section className="panel">
+              <h2 className="panel__title">Kø ({waiting.length + articles.length})</h2>
+              {waiting.length + articles.length === 0 ? (
+                <p className="muted small pad">
+                  Intet venter på at blive postet.{' '}
+                  {cfg.articles.enabled ? 'Nye artikler deles automatisk, når de går live.' : 'Slå "Del nye artikler automatisk" til for at dele artiklerne af sig selv.'}
+                </p>
+              ) : (
+                <ul className="own-upcoming">
+                  {[
+                    ...waiting.map((p) => ({ at: p.scheduledAt, p, a: undefined })),
+                    ...articles.map((a) => ({ at: Date.parse(a.publishedAt!), p: undefined, a })),
+                  ]
+                    .sort((x, y) => x.at - y.at)
+                    .map(({ at, p, a }) =>
+                      p ? (
+                        <li key={p.id}>
+                          <span>{when(at)}</span>
+                          <strong>{p.title}</strong>
+                          <span className="muted small">
+                            {p.article ? 'Ny artikel' : KIND_NAMES[p.kind]} ·{' '}
+                            {p.approval === 'pending' ? 'venter på godkendelse' : !p.images.length ? 'laver billeder' : 'klar'} ·{' '}
+                            {targetsOf(p)
+                              .map((t) => `${PLATFORM_NAMES[t.platform]}${t.surface === 'story' ? ' story' : ''}`)
+                              .join(', ') || 'ingen platforme slået til'}
+                          </span>
+                          <Link href={`/admin/sociale?dato=${p.date}`}>Vis</Link>
+                          {p.kind === 'own' && <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />}
+                        </li>
+                      ) : (
+                        <li key={`a-${a!.id}`}>
+                          <span>{when(at)}</span>
+                          <strong>{a!.title}</strong>
+                          <span className="muted small">Artikel · deles automatisk, når den går live</span>
+                          <Link href={`/admin/artikler/${a!.id}`}>Artiklen</Link>
+                        </li>
+                      ),
+                    )}
+                </ul>
+              )}
+            </section>
+          )
+        })()}
+
         <section className="panel">
           <h2 className="panel__title">Nyt opslag</h2>
           <p className="muted small pad">
@@ -217,29 +273,6 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             leagues={shownDivisions().map((d) => ({ id: d.id, name: d.name }))}
             platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: storyOk(p, secrets) }))}
           />
-          {(() => {
-            const upcoming = data.posts.filter((p) => p.kind === 'own' && p.status === 'waiting').sort((a, b) => a.scheduledAt - b.scheduledAt)
-            return (
-              upcoming.length > 0 && (
-                <>
-                  <h3 className="dash-sub pad">Planlagte egne opslag ({upcoming.length})</h3>
-                  <ul className="own-upcoming">
-                    {upcoming.map((p) => (
-                      <li key={p.id}>
-                        <span>
-                          {formatLong(p.date)} kl. {clock(p.scheduledAt)}
-                        </span>
-                        <strong>{p.title}</strong>
-                        <span className="muted small">{(p.own?.platforms ?? []).map((x) => PLATFORM_NAMES[x]).join(', ')}</span>
-                        <Link href={`/admin/sociale?dato=${p.date}`}>Vis</Link>
-                        <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )
-            )
-          })()}
         </section>
 
         <p className="filter-bar">
