@@ -58,6 +58,7 @@ export function Footer() {
             <Link href={paths.clubs()}>Klubber</Link>
             <Link href={paths.articles()}>Artikler</Link>
             <Link href="/widget">Tabel til din side</Link>
+            <Link href={paths.advertising()}>Annoncering</Link>
             <Link href={paths.about()}>Om {SITE_NAME}</Link>
             <Link href={paths.privacy()}>Privatliv</Link>
             {hasTracking && <ConsentSettingsLink />}

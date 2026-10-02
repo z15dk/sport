@@ -60,6 +60,9 @@ function db(): Db | undefined {
       CREATE INDEX IF NOT EXISTS tickets_match ON tickets (match);
       CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER, club TEXT, name TEXT, email TEXT, phone TEXT, message TEXT);
     `)
+    // What the lead is about: the ticket system (the default, older rows) or advertising on Matchly (/annoncering)
+    const cols = d.prepare('PRAGMA table_info(leads)').all().map((c) => String(c.name))
+    if (!cols.includes('kind')) d.exec("ALTER TABLE leads ADD COLUMN kind TEXT NOT NULL DEFAULT 'billet'")
     state.db = d
     return d
   } catch {
@@ -251,25 +254,27 @@ export function matchSales(match: string) {
   return { types, orders: Number(o?.n ?? 0), revenue: Number(o?.total ?? 0), fee: Number(o?.fee ?? 0), sold, used, latest }
 }
 
-/** A club that wants to hear more (the form on /billetsystem) */
-export function saveLead(input: { club: string; name: string; email: string; phone: string; message: string }): { ok: true } | { error: string } {
+export type LeadKind = 'billet' | 'annoncering'
+
+/** A club that wants to hear more (the form on /billetsystem), or an advertiser (the form on /annoncering) */
+export function saveLead(input: { club: string; name: string; email: string; phone: string; message: string }, kind: LeadKind = 'billet'): { ok: true } | { error: string } {
   const d = db()
   if (!d) return { error: 'Det gik ikke – prøv igen senere' }
   const clip = (s: string, n: number) => s.trim().slice(0, n)
   const club = clip(input.club, 120)
   const email = clip(input.email, 160)
-  if (!club || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Skriv klubbens navn og en mailadresse' }
+  if (!club || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: kind === 'annoncering' ? 'Skriv virksomhedens navn og en mailadresse' : 'Skriv klubbens navn og en mailadresse' }
   const recent = Number(d.prepare('SELECT COUNT(*) AS n FROM leads WHERE created > ?').get(Date.now() - 3_600_000)?.n ?? 0)
   if (recent > 30) return { error: 'For mange henvendelser lige nu – prøv igen om lidt' }
-  d.prepare('INSERT INTO leads (created, club, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)').run(Date.now(), club, clip(input.name, 120), email, clip(input.phone, 40), clip(input.message, 2000))
+  d.prepare('INSERT INTO leads (created, club, name, email, phone, message, kind) VALUES (?, ?, ?, ?, ?, ?, ?)').run(Date.now(), club, clip(input.name, 120), email, clip(input.phone, 40), clip(input.message, 2000), kind)
   return { ok: true }
 }
 
-export function leads() {
+export function leads(kind: LeadKind = 'billet') {
   const d = db()
   if (!d) return []
   return d
-    .prepare('SELECT * FROM leads ORDER BY created DESC LIMIT 200')
-    .all()
+    .prepare('SELECT * FROM leads WHERE kind = ? ORDER BY created DESC LIMIT 200')
+    .all(kind)
     .map((r) => ({ id: Number(r.id), created: Number(r.created), club: String(r.club), name: String(r.name ?? ''), email: String(r.email), phone: String(r.phone ?? ''), message: String(r.message ?? '') }))
 }
