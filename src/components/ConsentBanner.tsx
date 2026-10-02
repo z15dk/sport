@@ -180,7 +180,6 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
         <span className="consent__m" aria-hidden>
           M
         </span>
-        <span className="consent__kicker">Cookies på Matchly</span>
         <h2 id="consent-title">
           Må vi bruge <em>cookies?</em>
         </h2>
