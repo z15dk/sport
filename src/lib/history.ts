@@ -181,7 +181,7 @@ function dbRows(file: string | undefined): DbMatch[] {
 
 /**
  * The history built from both databases, step by step: it pauses (yield)
- * every couple of thousand matches, so a rebuild can run in small slices while
+ * every couple of hundred matches, so a rebuild can run in small slices while
  * pages keep using the history already built (runSliced). The very first build
  * runs the same way, after the archive has been read in a worker thread.
  */
@@ -191,9 +191,10 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
 
   // Our own statistics bank: every other league, and anything football.db no longer has
   const seen = new Set<string>()
+  // Small steps: a name seen for the first time after a restart is matched loosely against every club (milliseconds each)
   for (const m of fromDb) {
     seen.add(matchKey(m.date.toISOString(), m.homeName, m.awayName))
-    if (++n % 2000 === 0) yield
+    if (++n % 200 === 0) yield
   }
   // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
   const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
@@ -201,7 +202,7 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   const made = (historyHolder.__scorelineHistoryRows ??= new WeakMap())
   const fromArchive: DbMatch[] = []
   for (const a of readArchive()) {
-    if (++n % 2000 === 0) yield
+    if (++n % 200 === 0) yield
     if (seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName))) continue
     const have = made.get(a)
     if (have) {
@@ -245,7 +246,7 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   const clubOf = new Map<number, Club>()
   const unmatched: string[] = []
   for (const [id, { name, sport }] of names) {
-    if (++n % 500 === 0) yield
+    if (++n % 50 === 0) yield
     const club = find(name, sport)
     if (club) clubOf.set(id, club)
     else unmatched.push(name)
