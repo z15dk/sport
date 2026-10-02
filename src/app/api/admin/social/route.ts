@@ -15,7 +15,7 @@ import {
   type SocialConfig,
 } from '../../../../lib/socialStore'
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
-import { approve, createOwnPost, deleteOwnPost, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
+import { approve, createOwnPost, deleteOwnPost, ownTemplate, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
 
@@ -37,6 +37,8 @@ function merged(input: Partial<SocialConfig>, c: SocialConfig): SocialConfig {
   const out = structuredClone(c)
   if (typeof input.enabled === 'boolean') out.enabled = input.enabled
   if (typeof input.dryRun === 'boolean') out.dryRun = input.dryRun
+  // Sharing articles switched on: only articles that go live from now on are shared
+  if (typeof input.articles?.enabled === 'boolean') out.articles = { enabled: input.articles.enabled, since: input.articles.enabled ? (c.articles.enabled ? c.articles.since : Date.now()) : undefined }
   if (input.approval) {
     if (typeof input.approval.always === 'boolean') out.approval.always = input.approval.always
     if ('until' in input.approval) out.approval.until = isValidIsoDate(input.approval.until) ? input.approval.until : undefined
@@ -106,6 +108,15 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       })
       return { message: 'Gemt' }
     }
+    case 'make': {
+      // The scenario's webhook: https://hook.<region>.make.com/<key>
+      const url = str(b.url, 300)
+      if (url && !/^https:\/\/hook\.[a-z0-9]+\.make\.com\/[A-Za-z0-9_-]+$/.test(url)) throw new Error('Det ligner ikke en Make-webhook (https://hook.eu1.make.com/…)')
+      saveSecrets((s) => {
+        s.make = url ? { url } : {}
+      })
+      return { message: url ? 'Make-webhooken er gemt' : 'Make-forbindelsen er fjernet' }
+    }
     case 'threads': {
       const r = await connectThreads(str(b.token, 1000))
       return { message: `Forbundet til @${r.username}` }
@@ -117,7 +128,10 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
     case 'disconnect': {
       if (!isPlatform(b.platform)) throw new Error('Ukendt platform')
       saveSecrets((s) => {
-        if (b.platform === 'facebook' || b.platform === 'instagram') s.meta = {}
+        if (b.platform === 'facebook') {
+          s.meta = {}
+          s.make = {}
+        } else if (b.platform === 'instagram') s.meta = {}
         else if (b.platform === 'threads') s.threads = {}
         else s.x = {}
       })
@@ -153,7 +167,7 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
     }
     case 'publish': {
       const id = str(b.id, 80)
-      await publishOne(id)
+      await publishOne(id, b.again === true)
       const p = findPost(id)
       return { message: p ? STATUS_NAMES[p.status] : 'Postet' }
     }
@@ -192,8 +206,17 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(when)
       const at = m ? danishTime(m[1], m[2]).getTime() : NaN
       if (!b.now && !m) throw new Error('Vælg dato og klokkeslæt')
-      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, platforms, story: b.story === true, at, now: b.now === true })
+      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
+    }
+    case 'ownTemplate': {
+      // A template's cards and text as the start of an own post
+      const kind = KINDS.find((k) => k === b.kind)
+      if (!kind || kind === 'story') throw new Error('Vælg en skabelon')
+      const date = str(b.date, 10)
+      if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
+      const r = await ownTemplate({ kind, topic: isTopic(b.topic) ? b.topic : undefined, league: str(b.league, 100), date })
+      return { message: `${r.title}: ${r.images.length} billeder`, data: r }
     }
     case 'ownDelete':
       deleteOwnPost(str(b.id, 80))

@@ -1,17 +1,16 @@
 import 'server-only'
 import { createHmac, randomBytes } from 'node:crypto'
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
-import { captionFor, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
-import { renderPost } from './socialRender'
-import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken } from './socialPlatforms'
+import { captionFor, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
+import { renderPost, renderSpec } from './socialRender'
+import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
 import {
   KIND_NAMES,
   PLATFORM_NAMES,
-  STORY_PLATFORMS,
   findPost,
   imageDir,
   logLine,
@@ -26,7 +25,9 @@ import {
   type Surface,
 } from './socialStore'
 import { addDays, danishTime, formatLong, formatTime, isoDate } from './time'
-import { SITE_URL } from './site'
+import { SITE_URL, paths } from './site'
+import { publishedArticles } from './articles'
+import { readUpload } from './uploads'
 
 // The social media engine, run every minute from src/instrumentation.ts:
 //
@@ -300,20 +301,25 @@ export function targetsOf(p: SocialPost): { platform: Platform; surface: Surface
   if (p.kind === 'own') {
     const own = (p.own?.platforms ?? []).filter((x) => cfg.dryRun || connected(x, s))
     const surfaces: Surface[] = p.own?.story ? ['feed', 'story'] : ['feed']
-    return surfaces.flatMap((surface) => own.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
+    return surfaces.flatMap((surface) => own.filter((x) => surface === 'feed' || storyOk(x, s)).map((platform) => ({ platform, surface })))
   }
   const chosen = cfg.kinds[p.kind].platforms.filter((x) => cfg.platforms[x] && (cfg.dryRun || connected(x, s)))
   const surfaces: Surface[] = p.kind === 'programme' ? ['feed', 'story'] : p.kind === 'story' ? ['story'] : ['feed']
-  return surfaces.flatMap((surface) => chosen.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
+  return surfaces.flatMap((surface) => chosen.filter((x) => surface === 'feed' || storyOk(x, s)).map((platform) => ({ platform, surface })))
 }
 
 const busy = new Set<string>()
 
 /** Posts it on every platform it goes to (only where it isn't out already) */
-export async function publishOne(id: string) {
+export async function publishOne(id: string, again = false) {
   if (busy.has(id)) return
   busy.add(id)
   try {
+    // Sent again (an own post after a fix in Make): every platform once more
+    if (again)
+      patch(id, (p) => {
+        p.results = {}
+      })
     const post = findPost(id)
     if (!post || !post.images.length) throw new Error('Opslaget har ingen billeder endnu')
     const cfg = socialConfig()
@@ -425,6 +431,7 @@ export async function socialTick(now = Date.now()) {
   // With the engine off, only the admin's own scheduled posts go out (nothing is planned or made by itself)
   if (!cfg.enabled) {
     try {
+      await shareNewArticles(now)
       await publishDue(now, true)
     } catch (e) {
       logLine(`Egne opslag fejlede: ${e instanceof Error ? e.message : e}`, 'error')
@@ -438,6 +445,7 @@ export async function socialTick(now = Date.now()) {
     if (now >= danishTime(today, cfg.times.draft).getTime()) planDay(today, now)
     checkResults(addDays(today, -1), now)
     checkResults(today, now)
+    await shareNewArticles(now)
     await renderPending(now)
     await mailPending()
     await publishDue(Date.now())
@@ -469,7 +477,7 @@ export const OWN_MAX_IMAGES = 10
  * platform), the platforms and the time. It is approved by being written, so it goes out at its time
  * (or at once with `now`), also while the engine is switched off.
  */
-export async function createOwnPost(input: { text: string; link?: string; images: string[]; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
+export async function createOwnPost(input: { text: string; link?: string; images: string[]; storyImage?: string; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
   const text = input.text.trim()
   if (!text) throw new Error('Skriv en tekst')
   if (!input.images.length) throw new Error('Vælg mindst ét billede (Facebook og Instagram poster billeder)')
@@ -483,6 +491,12 @@ export async function createOwnPost(input: { text: string; link?: string; images
   mkdirSync(imageDir(), { recursive: true })
   const images: SocialPost['images'] = []
   for (const [i, url] of input.images.slice(0, OWN_MAX_IMAGES).entries()) {
+    // A template's card, already made on the server
+    const made = templateFile(url)
+    if (made) {
+      images.push({ file: made, surface: 'feed' })
+      continue
+    }
     const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(url)
     if (!m) throw new Error(`Billede ${i + 1} kan ikke læses`)
     // Upright, at most 2048 px, as JPEG (Instagram takes nothing else)
@@ -491,7 +505,8 @@ export async function createOwnPost(input: { text: string; link?: string; images
     writeFileSync(path.join(imageDir(), file), jpeg)
     images.push({ file, surface: 'feed' })
   }
-  if (input.story) images.push({ file: images[0].file, surface: 'story' })
+  // The story: the template's own story card when it has one, else the first picture
+  if (input.story) images.push({ file: templateFile(input.storyImage ?? '') ?? images[0].file, surface: 'story' })
   const post: SocialPost = {
     id,
     date: isoDate(at),
@@ -534,5 +549,126 @@ export function deleteOwnPost(id: string) {
     } catch {
       // already gone (the story uses the first picture too)
     }
+  }
+}
+
+/** "file:<name>" for a template's card made by ownTemplate (only those names, and only when the file is there) */
+function templateFile(ref: string): string | undefined {
+  const m = /^file:(tpl-[a-z0-9-]+\.jpg)$/i.exec(ref)
+  return m && existsSync(path.join(imageDir(), m[1])) ? m[1] : undefined
+}
+
+/**
+ * One of the engine's templates as the start of an own post: its cards made into pictures now,
+ * with its text and link. The admin edits the text and adds pictures before planning it.
+ */
+export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; date: string; now?: number }) {
+  const now = input.now ?? Date.now()
+  const spec: PostSpec = {
+    kind: input.kind,
+    topic: input.kind === 'topic' ? input.topic : undefined,
+    date: input.date,
+    league: input.league || undefined,
+    // The day's matches as planned, else as the engine would pick them now
+    matchIds: readPosts().days[input.date]?.matchIds ?? pickMatches(input.date, now).map((p) => p.fixture.id),
+  }
+  const content = contentFor(spec, now)
+  if (!content) throw new Error('Skabelonen har ingen data den dag (prøv en anden liga eller dato)')
+  dropUnusedTemplates()
+  const images = await renderSpec(`tpl-${Date.now().toString(36)}${randomBytes(2).toString('hex')}`, spec)
+  return { images, caption: captionFor(content), captions: captionVariants(content), link: linkFor(content), title: titleFor(spec) }
+}
+
+/** Template pictures made but never used in a post, after two days */
+function dropUnusedTemplates() {
+  const used = new Set(readPosts().posts.flatMap((p) => p.images.map((i) => i.file)))
+  try {
+    for (const f of readdirSync(imageDir())) {
+      if (!f.startsWith('tpl-') || used.has(f)) continue
+      const full = path.join(imageDir(), f)
+      if (Date.now() - statSync(full).mtimeMs > 2 * 86_400_000) unlinkSync(full)
+    }
+  } catch {
+    // no pictures yet
+  }
+}
+
+// ---------------------------------------------------------------- new articles
+
+/** Ten openings for a shared article (by the article's id, so each article keeps its own) */
+const ARTICLE_INTROS = [
+  'Ny artikel på Matchly 📰',
+  'Frisk fra redaktionen ✍️',
+  'Læs med 👇',
+  'Den her skal du ikke gå glip af 👀',
+  'Nyt på matchly.dk ⚽',
+  'Klar til lidt læsning? 📖',
+  'Vi har dykket ned i det 🤓',
+  'Netop udgivet 🔥',
+  'Til dig, der vil vide mere ⚽',
+  'Kaffepause? Her er noget at læse ☕',
+]
+
+/**
+ * A new article out on the platforms by itself: when an article goes live (also a scheduled one at its
+ * time), an own post is made with its picture, title, intro and link and goes out like the admin's own
+ * posts (also while the engine is off). Only articles that went live after sharing was switched on, and
+ * within the last day; each article once.
+ */
+async function shareNewArticles(now: number) {
+  const cfg = socialConfig()
+  if (!cfg.articles.enabled) return
+  const s = socialSecrets()
+  const platforms = (['facebook', 'instagram', 'threads', 'x'] as Platform[]).filter((p) => cfg.platforms[p] && (cfg.dryRun || connected(p, s)))
+  if (!platforms.length) return
+  const shared = new Set(readPosts().posts.map((p) => p.article).filter((x): x is number => x !== undefined))
+  for (const a of publishedArticles({ limit: 10 }).articles) {
+    const at = Date.parse(a.publishedAt ?? '')
+    if (!Number.isFinite(at) || shared.has(a.id) || at < (cfg.articles.since ?? now) || now - at > 24 * HOUR) continue
+    // The article's own picture, as a JPEG for every platform
+    const upload = /^\/uploads\/([a-f0-9]{24}\.webp)$/.exec(a.featuredImage ?? '')
+    const src = upload ? readUpload(upload[1]) : undefined
+    if (!src) {
+      logLine(`Artiklen "${a.title}" blev ikke delt: den har intet billede`, 'error')
+      updatePosts((d) => {
+        d.posts.push(articlePost(a, [], now, 'empty', 'Intet billede at dele'))
+      })
+      continue
+    }
+    mkdirSync(imageDir(), { recursive: true })
+    const file = `art-${a.id}-${Date.now().toString(36)}.jpg`
+    const jpeg = await sharp(src).resize({ width: 1600, height: 2000, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#0f110c' }).jpeg({ quality: 88 }).toBuffer()
+    writeFileSync(path.join(imageDir(), file), jpeg)
+    const post = articlePost(a, [{ file, surface: 'feed' }], now, 'waiting')
+    post.own = { platforms, story: false }
+    updatePosts((d) => {
+      d.posts.push(post)
+    })
+    logLine(`Ny artikel "${a.title}" sendes til ${platforms.map((p) => PLATFORM_NAMES[p]).join(', ')}`)
+  }
+}
+
+function articlePost(a: { id: number; title: string; excerpt: string; slug: string }, images: SocialPost['images'], now: number, status: SocialPost['status'], note?: string): SocialPost {
+  const intro = ARTICLE_INTROS[a.id % ARTICLE_INTROS.length]
+  return {
+    id: `art-${a.id}`,
+    date: isoDate(now),
+    kind: 'own',
+    article: a.id,
+    matchIds: [],
+    title: a.title,
+    caption: [intro, '', a.title, ...(a.excerpt ? ['', a.excerpt] : [])].join('\n'),
+    captionEdited: true,
+    link: `${SITE_URL}${paths.article(a.slug)}`,
+    images,
+    scheduledAt: now,
+    expiresAt: now + 24 * HOUR,
+    status,
+    note,
+    // The admin wrote and published the article: sharing it needs no approval of its own
+    approval: 'approved',
+    approvedAt: now,
+    results: {},
+    createdAt: now,
   }
 }

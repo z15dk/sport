@@ -49,11 +49,12 @@ export function ActionButton({ body, label, busyLabel, confirm: ask, pill }: { b
 /** The settings a switch changes: the engine, dry run or one platform ("platform:facebook") */
 function switchConfig(setting: string, on: boolean): Record<string, unknown> {
   if (setting.startsWith('platform:')) return { platforms: { [setting.slice(9)]: on } }
+  if (setting === 'articles') return { articles: { enabled: on } }
   return { [setting]: on }
 }
 
 /** A switch for one yes/no setting */
-export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | `platform:${string}`; value: boolean; label: string }) {
+export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | 'articles' | `platform:${string}`; value: boolean; label: string }) {
   const { busy, msg, run } = useAction()
   return (
     <span className="social-switch">
@@ -652,8 +653,24 @@ function nextHour() {
  * Write a post by hand: text, an optional link, 1–10 pictures, the platforms and a time – or
  * out at once. It goes in the same queue as the engine's posts and is posted at its time.
  */
-export function OwnPostForm({ platforms }: { platforms: { id: string; name: string; connected: boolean; story: boolean }[] }) {
+export function OwnPostForm({
+  platforms,
+  templates,
+  leagues,
+}: {
+  platforms: { id: string; name: string; connected: boolean; story: boolean }[]
+  /** The engine's templates: "programme", "results" or "topic:<id>" */
+  templates: { value: string; label: string }[]
+  leagues: { id: string; name: string }[]
+}) {
   const { busy, msg, run } = useAction()
+  const tplAction = useAction()
+  const [tpl, setTpl] = useState('')
+  const [league, setLeague] = useState('')
+  const [storyImage, setStoryImage] = useState<string>()
+  // The template's ten texts, to step through with "Ny tekst"
+  const [captions, setCaptions] = useState<string[]>([])
+  const [captionNo, setCaptionNo] = useState(0)
   const [text, setText] = useState('')
   const [link, setLink] = useState('')
   const [images, setImages] = useState<string[]>([])
@@ -673,22 +690,91 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
   }
   const submit = async (now: boolean) => {
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
-    const r = await run({ action: 'own', text, link, images, platforms: chosen, story, at, now })
+    const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now })
     if (!r.error) {
       setText('')
       setLink('')
       setImages([])
       setStory(false)
+      setStoryImage(undefined)
       setAt(nextHour())
     }
   }
+  // A template's cards (made on the server for the chosen day) and its text as the start of the post
+  const applyTemplate = async () => {
+    if (!tpl) return
+    const [kind, topic] = tpl.split(':')
+    const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league, date: at.slice(0, 10) })
+    const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
+    if (r.error || !d) return
+    const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
+    const st = d.images.find((i) => i.surface === 'story')
+    setImages((x) => [...feed, ...x.filter((y) => !y.startsWith('file:'))].slice(0, 10))
+    setStoryImage(st ? `file:${st.file}` : undefined)
+    if (st) setStory(true)
+    setCaptions(d.captions ?? [d.caption])
+    setCaptionNo(Math.max(0, (d.captions ?? []).indexOf(d.caption)))
+    if (!text.trim() || window.confirm('Erstat teksten med skabelonens tekst?')) setText(d.caption)
+    if (!link.trim()) setLink(d.link)
+  }
+  const thumb = (ref: string) => (ref.startsWith('file:') ? `/sociale-billeder/${ref.slice(5)}` : ref)
+  // The picture shown large (index in the list, or -1 for the story card)
+  const [big, setBig] = useState<number>()
+  const shown = big === undefined ? undefined : big === -1 ? storyImage : images[big]
   const canStory = chosen.some((id) => platforms.find((p) => p.id === id)?.story)
   return (
     <div className="own-post">
+      <div className="own-post__tpl">
+        <label>
+          <span>Skabelon (valgfri)</span>
+          <select value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <option value="">Ingen – mine egne billeder</option>
+            {templates.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Liga</span>
+          <select value={league} onChange={(e) => setLeague(e.target.value)} disabled={!tpl}>
+            <option value="">Dagens udvalgte</option>
+            {leagues.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
+          {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
+        </button>
+        <Msg msg={tplAction.msg} />
+        <small className="muted own-post__tpl-note">Billederne laves til dagen under &quot;Udgiv&quot;. Du kan rette teksten og tilføje egne billeder bagefter.</small>
+      </div>
       <label className="own-post__text">
         <span>Tekst</span>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Skriv opslaget …" maxLength={5000} />
-        <small className="muted">{text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}</small>
+        <small className="muted">
+          {text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}
+          {captions.length > 1 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => {
+                  const n = (captionNo + 1) % captions.length
+                  setCaptionNo(n)
+                  setText(captions[n])
+                }}
+              >
+                Ny tekst ↻ ({captionNo + 1}/{captions.length})
+              </button>
+            </>
+          )}
+        </small>
       </label>
       <label>
         <span>Link (valgfrit)</span>
@@ -699,9 +785,14 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
         <div className="own-post__thumbs">
           {images.map((src, i) => (
             <figure key={i}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
-              <img src={src} alt="" />
-              <button type="button" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
+              <button type="button" className="own-post__open" onClick={() => setBig(i)} aria-label={`Vis billede ${i + 1} stort`}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
+                <img src={thumb(src)} alt="" />
+              </button>
+              <figcaption>
+                {i + 1}/{images.length}
+              </figcaption>
+              <button type="button" className="own-post__remove" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
                 ×
               </button>
             </figure>
@@ -713,7 +804,49 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
             </label>
           )}
         </div>
-        {images.length > 1 && <small className="muted">Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+        {/* A template's story card when stories can't be posted from here: to download and post by hand */}
+        {!canStory && storyImage && (
+          <p className="small">
+            <a className="pill" href={thumb(storyImage)} download="matchly-story.jpg">
+              ⬇ Hent story-billedet
+            </a>{' '}
+            <span className="muted">Stories lægges op i Meta Business Suite (de kan ikke sendes gennem Make).</span>
+          </p>
+        )}
+        {story && storyImage && (
+          <div className="own-post__thumbs">
+            <figure className="is-story">
+              <button type="button" className="own-post__open" onClick={() => setBig(-1)} aria-label="Vis story-billedet stort">
+                {/* eslint-disable-next-line @next/next/no-img-element -- the template's story card */}
+                <img src={thumb(storyImage)} alt="" />
+              </button>
+              <figcaption>Story</figcaption>
+            </figure>
+          </div>
+        )}
+        {images.length > 0 && <small className="muted">Klik på et billede for at se det i fuld størrelse. Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+        {shown && (
+          <div className="own-post__big" role="dialog" aria-label="Billedet i fuld størrelse" onClick={() => setBig(undefined)}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the picture in full size */}
+            <img src={thumb(shown)} alt="" onClick={(e) => e.stopPropagation()} />
+            <div className="own-post__big-bar" onClick={(e) => e.stopPropagation()}>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) - 1 + images.length) % images.length)}>
+                  ← Forrige
+                </button>
+              )}
+              <span>{big === -1 ? 'Story' : `${(big ?? 0) + 1} af ${images.length}`}</span>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) + 1) % images.length)}>
+                  Næste →
+                </button>
+              )}
+              <button type="button" className="pill is-active" onClick={() => setBig(undefined)}>
+                Luk
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <fieldset className="own-post__platforms">
         <legend>Platforme</legend>
@@ -743,5 +876,16 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
         <Msg msg={msg} />
       </div>
     </div>
+  )
+}
+
+/** Facebook through Make.com: the scenario's webhook address (kept on the server, shown masked) */
+export function MakeConnect({ saved }: { saved?: string }) {
+  return (
+    <ActionForm submit="Gem webhooken" build={(f) => ({ action: 'make', url: val(f, 'url') })}>
+      <Field label="Make-webhook" hint={saved ? `Gemt: ${saved}. Skriv en ny for at skifte den.` : 'Fx https://hook.eu1.make.com/abc123…'}>
+        <input name="url" type="url" autoComplete="off" placeholder="https://hook.eu1.make.com/…" />
+      </Field>
+    </ActionForm>
   )
 }

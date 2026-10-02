@@ -127,51 +127,250 @@ export function titleFor(spec: PostSpec): string {
 }
 
 /** The post's text (the platform's ending and hashtags are added when it is posted) */
-export function captionFor(c: Content): string {
+// ---------------------------------------------------------------- the texts
+
+/** Ten ways to end a post before the matches: the call to follow along (programme, stories) */
+const LIVE_OUTROS = [
+  'Følg alle kampene live på matchly.dk 📲',
+  'Live score og stillinger på matchly.dk ⚡',
+  'Hvem vinder i dag? Skriv dit bud i kommentarerne 👇',
+  'Hvilken kamp skal du se? Fortæl os det 👇',
+  'Vi opdaterer live hele dagen på matchly.dk 🔄',
+  'Del med en, der skal med på stadion 🏟️',
+  'Alle mål og tabeller – live på matchly.dk',
+  'Tag din fodboldven, der aldrig går glip af en kamp 🙌',
+  'Hold øje med stillingen live på matchly.dk 📊',
+  'God kampdag! ⚽',
+]
+/** …and after the matches: results, tables and numbers */
+const AFTER_OUTROS = [
+  'Alle resultater og tabeller på matchly.dk 📊',
+  'Hvem imponerede mest? Skriv det i kommentarerne 👇',
+  'Se hele stillingen på matchly.dk',
+  'Enig eller uenig? 👇',
+  'Tag en ven, der skal se det her 🙌',
+  'Mere statistik på matchly.dk 📈',
+  'Hvad siger du til det? 👀',
+  'Følg med på matchly.dk – vi har alle tallene',
+  'Del gerne med en anden fodboldnørd ⚽',
+  'Vi ses til næste runde! 🔥',
+]
+
+const pickOf = <T,>(list: T[], i: number) => list[((i % list.length) + list.length) % list.length]
+/** The day's own variant: another one every day, the same all day for the same post */
+function seedOf(c: Content) {
+  const key = `${c.date}-${c.kind}-${c.kind === 'topic' ? c.topic : ''}`
+  let h = 0
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return h % 10
+}
+
+/** A post's text in ten versions: each with its own opening line and ending, the facts the same */
+export function captionVariants(c: Content): string[] {
+  const day = 'date' in c ? cap(formatLong(c.date)) : ''
+  const dayLower = day.toLowerCase()
+  const women = 'women' in c && c.women ? 'Kvindefodbold ⚽ ' : ''
+  const out = (intros: string[], body: string[], outros: string[]) =>
+    intros.map((intro, i) => [women + intro, '', ...body, '', pickOf(outros, i * 3 + 1)].join('\n'))
   switch (c.kind) {
-    case 'programme':
-      return [`${cap(formatLong(c.date))}: ${c.women ? 'dagens kampe i kvindefodbold' : 'dagens udvalgte kampe'}`, '', ...c.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)].join('\n')
-    case 'story':
-      return c.picks.map((p) => `${vs(p)} kl. ${formatTime(p.fixture.kickoff)}`).join('\n')
-    case 'results':
-      return [`${c.women ? 'Kvindefodbold: resultater' : 'Resultater'} ${formatLong(c.date)}`, '', ...c.overview.map((p) => `${p.fixture.home.name} ${score(p)} ${p.fixture.away.name}`)].join('\n')
+    case 'programme': {
+      const n = c.picks.length
+      const body = c.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)
+      return out(
+        [
+          `${day} er fyldt med fodbold ⚽ Her er kampene, du ikke vil misse:`,
+          `Kaffen er klar, programmet er klar ☕⚽ ${day}:`,
+          `Hvad skal du se i dag? Vi har samlet ${n} kampe til dig 👇`,
+          `Kampdag! 🔥 Det her sker ${dayLower}:`,
+          `Sæt kryds i kalenderen – ${n} kampe venter ${dayLower} 🗓️`,
+          'Fløjten lyder snart 📣 Dagens program:',
+          'Ingen kedelig dag her! Se dagens kampe ⚽',
+          'Klar til en dag med mål, drama og lokalopgør? 👀',
+          'Dagens menu er serveret 🍽️⚽',
+          'Fra første fløjt til sidste dommerkast – det er dagens kampe:',
+        ],
+        body,
+        LIVE_OUTROS,
+      )
+    }
+    case 'story': {
+      const body = c.picks.map((p) => `${vs(p)} kl. ${formatTime(p.fixture.kickoff)}`)
+      return Array.from({ length: 10 }, () => body.join('\n'))
+    }
+    case 'results': {
+      const body = c.overview.map((p) => `${p.fixture.home.name} ${score(p)} ${p.fixture.away.name}`)
+      return out(
+        [
+          'Slutfløjt! 🏁 Her er dagens resultater:',
+          `Sådan endte det ${dayLower} ⚽`,
+          'Point blev vundet, point blev tabt – resultaterne er her 👇',
+          'Mål, drama og et par overraskelser 😮 Dagens resultater:',
+          'Dagen er spillet færdig. Her er tallene 📋',
+          'Hvem jubler, og hvem bander? Se resultaterne 👇',
+          'Resultaterne er i hus ✅',
+          `${day}: sådan gik det på banerne`,
+          'Så er der talt op! ⚽ Alle resultater:',
+          'Tabellen har rykket sig – her er dagens resultater 📊',
+        ],
+        body,
+        AFTER_OUTROS,
+      )
+    }
     case 'topic':
       switch (c.topic) {
         case 'week': {
           const { mostGoals: g, upset: u, streak: st, crowd: cr } = c.week
-          return [
-            'Ugen i tal.',
-            g && `${g.home.name} og ${g.away.name} delte ${g.score[0] + g.score[1]} mål.`,
-            u && `I ${u.fixture.division!.name} slog nr. ${u.winnerPos} nr. ${u.loserPos}.`,
-            st && `${st.club.name} er nu ${st.length} kampe uden nederlag.`,
-            cr && `${cr.fixture.spectators!.toLocaleString('da-DK')} tilskuere så ${cr.fixture.home.name} – ${cr.fixture.away.name}.`,
-          ]
-            .filter(Boolean)
-            .join(' ')
+          const body = [
+            g && `⚽ ${g.home.name} og ${g.away.name} delte ${g.score[0] + g.score[1]} mål.`,
+            u && `😮 I ${u.fixture.division!.name} slog nr. ${u.winnerPos} nr. ${u.loserPos}.`,
+            st && `🔥 ${st.club.name} er nu ${st.length} kampe uden nederlag.`,
+            cr && `🏟️ ${cr.fixture.spectators!.toLocaleString('da-DK')} tilskuere så ${cr.fixture.home.name} – ${cr.fixture.away.name}.`,
+          ].filter((x): x is string => !!x)
+          return out(
+            [
+              'Ugen i tal 📊',
+              'Ugens vildeste tal – har du styr på dem? 🤓',
+              'Syv dage, masser af fodbold. Det her stak ud:',
+              'Ugen der gik, kogt ned til fire tal 👇',
+              'Nørd-hjørnet er åbent 🤓 Ugens tal:',
+              'Det skete i ugens løb ⚽',
+              'Tal, der fortæller historien om ugen 📈',
+              'Ugens højdepunkter – målt og vejet:',
+              'Fik du det hele med? Her er ugens tal 👀',
+              'Ugens fodbold i tal og fakta:',
+            ],
+            body,
+            AFTER_OUTROS,
+          )
         }
-        case 'scorers':
-          return [`Topscorerne i ${c.division.name}`, '', ...c.rows.slice(0, 5).map((r, i) => `${i + 1}. ${r.player} (${r.club.name}) ${r.goals} mål`)].join('\n')
-        case 'form':
-          return [
-            `Formtabellen i ${c.division.name}: point i de seneste 5 kampe`,
-            '',
-            ...c.rows.slice(0, 5).map((r, i) => `${i + 1}. ${r.club.name} ${r.points} p. (${r.form.join('')})`),
-          ].join('\n')
-        case 'table':
-          return [`Stillingen i ${c.division.name}`, '', ...c.rows.slice(0, 6).map((r, i) => `${i + 1}. ${r.club.name} ${r.points} p.`)].join('\n')
+        case 'scorers': {
+          const top = c.rows[0]
+          const body = c.rows.slice(0, 5).map((r, i) => `${i + 1}. ${r.player} (${r.club.name}) ${r.goals} mål`)
+          const l = c.division.name
+          return out(
+            [
+              `Målmaskinerne i ${l} 🎯`,
+              `Hvem har kanonen ladt? Topscorerlisten i ${l} ⚽`,
+              `${top.player} topper listen med ${top.goals} mål – men hvem følger efter? 👀`,
+              `Næsen for mål 👃⚽ Topscorerne i ${l}:`,
+              `Kampen om topscorertitlen i ${l} er i gang 🔥`,
+              `De her ved, hvor målet står 🥅`,
+              `Topscorerne i ${l} lige nu:`,
+              `Skarpe skytter i ${l} 🎯 Her er listen:`,
+              `Hvem ender som topscorer i ${l}? Status lige nu 👇`,
+              `Netmasken har haft travlt 🥅 Topscorerne i ${l}:`,
+            ],
+            body,
+            AFTER_OUTROS,
+          )
+        }
+        case 'form': {
+          const body = c.rows.slice(0, 5).map((r, i) => `${i + 1}. ${r.club.name} ${r.points} p. (${r.form.join('')})`)
+          const l = c.division.name
+          return out(
+            [
+              `Hvem er i form i ${l}? 🔥 Point i de seneste 5 kampe:`,
+              `Formtabellen i ${l} 📈`,
+              `Glem stillingen et øjeblik – det her er formen lige nu 👀`,
+              `De varmeste hold i ${l} 🔥`,
+              `Hvem har momentum? Formtabellen i ${l}:`,
+              `Seneste 5 kampe, ${l} – sådan ser det ud:`,
+              `Formkurven peger opad for de her hold 📈`,
+              `Holdene, ingen har lyst til at møde lige nu 😬`,
+              `Formen taler sit tydelige sprog i ${l}:`,
+              `Topformen i ${l} – målt på de seneste 5 kampe ⚽`,
+            ],
+            body,
+            AFTER_OUTROS,
+          )
+        }
+        case 'table': {
+          const body = c.rows.slice(0, 6).map((r, i) => `${i + 1}. ${r.club.name} ${r.points} p.`)
+          const l = c.division.name
+          return out(
+            [
+              `Stillingen i ${l} 📊`,
+              `Sådan ser toppen ud i ${l} lige nu 👀`,
+              `Hvem tager føringen? Tabellen i ${l}:`,
+              `Tæt løb i toppen af ${l} 🔥`,
+              `Status på ${l}:`,
+              `Tabellen lyver ikke – ${l} lige nu 📋`,
+              `Kampen om toppen i ${l} 🏆`,
+              `Her står det i ${l} ⚽`,
+              `Hvem slutter øverst i ${l}? Stillingen lige nu 👇`,
+              `Tabelkig: ${l} 📈`,
+            ],
+            body,
+            AFTER_OUTROS,
+          )
+        }
         case 'bigmatch': {
           const p = c.pick
-          return [`Ugens kamp: ${vs(p)}, ${formatLong(p.fixture.kickoff)} kl. ${formatTime(p.fixture.kickoff)} (${p.league}).`, p.fact?.text].filter(Boolean).join('\n\n')
+          const when = `${formatLong(p.fixture.kickoff)} kl. ${formatTime(p.fixture.kickoff)}`
+          const body = [`${vs(p)} · ${when} (${p.league})`, ...(p.fact ? ['', p.fact.text] : [])]
+          return out(
+            [
+              'Ugens kamp 🔥',
+              'Den her kamp skal du ikke gå glip af 👀',
+              'Sæt kryds i kalenderen – ugens store opgør:',
+              'Ugens kamp er fundet ⚽',
+              'Der er lagt op til et brag 💥',
+              'Alt er klar til ugens topkamp:',
+              'Hvem trækker det længste strå? Ugens kamp:',
+              'Ugens opgør – og der er meget på spil 🏆',
+              'Det her bliver ugens kamp ⚽🔥',
+              'Glæd dig til ugens største kamp:',
+            ],
+            body,
+            LIVE_OUTROS,
+          )
         }
-        case 'weekend':
-          return [
-            'Weekendens kampe',
-            ...c.days.flatMap((d) => ['', `${cap(formatLong(d.date))}:`, ...d.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)]),
-          ].join('\n')
-        case 'facts':
-          return ['Dagens fakta', '', ...c.picks.map((p) => `${vs(p)}: ${p.fact!.text}`)].join('\n')
+        case 'weekend': {
+          const body = c.days.flatMap((d, i) => [...(i ? [''] : []), `${cap(formatLong(d.date))}:`, ...d.picks.map((p) => `${formatTime(p.fixture.kickoff)} ${vs(p)} (${p.league})`)])
+          return out(
+            [
+              'Weekendens kampe 📅',
+              'Weekenden er reddet – her er kampene ⚽',
+              'Hvad skal du se i weekenden? 👇',
+              'Fodboldweekend! 🔥 Her er programmet:',
+              'Planlæg weekenden efter de her kampe 🗓️',
+              'Lørdag og søndag i fodboldens tegn ⚽',
+              'Weekendens menu er klar 🍽️⚽',
+              'Det her sker i weekenden 👀',
+              'Klar til en weekend med fodbold? Her er kampene:',
+              'Weekendprogrammet – gem det til senere 📌',
+            ],
+            body,
+            LIVE_OUTROS,
+          )
+        }
+        case 'facts': {
+          const body = c.picks.map((p) => `${vs(p)}: ${p.fact!.text}`)
+          return out(
+            [
+              'Dagens fakta 🤓',
+              'Vidste du det? Fakta om dagens kampe 👇',
+              'Lidt nørdviden før kampene 🤓',
+              'Tal, du kan imponere med i dag 📊',
+              'Inden fløjten lyder – dagens fakta:',
+              'Statistikken har talt ⚽',
+              'Det siger tallene før dagens kampe:',
+              'Fakta-tjek før kickoff ✅',
+              'Gode tal at kende i dag 👀',
+              'Klar til kamp? Her er dagens fakta:',
+            ],
+            body,
+            LIVE_OUTROS,
+          )
+        }
       }
   }
+}
+
+/** The post's text: one of its ten versions (by default the day's own, so the text changes from day to day) */
+export function captionFor(c: Content, variant?: number): string {
+  const all = captionVariants(c)
+  return pickOf(all, variant ?? seedOf(c))
 }
 
 /** The page the post points to on our site */

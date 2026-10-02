@@ -7,6 +7,7 @@ import {
   ApprovalForm,
   ConfigSwitch,
   EmailForm,
+  MakeConnect,
   MetaConnect,
   MetaManual,
   PriorityForm,
@@ -129,7 +130,11 @@ export default async function SocialSettings() {
 
         <Account
           platform="facebook"
-          status={`Forbundet til siden ${s.meta.pageName ?? s.meta.pageId} (side-token ${masked(s.meta.pageToken)})`}
+          status={
+            s.meta.pageToken
+              ? `Forbundet til siden ${s.meta.pageName ?? s.meta.pageId} (side-token ${masked(s.meta.pageToken)})`
+              : `Gennem Make (webhook ${masked(s.make.url)}) – opslag i feedet, ikke stories`
+          }
           guide={
             <ol>
               <li>Instagram: skift kontoen til en professionel konto (Business eller Creator) og kobl den til Matchlys Facebook-side (siden → Indstillinger → Linkede konti).</li>
@@ -148,6 +153,28 @@ export default async function SocialSettings() {
             </ol>
           }
         >
+          <h3 className="dash-sub" style={{ marginLeft: 0 }}>Gennem Make.com (uden egen Facebook-app)</h3>
+          <details className="social-guide" open={!s.meta.pageToken}>
+            <summary>Sådan sætter du Make op</summary>
+            <ol>
+              <li>
+                Opret en gratis konto på <a href="https://www.make.com" target="_blank" rel="noreferrer">make.com</a> og lav et nyt scenarie.
+              </li>
+              <li>Første modul: <b>Webhooks → Custom webhook</b>. Tryk Add, giv den navnet &quot;Matchly&quot;, og kopier adressen (https://hook.eu1.make.com/…).</li>
+              <li>Indsæt adressen herunder og tryk Gem. Tryk derefter &quot;Test forbindelsen&quot; øverst – så sender Matchly et eksempel, og Make lærer felterne at kende.</li>
+              <li>
+                Andet modul: <b>Facebook Pages → Create a Post with Photos</b>. Log ind med Facebook og vælg siden. Sæt teksten (Message) til <code>text</code>, og
+                billederne til <code>photos</code> – slå &quot;Map&quot; til ved billedfeltet, så alle billeder kommer med som karrusel. Hvert billede har sin adresse i{' '}
+                <code>url</code>. Vil du hellere holde det simpelt med ét billede: <b>Upload a Photo</b> med billedadressen <code>image</code>.
+              </li>
+              <li>
+                Sæt et <b>filter</b> på pilen mellem modulerne: <code>type</code> er lig med <code>post</code> – så bliver testen aldrig postet.
+              </li>
+              <li>Slå scenariet til (ON) med &quot;Immediately&quot;. Matchly sender nu opslagene på deres tidspunkt, og Make poster dem.</li>
+            </ol>
+          </details>
+          <MakeConnect saved={s.make.url ? masked(s.make.url) : undefined} />
+          <h3 className="dash-sub" style={{ marginLeft: 0 }}>Direkte med egen Facebook-app</h3>
           <MetaConnect />
           <details className="social-guide">
             <summary>Indtast side-id og token i hånden</summary>
