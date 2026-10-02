@@ -221,7 +221,7 @@ export function capacityStatus(): CapacityStatus {
     if (!h) return '–'
     if (id === 'mem') return `${h.mem} %${h.swap ? ` · swap ${h.swap} MB` : ''}`
     if (id === 'load') return `${h.load} %`
-    return `${h.stalls} min. · længste ${h.lag} ms`
+    return `${h.stalls} min. · længste ${h.lag >= 1000 ? `${(h.lag / 1000).toLocaleString('da-DK', { maximumFractionDigits: 1 })} s` : `${h.lag} ms`}`
   }
   const peak = (id: SignalId, rows: Hour[]) => {
     if (!rows.length) return undefined

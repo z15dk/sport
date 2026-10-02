@@ -2254,21 +2254,32 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-tile__value { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1.05; }
 .dash-tile__sub { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-.dash-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
-.dash-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.dash-card { padding-bottom: 14px; min-width: 0; }
-.dash-card > :not(.panel__title) { margin-left: 18px; margin-right: 18px; }
-.dash-card .panel__title { font-size: 18px; padding-bottom: 8px; }
-.dash-sub { font-size: 13px; margin: 14px 18px 6px; }
-.dash-table { width: calc(100% - 36px); border-collapse: collapse; font-size: 13px; }
-.dash-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
-.dash-table td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+/* /admin/besoegende, /admin/annonce, /admin/widget: fixed three-column grid */
+.dash-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.dash-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* /admin/data: one flow, each card in the shortest column (DashFlow, src/hooks/useMasonry.ts) – a dashboard without holes */
+.dash-flow { display: block; }
+.dash-flow > * { break-inside: avoid; margin: 0 0 12px; }
+.dash-flow.is-masonry { display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 12px 6px; }
+.dash-flow.is-masonry > * { width: calc((100% - 24px) / 3); margin: 0; }
+.dash-flow.is-masonry::before, .dash-flow.is-masonry::after { content: ''; flex-basis: 100%; width: 0; order: 2; }
+.dash-flow.is-masonry::after { order: 4; }
+.dash-card { padding-bottom: 12px; min-width: 0; }
+.dash-card > :not(.panel__title) { margin-left: 14px; margin-right: 14px; }
+.admin .dash-card > .panel__title { font-size: 15px; padding: 11px 14px 4px; }
+.dash-card > p.small, .dash-card > p.muted { margin-top: 4px; margin-bottom: 6px; font-size: 12px; }
+.dash-sub { font-size: 13px; margin: 12px 14px 6px; }
+.dash-table { width: calc(100% - 28px); border-collapse: collapse; font-size: 12.5px; }
+.dash-table th { text-align: left; font-size: 10.5px; font-weight: 600; color: var(--ink-3); padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.03em; }
+.dash-table td { padding: 2px 8px 2px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.dash-cap__table td:first-child { white-space: normal; }
+.dash-cap__table td:nth-child(2), .dash-cap__table td:nth-child(3), .dash-cap__table td:nth-child(4) { white-space: nowrap; }
 .dash-table tr:last-child td { border-bottom: 0; }
 .dash-table td:first-child { overflow-wrap: normal; white-space: nowrap; }
 .dash-table .is-bad { color: var(--live); font-weight: 600; }
 .dash-table .is-warn { color: #9a6a00; font-weight: 600; }
 
-.dash-bars { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line); }
+.dash-bars { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 48px; margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line); }
 .dash-bars__bar { flex: 1; min-width: 2px; background: var(--lime-deep); border-radius: 4px 4px 0 0; }
 .dash-bars__bar:hover { filter: brightness(0.8); }
 .dash-bars__bar.is-over { background: var(--live); }
@@ -2277,7 +2288,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-top: 10px; margin-bottom: 10px; }
 .dash-chips li { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
 
-.dash-wide { margin-top: 14px; }
+.dash-wide { margin-top: 12px; }
 /* "Serverens kapacitet": the verdict's mark, and seven small squares for the last seven days */
 .dash-cap.is-bad { border-left: 4px solid var(--live); }
 .dash-cap.is-warn { border-left: 4px solid var(--star); }
@@ -2296,6 +2307,12 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 .dash-details details[open] { grid-column: 1 / -1; }
 
+@media (min-width: 1200px) {
+  .dash-flow:not(.is-masonry) { columns: 3; column-gap: 12px; }
+}
+@media (min-width: 900px) and (max-width: 1199px) {
+  .dash-flow:not(.is-masonry) { columns: 2; column-gap: 12px; }
+}
 @media (max-width: 1200px) {
   .dash-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2308,7 +2325,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .dash-tile__value { font-size: 22px; }
   /* Tables stay inside their card: smaller, numbers kept whole, and a too-wide table scrolls sideways within the card */
   .dash-card > :not(.panel__title) { margin-left: 12px; margin-right: 12px; }
-  .dash-card .panel__title { padding-left: 12px; padding-right: 12px; }
+  .admin .dash-card > .panel__title { padding-left: 12px; padding-right: 12px; }
   .dash-table { display: block; overflow-x: auto; width: calc(100% - 24px); font-size: 12px; -webkit-overflow-scrolling: touch; }
   .dash-table th, .dash-table td { padding-right: 6px; }
   .dash-table td:first-child { white-space: normal; min-width: 92px; }
