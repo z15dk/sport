@@ -1,5 +1,4 @@
 import 'server-only'
-import { timed } from './slow'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, seasonOf, sportOf, type Club } from '../data/leagues'
@@ -11,7 +10,7 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveDetailedEvents, archiveFile, archiveIncidents, intern, readArchive, type ArchivedMatch } from './archive'
+import { archiveDetailedEvents, archiveFile, archiveIncidents, intern, prefetchArchive, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
@@ -183,8 +182,8 @@ function dbRows(file: string | undefined): DbMatch[] {
 /**
  * The history built from both databases, step by step: it pauses (yield)
  * every couple of thousand matches, so a rebuild can run in small slices while
- * pages keep using the history already built (runSliced); the very first build
- * runs in one go (runNow).
+ * pages keep using the history already built (runSliced). The very first build
+ * runs the same way, after the archive has been read in a worker thread.
  */
 function* readSteps(file: string | undefined, mtime: number): Generator<void, Loaded> {
   let n = 0
@@ -264,14 +263,6 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   return { mtime, matches, clubOf, byClub, unmatched: unmatched.sort((a, b) => a.localeCompare(b, 'da')) }
 }
 
-/** Runs the steps in one go */
-function runNow<T>(steps: Generator<void, T>): T {
-  for (;;) {
-    const r = steps.next()
-    if (r.done) return r.value
-  }
-}
-
 /** Runs the steps a few milliseconds at a time, letting pages be served in between; `done` gets the result */
 function runSliced<T>(steps: Generator<void, T>, done: (value: T) => void, fail: (err: unknown) => void) {
   const slice = () => {
@@ -290,7 +281,7 @@ function runSliced<T>(steps: Generator<void, T>, done: (value: T) => void, fail:
   setImmediate(slice)
 }
 
-/** Builds the history now (the site process before it takes visitors, so no visitor waits for the first build) */
+/** Starts building the history (at server start, so it is there a few seconds later without any page having waited for it) */
 export function warmHistory() {
   data()
 }
@@ -305,6 +296,7 @@ export function forgetResolvedNames() {
 /** The database in memory; re-read when the file changes (checked at most once a minute) */
 function data(): Loaded | undefined {
   const now = Date.now()
+  if (hist.building) return hist.loaded
   if (hist.loaded && now - hist.checkedAt < 60_000) return hist.loaded
   hist.checkedAt = now
   const file = historyFile()
@@ -320,25 +312,27 @@ function data(): Loaded | undefined {
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
     const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 60 * 60_000)
-    if (stale && !hist.loaded) {
-      // The first build: in one go
-      hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => runNow(readSteps(hasDb ? file : undefined, mtime))), dbTime, readAt: now }
-    } else if (stale && !hist.building) {
-      // A rebuild: in small slices while pages keep the history they have
+    if (stale && !hist.building) {
+      // Built in small slices while pages are served in between (the first time they have no history for those seconds;
+      // before, the first build ran in one go and held every page for 7–10 seconds after each restart)
       hist.building = true
       const began = Date.now()
-      runSliced(
-        readSteps(hasDb ? file : undefined, mtime),
-        (built) => {
-          hist.loaded = { ...built, dbTime, readAt: Date.now() }
-          hist.building = false
-          hist.lastBuildMs = Date.now() - began
-        },
-        (err) => {
-          hist.building = false
-          hist.lastError = (err as Error).message
-        },
-      )
+      const build = () =>
+        runSliced(
+          readSteps(hasDb ? file : undefined, mtime),
+          (built) => {
+            hist.loaded = { ...built, dbTime, readAt: Date.now() }
+            hist.building = false
+            hist.lastBuildMs = Date.now() - began
+          },
+          (err) => {
+            hist.building = false
+            hist.lastError = (err as Error).message
+          },
+        )
+      // The archive's first read takes seconds: done in a worker thread first, so the slices only fold in what it read
+      if (hasArchive) prefetchArchive().then(build, build)
+      else build()
     }
     hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {

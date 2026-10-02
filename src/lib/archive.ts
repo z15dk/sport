@@ -277,18 +277,35 @@ export function readArchive(): ArchivedMatch[] {
   }
   const state: ArchiveRead = cached ?? { at: 0, mtime: 0, rows: [], byId: new Map(), savedAt: '' }
   const fresh = timed('Statistikbanken læses', () => readArchiveFile(state.savedAt))
-  if (fresh) {
-    for (const { row, savedAt } of fresh) {
-      state.byId.set(row.id, row)
-      if (savedAt > state.savedAt) state.savedAt = savedAt
-    }
-    if (fresh.length || !cached) state.rows = [...state.byId.values()].sort((a, b) => b.date.getTime() - a.date.getTime())
-  }
-  state.at = Date.now()
-  state.mtime = mtime
-  archiveHolder.__scorelineArchiveRead2 = state
+  mergeArchive(state, fresh, mtime, !!cached)
   return state.rows
 }
+
+/** One row of the archive's SELECT as the match we keep (strings interned: the names repeat across thousands of rows) */
+function toArchived(r: Record<string, unknown>): { row: ArchivedMatch; savedAt: string } {
+  const text = (v: unknown) => intern(String(v ?? ''))
+  return {
+    savedAt: String(r.saved_at ?? ''),
+    row: {
+      id: String(r.event_id),
+      divisionId: text(r.division_id),
+      tournament: text(r.tournament_name),
+      season: text(r.season_year),
+      date: new Date(String(r.start_date)),
+      homeName: text(r.home_name),
+      awayName: text(r.away_name),
+      homeScore: Number(r.home_score),
+      awayScore: Number(r.away_score),
+      ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
+      spectators: r.spectators == null ? undefined : Number(r.spectators),
+      round: r.round == null ? undefined : text(r.round),
+    },
+  }
+}
+
+// >= and by id: rows saved in the same millisecond as the last one read are not missed
+const READ_SQL = `SELECT event_id, division_id, tournament_name, season_year, round, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators, saved_at
+           FROM matches WHERE status = 'finished' AND IFNULL(saved_at, '') >= ?`
 
 /** The finished matches saved after `since` (all of them from ''), or undefined when the archive cannot be read */
 function readArchiveFile(since: string): { row: ArchivedMatch; savedAt: string }[] | undefined {
@@ -300,37 +317,82 @@ function readArchiveFile(since: string): { row: ArchivedMatch; savedAt: string }
   } catch {
     return undefined // no archive yet
   }
-  const text = (v: unknown) => intern(String(v ?? ''))
   try {
-    // >= and by id: rows saved in the same millisecond as the last one read are not missed
-    return db
-      .prepare(
-        `SELECT event_id, division_id, tournament_name, season_year, round, start_date, home_name, away_name, home_score, away_score, home_score_ht, away_score_ht, spectators, saved_at
-           FROM matches WHERE status = 'finished' AND IFNULL(saved_at, '') >= ?`,
-      )
-      .all(since)
-      .map((r) => ({
-        savedAt: String(r.saved_at ?? ''),
-        row: {
-          id: String(r.event_id),
-          divisionId: text(r.division_id),
-          tournament: text(r.tournament_name),
-          season: text(r.season_year),
-          date: new Date(String(r.start_date)),
-          homeName: text(r.home_name),
-          awayName: text(r.away_name),
-          homeScore: Number(r.home_score),
-          awayScore: Number(r.away_score),
-          ht: r.home_score_ht == null || r.away_score_ht == null ? undefined : ([Number(r.home_score_ht), Number(r.away_score_ht)] as [number, number]),
-          spectators: r.spectators == null ? undefined : Number(r.spectators),
-          round: r.round == null ? undefined : text(r.round),
-        },
-      }))
+    return db.prepare(READ_SQL).all(since).map((r) => toArchived(r as Record<string, unknown>))
   } catch {
     return undefined
   } finally {
     db.close()
   }
+}
+
+/** Folds freshly read rows into the cache (the same rows keep their objects, so the history can reuse what it built from them) */
+function mergeArchive(state: ArchiveRead, fresh: { row: ArchivedMatch; savedAt: string }[] | undefined, mtime: number, hadCache: boolean) {
+  if (fresh) {
+    for (const { row, savedAt } of fresh) {
+      state.byId.set(row.id, row)
+      if (savedAt > state.savedAt) state.savedAt = savedAt
+    }
+    if (fresh.length || !hadCache) state.rows = [...state.byId.values()].sort((a, b) => b.date.getTime() - a.date.getTime())
+  }
+  state.at = Date.now()
+  state.mtime = mtime
+  archiveHolder.__scorelineArchiveRead2 = state
+}
+
+// Runs in a worker thread: the first (big) read of the archive, so the site process is not blocked for seconds by it
+const READ_THREAD = `
+const { parentPort, workerData } = require('node:worker_threads')
+const { DatabaseSync } = require('node:sqlite')
+const db = new DatabaseSync(workerData.file, { readOnly: true })
+try {
+  parentPort.postMessage(db.prepare(workerData.sql).all(workerData.since))
+} finally {
+  db.close()
+}
+`
+let prefetching: Promise<void> | undefined
+
+/**
+ * Reads the archive in a worker thread and fills the cache, so the next
+ * readArchive() answers at once. The first read takes seconds (every finished
+ * match we have); on the main thread that would hold every page. Resolves when
+ * done, also when there is no archive or the thread fails (readArchive then
+ * reads on the main thread as before).
+ */
+export function prefetchArchive(): Promise<void> {
+  if (prefetching) return prefetching
+  const cached = archiveHolder.__scorelineArchiveRead2
+  let mtime = 0
+  try {
+    mtime = statSync(archiveFile()).mtimeMs
+  } catch {
+    return Promise.resolve()
+  }
+  if (cached && cached.mtime === mtime) return Promise.resolve()
+  const state: ArchiveRead = cached ?? { at: 0, mtime: 0, rows: [], byId: new Map(), savedAt: '' }
+  prefetching = new Promise<void>((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      prefetching = undefined
+      resolve()
+    }
+    try {
+      const w = new Worker(READ_THREAD, { eval: true, workerData: { file: archiveFile(), sql: READ_SQL, since: state.savedAt } })
+      w.unref()
+      w.once('message', (rows: Record<string, unknown>[]) => {
+        timed('Statistikbanken flettes (fra tråd)', () => mergeArchive(state, rows.map(toArchived), mtime, !!cached))
+        finish()
+      })
+      w.once('error', finish)
+      w.once('exit', finish)
+    } catch {
+      finish()
+    }
+  })
+  return prefetching
 }
 
 // The matches with details of their own (named scorers or players' numbers), found once an hour
