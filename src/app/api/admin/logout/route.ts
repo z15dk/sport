@@ -1,7 +1,9 @@
 import { cookies } from 'next/headers'
-import { COOKIE } from '../../../../lib/admin'
+import { BAR_COOKIE, COOKIE } from '../../../../lib/admin'
 
 export async function POST() {
-  ;(await cookies()).delete(COOKIE)
+  const jar = await cookies()
+  jar.delete(COOKIE)
+  jar.delete(BAR_COOKIE)
   return new Response(null, { status: 303, headers: { Location: '/admin' } })
 }

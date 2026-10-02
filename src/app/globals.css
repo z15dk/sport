@@ -2824,3 +2824,23 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .bs-form { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) { .tk__body { grid-template-columns: 120px 1fr; } .bs-phone__screen { width: 270px; } }
+
+/* The admin bar on the public pages while logged in (AdminBar) */
+.adminbar { position: relative; z-index: 60; background: #0f110c; color: #fff; font-size: 13px; }
+.adminbar__in { display: flex; align-items: center; gap: 2px; min-height: 36px; max-width: 1400px; margin: 0 auto; padding: 0 12px; }
+.adminbar__item { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: 0; background: none; color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.adminbar__item:hover, .adminbar__menu.is-open > .adminbar__item { background: rgba(255, 255, 255, 0.1); color: var(--lime); }
+.adminbar__item.is-edit { color: var(--lime); }
+.adminbar__logo { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--lime); color: var(--ink); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 15px; }
+.adminbar__dot { width: 8px; height: 8px; border-radius: 50%; background: #1fa64a; box-shadow: 0 0 0 3px rgba(31, 166, 74, 0.25); }
+.adminbar__muted { color: rgba(255, 255, 255, 0.6); font-weight: 500; }
+.adminbar__space { flex: 1; }
+.adminbar__menu { position: relative; }
+.adminbar__drop { position: absolute; top: 100%; left: 0; min-width: 210px; padding: 6px 0; background: #1b1e17; border-radius: 0 0 10px 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; }
+.adminbar__drop a { padding: 8px 14px; color: #fff; text-decoration: none; }
+.adminbar__drop a:hover { background: rgba(255, 255, 255, 0.08); color: var(--lime); }
+@media (max-width: 700px) {
+  .adminbar__in { overflow-x: auto; padding: 0 4px; }
+  .adminbar__hide-s, .adminbar__muted { display: none; }
+  .adminbar__drop { position: fixed; top: 36px; left: 0; right: 0; border-radius: 0 0 12px 12px; }
+}

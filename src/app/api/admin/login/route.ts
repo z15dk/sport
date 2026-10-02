@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { COOKIE, checkPassword, cookieOptions, sameOrigin, sessionToken, tooManyAttempts } from '../../../../lib/admin'
+import { BAR_COOKIE, COOKIE, barCookieOptions, checkPassword, cookieOptions, sameOrigin, sessionToken, tooManyAttempts } from '../../../../lib/admin'
 
 export async function POST(request: Request) {
   const back = (path: string) => new Response(null, { status: 303, headers: { Location: path } })
@@ -8,6 +8,8 @@ export async function POST(request: Request) {
   if (tooManyAttempts(ip)) return back('/admin?fejl=vent')
   const form = await request.formData()
   if (!checkPassword(String(form.get('password') ?? ''))) return back('/admin?fejl=1')
-  ;(await cookies()).set(COOKIE, sessionToken(), cookieOptions)
+  const jar = await cookies()
+  jar.set(COOKIE, sessionToken(), cookieOptions)
+  jar.set(BAR_COOKIE, '1', barCookieOptions)
   return back('/admin/indstillinger')
 }

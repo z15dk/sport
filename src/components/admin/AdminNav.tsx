@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AdminBarFlag } from '../AdminBar'
 
 // The admin pages' menu. Settings holds its own sub-pages (general settings
 // and the status pages for data, data quality and the logo job), and so does
@@ -53,6 +54,7 @@ export function AdminNav({ current }: { current: string }) {
   const active = PAGES.find((p) => p.href === current || p.children?.some((c) => c.href === current))
   return (
     <div className="admin-nav-wrap">
+      <AdminBarFlag />
       <nav className="admin-nav" aria-label="Admin">
         <div className="filter-bar">
           {PAGES.map((p) => (

@@ -7,6 +7,8 @@ import { cookies } from 'next/headers'
 // pages are closed. A login sets a signed, HttpOnly cookie for 7 days.
 
 export const COOKIE = 'scoreline_admin'
+/** Not secret and readable by the page: only tells the browser to ask for the admin bar (the bar itself checks COOKIE) */
+export const BAR_COOKIE = 'scoreline_bar'
 const MAX_AGE_S = 7 * 24 * 3600
 
 export const adminPassword = () => process.env.ADMIN_PASSWORD?.trim() || undefined
@@ -53,6 +55,8 @@ export const cookieOptions = {
   path: '/',
   maxAge: MAX_AGE_S,
 }
+
+export const barCookieOptions = { ...cookieOptions, httpOnly: false }
 
 /** Requests that change something must come from our own pages */
 export function sameOrigin(request: Request) {

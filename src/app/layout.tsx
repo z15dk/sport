@@ -11,6 +11,7 @@ import { RealDataProvider } from '../components/RealDataProvider'
 import { clientRealData } from '../lib/clientData'
 import { liveCursor } from '../lib/liveFeed'
 import { VisitBeacon } from '../components/VisitBeacon'
+import { AdminBar } from '../components/AdminBar'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
 import { AD_TURN_SCRIPT, adTurnCss } from '../data/ads'
@@ -76,6 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <JsonLd data={organizationLd()} />
         <RealDataProvider data={clientRealData(real)} cursor={liveCursor(real)}>
           <BadgeProvider badges={badges}>
+            <AdminBar />
             <div className="app">
               <div className="app__main">
                 <SiteNav />
