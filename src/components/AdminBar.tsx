@@ -130,76 +130,56 @@ export function AdminBar() {
     </form>
   )
 
-  if (onAdmin)
-    return (
-      <div className="adminbar is-admin" role="navigation" aria-label="Admin">
-        <div className="adminbar__in">
+  // One bar everywhere: every admin section with its dropdown, also over the public pages; there the
+  // "Matchly" mark leads to the general dashboard, with "+ Ny" and the edit links for the page shown
+  return (
+    <div className="adminbar is-admin" role="navigation" aria-label="Admin">
+      <div className="adminbar__in">
+        {onAdmin ? (
           <Link className="adminbar__item" href="/" title="Gå til siden">
             <b className="adminbar__logo">M</b>
             <span className="adminbar__hide-s">Se siden</span>
           </Link>
-          <span className="adminbar__sep" aria-hidden />
-          {ADMIN_MENU.map((s) =>
-            s.children ? (
-              <Menu key={`${s.href}${path}`} active={s === section} href={s.children[0].href} label={s.label}>
-                {groups(s.children).map((g) => (
-                  <div key={g.name ?? ''} className="adminbar__group">
-                    {g.name && <span className="adminbar__group-name">{g.name}</span>}
-                    {g.items.map((c) => (
-                      <Link key={c.href} href={c.href} className={c.href === page ? 'is-active' : undefined} aria-current={c.href === page ? 'page' : undefined}>
-                        {c.label}
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-              </Menu>
-            ) : (
-              <Link key={s.href} href={s.href} className={`adminbar__item${s === section ? ' is-active' : ''}`} aria-current={s === section ? 'page' : undefined}>
-                {s.label}
-              </Link>
-            ),
-          )}
-          <span className="adminbar__space" />
-          {visitors}
-          {logout}
-        </div>
-      </div>
-    )
-
-  return (
-    <div className="adminbar" role="navigation" aria-label="Admin">
-      <div className="adminbar__in">
-        <Menu
-          key={`a${path}`}
-          href="/admin/indstillinger"
-          label={
-            <>
-              <b className="adminbar__logo">M</b>
-              <span className="adminbar__hide-s">Matchly</span>
-            </>
-          }
-        >
-          {ADMIN_MENU.map((s) => (
-            <Link key={s.href} href={s.href}>
+        ) : (
+          <Link className="adminbar__item" href="/admin/indstillinger" title="Admin: Generelt og besøgende">
+            <b className="adminbar__logo">M</b>
+            <span className="adminbar__hide-s">Matchly</span>
+          </Link>
+        )}
+        <span className="adminbar__sep" aria-hidden />
+        {ADMIN_MENU.map((s) =>
+          s.children ? (
+            <Menu key={`${s.href}${path}`} active={s === section} href={s.children[0].href} label={s.label}>
+              {groups(s.children).map((g) => (
+                <div key={g.name ?? ''} className="adminbar__group">
+                  {g.name && <span className="adminbar__group-name">{g.name}</span>}
+                  {g.items.map((c) => (
+                    <Link key={c.href} href={c.href} className={c.href === page ? 'is-active' : undefined} aria-current={c.href === page ? 'page' : undefined}>
+                      {c.label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
+            </Menu>
+          ) : (
+            <Link key={s.href} href={s.href} className={`adminbar__item${s === section ? ' is-active' : ''}`} aria-current={s === section ? 'page' : undefined}>
               {s.label}
             </Link>
+          ),
+        )}
+        {!onAdmin &&
+          bar.edit.map((e) => (
+            <Link key={e.href + e.label} className="adminbar__item is-edit" href={e.href}>
+              ✎ {e.label}
+            </Link>
           ))}
-        </Menu>
+        <span className="adminbar__space" />
         {visitors}
         <Menu key={`n${path}`} label={<>+ Ny</>}>
           <Link href="/admin/artikler/ny">Artikel</Link>
           <Link href="/admin/kanaler">TV-kanal eller regel</Link>
           <Link href="/admin/reklamer">Annonce</Link>
         </Menu>
-        {bar.edit.map((e) => (
-          <Link key={e.href + e.label} className="adminbar__item is-edit" href={e.href}>
-            ✎ {e.label}
-          </Link>
-        ))}
-        <span className="adminbar__space" />
-        <Link className="adminbar__item adminbar__hide-s" href="/admin/data">
-          Data
-        </Link>
         {logout}
       </div>
     </div>
