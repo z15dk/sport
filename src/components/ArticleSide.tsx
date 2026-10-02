@@ -4,6 +4,7 @@ import { hasRealData } from '../data/real'
 import { clubMatches, getMatches } from '../data/matches'
 import { standings } from '../data/season'
 import { articleSubjects } from '../lib/news'
+import { subjectFromTags } from '../lib/articleTopics'
 import { paths } from '../lib/site'
 import { addDays, isoDate } from '../lib/time'
 import type { Match } from '../types'
@@ -11,7 +12,8 @@ import { MatchRow } from './MatchRow'
 import { StandingsTable } from './StandingsTable'
 
 // The living side column of an article: the table, the next matches and the latest results of the league
-// or club the article is about (found from its title, lead, tags and category), else
+// or club the article is about (its tags first – the first club tag, else the first league tag –
+// then its title, lead and category), else
 // today's matches. Real data, the same as the league and club pages show.
 
 interface Subject {
@@ -21,6 +23,9 @@ interface Subject {
 
 /** The league (and club) an article is about, when it is one we cover with data */
 export function articleSubject(a: { title: string; excerpt: string; tags: string[]; focusKeyword?: string }, categoryName?: string): Subject | undefined {
+  // The tags decide: the first club tag (its league's table and matches), else the first league tag
+  const tagged = subjectFromTags(a.tags)
+  if (tagged) return tagged
   const { clubs, leagues } = articleSubjects(a.title, [a.excerpt, a.focusKeyword, categoryName, ...a.tags].filter(Boolean).join(' '))
   const shown = shownDivisions()
   for (const id of clubs) {

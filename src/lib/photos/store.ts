@@ -583,3 +583,55 @@ export function openShare(db: Db, token: string, countView = false) {
   if (countView && !expired) db.prepare('UPDATE shares SET views = views + 1, last_view_at = ? WHERE id = ?').run(nowIso(), r.id)
   return { id: Number(r.id), title: String(r.title), expiresAt: String(r.expires_at), expired, photos }
 }
+
+// ---------- the article editor ----------
+
+/** A picture uploaded in the article editor becomes a photo in the archive (queued for the AI); the same file twice is one photo */
+export function registerArticleUpload(db: Db, uploadName: string): number {
+  const driveId = `upload:${uploadName}`
+  const found = db.prepare('SELECT id FROM photos WHERE drive_id = ?').get(driveId)
+  if (found) return Number(found.id)
+  const id = Number(
+    db
+      .prepare(`INSERT INTO photos (drive_id, name, path, status, source, metadata_done, review, review_reasons, review_cost, created_at) VALUES (?, ?, ?, 'ny', 'artikel', 0, 1, '["mangler metadata"]', 0, ?)`)
+      .run(driveId, uploadName, `Artikler/${uploadName}`, nowIso()).lastInsertRowid,
+  )
+  db.prepare('INSERT OR IGNORE INTO article_images (upload_name, photo_id, created_at) VALUES (?, ?, ?)').run(uploadName, id, nowIso())
+  return id
+}
+
+/** The metadata asked for right after an upload: rights, loan and match */
+export function setArticleMetadata(db: Db, photoId: number, input: { credit?: string; licenseUntil?: string; clubId?: string; opponentId?: string; date?: string }, minConfidence: number) {
+  const r = setRights(db, photoId, { credit: input.credit, licenseUntil: input.licenseUntil })
+  if (r.error) return { error: r.error }
+  if (input.clubId || input.opponentId || input.date) {
+    const m = setMatch(db, photoId, { clubId: input.clubId || undefined, opponentId: input.opponentId || undefined, date: input.date || undefined }, minConfidence)
+    if (m.error) return { error: m.error }
+  }
+  db.prepare(`UPDATE photos SET metadata_done = 1, review_reasons = REPLACE(review_reasons, '"mangler metadata"', '""') WHERE id = ?`).run(photoId)
+  db.prepare(`UPDATE photos SET review_reasons = '[]', review = CASE WHEN status = 'ny' THEN 0 ELSE review END WHERE id = ? AND review_reasons IN ('[""]', '[]')`).run(photoId)
+  return {}
+}
+
+/** Photos for the editor's archive picker: the search and filters from the admin, with what an article needs */
+export function pickerPhotos(db: Db, q: string, f: PhotoFilters & { status?: string }, defaultCredit: string, limit = 60) {
+  const photos = searchPhotos(db, q, f.status ?? '', limit, f).filter((p) => !p.licenseUntil || p.licenseUntil >= today())
+  const tags = tagsFor(db, photos.map((p) => p.id))
+  return photos.map((p) => {
+    const names = (tags.get(p.id) ?? []).filter((t) => t.side === 'egen' && t.playerName).map((t) => t.playerName!)
+    return {
+      id: p.id,
+      title: p.club ? `${p.club} – ${p.opponent ?? '?'}` : p.name,
+      date: p.matchDate,
+      status: p.status,
+      review: p.review,
+      players: names,
+      situation: p.situation,
+      credit: p.credit ?? defaultCredit,
+      borrowed: !!p.licenseUntil,
+      licenseUntil: p.licenseUntil,
+      ready: !!p.processedAt || p.status === 'ny',
+      alt: [names.slice(0, 3).join(', '), p.situation, p.club && p.opponent ? `${p.club} mod ${p.opponent}` : undefined].filter(Boolean).join(' – '),
+    }
+  })
+}

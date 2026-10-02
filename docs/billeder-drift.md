@@ -151,6 +151,12 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 - **Delinger**: et privat link (7/30/90 dage) til de valgte billeder, som klubber og spillere kan se og hente (JPEG 1600 px, zip). Lånte billeder deles aldrig. Siden er noindex og forbudt i robots.txt; links kan lukkes under Delinger.
 - **Morgenrapport** kl. 06.15: nye billeder pr. kamp, gennemgangskø, fejl, slettede og snart udløbne lån. Mailes, når SMTP er udfyldt under Sociale medier → Indstillinger (modtager dér eller `PHOTOS_REPORT_TO`); vises altid øverst under Billeder.
 
+### Artikler
+
+- **Upload i artikel-editoren** (i teksten eller som udvalgt billede): billedet lægges i billedarkivet (kilde "Artikel"), og en boks beder om alt-tekst, rettigheder (eget/lånt, foto, lånt til og med) og klub, modstander og dato. "Udfyld resten senere" lægger det i Gennemgang som "mangler metadata". AI-tagging sker ved Sync eller natkørslen.
+- **Vælg fra billedarkivet** (🗂 i værktøjslinjen eller ved Udvalgt billede): arkivet med samme søgning og filtre; det valgte billede lægges som offentlig kopi i `/uploads` (1600 px WebP, uden metadata). Lånte billeder får en "Foto: …"-linje under sig; udløbne lån tilbydes aldrig.
+- **Når et billede slettes eller et lån udløber**, tages det ud af alle artikler (udvalgt billede ryddes, `<img>` og krediteringslinjen fjernes) og de offentlige kopier slettes (tabel `article_images`).
+
 ### Rettigheder og lånte billeder
 
 Hvert billede har "Foto:" – som standard `Matchly.dk` (`PHOTOS_DEFAULT_CREDIT`). Lånte billeder får fotografens/klubbens navn og en dato under "Lånt til og med" (på ét billede eller alle billeder fra samme kamp). Dagen efter sletter billedjobbet billedet: original og web-version flyttes til det fælles drevs papirkurv (Google tømmer den efter 30 dage), miniature og cache slettes på serveren, tags slettes, og billedet står tilbage som `slettet` med grunden i loggen. Et udløbet billede kan ikke hentes til SoMe, heller ikke før jobbet har kørt. Lånte billeder arkiveres aldrig på NAS'en. Oversigten viser, hvor mange lån der udløber inden for 14 dage.

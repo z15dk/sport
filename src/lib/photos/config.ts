@@ -23,6 +23,9 @@ export function photoConfig() {
   const dir = e.PHOTOS_DIR ?? path.join(dataDir(), 'fotos')
   return {
     db: e.PHOTOS_DB ?? path.join(dataDir(), 'billeder.db'),
+    /** The article editor's public pictures (like src/lib/uploads.ts) and the articles database (like src/lib/articles.ts) */
+    uploadDir: e.UPLOAD_DIR ?? path.join(dataDir(), 'uploads'),
+    articlesDb: e.ARTICLES_DB ?? path.join(dataDir(), 'articles.db'),
     /** Thumbnails (kept) and a small cache of web versions (pruned) */
     dir,
     thumbDir: path.join(dir, 'miniaturer'),

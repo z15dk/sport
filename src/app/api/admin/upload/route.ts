@@ -1,7 +1,9 @@
 import { isAdmin, sameOrigin } from '../../../../lib/admin'
 import { saveUpload } from '../../../../lib/uploads'
+import { withPhotoDb } from '../../../../lib/photos/server'
+import { registerArticleUpload } from '../../../../lib/photos/store'
 
-/** Uploads a picture for an article (multipart field "file") */
+/** Uploads a picture for an article (multipart field "file"); it also goes into the photo archive, whose metadata the editor asks for */
 export async function POST(request: Request) {
   if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
   const form = await request.formData().catch(() => undefined)
@@ -9,5 +11,11 @@ export async function POST(request: Request) {
   if (!file || typeof file === 'string') return Response.json({ error: 'Vælg et billede' }, { status: 400 })
   const result = await saveUpload(Buffer.from(await file.arrayBuffer()))
   if (result.error) return Response.json({ error: result.error }, { status: 400 })
-  return Response.json(result)
+  let photoId: number | undefined
+  try {
+    photoId = withPhotoDb((db) => registerArticleUpload(db, result.url!.replace('/uploads/', '')))
+  } catch {
+    // The article still gets its picture; it is just not in the archive
+  }
+  return Response.json({ ...result, photoId })
 }

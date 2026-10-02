@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { loadavg } from 'node:os'
 import path from 'node:path'
 import { ensurePhotoDirs, photoConfig, type PhotoConfig } from './config.ts'
@@ -280,7 +280,9 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
     logStep(db, id, name, true, Date.now() - t)
     return out
   }
-  const original = await step('hent', () => drive.download(String(p.drive_id)))
+  const fromArticle = String(p.drive_id).startsWith('upload:')
+  // A picture from the article editor is read from the public upload folder (it is already the 1600 px WebP)
+  const original = await step('hent', () => (fromArticle ? readFileSync(path.join(cfg.uploadDir, String(p.drive_id).slice('upload:'.length))) : drive.download(String(p.drive_id))))
   if (original.length > MAX_ORIGINAL_BYTES) throw new PhotoError(`Filen er for stor (${Math.round(original.length / 1e6)} MB)`)
   if (p.md5 && createHash('md5').update(original).digest('hex') !== String(p.md5)) throw new TransientError('Filen blev ikke hentet helt (md5 passer ikke)')
   const v = await step('versioner', () => makeVariants(original)).catch((e: Error) => {
@@ -305,9 +307,9 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
     db.prepare('UPDATE photos SET vision_json = ?, vision_model = ? WHERE id = ?').run(JSON.stringify({ spillere: result.players.map((x) => ({ nummer: x.number, troejefarve: x.jerseyColor, tillid: x.confidence, boks: x.box, rygnavn: x.backName ?? null })), situation: result.situation }), result.model, id)
   }
 
-  writeFileSync(path.join(cfg.thumbDir, `${id}.webp`), v.thumb)
-  writeFileSync(path.join(cfg.cacheDir, `${id}.webp`), v.web)
-  const webId = await step('web til Drive', () => drive.put(`${String(p.drive_id)}.webp`, webFolder, v.web, 'image/webp'))
+  writeFileSync(path.join(cfg.thumbDir, `${id}.webp`), v.thumb, { mode: 0o600 })
+  const webId = fromArticle ? null : await step('web til Drive', () => drive.put(`${String(p.drive_id)}.webp`, webFolder, v.web, 'image/webp'))
+  if (!fromArticle) writeFileSync(path.join(cfg.cacheDir, `${id}.webp`), v.web, { mode: 0o600 })
 
   const tagging = tagPhoto(result, taggingContext(db, p, cfg.minConfidence))
   transaction(db, () => {
@@ -317,6 +319,11 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai', ?)`,
     )
     for (const t of tagging.tags) ins.run(id, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.backName ?? null, t.note ?? null, nowIso())
+    // Metadata still missing on an article picture keeps it in review
+    if (Number(p.metadata_done ?? 1) === 0) {
+      tagging.review = true
+      tagging.reasons = ['mangler metadata', ...tagging.reasons]
+    }
     db.prepare(
       `UPDATE photos SET status = 'tagget', situation = ?, taken_at = ?, width = ?, height = ?, review = ?, review_reasons = ?, review_cost = ?,
          web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar', sharpness = ?, dhash = ? WHERE id = ?`,
