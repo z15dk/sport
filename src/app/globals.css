@@ -1397,7 +1397,14 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
 .lineups__team h3 em { font-style: normal; color: var(--ink-3); font-weight: 600; }
 .lineups__team h4 { margin: 8px 0 4px; font-size: 12px; text-transform: uppercase; color: var(--ink-3); }
 .lineups__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
-.lineups__no { display: inline-block; width: 22px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lineups__list li { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: baseline; line-height: 1.35; }
+.lineups__no { color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; padding-right: 8px; }
+.lineups__name { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  /* One team under the other: long names (from the DBU team sheets) on one line, numbers in a straight column */
+  .lineups__lists { grid-template-columns: 1fr; gap: 18px; }
+  .lineups__list { font-size: 14px; gap: 4px; }
+}
 .lineups__coach { margin: 8px 0 0; font-size: 13px; }
 .lineups__coach span { font-size: 12px; text-transform: uppercase; color: var(--ink-3); margin-right: 6px; }
 @media (max-width: 600px) {
