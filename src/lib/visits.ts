@@ -154,22 +154,38 @@ export interface VisitStats {
   week: { visitors: number; views: number }
 }
 
-/** Views of a few pages in the last `days` days (the views table keeps 35): views, visitors, and the visits that came by a link from another site (search engines and social media not counted) */
-export function pathStats(paths: string[], days = 35): Map<string, { views: number; visitors: number; refVisits: number; refDomains: string[] }> {
-  const out = new Map<string, { views: number; visitors: number; refVisits: number; refDomains: string[] }>()
+export interface PathStat {
+  views: number
+  visitors: number
+  today: number
+  week: number
+  /** Visits that came by a link from another site (search engines and social media not counted), per site */
+  refs: { site: string; visits: number }[]
+}
+
+/** Views of a few pages in the last `days` days (the views table keeps 35): views, visitors, today and the last 7 days, and the visits that came by a link from another site */
+export function pathStats(paths: string[], days = 35): Map<string, PathStat> {
+  const out = new Map<string, PathStat>()
   flush()
   const d = db()
   if (!d || !paths.length) return out
-  const from = isoDate(Date.now() - (days - 1) * 86_400_000)
+  const now = Date.now()
+  const from = isoDate(now - (days - 1) * 86_400_000)
+  const today = isoDate(now)
+  const weekFrom = isoDate(now - 6 * 86_400_000)
   const marks = paths.map(() => '?').join(',')
-  for (const r of d.prepare(`SELECT path, COUNT(*) AS n, COUNT(DISTINCT day || visitor) AS v FROM views WHERE day >= ? AND path IN (${marks}) GROUP BY path`).all(from, ...paths))
-    out.set(String(r.path), { views: Number(r.n), visitors: Number(r.v), refVisits: 0, refDomains: [] })
+  const get = (p: string) => out.get(p) ?? out.set(p, { views: 0, visitors: 0, today: 0, week: 0, refs: [] }).get(p)!
+  for (const r of d.prepare(`SELECT path, COUNT(*) AS n, COUNT(DISTINCT day || visitor) AS v, SUM(CASE WHEN day = ? THEN 1 ELSE 0 END) AS t, SUM(CASE WHEN day >= ? THEN 1 ELSE 0 END) AS w FROM views WHERE day >= ? AND path IN (${marks}) GROUP BY path`).all(today, weekFrom, from, ...paths)) {
+    const e = get(String(r.path))
+    e.views = Number(r.n)
+    e.visitors = Number(r.v)
+    e.today = Number(r.t)
+    e.week = Number(r.w)
+  }
   const known = new Set(['Google', 'Bing', 'DuckDuckGo', 'Facebook', 'Instagram', 'Threads', 'X', 'Reddit'])
-  for (const r of d.prepare(`SELECT path, ref, COUNT(*) AS n FROM views WHERE day >= ? AND first = 1 AND ref != '' AND path IN (${marks}) GROUP BY path, ref`).all(from, ...paths)) {
+  for (const r of d.prepare(`SELECT path, ref, COUNT(*) AS n FROM views WHERE day >= ? AND first = 1 AND ref != '' AND path IN (${marks}) GROUP BY path, ref ORDER BY n DESC`).all(from, ...paths)) {
     if (known.has(String(r.ref))) continue
-    const e = out.get(String(r.path)) ?? out.set(String(r.path), { views: 0, visitors: 0, refVisits: 0, refDomains: [] }).get(String(r.path))!
-    e.refVisits += Number(r.n)
-    e.refDomains.push(String(r.ref))
+    get(String(r.path)).refs.push({ site: String(r.ref), visits: Number(r.n) })
   }
   return out
 }
