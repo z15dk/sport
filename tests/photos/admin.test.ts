@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { openPhotoDb, type Db } from '../../src/lib/photos/db.ts'
-import { parseQuery } from '../../src/lib/photos/search.ts'
+import { parseQuery as parseQueryFull } from '../../src/lib/photos/search.ts'
 import { addSquadRow, addTag, bestPhotos, clubList, createShare, deleteSquadRow, expiredLoans, filterOptions, matchOverview, openShare, revokeShare, shareList, getPhoto, reviewQueue, searchPhotos, setApproved, setMatch, setRights, updateTag } from '../../src/lib/photos/store.ts'
 
 // Search, corrections and approval against a small temporary database
@@ -39,7 +39,13 @@ after(() => {
 })
 
 test('søgeord: klubnavne (også løse) og numre', () => {
-  const clubs = clubList(db)
+  const all = clubList(db)
+  // Only what the query found (the club names ride along for tag search)
+  const clubs = all
+  const parseQuery = (q: string, c: typeof all) => {
+    const { clubNames: _names, ...rest } = parseQueryFull(q, c)
+    return rest
+  }
   assert.deepEqual(parseQuery('Brabrand 9', clubs), { clubIds: ['brabrand'], numbers: [9], words: [] })
   assert.deepEqual(parseQuery('Brabrand IF #9', clubs), { clubIds: ['brabrand'], numbers: [9], words: [] })
   assert.deepEqual(parseQuery('Fremad Amager jubel', clubs), { clubIds: ['fremad-amager'], numbers: [], words: ['jubel'] })

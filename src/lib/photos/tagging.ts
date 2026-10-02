@@ -1,5 +1,6 @@
 import { decideSide, type Side } from './colors.ts'
 import { backNameFits, pickName, type LineupPlayer, type SquadRow } from './names.ts'
+import { kindFromAi, type Kind } from './kinds.ts'
 import type { VisionResult } from './vision.ts'
 
 // From the AI's answer to tags: own club or opponent, name, and whether the
@@ -32,9 +33,12 @@ export interface TaggingContext {
   lineup?: LineupPlayer[]
   squad: SquadRow[]
   minConfidence: number
+  /** The kind chosen by hand; else the AI's */
+  kind?: Kind
 }
 
 export interface Tagging {
+  kind: Kind
   tags: TagDraft[]
   situation?: string
   review: boolean
@@ -44,6 +48,9 @@ export interface Tagging {
 }
 
 export function tagPhoto(vision: VisionResult, ctx: TaggingContext): Tagging {
+  const kind: Kind = ctx.kind ?? kindFromAi(vision.kind) ?? 'kampfoto'
+  // A graphic has no players to find: no tags and nothing to review
+  if (kind === 'grafik') return { kind, tags: [], situation: vision.situation, review: false, reasons: [], cost: 0 }
   const reasons = new Set<string>()
   let cost = 0
   const tags: TagDraft[] = vision.players.map((p) => {
@@ -98,13 +105,14 @@ export function tagPhoto(vision: VisionResult, ctx: TaggingContext): Tagging {
     }
   }
 
-  if (!ctx.clubKnown) {
+  // Only a match photo needs a club and numbers; portraits and other pictures may have neither
+  if (!ctx.clubKnown && kind === 'kampfoto') {
     reasons.add('ukendt klub')
     cost += 5
   }
-  if (!tags.length) {
+  if (!tags.length && kind === 'kampfoto') {
     reasons.add('ingen numre')
     cost += 3
   }
-  return { tags, situation: vision.situation, review: reasons.size > 0, reasons: [...reasons], cost }
+  return { kind, tags, situation: vision.situation, review: reasons.size > 0, reasons: [...reasons], cost }
 }

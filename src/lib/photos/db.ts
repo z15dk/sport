@@ -208,6 +208,11 @@ export function openPhotoDb(file: string): Db {
     'ALTER TABLE matches ADD COLUMN away_score INTEGER',
     // Photos from the article editor (source 'artikel', file in UPLOAD_DIR) and whether their metadata has been filled in
     "ALTER TABLE photos ADD COLUMN source TEXT NOT NULL DEFAULT 'drive'",
+    // What the picture is (kampfoto, portraet, grafik, andet; set by the AI unless chosen by hand), a title and our own tags
+    "ALTER TABLE photos ADD COLUMN kind TEXT NOT NULL DEFAULT 'kampfoto'",
+    'ALTER TABLE photos ADD COLUMN kind_manual INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE photos ADD COLUMN title TEXT',
+    "ALTER TABLE photos ADD COLUMN user_tags TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE photos ADD COLUMN metadata_done INTEGER NOT NULL DEFAULT 1',
     // Once, when results arrive: fetch every played match page again for its goals
     'ALTER TABLE matches ADD COLUMN has_events INTEGER NOT NULL DEFAULT 0; UPDATE matches SET fetched_at = NULL',

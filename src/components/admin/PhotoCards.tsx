@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { KINDS } from '../../lib/photos/kinds'
 import type { Photo, Tag } from '../../lib/photos/store'
 import s from './photos.module.css'
 
@@ -55,11 +56,16 @@ export function PhotoCard({ photo, tags, burst }: { photo: Photo; tags: Tag[]; b
       )}
       <div className={s.cardBody}>
         <span className={s.cardTitle}>
-          {photo.club ? `${photo.club} – ${photo.opponent ?? '?'}` : photo.source === 'artikel' ? 'Artikelbillede' : 'Ukendt klub'}
+          {photo.title || (photo.club ? `${photo.club} – ${photo.opponent ?? '?'}` : photo.source === 'artikel' ? 'Artikelbillede' : 'Ukendt klub')}
         </span>
-        <span className={s.muted}>{dateDk(photo.matchDate)}</span>
+        <span className={s.muted}>
+          {photo.kind !== 'kampfoto' ? `${KINDS[photo.kind]} · ` : ''}
+          {photo.title && photo.club ? `${photo.club} – ${photo.opponent ?? '?'} · ` : ''}
+          {photo.matchDate ? dateDk(photo.matchDate) : ''}
+        </span>
+        {photo.userTags.length > 0 && <span className={s.muted}>#{photo.userTags.slice(0, 4).join(' #')}</span>}
         {photo.licenseUntil && <span className={`${s.chip} ${s.unknown}`}>Lånt til {dateDk(photo.licenseUntil)} · {photo.credit}</span>}
-        <span className={s.chips}>{tags.length ? tags.map((t) => <TagChip key={t.id} tag={t} />) : <span className={s.muted}>ingen numre</span>}</span>
+        <span className={s.chips}>{tags.length ? tags.map((t) => <TagChip key={t.id} tag={t} />) : photo.kind === 'kampfoto' ? <span className={s.muted}>ingen numre</span> : null}</span>
         {!photo.metadataDone && <span className={`${s.chip} ${s.unknown}`}>Mangler metadata</span>}
         <span className={photo.status === 'godkendt' ? s.approved : s.muted}>
           {photo.source === 'artikel' ? 'Artikel · ' : ''}

@@ -6,6 +6,7 @@ import { backNameFits, pickName } from './names.ts'
 import { clubKey, type ClubRef } from './paths.ts'
 import { groupBursts } from './quality.ts'
 import { parseQuery, searchWhere } from './search.ts'
+import { cleanTags, isKind, type Kind } from './kinds.ts'
 import { tagPhoto } from './tagging.ts'
 import { parseVisionJson } from './vision.ts'
 
@@ -38,6 +39,10 @@ export interface Photo {
   licenseUntil: string | null
   /** 'drive' or 'artikel' (uploaded in the article editor) */
   source: string
+  kind: Kind
+  kindManual: boolean
+  title: string | null
+  userTags: string[]
   /** False for an article picture whose rights and match have not been filled in */
   metadataDone: boolean
   sharpness: number | null
@@ -90,6 +95,10 @@ const toPhoto = (r: Row): Photo => ({
   credit: (r.credit as string) ?? null,
   licenseUntil: (r.license_until as string) ?? null,
   source: String(r.source ?? 'drive'),
+  kind: isKind(r.kind) ? r.kind : 'kampfoto',
+  kindManual: !!r.kind_manual,
+  title: (r.title as string) ?? null,
+  userTags: parseList(r.user_tags),
   metadataDone: r.metadata_done == null ? true : !!r.metadata_done,
   sharpness: r.sharpness == null ? null : Number(r.sharpness),
   dhash: (r.dhash as string) ?? null,
@@ -159,6 +168,9 @@ export interface PhotoFilters {
   to?: string
   /** Only these photos (a burst opened from the grid) */
   ids?: number[]
+  kind?: string
+  /** One of our own tags */
+  tag?: string
 }
 
 export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: PhotoFilters = {}): Photo[] {
@@ -174,8 +186,18 @@ export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: Pho
   const extra: string[] = []
   const extraParams: unknown[] = []
   if (f.clubId) {
-    extra.push('p.club_id = ?')
-    extraParams.push(f.clubId)
+    // The club the photo is from, or a picture tagged with the club (graphics have no club folder)
+    const name = clubList(db).find((c) => c.id === f.clubId)?.name ?? f.clubId
+    extra.push(`(p.club_id = ? OR EXISTS (SELECT 1 FROM json_each(p.user_tags) WHERE lower(value) = lower(?)))`)
+    extraParams.push(f.clubId, name)
+  }
+  if (f.kind && isKind(f.kind)) {
+    extra.push('p.kind = ?')
+    extraParams.push(f.kind)
+  }
+  if (f.tag) {
+    extra.push(`EXISTS (SELECT 1 FROM json_each(p.user_tags) WHERE lower(value) = lower(?))`)
+    extraParams.push(f.tag)
   }
   if (f.opponentId) {
     extra.push('p.opponent_id = ?')
@@ -216,6 +238,8 @@ export function filterOptions(db: Db, clubId?: string) {
     clubs: count(db.prepare(`SELECT club_id v, club l, COUNT(*) n FROM photos WHERE ${live} AND club_id IS NOT NULL GROUP BY club_id ORDER BY l`).all()),
     opponents: count(db.prepare(`SELECT opponent_id v, opponent l, COUNT(*) n FROM photos WHERE ${live} AND opponent_id IS NOT NULL GROUP BY opponent_id ORDER BY l`).all()),
     situations: count(db.prepare(`SELECT situation v, COUNT(*) n FROM photos WHERE ${live} AND situation IS NOT NULL AND situation != '' GROUP BY situation ORDER BY n DESC, v`).all()),
+    kinds: count(db.prepare(`SELECT kind v, COUNT(*) n FROM photos WHERE ${live} GROUP BY kind ORDER BY n DESC`).all()),
+    tags: count(db.prepare(`SELECT j.value v, COUNT(*) n FROM photos p, json_each(p.user_tags) j WHERE p.${live} GROUP BY lower(j.value) ORDER BY n DESC, v LIMIT 60`).all()),
     players: count(
       db
         .prepare(
@@ -378,7 +402,7 @@ export function retag(db: Db, photoId: number, minConfidence: number) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ai', ?)`,
   )
   for (const t of tagging.tags) ins.run(photoId, t.number, t.jerseyColor, t.side, t.confidence, t.box?.[0] ?? null, t.box?.[1] ?? null, t.box?.[2] ?? null, t.box?.[3] ?? null, t.playerName ?? null, t.nameSource ?? null, t.backName ?? null, t.note ?? null, nowIso())
-  db.prepare('UPDATE photos SET review = ?, review_reasons = ?, review_cost = ? WHERE id = ?').run(tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, photoId)
+  db.prepare(`UPDATE photos SET review = ?, review_reasons = ?, review_cost = ?, kind = CASE WHEN kind_manual = 1 THEN kind ELSE ? END WHERE id = ?`).run(tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, tagging.kind, photoId)
   return true
 }
 
@@ -613,9 +637,11 @@ export function registerArticleUpload(db: Db, uploadName: string): number {
 }
 
 /** The metadata asked for right after an upload: rights, loan and match */
-export function setArticleMetadata(db: Db, photoId: number, input: { credit?: string; licenseUntil?: string; clubId?: string; opponentId?: string; date?: string }, minConfidence: number) {
+export function setArticleMetadata(db: Db, photoId: number, input: { credit?: string; licenseUntil?: string; clubId?: string; opponentId?: string; date?: string; kind?: string; title?: string; tags?: unknown }, minConfidence: number) {
   const r = setRights(db, photoId, { credit: input.credit, licenseUntil: input.licenseUntil })
   if (r.error) return { error: r.error }
+  const info = setInfo(db, photoId, { kind: input.kind || undefined, title: input.title, tags: input.tags }, minConfidence)
+  if (info.error) return { error: info.error }
   if (input.clubId || input.opponentId || input.date) {
     const m = setMatch(db, photoId, { clubId: input.clubId || undefined, opponentId: input.opponentId || undefined, date: input.date || undefined }, minConfidence)
     if (m.error) return { error: m.error }
@@ -633,7 +659,9 @@ export function pickerPhotos(db: Db, q: string, f: PhotoFilters & { status?: str
     const names = (tags.get(p.id) ?? []).filter((t) => t.side === 'egen' && t.playerName).map((t) => t.playerName!)
     return {
       id: p.id,
-      title: p.club ? `${p.club} – ${p.opponent ?? '?'}` : p.name,
+      title: p.title || (p.club ? `${p.club} – ${p.opponent ?? '?'}` : p.name),
+      kind: p.kind,
+      tags: p.userTags,
       date: p.matchDate,
       status: p.status,
       review: p.review,
@@ -643,7 +671,7 @@ export function pickerPhotos(db: Db, q: string, f: PhotoFilters & { status?: str
       borrowed: !!p.licenseUntil,
       licenseUntil: p.licenseUntil,
       ready: !!p.processedAt || p.status === 'ny',
-      alt: [names.slice(0, 3).join(', '), p.situation, p.club && p.opponent ? `${p.club} mod ${p.opponent}` : undefined].filter(Boolean).join(' – '),
+      alt: p.title || [names.slice(0, 3).join(', '), p.situation, p.club && p.opponent ? `${p.club} mod ${p.opponent}` : undefined].filter(Boolean).join(' – '),
     }
   })
 }
@@ -658,4 +686,17 @@ export function backfillArticleImages(db: Db, articleImageNames: string[]): numb
     added++
   }
   return added
+}
+
+/** What the picture is, its title and our own tags (a kind chosen here wins over the AI's; graphics lose their player tags) */
+export function setInfo(db: Db, photoId: number, input: { kind?: string; title?: string; tags?: unknown }, minConfidence: number) {
+  const row = db.prepare('SELECT id, kind FROM photos WHERE id = ?').get(photoId)
+  if (!row) return { error: 'Billedet findes ikke' }
+  if (input.kind !== undefined && input.kind !== '' && !isKind(input.kind)) return { error: 'Ukendt billedtype' }
+  if (input.kind && isKind(input.kind)) db.prepare('UPDATE photos SET kind = ?, kind_manual = 1 WHERE id = ?').run(input.kind, photoId)
+  if (input.title !== undefined) db.prepare('UPDATE photos SET title = ? WHERE id = ?').run(String(input.title).trim().slice(0, 120) || null, photoId)
+  if (input.tags !== undefined) db.prepare('UPDATE photos SET user_tags = ? WHERE id = ?').run(JSON.stringify(cleanTags(input.tags)), photoId)
+  // A new kind changes what is looked for: worked out again from the stored AI answer
+  if (input.kind && input.kind !== row.kind) retag(db, photoId, minConfidence)
+  return {}
 }

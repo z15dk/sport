@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FORMATS, type SomeFormat } from '../../lib/photos/crop'
+import { KINDS, type Kind } from '../../lib/photos/kinds'
 import s from './photos.module.css'
 
 // The photo admin's editors (/admin/billeder): tags, match, approval, review
@@ -346,7 +347,9 @@ export function AutoFilterForm({ children, className, style }: { children: React
 export function BulkBar({ clubs }: { clubs: { id: string; name: string }[] }) {
   const { busy, error, run } = useAction()
   const [ids, setIds] = useState<number[]>([])
-  const [panel, setPanel] = useState<'' | 'rights' | 'match' | 'share'>('')
+  const [panel, setPanel] = useState<'' | 'rights' | 'match' | 'share' | 'info'>('')
+  const [bulkKind, setBulkKind] = useState('')
+  const [bulkTags, setBulkTags] = useState('')
   const [credit, setCredit] = useState('')
   const [until, setUntil] = useState('')
   const [club, setClub] = useState('')
@@ -401,6 +404,7 @@ export function BulkBar({ clubs }: { clubs: { id: string; name: string }[] }) {
         Fortryd godkendelse
       </button>
       <button className="pill" onClick={() => setPanel(panel === 'rights' ? '' : 'rights')}>Rettigheder</button>
+      <button className="pill" onClick={() => setPanel(panel === 'info' ? '' : 'info')}>Type og tags</button>
       <button className="pill" onClick={() => setPanel(panel === 'match' ? '' : 'match')}>Flyt til kamp</button>
       <button className="pill" onClick={() => setPanel(panel === 'share' ? '' : 'share')}>Del</button>
       <button
@@ -420,6 +424,22 @@ export function BulkBar({ clubs }: { clubs: { id: string; name: string }[] }) {
           <input value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Foto: (tom = Matchly.dk)" aria-label="Rettigheder" />
           <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} aria-label="Lånt til og med" title="Lånt til og med (tom = vores eget)" />
           <button className="pill is-active" disabled={busy} onClick={() => void act({ op: 'rights', credit, licenseUntil: until }, 'Rettigheder gemt')}>
+            Gem på {ids.length}
+          </button>
+        </div>
+      )}
+      {panel === 'info' && (
+        <div className={s.bulkPanel}>
+          <select value={bulkKind} onChange={(e) => setBulkKind(e.target.value)} aria-label="Billedtype">
+            <option value="">Type (uændret)</option>
+            {(Object.keys(KINDS) as Kind[]).map((x) => (
+              <option key={x} value={x}>
+                {KINDS[x]}
+              </option>
+            ))}
+          </select>
+          <input value={bulkTags} onChange={(e) => setBulkTags(e.target.value)} placeholder="Tilføj tags, fx Brabrand IF, infografik" aria-label="Tags" />
+          <button className="pill is-active" disabled={busy || (!bulkKind && !bulkTags.trim())} onClick={() => void act({ op: 'info', kind: bulkKind, addTags: bulkTags }, 'Type og tags gemt')}>
             Gem på {ids.length}
           </button>
         </div>
@@ -507,5 +527,71 @@ export function RevokeShare({ id }: { id: number }) {
       </button>
       {error && <span className={s.error}> {error}</span>}
     </>
+  )
+}
+
+/** Tags as removable chips, with a menu of clubs and leagues and free text */
+export function TagPicker({ tags, onChange, suggestions }: { tags: string[]; onChange: (t: string[]) => void; suggestions: string[] }) {
+  const [text, setText] = useState('')
+  const add = (raw: string) => {
+    const add = raw.split(',').map((t) => t.trim()).filter(Boolean)
+    if (add.length) onChange([...tags, ...add.filter((a) => !tags.some((t) => t.toLowerCase() === a.toLowerCase()))])
+    setText('')
+  }
+  return (
+    <div className={s.form} style={{ alignItems: 'flex-start' }}>
+      <select value="" onChange={(e) => e.target.value && add(e.target.value)} aria-label="Tilføj klub eller liga">
+        <option value="">Klub eller liga …</option>
+        {suggestions.map((n) => (
+          <option key={n} value={n} disabled={tags.includes(n)}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add(text))} placeholder="Eget tag, fx transfer, infografik" aria-label="Eget tag" />
+      <button type="button" className="pill" onClick={() => add(text)} disabled={!text.trim()}>
+        Tilføj
+      </button>
+      {tags.length > 0 && (
+        <span className={s.chips} style={{ flexBasis: '100%' }}>
+          {tags.map((t) => (
+            <button key={t} type="button" className={`${s.chip} ${s.opp}`} onClick={() => onChange(tags.filter((x) => x !== t))} title="Fjern" style={{ border: 0, cursor: 'pointer' }}>
+              {t} ×
+            </button>
+          ))}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** What the picture is, its title and our own tags */
+export function InfoEditor({ photoId, kind, kindManual, title, tags, suggestions }: { photoId: number; kind: Kind; kindManual: boolean; title: string | null; tags: string[]; suggestions: string[] }) {
+  const { busy, error, run } = useAction()
+  const [k, setK] = useState<Kind>(kind)
+  const [t, setT] = useState(title ?? '')
+  const [tg, setTg] = useState(tags)
+  const changed = k !== kind || t !== (title ?? '') || JSON.stringify(tg) !== JSON.stringify(tags)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className={s.form}>
+        <select value={k} onChange={(e) => setK(e.target.value as Kind)} aria-label="Billedtype">
+          {(Object.keys(KINDS) as Kind[]).map((x) => (
+            <option key={x} value={x}>
+              {KINDS[x]}
+            </option>
+          ))}
+        </select>
+        <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Titel" aria-label="Titel" style={{ flex: '2 1 200px' }} />
+      </div>
+      <span className={s.muted}>{kindManual ? 'Typen er valgt i hånden.' : 'Typen er foreslået af AI – ret den, hvis den er forkert.'} Grafik får ingen spiller-tags.</span>
+      <TagPicker tags={tg} onChange={setTg} suggestions={suggestions} />
+      {changed && (
+        <button type="button" className="pill is-active" disabled={busy} onClick={() => void run({ action: 'set-info', photo: photoId, kind: k, title: t, tags: tg })} style={{ alignSelf: 'flex-start' }}>
+          Gem type, titel og tags
+        </button>
+      )}
+      {error && <span className={s.error}>{error}</span>}
+    </div>
   )
 }

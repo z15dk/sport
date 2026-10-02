@@ -308,7 +308,7 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
       countCall(db, vision.name, e instanceof QuotaError)
       throw e
     }
-    db.prepare('UPDATE photos SET vision_json = ?, vision_model = ? WHERE id = ?').run(JSON.stringify({ spillere: result.players.map((x) => ({ nummer: x.number, troejefarve: x.jerseyColor, tillid: x.confidence, boks: x.box, rygnavn: x.backName ?? null })), situation: result.situation }), result.model, id)
+    db.prepare('UPDATE photos SET vision_json = ?, vision_model = ? WHERE id = ?').run(JSON.stringify({ spillere: result.players.map((x) => ({ nummer: x.number, troejefarve: x.jerseyColor, tillid: x.confidence, boks: x.box, rygnavn: x.backName ?? null })), situation: result.situation, type: result.kind ?? null, titel: result.title ?? null }), result.model, id)
   }
 
   writeFileSync(path.join(cfg.thumbDir, `${id}.webp`), v.thumb, { mode: 0o600 })
@@ -330,8 +330,9 @@ async function processPhoto(db: Db, cfg: PhotoConfig, drive: DriveClient, vision
     }
     db.prepare(
       `UPDATE photos SET status = 'tagget', situation = ?, taken_at = ?, width = ?, height = ?, review = ?, review_reasons = ?, review_cost = ?,
-         web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar', sharpness = ?, dhash = ? WHERE id = ?`,
-    ).run(tagging.situation ?? null, v.takenAt ?? null, v.width, v.height, tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, webId, nowIso(), v.sharpness, v.dhash, id)
+         web_drive_id = ?, error = NULL, lease_until = NULL, processed_at = ?, archive_state = 'klar', sharpness = ?, dhash = ?,
+         kind = CASE WHEN kind_manual = 1 THEN kind ELSE ? END, title = COALESCE(NULLIF(title, ''), ?) WHERE id = ?`,
+    ).run(tagging.situation ?? null, v.takenAt ?? null, v.width, v.height, tagging.review ? 1 : 0, JSON.stringify(tagging.reasons), tagging.cost, webId, nowIso(), v.sharpness, v.dhash, tagging.kind, result.title ?? null, id)
   })
   return tagging
 }
