@@ -2159,7 +2159,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .women-tabs__tab.is-active { background: #15101f; color: #fff; }
 .women-tabs__tab.is-active span { background: #b69cff; color: #15101f; }
 
-.women-more { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.women-more { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .women-leagues ul { list-style: none; margin: 0; padding: 0 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px; }
 .women-leagues li > a, .women-leagues li > div {
   display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: var(--radius-sm); color: inherit; text-decoration: none;
@@ -2909,3 +2909,18 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .tracking-form input { min-width: 220px; padding: 8px 10px; font: inherit; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .tracking-form__owner { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 0; padding: 10px 12px 12px; border: 1px solid var(--line); border-radius: 12px; }
 .tracking-form__owner legend { padding: 0 4px; font-size: 13px; font-weight: 700; }
+
+/* Two columns of boxes, each in the shortest column (MasonryFlow, src/hooks/useMasonry.ts) */
+.flow2 { display: flex; flex-direction: column; gap: 16px; }
+.flow2 > * { margin: 0 !important; min-width: 0; }
+.flow2 .club-layout__side { display: contents; }
+.flow2 .club-layout__side > * { margin: 0 !important; min-width: 0; }
+@media (min-width: 1000px) {
+  .flow2:not(.is-masonry) { display: block; columns: 2; column-gap: 16px; }
+  .flow2:not(.is-masonry) > *, .flow2:not(.is-masonry) .club-layout__side > * { break-inside: avoid; margin: 0 0 16px !important; }
+  /* column-gap 8px: the break is a column of its own, so the gap between the two columns is 2 × 8 */
+  .flow2.is-masonry { gap: 16px 8px; flex-wrap: wrap; align-content: flex-start; }
+  .flow2.is-masonry > *, .flow2.is-masonry .club-layout__side > * { width: calc((100% - 16px) / 2); }
+  .flow2.is-masonry::before { content: ''; flex-basis: 100%; width: 0; order: 2; }
+  .flow2 .leaders__grid { grid-template-columns: minmax(0, 1fr); }
+}

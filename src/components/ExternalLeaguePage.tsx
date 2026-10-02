@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { MasonryFlow } from './MasonryFlow'
 import type { ExternalLeague } from '../lib/apisports'
 import type { TableRow } from '../data/matchExtra'
 import type { PastMatch } from '../data/matchInsights'
@@ -171,81 +172,60 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
         <LiveNow matches={upcoming} />
 
         {bracket && <KnockoutBracket rounds={bracket} />}
-        {/* The coming matches and the table side by side, the rest under them */}
-        {showTable && upcoming.length > 0 ? (
-          <div className="pair-2">
-            <Upcoming upcoming={upcoming} />
-            {tableSection}
-          </div>
-        ) : (
-          <>
-            {upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
-            {showTable && tableSection}
-          </>
-        )}
-        {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
-        {/* Stats and players right under the coming matches and the table, the rounds after them */}
-        {showTable && stats && leaders ? (
-          <div className="table-duo">
-            <div className="table-duo__main">
-              <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
-            </div>
-            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-          </div>
-        ) : (
-          <>
-            {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
-            <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
-          </>
-        )}
-        {rounds?.map((r) => (
-          <section key={r.name} className="league">
-            <header className="league__header">
-              <div className="league__toggle">
-                <span className="league__titles">
-                  <h2 className="league__name">{r.name}</h2>
-                </span>
-              </div>
-            </header>
-            <ul className="league__matches">
-              {r.matches.map((m) => (
-                <MatchRow key={m.id} match={m} showDate />
-              ))}
-            </ul>
-          </section>
-        ))}
-
-        {news}
+        {/* Every box in two columns, each in the shorter one, so nothing leaves a hole (MasonryFlow) */}
+        <MasonryFlow>
+          {upcoming.length > 0 && <Upcoming upcoming={upcoming} />}
+          {showTable && tableSection}
+          {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
+          <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
+          {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          {rounds?.map((r) => (
+            <section key={r.name} className="league">
+              <header className="league__header">
+                <div className="league__toggle">
+                  <span className="league__titles">
+                    <h2 className="league__name">{r.name}</h2>
+                  </span>
+                </div>
+              </header>
+              <ul className="league__matches">
+                {r.matches.map((m) => (
+                  <MatchRow key={m.id} match={m} showDate />
+                ))}
+              </ul>
+            </section>
+          ))}
+          {recent.length > 0 && (
+            <section className="panel table-panel">
+              <header className="table-panel__head">
+                <h2 className="panel__title">{rounds ? 'Tidligere kampe' : 'Seneste resultater'}</h2>
+              </header>
+              <ul className="h2h h2h--pad">
+                {recent.map((m, i) => {
+                  const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
+                  return (
+                    <li key={i} className="h2h__row">
+                      <span className="h2h__meta">{formatShortYear(m.date)}</span>
+                      <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
+                        {m.home}
+                        <TeamBadge name={m.home} src={m.homeLogo} size={22} />
+                      </span>
+                      <span className="h2h__score">
+                        {m.homeScore}–{m.awayScore}
+                      </span>
+                      <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
+                        <TeamBadge name={m.away} src={m.awayLogo} size={22} />
+                        {m.away}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+          {news}
+        </MasonryFlow>
         <AdSlot placement="feed" />
-
-        {recent.length > 0 && (
-          <section className="panel table-panel">
-            <header className="table-panel__head">
-              <h2 className="panel__title">{rounds ? 'Tidligere kampe' : 'Seneste resultater'}</h2>
-            </header>
-            <ul className="h2h h2h--pad">
-              {recent.map((m, i) => {
-                const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
-                return (
-                  <li key={i} className="h2h__row">
-                    <span className="h2h__meta">{formatShortYear(m.date)}</span>
-                    <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
-                      {m.home}
-                      <TeamBadge name={m.home} src={m.homeLogo} size={22} />
-                    </span>
-                    <span className="h2h__score">
-                      {m.homeScore}–{m.awayScore}
-                    </span>
-                    <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
-                      <TeamBadge name={m.away} src={m.awayLogo} size={22} />
-                      {m.away}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        )}
         <p className="muted small">
           <Link href="/">Se alle dagens kampe</Link>.
         </p>
