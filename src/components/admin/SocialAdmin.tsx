@@ -712,6 +712,9 @@ export function OwnPostForm({
     if (!link.trim()) setLink(d.link)
   }
   const thumb = (ref: string) => (ref.startsWith('file:') ? `/sociale-billeder/${ref.slice(5)}` : ref)
+  // The picture shown large (index in the list, or -1 for the story card)
+  const [big, setBig] = useState<number>()
+  const shown = big === undefined ? undefined : big === -1 ? storyImage : images[big]
   const canStory = chosen.some((id) => platforms.find((p) => p.id === id)?.story)
   return (
     <div className="own-post">
@@ -758,9 +761,14 @@ export function OwnPostForm({
         <div className="own-post__thumbs">
           {images.map((src, i) => (
             <figure key={i}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
-              <img src={thumb(src)} alt="" />
-              <button type="button" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
+              <button type="button" className="own-post__open" onClick={() => setBig(i)} aria-label={`Vis billede ${i + 1} stort`}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
+                <img src={thumb(src)} alt="" />
+              </button>
+              <figcaption>
+                {i + 1}/{images.length}
+              </figcaption>
+              <button type="button" className="own-post__remove" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
                 ×
               </button>
             </figure>
@@ -772,7 +780,40 @@ export function OwnPostForm({
             </label>
           )}
         </div>
-        {images.length > 1 && <small className="muted">Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+        {story && storyImage && (
+          <div className="own-post__thumbs">
+            <figure className="is-story">
+              <button type="button" className="own-post__open" onClick={() => setBig(-1)} aria-label="Vis story-billedet stort">
+                {/* eslint-disable-next-line @next/next/no-img-element -- the template's story card */}
+                <img src={thumb(storyImage)} alt="" />
+              </button>
+              <figcaption>Story</figcaption>
+            </figure>
+          </div>
+        )}
+        {images.length > 0 && <small className="muted">Klik på et billede for at se det i fuld størrelse. Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+        {shown && (
+          <div className="own-post__big" role="dialog" aria-label="Billedet i fuld størrelse" onClick={() => setBig(undefined)}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the picture in full size */}
+            <img src={thumb(shown)} alt="" onClick={(e) => e.stopPropagation()} />
+            <div className="own-post__big-bar" onClick={(e) => e.stopPropagation()}>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) - 1 + images.length) % images.length)}>
+                  ← Forrige
+                </button>
+              )}
+              <span>{big === -1 ? 'Story' : `${(big ?? 0) + 1} af ${images.length}`}</span>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) + 1) % images.length)}>
+                  Næste →
+                </button>
+              )}
+              <button type="button" className="pill is-active" onClick={() => setBig(undefined)}>
+                Luk
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <fieldset className="own-post__platforms">
         <legend>Platforme</legend>
