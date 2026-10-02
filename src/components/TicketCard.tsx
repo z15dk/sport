@@ -24,8 +24,8 @@ const kr = (n: number) => (n ? `${n.toLocaleString('da-DK', { minimumFractionDig
 export async function TicketCard(p: TicketCardProps) {
   const svg = await QRCode.toString(p.code, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0f110c', light: '#ffffff' } })
   // The clubs' colours run through the ticket's top, as on a printed season card
-  const c1 = p.homeColors?.[0] ?? '#d8bb72'
-  const c2 = p.awayColors?.[0] ?? '#d8bb72'
+  const c1 = p.homeColors?.[0] ?? '#9aa89a'
+  const c2 = p.awayColors?.[0] ?? '#9aa89a'
   return (
     <article className={`tk${p.used ? ' is-used' : ''}`} style={{ '--c1': c1, '--c2': c2 } as CSSProperties}>
       <div className="tk__head">
