@@ -29,6 +29,27 @@ export function AdminBarFlag() {
   return null
 }
 
+/** The current section's sub-pages as a row of tabs above the admin page's own content, for switching with one click */
+export function AdminSubNav() {
+  const path = usePathname() ?? '/'
+  const { section, page } = adminSection(path)
+  if (!section?.children) return null
+  return (
+    <nav className="admin-subnav" aria-label={section.label}>
+      {groups(section.children).map((g) => (
+        <span key={g.name ?? ''} className="admin-subnav__group">
+          {g.name && <span className="admin-subnav__name">{g.name}</span>}
+          {g.items.map((c) => (
+            <Link key={c.href} href={c.href} className={`pill${c.href === page ? ' is-active' : ''}`} aria-current={c.href === page ? 'page' : undefined}>
+              {c.label}
+            </Link>
+          ))}
+        </span>
+      ))}
+    </nav>
+  )
+}
+
 /** A dropdown's items by their heading (one unnamed group when none has one) */
 function groups(items: NonNullable<AdminMenuItem['children']>) {
   const out: { name?: string; items: typeof items }[] = []

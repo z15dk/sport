@@ -432,3 +432,12 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-table .quality__badge { white-space: nowrap; }
 /* /admin/kanaler's rules: no time or logo in front, so the text gets the row and "Fjern" stays at the end */
 .admin-list__row.admin-rule { grid-template-columns: minmax(0, 1fr) auto; }
+/* The section's sub-pages as tabs above the page (AdminSubNav); groups side by side with their heading, one row that scrolls on a narrow screen */
+.admin-subnav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 10px; border-radius: var(--radius); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.admin-subnav__group { display: inline-flex; align-items: center; gap: 4px; }
+.admin-subnav__group + .admin-subnav__group { padding-left: 18px; border-left: 1px solid var(--line); }
+.admin-subnav__name { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; }
+@media (max-width: 700px) {
+  .admin-subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .admin-subnav__group { flex: none; }
+}
