@@ -430,3 +430,5 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .admin .dash-card > .panel__title.quality__name { display: flex; margin: 0; }
 .admin .dash-card .quality__checks { font-size: 13px; }
 .dash-table .quality__badge { white-space: nowrap; }
+/* /admin/kanaler's rules: no time or logo in front, so the text gets the row and "Fjern" stays at the end */
+.admin-list__row.admin-rule { grid-template-columns: minmax(0, 1fr) auto; }
