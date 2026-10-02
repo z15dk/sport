@@ -5,7 +5,7 @@ import path from 'node:path'
 import type { SportId } from '../types'
 import type { ChannelData, ChannelDef, ChannelRule } from '../data/channels'
 import { gameKey } from '../data/external'
-import { alike } from '../data/aliases'
+import { alike, normalize } from '../data/aliases'
 import { slugify } from './slug'
 import { addDays, isoDate } from './time'
 import { cacheDir, tsdb } from './tsdb'
@@ -344,7 +344,9 @@ export function dbuTv(leagues: Record<string, { id: string; home: string; away: 
       if (!day) continue
       const home = namesOf(d, e.home)
       const away = namesOf(d, e.away)
-      const hit = day.find((r) => alike(home, r.hn) && alike(away, r.an))
+      // The same name first (short ones like "AaB" are too short for the loose match)
+      const same = (names: string[], other: string) => names.some((n) => normalize(n) === normalize(other)) || alike(names, other)
+      const hit = day.find((r) => same(home, r.hn) && same(away, r.an))
       if (hit) tv[`tsdb-${e.id}`] = [byName.get(fold(hit.tv))!]
     }
   dbuCache = { key, tv }
