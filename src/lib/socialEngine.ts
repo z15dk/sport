@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from 'node:path'
 import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
-import { captionFor, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
+import { captionFor, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost, renderSpec } from './socialRender'
 import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
@@ -567,7 +567,7 @@ export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostS
   if (!content) throw new Error('Skabelonen har ingen data den dag (prøv en anden liga eller dato)')
   dropUnusedTemplates()
   const images = await renderSpec(`tpl-${Date.now().toString(36)}${randomBytes(2).toString('hex')}`, spec)
-  return { images, caption: captionFor(content), link: linkFor(content), title: titleFor(spec) }
+  return { images, caption: captionFor(content), captions: captionVariants(content), link: linkFor(content), title: titleFor(spec) }
 }
 
 /** Template pictures made but never used in a post, after two days */

@@ -667,6 +667,9 @@ export function OwnPostForm({
   const [tpl, setTpl] = useState('')
   const [league, setLeague] = useState('')
   const [storyImage, setStoryImage] = useState<string>()
+  // The template's ten texts, to step through with "Ny tekst"
+  const [captions, setCaptions] = useState<string[]>([])
+  const [captionNo, setCaptionNo] = useState(0)
   const [text, setText] = useState('')
   const [link, setLink] = useState('')
   const [images, setImages] = useState<string[]>([])
@@ -701,13 +704,15 @@ export function OwnPostForm({
     if (!tpl) return
     const [kind, topic] = tpl.split(':')
     const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league, date: at.slice(0, 10) })
-    const d = r.data as { images: { file: string; surface: string }[]; caption: string; link: string } | undefined
+    const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
     if (r.error || !d) return
     const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
     const st = d.images.find((i) => i.surface === 'story')
     setImages((x) => [...feed, ...x.filter((y) => !y.startsWith('file:'))].slice(0, 10))
     setStoryImage(st ? `file:${st.file}` : undefined)
     if (st) setStory(true)
+    setCaptions(d.captions ?? [d.caption])
+    setCaptionNo(Math.max(0, (d.captions ?? []).indexOf(d.caption)))
     if (!text.trim() || window.confirm('Erstat teksten med skabelonens tekst?')) setText(d.caption)
     if (!link.trim()) setLink(d.link)
   }
@@ -750,7 +755,25 @@ export function OwnPostForm({
       <label className="own-post__text">
         <span>Tekst</span>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Skriv opslaget …" maxLength={5000} />
-        <small className="muted">{text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}</small>
+        <small className="muted">
+          {text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}
+          {captions.length > 1 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => {
+                  const n = (captionNo + 1) % captions.length
+                  setCaptionNo(n)
+                  setText(captions[n])
+                }}
+              >
+                Ny tekst ↻ ({captionNo + 1}/{captions.length})
+              </button>
+            </>
+          )}
+        </small>
       </label>
       <label>
         <span>Link (valgfrit)</span>
