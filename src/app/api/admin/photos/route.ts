@@ -1,7 +1,7 @@
 import { isAdmin, sameOrigin } from '../../../../lib/admin'
 import { photoConfig } from '../../../../lib/photos/config'
 import { deletePhotos, publishForArticle, requestSync, withPhotoDb } from '../../../../lib/photos/server'
-import { addSquadRow, addTag, clubList, createShare, filterOptions, pickerPhotos, setArticleMetadata, deleteSquadRow, deleteTag, revokeShare, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
+import { addSquadRow, addTag, clubList, createShare, filterOptions, pickerPhotos, setArticleMetadata, setInfo, deleteSquadRow, deleteTag, revokeShare, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
 
 // Changes from the photo admin: JSON { action, … }.
 //   approve { photo, approved }         add-tag { photo, number, name?, side? }
@@ -13,6 +13,7 @@ import { addSquadRow, addTag, clubList, createShare, filterOptions, pickerPhotos
 //   sync {}                               (run the job now)
 //   bulk { ids, op: approve|unapprove|rights|match|delete, credit?, licenseUntil?, clubId?, date?, opponentId? }
 //   share { ids, days, title }   revoke-share { id }
+//   set-info { photo, kind?, title?, tags? }   bulk op 'info' { kind?, addTags? }
 //   article-metadata { photo, credit?, licenseUntil?, clubId?, opponentId?, date? }   publish { photo } (copy for an article)
 // GET ?q=&klub=&modstander=&situation=&spiller=&status= – the editor's archive picker
 
@@ -72,6 +73,12 @@ export async function POST(request: Request) {
             b.op === 'approve' ? setApproved(db, id, true)
             : b.op === 'unapprove' ? setApproved(db, id, false)
             : b.op === 'rights' ? setRights(db, id, { credit: String(b.credit ?? ''), licenseUntil: String(b.licenseUntil ?? '') })
+            : b.op === 'info' ? (() => {
+                // Type for all, and tags added to each picture's own
+                const cur = db.prepare('SELECT user_tags FROM photos WHERE id = ?').get(id)
+                const tags = b.addTags ? [...JSON.parse(String(cur?.user_tags ?? '[]')), ...(Array.isArray(b.addTags) ? b.addTags : String(b.addTags).split(','))] : undefined
+                return setInfo(db, id, { kind: b.kind ? String(b.kind) : undefined, tags }, minConf)
+              })()
             : b.op === 'match' ? setMatch(db, id, { clubId: b.clubId ? String(b.clubId) : undefined, date: b.date ? String(b.date) : undefined, opponentId: b.opponentId ? String(b.opponentId) : undefined }, minConf)
             : { error: 'Ukendt handling' }
           if (r.error && b.op !== 'approve') return { error: r.error, count }
@@ -82,7 +89,9 @@ export async function POST(request: Request) {
       case 'share':
         return createShare(db, ids, Number(b.days ?? 30), String(b.title ?? ''))
       case 'article-metadata':
-        return setArticleMetadata(db, Number(b.photo), { credit: String(b.credit ?? ''), licenseUntil: String(b.licenseUntil ?? ''), clubId: b.clubId ? String(b.clubId) : undefined, opponentId: b.opponentId ? String(b.opponentId) : undefined, date: b.date ? String(b.date) : undefined }, photoConfig().minConfidence)
+        return setArticleMetadata(db, Number(b.photo), { credit: String(b.credit ?? ''), licenseUntil: String(b.licenseUntil ?? ''), clubId: b.clubId ? String(b.clubId) : undefined, opponentId: b.opponentId ? String(b.opponentId) : undefined, date: b.date ? String(b.date) : undefined, kind: b.kind ? String(b.kind) : undefined, title: b.title !== undefined ? String(b.title) : undefined, tags: b.tags }, photoConfig().minConfidence)
+      case 'set-info':
+        return setInfo(db, Number(b.photo), { kind: b.kind ? String(b.kind) : undefined, title: b.title !== undefined ? String(b.title) : undefined, tags: b.tags }, photoConfig().minConfidence)
       case 'revoke-share':
         return revokeShare(db, Number(b.id))
       default:
@@ -99,7 +108,7 @@ export async function GET(request: Request) {
   const cfg = photoConfig()
   return Response.json(
     withPhotoDb((db) => ({
-      photos: pickerPhotos(db, get('q'), { clubId: get('klub'), opponentId: get('modstander'), situation: get('situation'), player: get('spiller'), from: get('fra'), to: get('til'), status: get('status') }, cfg.defaultCredit),
+      photos: pickerPhotos(db, get('q'), { clubId: get('klub'), opponentId: get('modstander'), situation: get('situation'), player: get('spiller'), from: get('fra'), to: get('til'), status: get('status'), kind: get('type'), tag: get('tag') }, cfg.defaultCredit),
       options: filterOptions(db, get('klub') || undefined),
       clubs: clubList(db).map((c) => ({ id: c.id, name: c.name })),
       defaultCredit: cfg.defaultCredit,

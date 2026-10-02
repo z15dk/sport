@@ -1,5 +1,6 @@
 import type { Db, Row } from './db.ts'
 import type { LineupPlayer, SquadRow } from './names.ts'
+import { isKind } from './kinds.ts'
 import type { TaggingContext } from './tagging.ts'
 
 // What tagging needs to know about a photo's match: both clubs' colours, the
@@ -40,6 +41,8 @@ export function taggingContext(db: Db, p: Row, minConfidence: number): TaggingCo
     lineup,
     squad,
     minConfidence,
+    // A kind chosen by hand wins over the AI's
+    kind: Number(p.kind_manual ?? 0) && isKind(p.kind) ? p.kind : undefined,
   }
 }
 

@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { KINDS, type Kind } from '../../lib/photos/kinds'
+import { TagPicker } from './PhotoAdmin'
 
 // The article editor's link to the photo archive (/admin/billeder):
 //  - PhotoMetaDialog: right after an upload, asks for the picture's rights, loan,
@@ -21,6 +23,8 @@ interface Option {
 interface PickerPhoto {
   id: number
   title: string
+  kind: Kind
+  tags: string[]
   date: string | null
   status: string
   review: boolean
@@ -34,7 +38,7 @@ interface PickerPhoto {
 }
 interface PickerData {
   photos: PickerPhoto[]
-  options: { clubs: Option[]; opponents: Option[]; situations: Option[]; players: Option[] }
+  options: { clubs: Option[]; opponents: Option[]; situations: Option[]; players: Option[]; kinds: Option[]; tags: Option[] }
   clubs: Club[]
   defaultCredit: string
 }
@@ -64,6 +68,9 @@ function useClubs() {
 export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId?: number; onDone: (alt: string) => void }) {
   const { clubs, defaultCredit } = useClubs()
   const [alt, setAlt] = useState('')
+  const [kind, setKind] = useState<Kind>('kampfoto')
+  const [title, setTitle] = useState('')
+  const [tags, setTags] = useState<string[]>([])
   const [borrowed, setBorrowed] = useState(false)
   const [credit, setCredit] = useState('')
   const [until, setUntil] = useState('')
@@ -80,7 +87,8 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
     if (borrowed && (!credit.trim() || !until)) return setError('Et lånt billede skal have fotograf/ejer og en slutdato')
     if (photoId) {
       setBusy(true)
-      const r = await post({ action: 'article-metadata', photo: photoId, credit: borrowed ? credit : credit || '', licenseUntil: borrowed ? until : '', clubId: club, opponentId: opp, date })
+      const match = kind === 'kampfoto' || kind === 'portraet'
+      const r = await post({ action: 'article-metadata', photo: photoId, credit: borrowed ? credit : credit || '', licenseUntil: borrowed ? until : '', clubId: match ? club : '', opponentId: kind === 'kampfoto' ? opp : '', date: kind === 'kampfoto' ? date : '', kind, title, tags })
       setBusy(false)
       if (r.error) return setError(r.error)
     }
@@ -94,6 +102,17 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
         <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-3)' }}>Billedet er lagt i billedarkivet. Udfyld rettigheder og kamp, så det kan findes og bruges rigtigt.</p>
         {/* eslint-disable-next-line @next/next/no-img-element -- the picture just uploaded */}
         <img src={url} alt="" style={{ maxHeight: 180, objectFit: 'contain', borderRadius: 8, background: 'var(--surface-2)' }} />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="Billedtype">
+          {(Object.keys(KINDS) as Kind[]).map((k) => (
+            <button key={k} type="button" className={kind === k ? 'pill is-active' : 'pill'} onClick={() => setKind(k)} aria-pressed={kind === k}>
+              {KINDS[k]}
+            </button>
+          ))}
+        </div>
+        <label style={field}>
+          Titel (bruges i billedarkivet)
+          <input style={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={kind === 'grafik' ? 'Fx Grafik: Ugens hold, runde 9' : 'Fx Målmand redder på stregen'} />
+        </label>
         <label style={field}>
           Alt-tekst (vises ikke, men læses af Google og skærmlæsere)
           <input style={input} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder="Fx Elias Astola jubler efter 1-0 mod Skive" autoFocus />
@@ -116,6 +135,11 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
             <input style={input} type="date" min={today} value={until} onChange={(e) => setUntil(e.target.value)} />
           </label>
         )}
+        <div style={field}>
+          Tags (klubber, ligaer og egne ord – så billedet kan findes)
+          <TagPicker tags={tags} onChange={setTags} suggestions={clubs.map((c) => c.name)} />
+        </div>
+        {(kind === 'kampfoto' || kind === 'portraet') && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
           <label style={field}>
             Klub
@@ -128,6 +152,7 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
               ))}
             </select>
           </label>
+          {kind === 'kampfoto' && (
           <label style={field}>
             Modstander
             <select style={input} value={opp} onChange={(e) => setOpp(e.target.value)}>
@@ -139,11 +164,15 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
               ))}
             </select>
           </label>
-          <label style={field}>
-            Kampdato
-            <input style={input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
+          )}
+          {kind === 'kampfoto' && (
+            <label style={field}>
+              Kampdato
+              <input style={input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </label>
+          )}
         </div>
+        )}
         {error && <p style={{ margin: 0, color: '#a3290c', fontSize: 13, fontWeight: 600 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="pill is-active" disabled={busy} onClick={() => void save()}>
@@ -168,7 +197,7 @@ export function PhotoMetaDialog({ url, photoId, onDone }: { url: string; photoId
 
 export function ArchivePicker({ onPick, onClose }: { onPick: (p: { url: string; alt: string; credit: string; borrowed: boolean }) => void; onClose: () => void }) {
   const [q, setQ] = useState('')
-  const [f, setF] = useState({ klub: '', modstander: '', situation: '', spiller: '', status: '' })
+  const [f, setF] = useState({ klub: '', modstander: '', situation: '', spiller: '', status: '', type: '', tag: '' })
   const [data, setData] = useState<PickerData>()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState<number>()
@@ -217,6 +246,8 @@ export function ArchivePicker({ onPick, onClose }: { onPick: (p: { url: string; 
           <input style={{ ...input, flex: '2 1 220px' }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Søg: Brabrand 9, Bryld, jubel" aria-label="Søg" autoFocus />
           {data && sel('klub', 'Alle klubber', data.options.clubs)}
           {data && sel('modstander', 'Alle modstandere', data.options.opponents.map((o) => ({ ...o, label: `mod ${o.label}` })))}
+          {data && sel('type', 'Alle typer', data.options.kinds.map((o) => ({ ...o, label: KINDS[o.value as Kind] ?? o.value })))}
+          {data && data.options.tags.length > 0 && sel('tag', 'Alle tags', data.options.tags.map((o) => ({ ...o, label: `#${o.label}` })))}
           {data && sel('situation', 'Alle situationer', data.options.situations)}
           {data && sel('spiller', 'Alle spillere', data.options.players)}
           <select style={{ ...input, flex: '1 1 140px' }} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} aria-label="Status">
@@ -242,7 +273,8 @@ export function ArchivePicker({ onPick, onClose }: { onPick: (p: { url: string; 
               <img src={`/api/admin/photos/${p.id}/billede?v=thumb`} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }} />
               <span style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 8px', fontSize: 12 }}>
                 <b>{p.title}</b>
-                <span style={{ color: 'var(--ink-3)' }}>{[p.date, p.players.slice(0, 2).join(', '), p.situation].filter(Boolean).join(' · ')}</span>
+                <span style={{ color: 'var(--ink-3)' }}>{[p.kind !== 'kampfoto' ? KINDS[p.kind] : undefined, p.date, p.players.slice(0, 2).join(', '), p.situation].filter(Boolean).join(' · ')}</span>
+                {p.tags.length > 0 && <span style={{ color: 'var(--ink-3)' }}>#{p.tags.slice(0, 3).join(' #')}</span>}
                 {p.borrowed && <span style={{ color: '#6b4a00' }}>Lånt til {p.licenseUntil} · {p.credit}</span>}
                 {p.review && <span style={{ color: '#6b4a00' }}>Ikke gennemgået</span>}
                 {busy === p.id && <span>Lægges ind …</span>}

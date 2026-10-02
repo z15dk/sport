@@ -151,6 +151,10 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 - **Delinger**: et privat link (7/30/90 dage) til de valgte billeder, som klubber og spillere kan se og hente (JPEG 1600 px, zip). Lånte billeder deles aldrig. Siden er noindex og forbudt i robots.txt; links kan lukkes under Delinger.
 - **Morgenrapport** kl. 06.15: nye billeder pr. kamp, gennemgangskø, fejl, slettede og snart udløbne lån. Mailes, når SMTP er udfyldt under Sociale medier → Indstillinger (modtager dér eller `PHOTOS_REPORT_TO`); vises altid øverst under Billeder.
 
+### Billedtyper, titel og tags
+
+Hvert billede har en type: **Kampfoto** (numre, navne og hold findes), **Portræt / holdbillede** (numre, men ingen kamp krævet), **Grafik** (ingen spiller-tags, intet til gennemgang) og **Andet** (stadion, publikum, stemning). AI'en foreslår type og en kort titel i samme kald; en type valgt i hånden vinder og beregner taggene igen uden nyt AI-kald. Alle billeder kan have titel og egne tags (klubber/ligaer fra menuen og frie ord); titel og tags kan søges, og et klub-tag gør, at billedet findes under klubben (også i filtret). Type og tags kan sættes på mange billeder ad gangen (Vælg flere → Type og tags) og i artikel-editorens boks efter upload.
+
 ### Artikler
 
 - **Upload i artikel-editoren** (i teksten eller som udvalgt billede): billedet lægges i billedarkivet (kilde "Artikel"), og en boks beder om alt-tekst, rettigheder (eget/lånt, foto, lånt til og med) og klub, modstander og dato. "Udfyld resten senere" lægger det i Gennemgang som "mangler metadata" (øverst, med det samme). Billedet ses i arkivet med det samme ("I kø"); numre og navne kommer ved Sync eller natkørslen. Billeder, der allerede står i artikler, men ikke er i arkivet (fx uploadet i en editor, der var åben fra før), hentes ind ved hver kørsel eller med `npm run -s photos -- artikler`.

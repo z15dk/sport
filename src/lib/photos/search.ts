@@ -7,6 +7,8 @@ import { clubKey, type ClubRef } from './paths.ts'
 
 export interface ParsedQuery {
   clubIds: string[]
+  /** The clubs' names, for pictures that only carry the club as one of our own tags (graphics) */
+  clubNames?: string[]
   numbers: number[]
   words: string[]
 }
@@ -28,7 +30,10 @@ export function parseQuery(q: string, clubs: ClubRef[]): ParsedQuery {
       if (words.some((w) => /^#?\d+$/.test(w))) continue
       const club = clubNamed(words.join(' '), clubs, n === 1)
       if (club) {
-        if (!out.clubIds.includes(club.id)) out.clubIds.push(club.id)
+        if (!out.clubIds.includes(club.id)) {
+          out.clubIds.push(club.id)
+          out.clubNames = [...(out.clubNames ?? []), club.name]
+        }
         used = n
       }
     }
@@ -55,17 +60,19 @@ export function searchWhere(p: ParsedQuery): { sql: string; params: unknown[] } 
       params.push(...p.clubIds)
     }
   } else if (p.clubIds.length) {
-    // A club alone: its own photos and the matches where it was the opponent
-    parts.push(`(p.club_id IN ${inList(p.clubIds)} OR p.opponent_id IN ${inList(p.clubIds)})`)
-    params.push(...p.clubIds, ...p.clubIds)
+    // A club alone: its own photos, the matches where it was the opponent, and pictures tagged with it
+    const names = p.clubNames ?? []
+    parts.push(`(p.club_id IN ${inList(p.clubIds)} OR p.opponent_id IN ${inList(p.clubIds)}${names.length ? ` OR EXISTS (SELECT 1 FROM json_each(p.user_tags) WHERE lower(value) IN ${inList(names)})` : ''})`)
+    params.push(...p.clubIds, ...p.clubIds, ...names.map((n) => n.toLowerCase()))
   }
   for (const w of p.words) {
     const like = `%${w.replace(/[%_\\]/g, (c) => `\\${c}`)}%`
     parts.push(
       `(p.opponent LIKE ? ESCAPE '\\' OR p.club LIKE ? ESCAPE '\\' OR p.situation LIKE ? ESCAPE '\\' OR p.match_date LIKE ? ESCAPE '\\'
+        OR p.title LIKE ? ESCAPE '\\' OR p.user_tags LIKE ? ESCAPE '\\'
         OR EXISTS (SELECT 1 FROM tags t WHERE t.photo_id = p.id AND t.side = 'egen' AND (t.player_name LIKE ? ESCAPE '\\' OR t.back_name LIKE ? ESCAPE '\\')))`,
     )
-    params.push(like, like, like, like, like, like)
+    params.push(like, like, like, like, like, like, like, like)
   }
   return { sql: parts.length ? parts.join(' AND ') : '1 = 1', params }
 }

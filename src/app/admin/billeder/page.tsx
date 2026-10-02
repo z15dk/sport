@@ -9,21 +9,22 @@ import { isAdmin } from '../../../lib/admin'
 import { photoConfig } from '../../../lib/photos/config'
 import { syncRequested, withPhotoDb } from '../../../lib/photos/server'
 import { getMeta } from '../../../lib/photos/db'
+import { KINDS, type Kind } from '../../../lib/photos/kinds'
 import { burstsOf, clubList, filterOptions, overview, searchPhotos, tagsFor } from '../../../lib/photos/store'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Billeder · Admin', robots: { index: false, follow: false } }
 
-type SearchParams = Promise<{ q?: string; status?: string; klub?: string; modstander?: string; situation?: string; spiller?: string; fra?: string; til?: string; ids?: string }>
+type SearchParams = Promise<{ q?: string; status?: string; klub?: string; modstander?: string; situation?: string; spiller?: string; fra?: string; til?: string; ids?: string; type?: string; tag?: string }>
 
 /** The owner's match photos: search by club and number, name, match or situation */
 export default async function AdminPhotos({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect('/admin')
-  const { q = '', status = '', klub = '', modstander = '', situation = '', spiller = '', fra = '', til = '', ids = '' } = await searchParams
+  const { q = '', status = '', klub = '', modstander = '', situation = '', spiller = '', fra = '', til = '', ids = '', type = '', tag = '' } = await searchParams
   const only = ids.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
   const cfg = photoConfig()
   const { info, photos, tags, options, clubs, report } = withPhotoDb((db) => {
-    const photos = searchPhotos(db, q, status, 200, { clubId: klub, opponentId: modstander, situation, player: spiller, from: fra, to: til, ids: only })
+    const photos = searchPhotos(db, q, status, 200, { clubId: klub, opponentId: modstander, situation, player: spiller, from: fra, to: til, ids: only, kind: type, tag })
     const last = getMeta(db, 'report_last')
     return {
       info: overview(db, cfg.dailyLimit),
@@ -37,7 +38,7 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
   // Bursts: show the sharpest of each, the rest behind its "Serie" badge (all of them when a burst is opened)
   const bursts = burstsOf(photos)
   const shown = only.length ? photos : photos.filter((p) => !bursts.has(p.id) || bursts.get(p.id)![0] === p.id)
-  const filtered = !!(q || status || klub || modstander || situation || spiller || fra || til || ids)
+  const filtered = !!(q || status || klub || modstander || situation || spiller || fra || til || ids || type || tag)
   const c = info.counts
   return (
     <div className="page">
@@ -71,7 +72,7 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
         )}
 
         <AutoFilterForm className="panel admin-filter" style={{ margin: '14px 0' }}>
-          <input type="search" name="q" defaultValue={q} placeholder="Søg: Brabrand 9, Bryld, Skive jubel" aria-label="Søg" />
+          <input type="search" name="q" defaultValue={q} placeholder="Søg: Brabrand 9, Bryld, jubel, titel, tag" aria-label="Søg" />
           <select name="klub" defaultValue={klub} aria-label="Klub">
             <option value="">Alle klubber</option>
             {options.clubs.map((o) => (
@@ -88,6 +89,24 @@ export default async function AdminPhotos({ searchParams }: { searchParams: Sear
               </option>
             ))}
           </select>
+          <select name="type" defaultValue={type} aria-label="Billedtype">
+            <option value="">Alle typer</option>
+            {options.kinds.map((o) => (
+              <option key={o.value} value={o.value}>
+                {KINDS[o.value as Kind] ?? o.value} ({o.n})
+              </option>
+            ))}
+          </select>
+          {options.tags.length > 0 && (
+            <select name="tag" defaultValue={tag} aria-label="Tag">
+              <option value="">Alle tags</option>
+              {options.tags.map((o) => (
+                <option key={o.value} value={o.value}>
+                  #{o.label} ({o.n})
+                </option>
+              ))}
+            </select>
+          )}
           <select name="situation" defaultValue={situation} aria-label="Situation">
             <option value="">Alle situationer</option>
             {options.situations.map((o) => (

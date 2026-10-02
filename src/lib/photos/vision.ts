@@ -16,6 +16,10 @@ export interface VisionPlayer {
 export interface VisionResult {
   players: VisionPlayer[]
   situation?: string
+  /** kampfoto, portraet, grafik or andet (see kinds.ts) */
+  kind?: string
+  /** A short Danish title suggested by the AI */
+  title?: string
   model: string
 }
 
@@ -41,7 +45,9 @@ Svar KUN med JSON i dette format:
   "spillere": [
     {"nummer": 9, "troejefarve": "rød", "tillid": 0.95, "boks": [120, 340, 880, 610], "rygnavn": "HANSEN"}
   ],
-  "situation": "ét eller to ord, fx jubel, tackling, målmand, duel, hovedstød, skud, publikum"
+  "situation": "ét eller to ord, fx jubel, tackling, målmand, duel, hovedstød, skud, publikum",
+  "type": "kampfoto, portræt, grafik eller andet",
+  "titel": "kort dansk titel på højst 8 ord"
 }
 
 - "troejefarve": ét dansk farveord for trøjens hovedfarve.
@@ -49,6 +55,9 @@ Svar KUN med JSON i dette format:
 - "boks": [ymin, xmin, ymax, xmax] om hele spilleren, normaliseret 0 til 1000.
 - "rygnavn": navnet trykt på trøjen over nummeret, præcis som det står. null hvis der
   ikke står et navn, eller det ikke kan læses helt. Gæt ALDRIG et navn.
+- "type": kampfoto (fra en kamp), portræt (spiller- eller holdbillede), grafik (lavet grafik,
+  tekst, illustration, banner) eller andet (stadion, publikum, stemning).
+- "titel": hvad billedet viser, fx "Målmand redder skud på stregen". Nævn kun navne, der står på billedet.
 Er der ingen læselige numre, så returnér en tom liste i "spillere".`
 
 /** The AI's answer checked field by field; anything that does not fit is dropped, never guessed */
@@ -60,7 +69,7 @@ export function parseVisionJson(text: string, model: string): VisionResult {
     throw new PhotoError(`AI-svaret er ikke gyldig JSON: ${text.slice(0, 200)}`)
   }
   if (!data || typeof data !== 'object') throw new PhotoError('AI-svaret mangler indhold')
-  const d = data as { spillere?: unknown; situation?: unknown }
+  const d = data as { spillere?: unknown; situation?: unknown; type?: unknown; titel?: unknown }
   if (d.spillere !== undefined && !Array.isArray(d.spillere)) throw new PhotoError('AI-svaret: "spillere" er ikke en liste')
   const players: VisionPlayer[] = []
   for (const raw of (d.spillere as unknown[] | undefined) ?? []) {
@@ -79,5 +88,7 @@ export function parseVisionJson(text: string, model: string): VisionResult {
     })
   }
   const situation = typeof d.situation === 'string' ? d.situation.trim().toLowerCase().slice(0, 60) || undefined : undefined
-  return { players, situation, model }
+  const kind = typeof d.type === 'string' ? d.type.trim().toLowerCase().slice(0, 20) || undefined : undefined
+  const title = typeof d.titel === 'string' ? d.titel.trim().slice(0, 80) || undefined : undefined
+  return { players, situation, kind, title, model }
 }

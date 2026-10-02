@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { AdminNav } from '../../../../components/admin/AdminNav'
-import { AddTag, ApproveButton, MatchEditor, RightsEditor, TagRow } from '../../../../components/admin/PhotoAdmin'
+import { AddTag, ApproveButton, InfoEditor, MatchEditor, RightsEditor, TagRow } from '../../../../components/admin/PhotoAdmin'
 import { STATUS, dateDk, webUrl } from '../../../../components/admin/PhotoCards'
 import s from '../../../../components/admin/photos.module.css'
 import { isAdmin } from '../../../../lib/admin'
@@ -47,7 +47,7 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
           </Link>
         </p>
         <h1 className="feed__title">
-          {photo.club ?? 'Ukendt klub'} – {photo.opponent ?? '?'}
+          {photo.title || (photo.club ? `${photo.club} – ${photo.opponent ?? '?'}` : photo.source === 'artikel' ? 'Artikelbillede' : 'Ukendt klub')}
           <span>
             {dateDk(photo.matchDate)} · {STATUS[photo.status] ?? photo.status}
             {photo.situation ? ` · ${photo.situation}` : ''}
@@ -93,6 +93,8 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
             {photo.status === 'ny' && <p className={s.muted}>I kø: numre og navne findes ved næste Sync eller natkørsel.</p>}
             {photo.review && photo.status === 'tagget' && <p className={s.note}>Til gennemgang: {photo.reviewReasons.join(', ')}</p>}
             {(photo.status === 'tagget' || photo.status === 'godkendt') && <ApproveButton photoId={photo.id} approved={photo.status === 'godkendt'} />}
+            <h2>Type, titel og tags</h2>
+            <InfoEditor photoId={photo.id} kind={photo.kind} kindManual={photo.kindManual} title={photo.title} tags={photo.userTags} suggestions={data.clubs.map((c) => c.name)} />
             <h2>Spillere</h2>
             {tags.length === 0 && <p className={s.muted}>Ingen numre fundet. Tilføj dem nedenfor.</p>}
             {tags.map((t) => (
