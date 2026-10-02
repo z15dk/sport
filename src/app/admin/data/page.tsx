@@ -19,6 +19,8 @@ import { DIVISIONS, allClubs, sportOf } from '../../../data/leagues'
 import { clubAliasList } from '../../../lib/clubAliases'
 import { LeagueTeamsAdmin, type LeagueRow } from '../../../components/admin/LeagueTeamsAdmin'
 import { Bars } from '../../../components/admin/DashBars'
+import { capacityStatus, LIMITS } from '../../../lib/capacity'
+import { CapacityMailButton } from '../../../components/admin/CapacityMailButton'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
 /** What the kinds of API-Sports requests are (/admin/data's usage) */
@@ -101,6 +103,10 @@ export default async function DataStatusPage() {
   const danish = tsdbDanishLeagues()
   const slow = slowStatus()
   const mem = memoryStatus({ ...apiSportsFiles(), 'scoreline-arkiv.db': archiveFile(), 'real-data.json': realDataFile() })
+  // Is the server big enough (src/lib/capacity.ts): the machine's memory, load and the site's waits, day by day
+  const cap = capacityStatus()
+  const capLevel: Record<'ok' | 'watch' | 'upgrade', Level> = { ok: 'ok', watch: 'warn', upgrade: 'bad' }
+  const capText = { ok: 'Serveren har plads nok', watch: 'Hold øje', upgrade: 'Tid til at opgradere' }
   const football = apis.find((x) => x.api === 'football')
   const keyed = apis.filter((x) => x.hasKey)
   const lastHour = slow.recent.length ? Math.max(...slow.recent.map((m) => m.max)) : 0
@@ -162,8 +168,8 @@ export default async function DataStatusPage() {
           <Tile
             label="Hukommelse"
             value={`${num(mem.rss + (worker?.rss ?? 0))} MB`}
-            sub={worker ? `siden ${num(mem.rss)} MB · baggrund ${num(worker.rss)} MB` : `JavaScript ${num(mem.heap)} MB`}
-            level={mem.rss + (worker?.rss ?? 0) > 1800 ? 'bad' : mem.rss + (worker?.rss ?? 0) > 1100 ? 'warn' : 'ok'}
+            sub={`${worker ? `siden ${num(mem.rss)} · baggrund ${num(worker.rss)} MB` : `JavaScript ${num(mem.heap)} MB`} · maskinen ${cap.machine.pct} % brugt`}
+            level={cap.machine.pct >= LIMITS.memPct || cap.machine.swapMb >= LIMITS.swapMb ? 'bad' : cap.machine.pct >= 75 ? 'warn' : 'ok'}
           />
           <Tile
             label="Fodbold-kald tilbage"
@@ -226,6 +232,69 @@ export default async function DataStatusPage() {
             </table>
           </section>
 
+
+          <section className={`panel dash-card dash-cap is-${capLevel[cap.level]}`}>
+            <h2 className="panel__title">Serverens kapacitet</h2>
+            <p className="small">
+              <b className={`dash-cap__mark is-${capLevel[cap.level]}`}>{MARK[capLevel[cap.level]]}</b> <strong>{capText[cap.level]}</strong> · {cap.machine.cores} kerner · {num(cap.machine.totalMb)} MB ·{' '}
+              {cap.measuredDays ? `målt i ${cap.measuredDays} ${cap.measuredDays === 1 ? 'dag' : 'dage'}` : 'måler fra serverstart'}
+            </p>
+            {cap.level !== 'ok' && <p className="small">{cap.advice}</p>}
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Signal</th>
+                  <th>Nu</th>
+                  <th>Værst i døgnet</th>
+                  <th>7 dage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cap.signals.map((x) => (
+                  <tr key={x.id}>
+                    <td title={`Grænse: ${x.limit}`}>
+                      {x.name}
+                      <div className="muted small">{x.limit}</div>
+                    </td>
+                    <td>{x.now}</td>
+                    <td>{x.worst24}</td>
+                    <td className={x.level === 'upgrade' ? 'is-bad' : x.level === 'watch' ? 'is-warn' : undefined}>
+                      <span className="dash-cap__days" aria-label={`${x.badDays} af 7 dage over grænsen`}>
+                        {x.days.map((d) => (
+                          <i key={d.date} className={d.over ? 'is-over' : d.hours ? 'is-some' : undefined} title={`${d.date}: ${d.hours} ${d.hours === 1 ? 'time' : 'timer'} over grænsen`} />
+                        ))}
+                      </span>{' '}
+                      {x.badDays}/7
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {cap.recent.length > 1 && (
+              <>
+                <Bars values={cap.recent.map((h) => h.mem)} labels={cap.recent.map((h) => clock(h.at))} unit="% af maskinens hukommelse" limit={LIMITS.memPct} />
+                <p className="dash-axis muted small">
+                  <span>{clock(cap.recent[0].at)}</span>
+                  <span>Hukommelse pr. time, sidste 2 døgn · streg = {LIMITS.memPct} %</span>
+                  <span>{clock(cap.recent.at(-1)!.at)}</span>
+                </p>
+              </>
+            )}
+            <p className="muted small">
+              En dag tæller, når et signal er over grænsen i mindst {LIMITS.hoursPerDay} timer. Er det {LIMITS.daysOfSeven} af de sidste 7 dage, er det tid til at opgradere, og der sendes en mail (højst én om ugen).{' '}
+              {cap.mail.ready ? (
+                <>
+                  Mail til {cap.mail.to}
+                  {cap.mail.sentAt ? ` · sidst sendt ${new Date(cap.mail.sentAt).toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short' })}` : ' · ingen sendt endnu'}.
+                </>
+              ) : (
+                <span className="is-bad">
+                  Mail er ikke sat op: udfyld SMTP og modtager under <Link href="/admin/sociale/indstillinger">Sociale medier → Indstillinger</Link>.
+                </span>
+              )}
+            </p>
+            {cap.mail.ready && <CapacityMailButton to={cap.mail.to} />}
+          </section>
           {role() === 'web' && (
             <section className="panel dash-card">
               <h2 className="panel__title">Baggrundsprocessen</h2>
