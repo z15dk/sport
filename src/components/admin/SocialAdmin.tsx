@@ -803,6 +803,15 @@ export function OwnPostForm({
             </label>
           )}
         </div>
+        {/* A template's story card when stories can't be posted from here: to download and post by hand */}
+        {!canStory && storyImage && (
+          <p className="small">
+            <a className="pill" href={thumb(storyImage)} download="matchly-story.jpg">
+              ⬇ Hent story-billedet
+            </a>{' '}
+            <span className="muted">Stories lægges op i Meta Business Suite (de kan ikke sendes gennem Make).</span>
+          </p>
+        )}
         {story && storyImage && (
           <div className="own-post__thumbs">
             <figure className="is-story">

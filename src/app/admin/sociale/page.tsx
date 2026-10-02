@@ -112,6 +112,14 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         </ul>
       )}
       <footer>
+        {/* Stories can't go through Make: the story pictures to download and post by hand (Meta Business Suite) */}
+        {p.images
+          .filter((i) => i.surface === 'story')
+          .map((i, n, all) => (
+            <a key={i.file} className="pill" href={`/sociale-billeder/${i.file}`} download={`matchly-story-${p.date}${all.length > 1 ? `-${n + 1}` : ''}.jpg`}>
+              ⬇ Hent story{all.length > 1 ? ` ${n + 1}` : ''}
+            </a>
+          ))}
         {p.approval === 'pending' && p.status === 'waiting' && <ActionButton pill body={{ action: 'approve', ids: [p.id] }} label="Godkend" />}
         {p.status === 'waiting' && <ActionButton body={{ action: 'skip', ids: [p.id] }} label="Spring over" />}
         {p.status === 'skipped' && <ActionButton body={{ action: 'unskip', id: p.id }} label="Med igen" />}
