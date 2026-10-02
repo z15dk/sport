@@ -745,3 +745,14 @@ export function OwnPostForm({ platforms }: { platforms: { id: string; name: stri
     </div>
   )
 }
+
+/** Facebook through Make.com: the scenario's webhook address (kept on the server, shown masked) */
+export function MakeConnect({ saved }: { saved?: string }) {
+  return (
+    <ActionForm submit="Gem webhooken" build={(f) => ({ action: 'make', url: val(f, 'url') })}>
+      <Field label="Make-webhook" hint={saved ? `Gemt: ${saved}. Skriv en ny for at skifte den.` : 'Fx https://hook.eu1.make.com/abc123…'}>
+        <input name="url" type="url" autoComplete="off" placeholder="https://hook.eu1.make.com/…" />
+      </Field>
+    </ActionForm>
+  )
+}

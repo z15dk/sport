@@ -6,12 +6,11 @@ import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
 import { captionFor, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost } from './socialRender'
-import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken } from './socialPlatforms'
+import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
 import {
   KIND_NAMES,
   PLATFORM_NAMES,
-  STORY_PLATFORMS,
   findPost,
   imageDir,
   logLine,
@@ -300,11 +299,11 @@ export function targetsOf(p: SocialPost): { platform: Platform; surface: Surface
   if (p.kind === 'own') {
     const own = (p.own?.platforms ?? []).filter((x) => cfg.dryRun || connected(x, s))
     const surfaces: Surface[] = p.own?.story ? ['feed', 'story'] : ['feed']
-    return surfaces.flatMap((surface) => own.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
+    return surfaces.flatMap((surface) => own.filter((x) => surface === 'feed' || storyOk(x, s)).map((platform) => ({ platform, surface })))
   }
   const chosen = cfg.kinds[p.kind].platforms.filter((x) => cfg.platforms[x] && (cfg.dryRun || connected(x, s)))
   const surfaces: Surface[] = p.kind === 'programme' ? ['feed', 'story'] : p.kind === 'story' ? ['story'] : ['feed']
-  return surfaces.flatMap((surface) => chosen.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
+  return surfaces.flatMap((surface) => chosen.filter((x) => surface === 'feed' || storyOk(x, s)).map((platform) => ({ platform, surface })))
 }
 
 const busy = new Set<string>()

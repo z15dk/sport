@@ -6,10 +6,10 @@ import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker, OwnPostForm } f
 import { isAdmin } from '../../../lib/admin'
 import { candidates, picksFor, todayIso } from '../../../lib/social'
 import { targetsOf } from '../../../lib/socialEngine'
-import { connected, platformCaption } from '../../../lib/socialPlatforms'
+import { connected, platformCaption, storyOk } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
 import { mailReady } from '../../../lib/mail'
-import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, STORY_PLATFORMS, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
+import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -188,7 +188,7 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             dagens plan herunder.
           </p>
           <OwnPostForm
-            platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: STORY_PLATFORMS.includes(p) }))}
+            platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: storyOk(p, secrets) }))}
           />
           {(() => {
             const upcoming = data.posts.filter((p) => p.kind === 'own' && p.status === 'waiting').sort((a, b) => a.scheduledAt - b.scheduledAt)

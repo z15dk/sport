@@ -101,6 +101,8 @@ export interface SocialSecrets {
   threads: { userId?: string; username?: string; token?: string; refreshedAt?: number }
   x: { apiKey?: string; apiSecret?: string; accessToken?: string; accessSecret?: string; username?: string }
   smtp: { pass?: string }
+  /** Facebook through a Make.com scenario (its webhook's address) when the Page isn't connected directly */
+  make: { url?: string }
   /** Signs the approval links in the mails */
   approvalKey: string
 }
@@ -276,6 +278,7 @@ export function socialSecrets(): SocialSecrets {
     threads: { ...saved?.threads },
     x: { ...saved?.x },
     smtp: { ...saved?.smtp },
+    make: { ...saved?.make },
     approvalKey: saved?.approvalKey ?? '',
   }
   if (!secrets.approvalKey) {

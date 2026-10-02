@@ -106,6 +106,15 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       })
       return { message: 'Gemt' }
     }
+    case 'make': {
+      // The scenario's webhook: https://hook.<region>.make.com/<key>
+      const url = str(b.url, 300)
+      if (url && !/^https:\/\/hook\.[a-z0-9]+\.make\.com\/[A-Za-z0-9_-]+$/.test(url)) throw new Error('Det ligner ikke en Make-webhook (https://hook.eu1.make.com/…)')
+      saveSecrets((s) => {
+        s.make = url ? { url } : {}
+      })
+      return { message: url ? 'Make-webhooken er gemt' : 'Make-forbindelsen er fjernet' }
+    }
     case 'threads': {
       const r = await connectThreads(str(b.token, 1000))
       return { message: `Forbundet til @${r.username}` }
@@ -117,7 +126,10 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
     case 'disconnect': {
       if (!isPlatform(b.platform)) throw new Error('Ukendt platform')
       saveSecrets((s) => {
-        if (b.platform === 'facebook' || b.platform === 'instagram') s.meta = {}
+        if (b.platform === 'facebook') {
+          s.meta = {}
+          s.make = {}
+        } else if (b.platform === 'instagram') s.meta = {}
         else if (b.platform === 'threads') s.threads = {}
         else s.x = {}
       })
