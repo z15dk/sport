@@ -91,8 +91,8 @@ interface Props {
   below?: ReactNode
 }
 
-/** Matches in the page's HTML; the rest follow in the browser */
-const FIRST_ROWS = 150
+/** Matches in the page's HTML; the rest follow in the browser right after start (fewer rows = less HTML to parse and hydrate on phones) */
+const FIRST_ROWS = 100
 
 export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, scrollAd, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
