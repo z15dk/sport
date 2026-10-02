@@ -603,6 +603,14 @@ function left(s: ApiState | undefined, fallback: number): number {
 }
 /** In shared mode the other sports' background work leaves this many extra for football */
 const sharedCushion = (api: Api) => (shared() && api !== 'football' ? 1_000 : 0)
+/**
+ * In shared mode each of the other sports fetches live scores every 30 seconds (like
+ * football) until it has used this many requests today (API_SPORTS_SHARED_LIVE, default
+ * 800); then every 2 minutes. So a long handball evening can't eat football's calls.
+ */
+const sharedLiveCap = () => Math.max(100, Number(process.env.API_SPORTS_SHARED_LIVE) || 800)
+/** This API's own requests today (every kind) */
+const usedToday = (s: ApiState) => (s.usage?.day === utcDay() ? s.usage.hours.reduce((a, b) => a + b, 0) : 0)
 /** The last hours before the reset (00:00 UTC): what is left is spent on the missing history, else it is lost */
 const ENDGAME_MS = 3 * 3_600_000
 const endgame = () => msUntilReset() < ENDGAME_MS
@@ -775,11 +783,13 @@ function dueDay(api: Api, now: number): string | undefined {
     return g.state === 'live' || (g.state === 'upcoming' && t < now + 20 * 60_000 && t > now - 4 * 3_600_000)
   }
   const busy = todays.some(on)
-  // Our leagues, cups and the Champions League every 30 seconds; games only in the other leagues every 2 minutes
+  // Our leagues, cups and the Champions League every 30 seconds; games only in the other leagues every 2 minutes.
+  // Shared pool: the other sports every 30 seconds whatever plays, until each has used its day's live allowance
   const ours = todays.some((g) => on(g) && (!!divisionOfGame(g) || wholeSeason(g)))
+  const fast = isPaid(s) && (shared() && api !== 'football' ? usedToday(s) < sharedLiveCap() : ours)
   // While games are on, today gets at most half the requests left above the reserve (a paid plan), so the rest of the day's work always has some
   const share = isPaid(s) ? Math.max(1, (remaining - PAID_RESERVE) / 2) : Math.max(1, remaining - 14)
-  const todayEvery = busy ? Math.max(isPaid(s) ? (ours && !(shared() && api !== 'football') ? 30_000 : 120_000) : 5 * 60_000, msUntilReset() / share) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
+  const todayEvery = busy ? Math.max(isPaid(s) ? (fast ? 30_000 : 120_000) : 5 * 60_000, msUntilReset() / share) : isPaid(s) ? 15 * 60_000 : 60 * 60_000
   if (age(today) > todayEvery) return today
   const yesterday = addDays(today, -1)
   if (allowed(s, yesterday, today) && age(yesterday) > 6 * 3_600_000) return yesterday
@@ -1327,6 +1337,9 @@ export function apiSportsStatus() {
       shared: shared(),
       poolRemaining: shared() ? left(s, NaN) : undefined,
       cushion: sharedCushion(api),
+      /** Shared mode: the other sports' own requests today against their live allowance (30 s until it is used) */
+      usedToday: s ? usedToday(s) : 0,
+      liveCap: shared() && api !== 'football' ? sharedLiveCap() : undefined,
       /** The last hours before the reset: the background work runs with bigger batches */
       endgame: endgame(),
       resetInMinutes: Math.round(msUntilReset() / 60_000),
