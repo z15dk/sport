@@ -247,15 +247,13 @@ export function ArticleEditor({
 
   const onError = (e: string) => setMessage({ text: e, error: true })
   const uploadFor = (target: 'inline' | 'featured') => pickPicture((url, photoId) => setPhotoFlow({ kind: 'meta', url, photoId, target }), onError)
-  const placePicture = (target: 'inline' | 'featured', url: string, alt: string, creditLine?: string) => {
+  const placePicture = (target: 'inline' | 'featured', url: string, alt: string) => {
     if (target === 'featured') {
       setA((prev) => ({ ...prev, featuredImage: url, featuredAlt: alt }))
       return
     }
-    const chain = editor?.chain().focus().setImage({ src: url, alt })
-    // Borrowed pictures carry the owner's name right under them
-    if (creditLine) chain?.insertContent(`<p><em>${creditLine.replace(/[<>&]/g, '')}</em></p>`)
-    chain?.run()
+    // The photographer is shown in the picture's corner on the site (from the photo archive)
+    editor?.chain().focus().setImage({ src: url, alt }).run()
   }
 
   const published = a.status === 'published'
@@ -479,7 +477,7 @@ export function ArticleEditor({
           onPick={(p) => {
             // The archive suggests the alt text from the players and situation; it can be changed here
             const alt = window.prompt('Alt-tekst (beskriv billedet – vigtigt for Google og skærmlæsere)', p.alt) ?? p.alt
-            placePicture(photoFlow.target, p.url, alt, p.borrowed ? `Foto: ${p.credit.replace(/^Foto:\s*/i, '')}` : undefined)
+            placePicture(photoFlow.target, p.url, alt)
             setPhotoFlow(undefined)
           }}
         />

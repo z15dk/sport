@@ -2,16 +2,22 @@ import Link from 'next/link'
 import type { Article } from '../lib/articles'
 import { paths } from '../lib/site'
 import { formatLong } from '../lib/time'
+import { photoCredits } from '../lib/photos/server'
 
 /** Article cards: featured image, category, title, excerpt and date */
 export function ArticleCards({ articles, categoryNames, lead = true }: { articles: Article[]; categoryNames: Map<string, string>; lead?: boolean }) {
+  // The photographer in the corner of each picture from the photo archive
+  const credits = photoCredits(articles.map((a) => a.featuredImage))
   return (
     <ul className="article-cards">
       {articles.map((a, i) => (
         <li key={a.id} className={lead && i === 0 ? 'article-card article-card--lead' : 'article-card'}>
           <Link href={paths.article(a.slug)}>
             {a.featuredImage ? (
-              <img className="article-card__img" src={a.featuredImage} alt={a.featuredAlt ?? ''} loading={i < 2 ? 'eager' : 'lazy'} />
+              <span className="photo-credit-wrap article-card__media">
+                <img className="article-card__img" src={a.featuredImage} alt={a.featuredAlt ?? ''} loading={i < 2 ? 'eager' : 'lazy'} />
+                {credits.get(a.featuredImage) && <span className="photo-credit">{credits.get(a.featuredImage)}</span>}
+              </span>
             ) : (
               <span className="article-card__img article-card__img--none" aria-hidden="true">
                 M.
