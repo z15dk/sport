@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default function PrivacyPage() {
-  const { ga, metaPixel } = trackingConfig()
+  const { ga, metaPixel, owner } = trackingConfig()
   const tracked = !!(ga || metaPixel)
   return (
     <div className="page">
@@ -66,14 +66,20 @@ export default function PrivacyPage() {
                   <li>
                     <strong>Marketing – Meta Pixel</strong> (Meta Platforms Ireland Ltd.): måler vores egne annoncer på Facebook og Instagram og lader os vise
                     dem til folk, der har besøgt siden. Cookies: <code>_fbp</code> (3 måneder) og <code>_fbc</code>, når du kommer fra en annonce. Data kan
-                    blive behandlet i USA under EU-USA-databeskyttelsesrammen.
+                    blive behandlet i USA under EU-USA-databeskyttelsesrammen. For indsamlingen og overførslen til Meta er vi og Meta fælles dataansvarlige
+                    (Metas &quot;Controller Addendum&quot;); Meta står for den videre behandling efter{' '}
+                    <a href="https://www.facebook.com/privacy/policy" target="_blank" rel="noopener noreferrer">
+                      Metas privatlivspolitik
+                    </a>
+                    .
                   </li>
                 )}
               </ul>
               <p>
                 Dit valg gemmes i din browser (<code>matchly_consent</code>) i 12 måneder, så vi ikke spørger igen hver gang; derefter spørger vi igen.
-                Grundlaget er dit samtykke, og du kan til enhver tid trække det tilbage – så slettes cookies fra Google og Meta på siden:{' '}
-                <ConsentSettingsLink />.
+                Grundlaget er dit samtykke (GDPR art. 6, stk. 1, litra a), og du kan til enhver tid trække det tilbage – så slettes cookies fra Google og Meta
+                på siden: <ConsentSettingsLink />. Som bevis for samtykket gemmer vi hvert valg med et tilfældigt samtykke-id, tidspunkt og hvad du valgte –
+                uden IP-adresse – i 3 år. Dit id står under Cookie-indstillinger → Tilpas.
               </p>
             </>
           )}
@@ -107,9 +113,45 @@ export default function PrivacyPage() {
         </section>
 
         <section className="panel prose__section">
-          <h2 className="panel__title">Spørgsmål</h2>
+          <h2 className="panel__title">Dine rettigheder</h2>
           <p>
-            Har du spørgsmål, kan du skrive til os via vores profiler på sociale medier. Læs mere <Link href={paths.about()}>om {SITE_NAME}</Link>.
+            Du har ret til at få indsigt i de oplysninger, vi har om dig, og til at få dem rettet, slettet eller begrænset, til at gøre indsigelse og til at få
+            dem udleveret (dataportabilitet). Et samtykke kan altid trækkes tilbage{tracked ? ' under Cookie-indstillinger' : ''}. Da vi ikke har brugerkonti og
+            ikke gemmer IP-adresser, kan vi kun finde oplysninger, der kan knyttes til dig{tracked ? ', fx via dit samtykke-id' : ''}.
+          </p>
+          <p>
+            Er du utilfreds med, hvordan vi behandler oplysninger, kan du klage til Datatilsynet,{' '}
+            <a href="https://www.datatilsynet.dk" target="_blank" rel="noopener noreferrer">
+              datatilsynet.dk
+            </a>
+            .
+          </p>
+        </section>
+
+        <section className="panel prose__section">
+          <h2 className="panel__title">Dataansvarlig og kontakt</h2>
+          {owner?.name || owner?.email ? (
+            <p>
+              {owner.name && <strong>{owner.name}</strong>}
+              {owner.cvr && <> · CVR {owner.cvr}</>}
+              {owner.address && (
+                <>
+                  <br />
+                  {owner.address}
+                </>
+              )}
+              {owner.email && (
+                <>
+                  <br />
+                  Skriv til os om privatliv og dine oplysninger: <a href={`mailto:${owner.email}`}>{owner.email}</a>
+                </>
+              )}
+            </p>
+          ) : (
+            <p>Har du spørgsmål, kan du skrive til os via vores profiler på sociale medier.</p>
+          )}
+          <p>
+            Læs mere <Link href={paths.about()}>om {SITE_NAME}</Link>.
           </p>
         </section>
       </article>

@@ -13,6 +13,15 @@ export interface TrackingConfig {
   ga?: string
   /** Meta Pixel: digits */
   metaPixel?: string
+  /** Who is responsible for the data (GDPR art. 13), shown on /privatliv */
+  owner?: Owner
+}
+
+export interface Owner {
+  name?: string
+  cvr?: string
+  address?: string
+  email?: string
 }
 
 const file = () => process.env.TRACKING_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'tracking.json')
@@ -40,20 +49,32 @@ export function trackingConfig(): TrackingConfig {
 const GA = /^G-[A-Z0-9]{4,16}$/
 const PIXEL = /^\d{8,20}$/
 
+const text = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n)
+
+function cleanOwner(v: unknown): Owner | undefined {
+  const o = (v ?? {}) as Record<string, unknown>
+  const owner: Owner = { name: text(o.name, 120), cvr: text(o.cvr, 20), address: text(o.address, 200), email: text(o.email, 120) }
+  const kept = Object.fromEntries(Object.entries(owner).filter(([, x]) => x)) as Owner
+  return Object.keys(kept).length ? kept : undefined
+}
+
 function clean(v: Record<string, unknown>): TrackingConfig {
   const ga = String(v.ga ?? '').trim().toUpperCase()
   const pixel = String(v.metaPixel ?? '').trim()
-  return { ...(GA.test(ga) && { ga }), ...(PIXEL.test(pixel) && { metaPixel: pixel }) }
+  const owner = cleanOwner(v.owner)
+  return { ...(GA.test(ga) && { ga }), ...(PIXEL.test(pixel) && { metaPixel: pixel }), ...(owner && { owner }) }
 }
 
 /** Saves the ids; an empty field turns that service off */
-export function saveTracking(v: { ga?: unknown; metaPixel?: unknown }): { error?: string } {
+export function saveTracking(v: { ga?: unknown; metaPixel?: unknown; owner?: unknown }): { error?: string } {
   const ga = String(v.ga ?? '').trim().toUpperCase()
   const pixel = String(v.metaPixel ?? '').trim()
   if (ga && !GA.test(ga)) return { error: 'Google Analytics-id ser sådan ud: G-ABC123XYZ' }
   if (pixel && !PIXEL.test(pixel)) return { error: 'Meta Pixel-id er kun tal (fx 123456789012345)' }
+  const email = text((v.owner as Record<string, unknown> | undefined)?.email, 120)
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Kontakt-mailen ser forkert ud' }
   mkdirSync(path.dirname(file()), { recursive: true })
-  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel }), null, 2))
+  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel, owner: v.owner }), null, 2))
   renameSync(`${file()}.tmp`, file())
   cache = { mtime: -1, config: {} }
   return {}

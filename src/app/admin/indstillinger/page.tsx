@@ -8,6 +8,7 @@ import { AdminNav } from '../../../components/admin/AdminNav'
 import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
 import { TrackingAdmin } from '../../../components/admin/TrackingAdmin'
 import { trackingConfig } from '../../../lib/tracking'
+import { consentStats } from '../../../lib/consentLog'
 import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
 import { DIVISIONS } from '../../../data/leagues'
@@ -19,8 +20,11 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Indstillinger · Admin', robots: { index: false, follow: false } }
 
 /** Every site setting (src/data/settingsDef.ts), grouped */
-export default async function AdminSettings() {
+export default async function AdminSettings({ searchParams }: { searchParams: Promise<{ samtykke?: string }> }) {
   if (!(await isAdmin())) redirect('/admin')
+  const lookup = (await searchParams).samtykke?.trim().toLowerCase()
+  const consents = consentStats(lookup)
+  const tracking = trackingConfig()
   const { settings } = siteSettings()
   const groups = [...new Set(SETTINGS.map((s) => s.group))]
   const status = newsStatus()
@@ -73,7 +77,48 @@ export default async function AdminSettings() {
             Pixel). Banneret vises kun, når mindst ét id er udfyldt, og aldrig for dig, når du er logget ind (du tælles heller ikke). Tomt felt = slået fra.
             Id&apos;erne findes i Google Analytics under Administrator → Datastrømme og i Meta Events Manager under Datakilder.
           </p>
-          <TrackingAdmin {...trackingConfig()} />
+          <TrackingAdmin {...tracking} />
+          {(tracking.ga || tracking.metaPixel) && !tracking.owner?.email && (
+            <p className="is-error small">Udfyld dataansvarlig og kontakt-mail – det skal stå på /privatliv (GDPR art. 13).</p>
+          )}
+          <h3>Samtykker (bevis, GDPR art. 7)</h3>
+          <p className="muted small">
+            Hvert valg i banneret gemmes med browserens tilfældige samtykke-id, tidspunkt, bannerets version og valget – uden IP-adresse – i 3 år. Den
+            besøgende kan se sit id under Cookie-indstillinger → Tilpas.
+          </p>
+          {consents ? (
+            <>
+              <p className="small">
+                Sidste 30 dage: <strong>{consents.total}</strong> valg · accepter alle {consents.by.accept ?? 0} · kun nødvendige {consents.by.reject ?? 0} · tilpasset{' '}
+                {consents.by.custom ?? 0} · trukket tilbage {consents.by.withdraw ?? 0}
+                {consents.total > 0 && ` · ${Math.round(((consents.by.accept ?? 0) / consents.total) * 100)} % siger ja til alt`}
+              </p>
+              <form className="tracking-form" method="get">
+                <label>
+                  Slå et samtykke-id op
+                  <input name="samtykke" defaultValue={lookup} placeholder="fx k3j9…" />
+                </label>
+                <button type="submit" className="pill">
+                  Søg
+                </button>
+              </form>
+              {consents.found &&
+                (consents.found.length ? (
+                  <ul className="admin-list small">
+                    {consents.found.map((c, i) => (
+                      <li key={i}>
+                        {formatNumeric(new Date(c.at))} {formatTime(new Date(c.at))} · {{ accept: 'Accepter alle', reject: 'Kun nødvendige', custom: 'Tilpasset', withdraw: 'Trukket tilbage' }[c.action]} · statistik{' '}
+                        {c.stats ? 'ja' : 'nej'} · marketing {c.marketing ? 'ja' : 'nej'} · banner v{c.version}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted small">Ingen samtykker med det id.</p>
+                ))}
+            </>
+          ) : (
+            <p className="muted small">Samtykkeloggen kunne ikke åbnes.</p>
+          )}
         </section>
         <section className="panel prose__section">
           <h2 className="panel__title">Nyheder</h2>

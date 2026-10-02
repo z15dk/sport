@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 // Nothing is loaded before a yes: statistics → Google Analytics 4, marketing → Meta Pixel.
 // "Accepter alle" and "Kun nødvendige" are equally big (as the Danish DPA asks), the choice
 // is kept in the browser for 12 months (localStorage, allowed: it is what remembers the no),
+// every choice is logged on the server with a random id as proof (/api/consent, no IP),
 // and "Cookie-indstillinger" in the footer opens the banner again. Withdrawing a yes removes
 // the trackers' cookies and reloads the page. Logged-in admins (the bar's flag cookie) are
 // neither asked nor counted.
@@ -22,6 +23,24 @@ interface Choice {
   at: number
   stats: boolean
   marketing: boolean
+  /** Random id of this browser's consent, logged on the server as proof (src/lib/consentLog.ts) */
+  id?: string
+}
+
+const newId = () => {
+  const a = new Uint8Array(12)
+  crypto.getRandomValues(a)
+  return Array.from(a, (b) => (b % 36).toString(36)).join('') + Date.now().toString(36).slice(-6)
+}
+
+/** Sends the choice to the consent log (also when the page reloads right after) */
+function logChoice(c: Choice, action: 'accept' | 'reject' | 'custom' | 'withdraw') {
+  const body = JSON.stringify({ id: c.id, v: c.v, stats: c.stats, marketing: c.marketing, action })
+  try {
+    if (!navigator.sendBeacon?.('/api/consent', new Blob([body], { type: 'application/json' }))) void fetch('/api/consent', { method: 'POST', body, headers: { 'content-type': 'application/json' }, keepalive: true }).catch(() => undefined)
+  } catch {
+    // the choice still holds in the browser
+  }
 }
 
 type W = Window & { dataLayer?: unknown[]; gtag?: (...a: unknown[]) => void; fbq?: ((...a: unknown[]) => void) & { callMethod?: unknown; queue?: unknown[] }; _fbq?: unknown }
@@ -133,9 +152,11 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
     if (choice.current?.marketing && w.fbq) w.fbq('track', 'PageView')
   }, [path])
 
-  function save(s: boolean, m: boolean) {
+  function save(s: boolean, m: boolean, how: 'accept' | 'reject' | 'custom') {
     const before = choice.current
-    const c: Choice = { v: VERSION, at: Date.now(), stats: s, marketing: m }
+    const c: Choice = { v: VERSION, at: Date.now(), stats: s, marketing: m, id: before?.id ?? readChoice()?.id ?? newId() }
+    const withdrawn = (before?.stats && !s) || (before?.marketing && !m)
+    logChoice(c, withdrawn ? 'withdraw' : how)
     try {
       localStorage.setItem(KEY, JSON.stringify(c))
     } catch {
@@ -144,7 +165,7 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
     choice.current = c
     setOpen(false)
     // A yes taken back: the scripts are already running, so clear their cookies and start the page again
-    if ((before?.stats && !s) || (before?.marketing && !m)) {
+    if (withdrawn) {
       clearTrackerCookies()
       location.reload()
       return
@@ -188,17 +209,22 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
                 </span>
               </label>
             )}
+            {choice.current?.id && (
+              <p className="consent__id">
+                Dit samtykke-id: <code>{choice.current.id}</code> · givet {new Date(choice.current.at).toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen' })}
+              </p>
+            )}
           </div>
         )}
         <div className="consent__buttons">
-          <button type="button" className="consent__btn is-yes" onClick={() => save(!!ga, !!metaPixel)}>
+          <button type="button" className="consent__btn is-yes" onClick={() => save(!!ga, !!metaPixel, 'accept')}>
             Accepter alle
           </button>
-          <button type="button" className="consent__btn" onClick={() => save(false, false)}>
+          <button type="button" className="consent__btn" onClick={() => save(false, false, 'reject')}>
             Kun nødvendige
           </button>
           {details ? (
-            <button type="button" className="consent__link" onClick={() => save(stats && !!ga, marketing && !!metaPixel)}>
+            <button type="button" className="consent__link" onClick={() => save(stats && !!ga, marketing && !!metaPixel, 'custom')}>
               Gem mit valg
             </button>
           ) : (

@@ -89,7 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
             <Footer />
             <VisitBeacon />
-            <ConsentBanner {...trackingConfig()} />
+            <ConsentBanner ga={trackingConfig().ga} metaPixel={trackingConfig().metaPixel} />
             {/* An ad network's main script, set in /admin/reklamer */}
             {real?.settings?.ads && real.ads?.head && <AdHeadCode code={real.ads.head} />}
           </BadgeProvider>
