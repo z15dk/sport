@@ -107,10 +107,12 @@ export function LineupPitch({ lineups }: { lineups: [Lineup, Lineup] }) {
               <ol className="lineups__list">
                 {t.startXI.map((p) => (
                   <li key={`${p.number}-${p.name}`}>
-                    <span className="lineups__no">{p.number}</span>{' '}
-                    <PlayerLink id={p.id} name={p.name} photo={p.photo}>
-                      <Face photo={p.photo} /> {p.name}
-                    </PlayerLink>
+                    <span className="lineups__no">{p.number}</span>
+                    <span className="lineups__name">
+                      <PlayerLink id={p.id} name={p.name} photo={p.photo}>
+                        <Face photo={p.photo} /> {p.name}
+                      </PlayerLink>
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -121,10 +123,12 @@ export function LineupPitch({ lineups }: { lineups: [Lineup, Lineup] }) {
                 <ol className="lineups__list lineups__list--subs">
                   {t.substitutes.map((p) => (
                     <li key={`${p.number}-${p.name}`}>
-                      <span className="lineups__no">{p.number}</span>{' '}
-                    <PlayerLink id={p.id} name={p.name} photo={p.photo}>
-                      <Face photo={p.photo} /> {p.name}
-                    </PlayerLink>
+                      <span className="lineups__no">{p.number}</span>
+                      <span className="lineups__name">
+                        <PlayerLink id={p.id} name={p.name} photo={p.photo}>
+                          <Face photo={p.photo} /> {p.name}
+                        </PlayerLink>
+                      </span>
                     </li>
                   ))}
                 </ol>
