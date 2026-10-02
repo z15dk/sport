@@ -21,7 +21,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   const division = divisionBySlug(slug)
   if (!division || !hasRealData(division.id)) return new Response('Ukendt liga', { status: 404, headers: { 'X-Robots-Tag': 'noindex' } })
   const url = new URL(request.url)
+  // One club, or several separated by commas (an article's preview highlights both teams)
   const highlight = url.searchParams.get('hold') ?? ''
+  const highlighted = new Set(highlight.split(',').filter(Boolean))
   // The highlighted club's colour (?farve=1d4ed8), so the table fits the club's own site
   const { color, ink: colorInk } = accent(url.searchParams.get('farve'))
   const dark = url.searchParams.get('tema') === 'mork'
@@ -71,7 +73,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ liga
   const body = rows
     .map((r, i) => {
       const gd = r.goalsFor - r.goalsAgainst
-      return `<tr class="${zone(i)}${r.club.slug === highlight ? ' me' : ''}">
+      return `<tr class="${zone(i)}${highlighted.has(r.club.slug) ? ' me' : ''}">
 <td class="n pos">${i + 1}</td>
 <td class="club"><a href="${paths.club(r.club.slug)}" target="_blank" rel="noopener">${badge(r)}<strong>${esc(r.club.name)}</strong></a></td>
 <td class="n">${r.played}</td>

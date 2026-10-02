@@ -1864,9 +1864,14 @@ a.player-games__match:hover { text-decoration: underline; }
 .article-body td { background: var(--surface-2); padding: 8px 10px; }
 .article-body td:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .article-body td:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.article-body th:not(:first-child), .article-body td:not(:first-child) { text-align: right; }
 .article-body td:first-child { font-weight: 600; }
-.article-body td:last-child { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; }
+/* Columns of numbers or scores (marked "num" by src/lib/articleEmbeds.ts) stand centred, text to the left */
+.article-body th.num, .article-body td.num { text-align: center; white-space: nowrap; }
+.article-body td.num:last-child { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 17px; }
+@media (max-width: 560px) { .article-body table { font-size: 13.5px; } .article-body td { padding: 7px 8px; } .article-body th { padding: 4px 8px; } }
+/* Our league table widget in an article ([tabel …]) */
+.article-body .article-widget { margin: 1.4em 0; }
+.article-body .article-widget > a { font-size: 13px; }
 .article-more { max-width: 1100px; margin: 32px auto 0; }
 
 /* Older matches' pages: the players with their rating */
@@ -2134,7 +2139,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .rivalry__bar i:nth-child(1) { background: var(--lime-deep, #6f8f00); }
 .rivalry__bar i:nth-child(2) { background: #c9ccc2; }
 .rivalry__bar i:nth-child(3) { background: var(--ink, #0f110c); }
-.rivalry__facts { margin: 0; padding: 0 8px 6px 34px; display: grid; gap: 6px; }
+.rivalry__facts { margin: 0; padding: 4px 18px 20px 38px; display: grid; gap: 8px; }
 .h2h__all { margin: 10px 0 0; font-weight: 600; }
 .rivals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
 .rivals a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface, #f6f7f2); color: inherit; text-decoration: none; }
