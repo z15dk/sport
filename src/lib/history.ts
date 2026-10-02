@@ -83,7 +83,7 @@ const historyHolder = globalThis as typeof globalThis & {
   __scorelineHistory?: { loaded?: Loaded; checkedAt: number; lastError?: string; building?: boolean; lastBuildMs?: number }
   __scorelineHistoryDb?: { dbTime: number; rows: DbMatch[] }
   __scorelineHistoryRows?: WeakMap<ArchivedMatch, DbMatch>
-  __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] }
+  __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[]; byPair: Map<string, PastGame[]> }
   __scorelineSeason?: SeasonData
   __scorelineResolved?: Map<SportId, Map<string, Club | undefined>>
   __scorelineResolvedAt?: number
@@ -1098,9 +1098,21 @@ function pastIndex() {
       source: m.eventId ? { archive: m.eventId } : { db: m.id },
     })
   }
-  historyHolder.__scorelinePast = { loaded: d, bySlug, list: [...bySlug.values()] }
+  const list = [...bySlug.values()]
+  // The two teams' meetings (any order), newest first, so a match page finds its head-to-head without reading every match
+  const byPair = new Map<string, PastGame[]>()
+  for (const g of list) {
+    if (g.home === g.away) continue
+    const key = pairKey(g.sport, g.home, g.away)
+    const l = byPair.get(key)
+    if (l) l.push(g)
+    else byPair.set(key, [g])
+  }
+  historyHolder.__scorelinePast = { loaded: d, bySlug, list, byPair }
   return historyHolder.__scorelinePast
 }
+
+const pairKey = (sport: string, a: string, b: string) => (a < b ? `${sport}|${a}|${b}` : `${sport}|${b}|${a}`)
 
 /** Every played match we know of, newest first */
 export const pastGames = (): PastGame[] => pastIndex()?.list ?? []
@@ -1133,10 +1145,9 @@ export function pastGameIncidents(g: PastGame): Incident[] {
 
 /** Earlier meetings of the two teams (any tournament), newest first */
 export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
-  const pair = new Set([g.home, g.away])
   const out: PastMatch[] = []
-  for (const m of pastGames()) {
-    if (m.date >= g.date || m.sport !== g.sport || !pair.has(m.home) || !pair.has(m.away) || m.home === m.away) continue
+  for (const m of pastIndex()?.byPair.get(pairKey(g.sport, g.home, g.away)) ?? []) {
+    if (m.date >= g.date) continue
     out.push({ date: m.date, competition: m.tournament, home: m.home, away: m.away, homeScore: m.homeScore, awayScore: m.awayScore })
     if (out.length >= count) break
   }
