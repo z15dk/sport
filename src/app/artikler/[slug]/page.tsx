@@ -6,6 +6,7 @@ import { articleBySlug, articleBySlugAny, categoryName, cleanHtml, plainText, pu
 import { slugify } from '../../../lib/slug'
 import { JsonLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
 import { SITE_NAME, SITE_URL, paths } from '../../../lib/site'
+import { feedPath } from '../../../lib/articleFeed'
 import { formatLong, formatTime } from '../../../lib/time'
 import { ArticleCards } from '../../../components/ArticleList'
 import { AdSlot } from '../../../components/AdSlot'
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: a.seoTitle || a.title,
     description,
-    alternates: { canonical: paths.article(a.slug) },
+    alternates: { canonical: paths.article(a.slug), types: { 'application/rss+xml': feedPath() } },
     keywords: [a.focusKeyword, ...a.tags].filter((x): x is string => !!x),
     openGraph: {
       type: 'article',

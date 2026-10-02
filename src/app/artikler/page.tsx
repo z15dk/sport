@@ -4,6 +4,7 @@ import { allTags, categories, publishedArticles } from '../../lib/articles'
 import { ArticleCards, Pager } from '../../components/ArticleList'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../lib/jsonld'
 import { SITE_NAME, paths } from '../../lib/site'
+import { feedPath } from '../../lib/articleFeed'
 
 export const dynamic = 'force-dynamic'
 const PER_PAGE = 12
@@ -15,7 +16,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   return {
     title: page > 1 ? `Artikler – side ${page}` : 'Artikler om fodbold og sport',
     description: `Artikler, analyser og guides om dansk og international fodbold, ishockey og basketball fra ${SITE_NAME}.`,
-    alternates: { canonical: paths.articles(page) },
+    alternates: { canonical: paths.articles(page), types: { 'application/rss+xml': feedPath() } },
   }
 }
 
@@ -30,6 +31,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Sea
       <JsonLd data={breadcrumbLd([{ name: 'Artikler', path: paths.articles() }])} />
       <div className="clubs articles-page">
         <h1 className="feed__title">Artikler</h1>
+        <p className="muted">
+          Følg artiklerne i din læser: <a href={feedPath()}>RSS-feed</a>
+        </p>
         {cats.length > 0 && (
           <nav className="article-filter" aria-label="Kategorier">
             {cats.map((c) => (
