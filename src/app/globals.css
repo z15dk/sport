@@ -2187,7 +2187,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .tickets__list a { font-weight: 700; white-space: nowrap; }
 
 /* The admin bar on the public pages while logged in (AdminBar) */
-.adminbar { position: relative; z-index: 60; background: #0f110c; color: #fff; font-size: 13px; }
+.adminbar { position: sticky; top: 0; z-index: 60; background: #0f110c; color: #fff; font-size: 13px; }
 .adminbar__in { display: flex; align-items: center; gap: 2px; min-height: 36px; max-width: 1400px; margin: 0 auto; padding: 0 12px; }
 .adminbar__item { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: 0; background: none; color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
 .adminbar__item:hover, .adminbar__menu.is-open > .adminbar__item { background: rgba(255, 255, 255, 0.1); color: var(--lime); }
@@ -2199,7 +2199,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .adminbar__split > .adminbar__item:first-child { padding-right: 4px; }
 .adminbar__more { padding: 0 10px 0 4px; }
 .adminbar__menu.is-open .adminbar__split > .adminbar__item { background: rgba(255, 255, 255, 0.1); color: var(--lime); }
-.adminbar.is-admin .adminbar__in { min-height: 44px; max-width: none; flex-wrap: wrap; overflow: visible; }
+.adminbar.is-admin .adminbar__in { min-height: 44px; max-width: 1400px; flex-wrap: wrap; overflow: visible; }
 .adminbar.is-admin .adminbar__item { height: 44px; font-size: 14px; }
 .adminbar.is-admin .adminbar__drop { top: 44px; }
 .adminbar__caret { display: inline-block; width: 0; height: 0; margin-left: 2px; border: 4px solid transparent; border-top-color: currentColor; border-bottom: 0; opacity: 0.7; }
@@ -2277,3 +2277,11 @@ a.player-games__match:hover { text-decoration: underline; }
 /* An unpublished article seen by the admin (/artikler/<slug> while logged in) */
 .article-preview { margin: 0; padding: 10px 16px; border-radius: var(--radius-sm); background: var(--star); color: var(--ink); font-size: 14px; }
 .article-preview a { color: inherit; font-weight: 700; }
+
+/* The admin bar stays at the top while scrolling (44 px): what else sticks to the top sits under it */
+body:has(> .adminbar) { scroll-padding-top: 52px; }
+body:has(> .adminbar) .rail { top: 44px; height: calc(100vh - 44px); }
+body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders, .table-duo > .topscorers) { top: 60px; }
+@media (max-width: 900px) {
+  body:has(> .adminbar) .rail { top: 44px; height: auto; }
+}
