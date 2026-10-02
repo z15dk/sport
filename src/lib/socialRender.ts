@@ -83,6 +83,8 @@ async function render(postId: string, query: string): Promise<{ file: string; su
         [...document.images].map((img) => (img.complete ? undefined : new Promise((r) => ((img.onload = r), (img.onerror = r))))),
       )
     })
+    // Only the cards on the pictures: the cookie banner, the admin bar and anything else laid over the page are hidden
+    await page.addStyleTag({ content: '.consent, .adminbar, [role="dialog"] { display: none !important; }' })
     await page.waitForTimeout(400)
     const cards = await page.locator('[data-card]').all()
     if (!cards.length) throw new Error('Ingen kort at tage billeder af')
