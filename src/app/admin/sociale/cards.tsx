@@ -315,7 +315,7 @@ export function Programme({ date, picks, logos }: { date: string; picks: Pick[];
             {picks.map((p) => (
               <div key={p.fixture.id} className={s.fixtureRow}>
                 {[p.fixture.home, p.fixture.away].map((club, i) => (
-                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
                     {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
                     <Crest club={club} logos={logos} plate />
                     {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
@@ -345,7 +345,7 @@ export function Programme({ date, picks, logos }: { date: string; picks: Pick[];
             {picks.map((p) => (
               <div key={p.fixture.id} className={cx(s.fixtureRow, s.storyRow)}>
                 {[p.fixture.home, p.fixture.away].map((club, i) => (
-                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
                     {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
                     <Crest club={club} logos={logos} plate />
                     {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
@@ -657,12 +657,15 @@ export function slotsOf(picks: Pick[]): [string, Pick[]][] {
   return [...map.entries()]
 }
 
-/** A match in the two clubs' colours with the time between them */
+/** The teams' fields in a list of matches: one neutral tone for every club, so the list reads calmly (the logos carry the clubs) */
+const NEUTRAL_TEAM: CSSProperties = { background: '#2a2d26', color: '#ffffff' }
+
+/** A match in neutral fields with the clubs' logos and the time between them */
 function FixtureRow({ p, logos, story }: { p: Pick; logos: Logos; story?: boolean }) {
   return (
     <div className={cx(s.fixtureRow, story && s.storyRow)}>
       {[p.fixture.home, p.fixture.away].map((club, i) => (
-        <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...field(club), gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+        <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
           {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
           <Crest club={club} logos={logos} plate />
           {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
