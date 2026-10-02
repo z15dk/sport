@@ -2272,10 +2272,14 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-table { width: calc(100% - 28px); border-collapse: collapse; font-size: 12.5px; }
 .dash-table th { text-align: left; font-size: 10.5px; font-weight: 600; color: var(--ink-3); padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.03em; }
 .dash-table td { padding: 2px 8px 2px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
-.dash-cap__table td:first-child { white-space: normal; }
-.dash-cap__table td:nth-child(2), .dash-cap__table td:nth-child(3), .dash-cap__table td:nth-child(4) { white-space: nowrap; }
 .dash-table tr:last-child td { border-bottom: 0; }
 .dash-table td:first-child { overflow-wrap: normal; white-space: nowrap; }
+/* The capacity table: the signal's name and limit may wrap, the numbers and the seven day squares never */
+.dash-cap__table { table-layout: fixed; }
+.dash-cap__table th:first-child, .dash-cap__table td:first-child { white-space: normal; overflow-wrap: anywhere; width: 34%; }
+.dash-cap__table td:nth-child(2), .dash-cap__table td:nth-child(3), .dash-cap__table td:nth-child(4) { white-space: nowrap; overflow: hidden; }
+.dash-cap__table th:nth-child(4), .dash-cap__table td:nth-child(4) { width: 80px; }
+.dash-cap__table td:nth-child(4) .small { margin-top: 2px; }
 .dash-table .is-bad { color: var(--live); font-weight: 600; }
 .dash-table .is-warn { color: #9a6a00; font-weight: 600; }
 
@@ -2295,7 +2299,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-cap__mark { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; background: var(--lime-deep); color: #fff; vertical-align: 1px; }
 .dash-cap__mark.is-warn { background: var(--star); color: var(--ink); }
 .dash-cap__mark.is-bad { background: var(--live); }
-.dash-cap__days { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 2px; }
+.dash-cap__days { display: inline-flex; gap: 2px; vertical-align: middle; margin-top: 4px; }
 .dash-cap__days i { display: block; width: 9px; height: 9px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--line); }
 .dash-cap__days i.is-some { background: var(--star); border-color: transparent; }
 .dash-cap__days i.is-over { background: var(--live); border-color: transparent; }

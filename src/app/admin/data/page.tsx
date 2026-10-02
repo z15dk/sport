@@ -325,8 +325,8 @@ export default async function DataStatusPage() {
                       {x.days.map((d) => (
                         <i key={d.date} className={d.over ? 'is-over' : d.hours ? 'is-some' : undefined} title={`${d.date}: ${d.hours} ${d.hours === 1 ? 'time' : 'timer'} over grænsen`} />
                       ))}
-                    </span>{' '}
-                    {x.badDays}/7
+                    </span>
+                    <div className="small">{x.badDays} af 7</div>
                   </td>
                 </tr>
               ))}

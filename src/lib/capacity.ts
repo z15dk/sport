@@ -160,9 +160,9 @@ function sample() {
 }
 
 const SIGNALS: { id: SignalId; name: string; over: (h: Hour) => boolean; limit: string }[] = [
-  { id: 'mem', name: 'Hukommelse', over: (h) => h.mem >= LIMITS.memPct || h.swap >= LIMITS.swapMb, limit: `${LIMITS.memPct} % af maskinen eller ${LIMITS.swapMb} MB swap` },
-  { id: 'load', name: 'CPU (load)', over: (h) => h.load >= LIMITS.loadPct, limit: `${LIMITS.loadPct} % af kernerne i 5 min.` },
-  { id: 'lag', name: 'Ventetid', over: (h) => h.stalls >= LIMITS.stallMin, limit: `${LIMITS.stallMin} min. i timen over 1 sek.` },
+  { id: 'mem', name: 'Hukommelse', over: (h) => h.mem >= LIMITS.memPct || h.swap >= LIMITS.swapMb, limit: `grænse ${LIMITS.memPct} % eller ${LIMITS.swapMb} MB swap` },
+  { id: 'load', name: 'CPU (load)', over: (h) => h.load >= LIMITS.loadPct, limit: `grænse ${LIMITS.loadPct} % af kernerne` },
+  { id: 'lag', name: 'Ventetid', over: (h) => h.stalls >= LIMITS.stallMin, limit: `grænse ${LIMITS.stallMin} min./time over 1 sek.` },
 ]
 
 export interface SignalStatus {
@@ -200,6 +200,7 @@ export function adviceFor(signals: Pick<SignalStatus, 'id' | 'level'>[]): string
   if (bad('mem') && !bad('load') && !bad('lag')) return 'Mere hukommelse: næste trin op i samme serie (fx Hetzner CPX52, 24 GB).'
   if ((bad('load') || bad('lag')) && !bad('mem')) return 'Flere og roligere kerner: dedikerede vCPU\'er (fx Hetzner CCX33, 8 kerner, 32 GB) – delte kerner svinger ved spidsbelastning.'
   if (bad('mem')) return 'Både hukommelse og CPU: dedikerede kerner med mere hukommelse (fx Hetzner CCX33, 8 kerner, 32 GB).'
+  if (signals.some((s) => s.level === 'watch')) return 'Ikke tid endnu: et signal har været over grænsen en enkelt dag. Sker det 3 af 7 dage, er det tid.'
   return 'Ingen opgradering nødvendig nu.'
 }
 
