@@ -2193,6 +2193,12 @@ a.player-games__match:hover { text-decoration: underline; }
 .adminbar__item:hover, .adminbar__menu.is-open > .adminbar__item { background: rgba(255, 255, 255, 0.1); color: var(--lime); }
 .adminbar__item.is-edit { color: var(--lime); }
 .adminbar__item.is-active { color: var(--lime); box-shadow: inset 0 -3px 0 var(--lime); }
+/* A section with sub-pages: the name goes to its first page, the caret opens the dropdown; both share the active underline */
+.adminbar__split { display: inline-flex; }
+.adminbar__split.is-active > .adminbar__item { color: var(--lime); box-shadow: inset 0 -3px 0 var(--lime); }
+.adminbar__split > .adminbar__item:first-child { padding-right: 4px; }
+.adminbar__more { padding: 0 10px 0 4px; }
+.adminbar__menu.is-open .adminbar__split > .adminbar__item { background: rgba(255, 255, 255, 0.1); color: var(--lime); }
 .adminbar.is-admin .adminbar__in { min-height: 44px; max-width: none; flex-wrap: wrap; overflow: visible; }
 .adminbar.is-admin .adminbar__item { height: 44px; font-size: 14px; }
 .adminbar.is-admin .adminbar__drop { top: 44px; }

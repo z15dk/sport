@@ -40,7 +40,8 @@ function groups(items: NonNullable<AdminMenuItem['children']>) {
   return out
 }
 
-function Menu({ label, children, active }: { label: React.ReactNode; children: React.ReactNode; active?: boolean }) {
+/** A dropdown; with `href` the label is a link to that page (the section's first page) and the caret beside it opens the menu */
+function Menu({ label, children, active, href }: { label: React.ReactNode; children: React.ReactNode; active?: boolean; href?: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -51,9 +52,20 @@ function Menu({ label, children, active }: { label: React.ReactNode; children: R
   }, [open])
   return (
     <div ref={ref} className={`adminbar__menu${open ? ' is-open' : ''}`} onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)} onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}>
-      <button type="button" className={`adminbar__item${active ? ' is-active' : ''}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {label}
-      </button>
+      {href ? (
+        <span className={`adminbar__split${active ? ' is-active' : ''}`}>
+          <Link href={href} className="adminbar__item" aria-current={active ? 'page' : undefined}>
+            {label}
+          </Link>
+          <button type="button" className="adminbar__item adminbar__more" aria-expanded={open} aria-label="Vis undersider" onClick={() => setOpen((o) => !o)}>
+            <i className="adminbar__caret" aria-hidden />
+          </button>
+        </span>
+      ) : (
+        <button type="button" className={`adminbar__item${active ? ' is-active' : ''}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {label}
+        </button>
+      )}
       {open && (
         <div className="adminbar__drop" onClick={() => setOpen(false)}>
           {children}
@@ -108,7 +120,7 @@ export function AdminBar() {
           <span className="adminbar__sep" aria-hidden />
           {ADMIN_MENU.map((s) =>
             s.children ? (
-              <Menu key={`${s.href}${path}`} active={s === section} label={<>{s.label} <i className="adminbar__caret" aria-hidden /></>}>
+              <Menu key={`${s.href}${path}`} active={s === section} href={s.children[0].href} label={s.label}>
                 {groups(s.children).map((g) => (
                   <div key={g.name ?? ''} className="adminbar__group">
                     {g.name && <span className="adminbar__group-name">{g.name}</span>}
