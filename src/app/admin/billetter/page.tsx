@@ -4,6 +4,7 @@ import { AdminNav } from '../../../components/admin/AdminNav'
 import { ClubTicketField, TicketList } from '../../../components/admin/TicketAdmin'
 import { isAdmin } from '../../../lib/admin'
 import { DEFAULT_CLUB_TICKETS, ticketConfig, ticketStats } from '../../../lib/tickets'
+import { leads } from '../../../lib/ticketShop'
 import { DIVISIONS, sportOf, type Division } from '../../../data/leagues'
 import { seasonClubs } from '../../../data/season'
 import type { Club } from '../../../data/club'
@@ -80,6 +81,30 @@ export default async function AdminTickets() {
             </p>
           </section>
         )}
+
+        {(() => {
+          // Clubs that asked about our own ticket system (the form on /billetsystem)
+          const list = leads()
+          return (
+            <section className="panel">
+              <h2 className="panel__title">Henvendelser om billetsystemet ({list.length})</h2>
+              <p className="muted small pad">
+                Fra formularen på <a href="/billetsystem">/billetsystem</a> (skjult for Google, til du åbner den). Demoen: <a href="/billetsystem/demo">/billetsystem/demo</a>.
+              </p>
+              {list.length > 0 && (
+                <ul className="admin-list">
+                  {list.map((l) => (
+                    <li key={l.id}>
+                      <strong>{l.club}</strong> · {l.name} · <a href={`mailto:${l.email}`}>{l.email}</a>
+                      {l.phone ? ` · ${l.phone}` : ''} <span className="muted small">· {new Date(l.created).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })}</span>
+                      {l.message && <p className="small muted">{l.message}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })()}
 
         <section className="panel">
           <h2 className="panel__title">Klubbernes billetsider</h2>
