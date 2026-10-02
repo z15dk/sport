@@ -5,6 +5,7 @@ import path from 'node:path'
 import type { SportId } from '../types'
 import type { ChannelData, ChannelDef, ChannelRule } from '../data/channels'
 import { gameKey } from '../data/external'
+import { alike } from '../data/aliases'
 import { slugify } from './slug'
 import { addDays, isoDate } from './time'
 import { cacheDir, tsdb } from './tsdb'
@@ -286,4 +287,66 @@ export function tvStatus() {
     withChannel: events.filter((e) => e.strChannel).length,
     channels: [...new Set(events.map((e) => e.strChannel).filter(Boolean))].sort() as string[],
   }
+}
+
+// ---------------------------------------------------------------- DBU's TV channels
+
+/**
+ * The channel DBU's match programme names for our Danish divisions (read into billeder.db with the
+ * fixtures), joined to the channels set up in /admin/kanaler by name: "Viaplay" → Viaplay. Keyed by the
+ * match id ("tsdb-<id>") like TheSportsDB's listings; those and the admin's exceptions still win, and a
+ * match DBU names no known channel for falls to the rules.
+ */
+const DBU_DIVISIONS = ['1div', '2div', '3div']
+const fold = (s: string) => s.toLowerCase().replace(/[^a-z0-9æøå+]/g, '')
+let dbuCache: { key: string; tv: Record<string, string[]> } | undefined
+
+export function dbuTvVersion() {
+  try {
+    return String(Math.round(statSync(photosDb()).mtimeMs))
+  } catch {
+    return '-'
+  }
+}
+
+const photosDb = () => process.env.PHOTOS_DB ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'billeder.db')
+
+export function dbuTv(leagues: Record<string, { id: string; home: string; away: string; kickoff: string }[]>, channels: ChannelDef[], namesOf: (division: string, team: string) => string[]): Record<string, string[]> {
+  const byName = new Map(channels.map((c) => [fold(c.name), c.id]))
+  const key = `${dbuTvVersion()}|${channels.map((c) => c.id + c.name).join(',')}|${DBU_DIVISIONS.map((d) => leagues[d]?.length ?? 0).join(',')}`
+  if (dbuCache?.key === key) return dbuCache.tv
+  const tv: Record<string, string[]> = {}
+  const from = addDays(isoDate(Date.now()), -1)
+  type Row = { date: string; hn: string; an: string; tv: string }
+  let rows: Row[] = []
+  try {
+    const lib = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o?: { readOnly?: boolean }) => { prepare(s: string): { all(...p: unknown[]): unknown[] }; close(): void } } | undefined
+    if (lib) {
+      const db = new lib.DatabaseSync(photosDb(), { readOnly: true })
+      try {
+        rows = db
+          .prepare(`SELECT m.date, h.name hn, a.name an, m.tv FROM matches m JOIN clubs h ON h.id = m.home_id JOIN clubs a ON a.id = m.away_id WHERE m.tv IS NOT NULL AND m.date >= ?`)
+          .all(from) as Row[]
+      } finally {
+        db.close()
+      }
+    }
+  } catch {
+    // no photo database on this server
+  }
+  // Only channels we know: DBU writes the league ("3. division") where there is no TV
+  const byDate = new Map<string, Row[]>()
+  for (const r of rows) if (byName.has(fold(r.tv))) byDate.set(r.date, [...(byDate.get(r.date) ?? []), r])
+  for (const d of DBU_DIVISIONS)
+    for (const e of leagues[d] ?? []) {
+      const date = isoDate(new Date(e.kickoff))
+      const day = byDate.get(date)
+      if (!day) continue
+      const home = namesOf(d, e.home)
+      const away = namesOf(d, e.away)
+      const hit = day.find((r) => alike(home, r.hn) && alike(away, r.an))
+      if (hit) tv[`tsdb-${e.id}`] = [byName.get(fold(hit.tv))!]
+    }
+  dbuCache = { key, tv }
+  return tv
 }

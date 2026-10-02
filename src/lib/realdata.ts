@@ -25,7 +25,7 @@ import { logoCheckVersion, realLogo } from './logoCheck'
 import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
 import { danishLeagueName } from '../data/external'
-import { channelData } from './channels'
+import { channelData, dbuTv, dbuTvVersion } from './channels'
 import { siteSettings } from './settings'
 import { adsConfig } from './adsConfig'
 
@@ -215,7 +215,7 @@ function apply() {
     logos: Object.keys(customLogos()).length,
   }))
   const { tables, tablesKey } = timed('Fletning: tabellerne', () => tablesOf(tableTeams(), leagueNames))
-  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
+  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${dbuTvVersion()}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
@@ -239,7 +239,8 @@ function apply() {
     leagueNames: leagueNames.names,
     clubNames: names.names,
     clubAliases: aliases.aliases,
-    channels: channels.data,
+    // DBU's channels for the Danish divisions under TheSportsDB's listings (those win)
+    channels: { ...channels.data, tv: { ...dbuTv(leagues, channels.data.channels, divisionNames), ...channels.data.tv } },
     settings: settings.settings,
     ads: ads.config,
   })
@@ -828,4 +829,10 @@ export function tsdbDanishLeagues(): { fetchedAt?: string; leagues: (TsdbLeague 
       .map((l) => ({ ...l, ours: used.get(l.id) }))
       .sort((a, b) => a.sport.localeCompare(b.sport) || a.name.localeCompare(b.name, 'da')),
   }
+}
+
+/** A team's names in one of our divisions: the name as sent, and every name its club goes by ("Hellerup" → "HIK", "Hellerup IK") */
+function divisionNames(division: string, team: string): string[] {
+  const club = DIVISIONS.find((d) => d.id === division)?.clubs.find((c) => alike(namesOfClub(c), team))
+  return club ? [team, ...namesOfClub(club)] : [team]
 }
