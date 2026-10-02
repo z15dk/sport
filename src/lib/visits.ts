@@ -154,6 +154,26 @@ export interface VisitStats {
   week: { visitors: number; views: number }
 }
 
+/** Views of a few pages in the last `days` days (the views table keeps 35): views, visitors, and the visits that came by a link from another site (search engines and social media not counted) */
+export function pathStats(paths: string[], days = 35): Map<string, { views: number; visitors: number; refVisits: number; refDomains: string[] }> {
+  const out = new Map<string, { views: number; visitors: number; refVisits: number; refDomains: string[] }>()
+  flush()
+  const d = db()
+  if (!d || !paths.length) return out
+  const from = isoDate(Date.now() - (days - 1) * 86_400_000)
+  const marks = paths.map(() => '?').join(',')
+  for (const r of d.prepare(`SELECT path, COUNT(*) AS n, COUNT(DISTINCT day || visitor) AS v FROM views WHERE day >= ? AND path IN (${marks}) GROUP BY path`).all(from, ...paths))
+    out.set(String(r.path), { views: Number(r.n), visitors: Number(r.v), refVisits: 0, refDomains: [] })
+  const known = new Set(['Google', 'Bing', 'DuckDuckGo', 'Facebook', 'Instagram', 'Threads', 'X', 'Reddit'])
+  for (const r of d.prepare(`SELECT path, ref, COUNT(*) AS n FROM views WHERE day >= ? AND first = 1 AND ref != '' AND path IN (${marks}) GROUP BY path, ref`).all(from, ...paths)) {
+    if (known.has(String(r.ref))) continue
+    const e = out.get(String(r.path)) ?? out.set(String(r.path), { views: 0, visitors: 0, refVisits: 0, refDomains: [] }).get(String(r.path))!
+    e.refVisits += Number(r.n)
+    e.refDomains.push(String(r.ref))
+  }
+  return out
+}
+
 /** The numbers for /admin/besoegende; `range` days for the pages, sources and devices */
 export function visitStats(range = 1): VisitStats | undefined {
   flush()
