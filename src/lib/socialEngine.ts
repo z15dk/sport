@@ -618,33 +618,13 @@ const ARTICLE_INTROS = [
 async function shareNewArticles(now: number) {
   const cfg = socialConfig()
   if (!cfg.articles.enabled) return
-  const s = socialSecrets()
-  const platforms = (['facebook', 'instagram', 'threads', 'x'] as Platform[]).filter((p) => cfg.platforms[p] && (cfg.dryRun || connected(p, s)))
+  const platforms = articlePlatforms()
   if (!platforms.length) return
   const shared = new Set(readPosts().posts.map((p) => p.article).filter((x): x is number => x !== undefined))
   for (const a of publishedArticles({ limit: 10 }).articles) {
     const at = Date.parse(a.publishedAt ?? '')
     if (!Number.isFinite(at) || shared.has(a.id) || at < (cfg.articles.since ?? now) || now - at > 24 * HOUR) continue
-    // The article's own picture, as a JPEG for every platform
-    const upload = /^\/uploads\/([a-f0-9]{24}\.webp)$/.exec(a.featuredImage ?? '')
-    const src = upload ? readUpload(upload[1]) : undefined
-    if (!src) {
-      logLine(`Artiklen "${a.title}" blev ikke delt: den har intet billede`, 'error')
-      updatePosts((d) => {
-        d.posts.push(articlePost(a, [], now, 'empty', 'Intet billede at dele'))
-      })
-      continue
-    }
-    mkdirSync(imageDir(), { recursive: true })
-    const file = `art-${a.id}-${Date.now().toString(36)}.jpg`
-    const jpeg = await sharp(src).resize({ width: 1600, height: 2000, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#0f110c' }).jpeg({ quality: 88 }).toBuffer()
-    writeFileSync(path.join(imageDir(), file), jpeg)
-    const post = articlePost(a, [{ file, surface: 'feed' }], now, 'waiting')
-    post.own = { platforms, story: false }
-    updatePosts((d) => {
-      d.posts.push(post)
-    })
-    logLine(`Ny artikel "${a.title}" sendes til ${platforms.map((p) => PLATFORM_NAMES[p]).join(', ')}`)
+    await queueArticle(a, platforms, now, `art-${a.id}`)
   }
 }
 
@@ -671,4 +651,46 @@ function articlePost(a: { id: number; title: string; excerpt: string; slug: stri
     results: {},
     createdAt: now,
   }
+}
+
+/** The platforms an article goes to: those switched on and connected */
+function articlePlatforms(): Platform[] {
+  const cfg = socialConfig()
+  const s = socialSecrets()
+  return (['facebook', 'instagram', 'threads', 'x'] as Platform[]).filter((p) => cfg.platforms[p] && (cfg.dryRun || connected(p, s)))
+}
+
+/** An article made into a post (its picture as a JPEG) and put in the queue; undefined when it has no picture */
+async function queueArticle(a: { id: number; title: string; excerpt: string; slug: string; featuredImage?: string }, platforms: Platform[], now: number, id: string) {
+  const upload = /^\/uploads\/([a-f0-9]{24}\.webp)$/.exec(a.featuredImage ?? '')
+  const src = upload ? readUpload(upload[1]) : undefined
+  if (!src) {
+    logLine(`Artiklen "${a.title}" blev ikke delt: den har intet billede`, 'error')
+    updatePosts((d) => {
+      if (!d.posts.some((p) => p.id === id)) d.posts.push({ ...articlePost(a, [], now, 'empty', 'Intet billede at dele'), id })
+    })
+    return undefined
+  }
+  mkdirSync(imageDir(), { recursive: true })
+  const file = `art-${a.id}-${Date.now().toString(36)}.jpg`
+  const jpeg = await sharp(src).resize({ width: 1600, height: 2000, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#0f110c' }).jpeg({ quality: 88 }).toBuffer()
+  writeFileSync(path.join(imageDir(), file), jpeg)
+  const post = { ...articlePost(a, [{ file, surface: 'feed' }], now, 'waiting'), id, own: { platforms, story: false } }
+  updatePosts((d) => {
+    d.posts.push(post)
+  })
+  logLine(`Artiklen "${a.title}" sendes til ${platforms.map((p) => PLATFORM_NAMES[p]).join(', ')}`)
+  return post
+}
+
+/** Shares a published article now, by hand (also an old one, and again) */
+export async function shareArticle(articleId: number) {
+  const a = publishedArticles().articles.find((x) => x.id === articleId)
+  if (!a) throw new Error('Artiklen er ikke udgivet')
+  const platforms = articlePlatforms()
+  if (!platforms.length) throw new Error('Ingen platforme er slået til og forbundet (Sociale medier → Plan og kø)')
+  const post = await queueArticle(a, platforms, Date.now(), `art-${a.id}-${Date.now().toString(36)}`)
+  if (!post) throw new Error('Artiklen har intet hovedbillede at dele')
+  await publishOne(post.id)
+  return findPost(post.id)
 }

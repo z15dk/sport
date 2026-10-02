@@ -480,3 +480,4 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__tpl label { flex: 0 1 240px; }
 .own-post__tpl select { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .own-post__tpl-note { flex-basis: 100%; }
+.art-card__links { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; }

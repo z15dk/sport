@@ -9,6 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { slugify } from '../../lib/slug'
 import { seoChecks, type SeoCheck } from '../../lib/seoChecks'
 import { ArchivePicker, PhotoMetaDialog } from './ArticlePhotos'
+import { ActionButton } from './SocialAdmin'
 
 // The article editor in /admin/artikler, laid out like WordPress: title,
 // permalink and text in the middle, and boxes on the side for publishing, the
@@ -310,6 +311,9 @@ export function ArticleEditor({
             <a className="text-btn" href={`/artikler/${a.slug}`} target="_blank" rel="noopener">
               {published && !future ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
             </a>
+          )}
+          {a.id && published && !future && (
+            <ActionButton body={{ action: 'shareArticle', id: a.id }} label="Del på sociale medier" busyLabel="Deler …" confirm="Del artiklen på sociale medier nu?" />
           )}
           {a.id && (
             <button type="button" className="text-btn ed-delete" onClick={remove}>

@@ -15,7 +15,7 @@ import {
   type SocialConfig,
 } from '../../../../lib/socialStore'
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
-import { approve, createOwnPost, deleteOwnPost, ownTemplate, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
+import { approve, createOwnPost, deleteOwnPost, ownTemplate, shareArticle, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
 
@@ -217,6 +217,10 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
       const r = await ownTemplate({ kind, topic: isTopic(b.topic) ? b.topic : undefined, league: str(b.league, 100), date })
       return { message: `${r.title}: ${r.images.length} billeder`, data: r }
+    }
+    case 'shareArticle': {
+      const post = await shareArticle(int(b.id, 0, 0, 1e9))
+      return { message: post ? `${STATUS_NAMES[post.status]}: ${Object.values(post.results).map((r) => (r.status === 'error' ? `fejl – ${r.error}` : r.status === 'dry' ? 'tør-kørt' : 'sendt')).join(', ')}` : 'Delt' }
     }
     case 'ownDelete':
       deleteOwnPost(str(b.id, 80))
