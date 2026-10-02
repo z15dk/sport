@@ -31,32 +31,35 @@ export default async function AdminArticles() {
             + Tilføj ny
           </Link>
         </div>
-        <section className="panel">
-          {list.length === 0 ? (
-            <p className="muted pad">Ingen artikler endnu. Tryk &quot;Tilføj ny&quot; for at skrive den første.</p>
-          ) : (
-            <ul className="admin-list">
-              {list.map((a) => (
-                <li key={a.id} className="admin-list__row admin-article">
-                  {a.featuredImage ? <img src={a.featuredImage} alt="" width={44} height={30} /> : <span className="admin-article__noimg" />}
-                  <span className="admin-list__name">
-                    <Link href={`/admin/artikler/${a.id}`}>
-                      <strong>{a.title}</strong>
-                    </Link>
-                    <em>
-                      {[cats.get(a.category ?? ''), a.tags.slice(0, 4).join(', ')].filter(Boolean).join(' · ') || 'Ingen kategori'}
-                    </em>
-                  </span>
-                  <span className={`admin-article__state is-${state(a) === 'Udgivet' ? 'live' : state(a) === 'Planlagt' ? 'planned' : 'draft'}`}>{state(a)}</span>
-                  <span className="muted small">
-                    {formatNumeric(new Date(a.publishedAt ?? a.updatedAt))} {formatTime(new Date(a.publishedAt ?? a.updatedAt))}
-                  </span>
-                  <ArticleFacts st={stats.get(a.id)!} path={paths.article(a.slug)} />
+        {list.length === 0 ? (
+          <p className="panel muted pad">Ingen artikler endnu. Tryk &quot;Tilføj ny&quot; for at skrive den første.</p>
+        ) : (
+          <ul className="admin-articles">
+            {list.map((a) => {
+              const st = state(a)
+              return (
+                <li key={a.id} className={`art-card is-${st === 'Udgivet' ? 'live' : st === 'Planlagt' ? 'planned' : 'draft'}`}>
+                  <Link className="art-card__img" href={`/admin/artikler/${a.id}`} aria-label={`Rediger ${a.title}`}>
+                    {a.featuredImage ? <img src={a.featuredImage} alt="" /> : <span className="art-card__noimg">Intet billede</span>}
+                  </Link>
+                  <div className="art-card__body">
+                    <div className="art-card__head">
+                      <div className="art-card__title">
+                        <Link href={`/admin/artikler/${a.id}`}>{a.title}</Link>
+                        <em>{[cats.get(a.category ?? ''), a.tags.slice(0, 4).join(', ')].filter(Boolean).join(' · ') || 'Ingen kategori'}</em>
+                      </div>
+                      <span className={`admin-article__state is-${st === 'Udgivet' ? 'live' : st === 'Planlagt' ? 'planned' : 'draft'}`}>{st}</span>
+                      <span className="art-card__date">
+                        {formatNumeric(new Date(a.publishedAt ?? a.updatedAt))} {formatTime(new Date(a.publishedAt ?? a.updatedAt))}
+                      </span>
+                    </div>
+                    <ArticleFacts st={stats.get(a.id)!} path={paths.article(a.slug)} />
+                  </div>
                 </li>
-              ))}
-            </ul>
-          )}
-        </section>
+              )
+            })}
+          </ul>
+        )}
       </div>
     </div>
   )
