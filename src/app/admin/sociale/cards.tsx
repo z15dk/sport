@@ -832,7 +832,8 @@ export function ScorersCards({ division, rows, logos }: { division: Division; ro
       <StoryCard
         caption="Topscorerne"
         club={asClub(top.club)}
-        label={`${division.name} · ${top.player} fører med ${top.goals} mål`}
+        // No line above the headline: the list says who leads
+        label=""
         headline="Topscorerne"
         crests={[]}
         foot="1/2"
