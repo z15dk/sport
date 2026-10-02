@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { photoCredits, withPhotoCredits } from '../../../lib/photos/server'
 import { articleBySlug, categoryName, cleanHtml, plainText, publishedArticles, readingMinutes } from '../../../lib/articles'
 import { slugify } from '../../../lib/slug'
 import { JsonLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
@@ -48,7 +49,9 @@ export default async function ArticlePage({ params }: { params: Params }) {
   loadRealData()
   const now = Date.now()
   const category = categoryName(a.category)
-  const html = cleanHtml(a.content)
+  // The photographer stands in the bottom right corner of every picture from the photo archive
+  const html = withPhotoCredits(cleanHtml(a.content))
+  const heroCredit = photoCredits([a.featuredImage]).get(a.featuredImage ?? '')
   const more = publishedArticles({ limit: 4 }).articles.filter((x) => x.id !== a.id).slice(0, 3)
   const published = a.publishedAt ? new Date(a.publishedAt) : undefined
   const updated = new Date(a.updatedAt)
@@ -115,7 +118,12 @@ export default async function ArticlePage({ params }: { params: Params }) {
             <span>{readingMinutes(a.content)} min. læsning</span>
           </p>
         </div>
-        {a.featuredImage && <img className="article-hero__img" src={a.featuredImage} alt={a.featuredAlt ?? ''} fetchPriority="high" />}
+        {a.featuredImage && (
+          <figure className="photo-credit-wrap article-hero__figure">
+            <img className="article-hero__img" src={a.featuredImage} alt={a.featuredAlt ?? ''} fetchPriority="high" />
+            {heroCredit && <figcaption className="photo-credit">{heroCredit}</figcaption>}
+          </figure>
+        )}
       </header>
       <div className="article-layout">
         <article className="article">
