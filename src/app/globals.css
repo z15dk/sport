@@ -216,8 +216,6 @@ table.visually-hidden { display: block; }
 .date-chip.is-active .date-chip__date { color: var(--ink); }
 
 /* Leagues */
-/* A league's block further down the page is laid out only when it scrolls into view (the browser skips the rest's style and layout work) */
-.league { content-visibility: auto; contain-intrinsic-size: auto 480px; }
 .league-list { display: flex; flex-direction: column; gap: 14px; transition: opacity 0.2s; }
 .league-list.is-loading { opacity: 0.55; }
 .league { background: var(--surface); border-radius: var(--radius); overflow: hidden; scroll-margin-top: 16px; }
