@@ -672,19 +672,43 @@ h2.league__name { margin: 0; }
 .prose__section p { padding: 0 18px; line-height: 1.6; max-width: 72ch; color: var(--ink-2); }
 .prose__section p + p { margin-top: 10px; }
 .prose a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-.footer { content-visibility: auto; contain-intrinsic-size: auto 560px; }
-.footer {
-  margin: 8px 24px 32px 4px; padding: 24px; border-radius: var(--radius); background: var(--ink); color: #fff;
-  display: flex; flex-direction: column; gap: 16px;
+/* ---- Footer: one compact dark band across the window; the content lines up with the page (1400px) ---- */
+.footer { content-visibility: auto; contain-intrinsic-size: auto 300px; margin: 32px 0 0; background: var(--ink); color: #fff; font-size: 13px; }
+.footer__in { max-width: 1400px; margin: 0 auto; padding: 22px 24px 18px; display: flex; flex-direction: column; gap: 14px; }
+.footer a { color: #fff; opacity: 0.82; text-decoration: none; }
+.footer a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
+/* Logo left, the site's pages in one row on the right */
+.footer__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.footer .footer__logo { color: #fff; opacity: 1; font-size: 22px; text-decoration: none; }
+.footer__links { display: flex; flex-wrap: wrap; gap: 4px 18px; font-weight: 600; }
+.footer__links .footer__linkbtn { opacity: 0.82; font-weight: 600; }
+.footer__links .footer__linkbtn:hover { opacity: 1; }
+/* Our leagues: one line per sport, the sport as a small label, the leagues as inline links with flags */
+.footer__leagues { display: flex; flex-direction: column; gap: 6px; }
+.footer__row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.footer__sport { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--lime); min-width: 84px; }
+.footer__row ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1; }
+.footer__row ul a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.footer .flag { width: 14px; height: 10px; border-radius: 2px; }
+/* Every other tournament, folded away (the links stay in the page for crawlers) */
+.footer__more { border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 10px; }
+.footer__more summary { cursor: pointer; font-weight: 600; opacity: 0.82; list-style: none; display: inline-flex; align-items: center; gap: 8px; }
+.footer__more summary::-webkit-details-marker { display: none; }
+.footer__more summary::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s; }
+.footer__more[open] summary::before { transform: rotate(45deg); }
+.footer__more summary:hover { opacity: 1; }
+.footer__more .footer__row { margin-top: 8px; }
+.footer__more .footer__row ul a { opacity: 0.7; }
+/* The small print */
+.footer__bottom { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.12); font-size: 12px; opacity: 0.6; }
+.footer__bottom a { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 700px) {
+  .footer__in { padding: 18px 16px 16px; gap: 12px; }
+  .footer__top { flex-direction: column; align-items: flex-start; }
+  .footer__sport { min-width: 100%; }
 }
-.footer__cols { display: flex; flex-wrap: wrap; gap: 32px 64px; }
-.footer h2 { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; text-transform: uppercase; color: var(--lime); margin: 0 0 8px; }
-.footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.footer a { color: #fff; opacity: 0.85; }
-.footer a:hover { opacity: 1; text-decoration: underline; }
-.footer__note { font-size: 12px; opacity: 0.6; }
 @media (max-width: 900px) {
-  .footer { order: 3; margin: 8px 16px 24px; }
+  .footer { order: 3; margin: 24px 0 0; }
 }
 .clubs__subtitle { font-size: 32px; margin-top: 12px; }
 
@@ -901,12 +925,6 @@ h2.league__name { margin: 0; }
   .division-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .division-tabs .filter-bar { flex: none; overflow: visible; }
 }
-.footer ul a { display: inline-flex; align-items: center; gap: 8px; }
-.footer .flag { width: 16px; height: 11px; }
-/* Long lists (football) run in two columns */
-.footer__col--wide ul { display: block; columns: 2; column-gap: 32px; }
-.footer__col--wide li { break-inside: avoid; margin-bottom: 6px; }
-@media (max-width: 600px) { .footer__col--wide ul { columns: 1; } }
 
 /* Advertising: space is reserved up front so nothing jumps when an ad loads */
 .ad { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
@@ -1380,10 +1398,6 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
 .follow-toggle__text { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; line-height: 1.2; min-width: 72px; }
 .follow-toggle__text em, .follow-toggle__text .text-btn { font-style: normal; font-weight: 500; font-size: 11px; color: var(--ink-3); padding: 0; text-align: left; }
 
-.footer__col--wider { flex: 1 1 100%; }
-.footer__col--wider ul { columns: 4; }
-@media (max-width: 900px) { .footer__col--wider ul { columns: 2; } }
-@media (max-width: 600px) { .footer__col--wider ul { columns: 1; } }
 
 /* ---- Match report / preview ---- */
 .story { margin: 14px 0 18px; padding: 16px 20px; border-radius: var(--radius, 16px); background: var(--surface); }
@@ -1391,8 +1405,6 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
 .story p { margin: 0 0 10px; line-height: 1.55; font-size: 16px; }
 .story .story__note { margin: 0; font-size: 12px; color: var(--ink-3); }
 
-/* The footer spans the whole window; its content lines up with the page (at most 1400px) */
-.footer { margin: 32px 0 0; border-radius: var(--radius) var(--radius) 0 0; padding: 32px max(24px, calc((100% - 1400px) / 2 + 24px)) 40px; }
 .admin-subnav { display: flex; flex-wrap: wrap; gap: 18px; margin: 0 0 12px 8px; font-size: 14px; font-weight: 600; }
 .admin-subnav a { color: var(--ink-3); padding: 4px 0; border-bottom: 2px solid transparent; }
 .admin-subnav a:hover { color: var(--ink); }
@@ -1573,9 +1585,6 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
 .timeline-graphic__track:has(.timeline-graphic__player) { height: 150px; }
 .timeline-graphic__player { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
 
-/* The logo at the top of the footer, white */
-.footer .footer__logo { display: inline-block; color: #fff; opacity: 1; margin-bottom: 24px; text-decoration: none; }
-.footer .footer__logo:hover { text-decoration: none; }
 
 /* "Seneste nyheder" on club and league pages (NewsList) */
 .news { margin-top: 16px; }
