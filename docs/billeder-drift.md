@@ -155,6 +155,10 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 
 Hvert billede har en type: **Kampfoto** (numre, navne og hold findes), **Portræt / holdbillede** (numre, men ingen kamp krævet), **Grafik** (ingen spiller-tags, intet til gennemgang) og **Andet** (stadion, publikum, stemning). AI'en foreslår type og en kort titel i samme kald; en type valgt i hånden vinder og beregner taggene igen uden nyt AI-kald. Alle billeder kan have titel og egne tags (klubber/ligaer fra menuen og frie ord); titel og tags kan søges, og et klub-tag gør, at billedet findes under klubben (også i filtret). Type og tags kan sættes på mange billeder ad gangen (Vælg flere → Type og tags) og i artikel-editorens boks efter upload.
 
+### Optakter til 1. division
+
+**Artikler → Optakter** viser 1. divisions kampe de næste 14 dage med tid, stadion og TV fra DBU. "Lav kladde" (eller "Lav kladder til de næste 7 dage") skriver en optakt ud fra data: placering, form, hjemme/ude, topscorere, indbyrdes opgør siden 2001 (også Superliga-opgør fra statistikbanken), stilling og spørgsmål med korte svar. Den gemmes som kladde i kategorien Optakter – læs den og udgiv den i editoren. Kladder kan opdateres frem til kampen; en udgivet optakt røres ikke. Ny sæson: sæt `PREVIEW_DBU_POOL` og `PREVIEW_SEASON` i env.
+
 ### Artikler
 
 - **Upload i artikel-editoren** (i teksten eller som udvalgt billede): billedet lægges i billedarkivet (kilde "Artikel"), og en boks beder om alt-tekst, rettigheder (eget/lånt, foto, lånt til og med) og klub, modstander og dato. "Udfyld resten senere" lægger det i Gennemgang som "mangler metadata" (øverst, med det samme). Billedet ses i arkivet med det samme ("I kø"); numre og navne kommer ved Sync eller natkørslen. Billeder, der allerede står i artikler, men ikke er i arkivet (fx uploadet i en editor, der var åben fra før), hentes ind ved hver kørsel eller med `npm run -s photos -- artikler`.

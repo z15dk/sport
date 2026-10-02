@@ -19,9 +19,10 @@ test('klubber og trøjefarver fra holdoversigten', () => {
 
 test('kampprogram: dato og hold', () => {
   const html = `<tr class="even" onclick="MatchProgramMatchClick('/resultater/kamp/308807_508656/kampinfo')">
-    <div class="matchprogram-date"><span>l&#xF8;r.</span>01-08 2026</div>
-    <a class="link" href="/resultater/hold/9351_508656">Brabrand</a><a class="link" href="/resultater/hold/7287_508656">Skive</a></tr>`
-  assert.deepEqual(parseProgram(html), [{ key: '308807_508656', date: '2026-08-01', home: 'Brabrand', away: 'Skive', url: '/resultater/kamp/308807_508656/kampinfo' }])
+    <td><div class="matchprogram-date"><span>l&#xF8;r.</span>01-08 2026</div></td><td class="hide-on-mobile"> 14:00 </td>
+    <a class="link" href="/resultater/hold/9351_508656">Brabrand</a><a class="link" href="/resultater/hold/7287_508656">Skive</a>
+    <td><a class="link" href="/resultater/stadium/1034">Brabrand IF&#x27;s Idr&#xE6;tsanl&#xE6;g</a></td><td><div class="tv-logo"><div class="tv-logo-text"> Viaplay </div></div></td></tr>`
+  assert.deepEqual(parseProgram(html), [{ key: '308807_508656', date: '2026-08-01', time: '14:00', home: 'Brabrand', away: 'Skive', url: '/resultater/kamp/308807_508656/kampinfo', venue: "Brabrand IF's Idrætsanlæg", tv: 'Viaplay' }])
 })
 
 test('holdkort: startopstilling og reserver, trænere tæller ikke', () => {
