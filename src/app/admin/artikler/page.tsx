@@ -48,6 +48,9 @@ export default async function AdminArticles() {
                         <Link href={`/admin/artikler/${a.id}`}>{a.title}</Link>
                         <em>{[cats.get(a.category ?? ''), a.tags.slice(0, 4).join(', ')].filter(Boolean).join(' · ') || 'Ingen kategori'}</em>
                       </div>
+                      <a className="text-btn" href={paths.article(a.slug)} target="_blank" rel="noopener">
+                        {st === 'Udgivet' ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
+                      </a>
                       <span className={`admin-article__state is-${st === 'Udgivet' ? 'live' : st === 'Planlagt' ? 'planned' : 'draft'}`}>{st}</span>
                       <span className="art-card__date">
                         {formatNumeric(new Date(a.publishedAt ?? a.updatedAt))} {formatTime(new Date(a.publishedAt ?? a.updatedAt))}

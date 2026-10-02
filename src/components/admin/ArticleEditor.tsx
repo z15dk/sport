@@ -305,9 +305,10 @@ export function ArticleEditor({
               {published ? 'Opdater' : future ? 'Planlæg' : 'Udgiv'}
             </button>
           </div>
-          {published && !future && a.slug && (
+          {/* A draft or a scheduled article opens as a preview (the saved version, seen only while logged in) */}
+          {a.id && a.slug && (
             <a className="text-btn" href={`/artikler/${a.slug}`} target="_blank" rel="noopener">
-              Se artiklen ↗
+              {published && !future ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
             </a>
           )}
           {a.id && (

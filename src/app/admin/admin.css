@@ -117,7 +117,7 @@
 .art-card__img:hover img { transform: scale(1.03); }
 .art-card__noimg { font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .art-card__body { display: flex; flex-direction: column; min-width: 0; }
-.art-card__head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 12px; padding-bottom: 12px; }
+.art-card__head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 12px; padding-bottom: 12px; }
 .art-card__title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .art-card__title a { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; text-transform: uppercase; color: var(--ink); }
 .art-card__title a:hover { text-decoration: underline; }

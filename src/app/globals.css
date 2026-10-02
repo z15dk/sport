@@ -2273,3 +2273,7 @@ a.player-games__match:hover { text-decoration: underline; }
   .flow2.is-masonry::before { content: ''; flex-basis: 100%; width: 0; order: 2; }
   .flow2 .leaders__grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* An unpublished article seen by the admin (/artikler/<slug> while logged in) */
+.article-preview { margin: 0; padding: 10px 16px; border-radius: var(--radius-sm); background: var(--star); color: var(--ink); font-size: 14px; }
+.article-preview a { color: inherit; font-weight: 700; }
