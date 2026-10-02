@@ -9,7 +9,8 @@ import { DriveError, driveClient, type DriveClient, type DriveFile } from './dri
 import { geminiProvider } from './gemini.ts'
 import { parseList, taggingContext } from './context.ts'
 import { deletePhotoEverywhere } from './remove.ts'
-import { expiredLoans } from './store.ts'
+import { backfillArticleImages, expiredLoans } from './store.ts'
+import { articleImageNames } from './articles.ts'
 import { parsePhotoPath, resolveClub, type ClubRef } from './paths.ts'
 import { tagPhoto, type Tagging } from './tagging.ts'
 import { MAX_ORIGINAL_BYTES, makeVariants } from './variants.ts'
@@ -81,6 +82,9 @@ export async function runPhotoJob(opts: { limit?: number; log?: Log; dbu?: 'auto
     const gone = await deleteExpiredLoans(db, drive, cfg, log)
     summary.deleted = gone.deleted
     summary.deleteErrors = gone.errors
+    // Article pictures uploaded before they went into the archive automatically
+    const backfilled = backfillArticleImages(db, articleImageNames(cfg))
+    if (backfilled) log(`${backfilled} artikelbillede(r) lagt i billedarkivet (mangler metadata)`)
     summary.queued = await syncDrive(db, drive, cfg.folderId!, log)
     // Between the full fetches: the sheet and result of each match the new photos are from
     if (opts.dbu !== 'skip' && summary.queued) await fetchMatchesForQueue(db, cfg.dbuPauseMs, log)

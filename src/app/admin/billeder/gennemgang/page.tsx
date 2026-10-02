@@ -34,7 +34,7 @@ export default async function AdminPhotoReview() {
               </Link>
               <div className={s.qtext}>
                 <Link href={`/admin/billeder/${photo.id}`} prefetch={false} className={s.cardTitle}>
-                  {photo.club ?? 'Ukendt klub'} – {photo.opponent ?? '?'} · {dateDk(photo.matchDate)}
+                  {photo.club ? `${photo.club} – ${photo.opponent ?? '?'}` : photo.source === 'artikel' ? 'Artikelbillede' : 'Ukendt klub'} · {dateDk(photo.matchDate)}
                 </Link>
                 <span className={s.chips}>{tags.map((t) => <TagChip key={t.id} tag={t} />)}</span>
                 {tags.filter((t) => t.note).map((t) => (
@@ -42,7 +42,7 @@ export default async function AdminPhotoReview() {
                     #{t.number}: {t.note}
                   </span>
                 ))}
-                <span className={s.muted}>{photo.reviewReasons.join(' · ')}</span>
+                <span className={s.muted}>{[...(!photo.metadataDone ? ['mangler metadata (artikelbillede)'] : []), ...photo.reviewReasons.filter((r) => r && r !== 'mangler metadata')].join(' · ')}</span>
               </div>
               <div className={s.qactions}>
                 {suggestions.map((sg) => {
@@ -56,7 +56,7 @@ export default async function AdminPhotoReview() {
                 <Link className="pill" href={`/admin/billeder/${photo.id}`} prefetch={false}>
                   Ret
                 </Link>
-                <ApproveButton photoId={photo.id} approved={false} />
+                {photo.status === 'tagget' && <ApproveButton photoId={photo.id} approved={false} />}
               </div>
             </div>
           ))}

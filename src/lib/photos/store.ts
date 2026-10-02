@@ -36,6 +36,10 @@ export interface Photo {
   credit: string | null
   /** Borrowed: the last day we may keep it (yyyy-mm-dd) */
   licenseUntil: string | null
+  /** 'drive' or 'artikel' (uploaded in the article editor) */
+  source: string
+  /** False for an article picture whose rights and match have not been filled in */
+  metadataDone: boolean
   sharpness: number | null
   dhash: string | null
 }
@@ -85,6 +89,8 @@ const toPhoto = (r: Row): Photo => ({
   approvedAt: (r.approved_at as string) ?? null,
   credit: (r.credit as string) ?? null,
   licenseUntil: (r.license_until as string) ?? null,
+  source: String(r.source ?? 'drive'),
+  metadataDone: r.metadata_done == null ? true : !!r.metadata_done,
   sharpness: r.sharpness == null ? null : Number(r.sharpness),
   dhash: (r.dhash as string) ?? null,
 })
@@ -120,7 +126,7 @@ export function clubList(db: Db): (ClubRef & { colors: string[]; extraColors: st
 
 export function overview(db: Db, dailyLimit: number) {
   const counts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) n FROM photos GROUP BY status').all().map((r) => [String(r.status), Number(r.n)])) as Record<string, number>
-  const review = Number(db.prepare(`SELECT COUNT(*) n FROM photos WHERE review = 1 AND status = 'tagget'`).get()?.n ?? 0)
+  const review = Number(db.prepare(`SELECT COUNT(*) n FROM photos WHERE (review = 1 AND status = 'tagget') OR (metadata_done = 0 AND status IN ('ny', 'tagget'))`).get()?.n ?? 0)
   const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
   const expiring = Number(db.prepare(`SELECT COUNT(*) n FROM photos WHERE license_until IS NOT NULL AND license_until <= ? AND status != 'slettet'`).get(soon)?.n ?? 0)
   const lastRun = getMeta(db, 'last_run')
@@ -159,11 +165,11 @@ export function searchPhotos(db: Db, q: string, status = '', limit = 120, f: Pho
   const { sql, params } = searchWhere(parseQuery(q, clubList(db)))
   const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
   const statusSql =
-    status === 'gennemgang' ? ` AND p.review = 1 AND p.status = 'tagget'`
+    status === 'gennemgang' ? ` AND ((p.review = 1 AND p.status = 'tagget') OR (p.metadata_done = 0 AND p.status IN ('ny', 'tagget')))`
     : status === 'laant' ? ` AND p.license_until IS NOT NULL AND p.status != 'slettet'`
     : status === 'udloeber' ? ` AND p.license_until IS NOT NULL AND p.license_until <= ? AND p.status != 'slettet'`
     : status ? ' AND p.status = ?'
-    : ` AND p.status NOT IN ('ny', 'behandles', 'slettet')`
+    : ` AND p.status NOT IN ('behandles', 'slettet')`
   const statusParams = status === 'udloeber' ? [soon] : status && !['gennemgang', 'laant'].includes(status) ? [status] : []
   const extra: string[] = []
   const extraParams: unknown[] = []
@@ -242,7 +248,11 @@ export function getPhoto(db: Db, id: number): { photo: Photo; tags: Tag[]; log: 
 
 /** The review queue: quickest to fix first, newest match first among equals */
 export function reviewQueue(db: Db, limit = 100) {
-  const photos = db.prepare(`SELECT * FROM photos WHERE review = 1 AND status = 'tagget' ORDER BY review_cost, match_date DESC, id LIMIT ?`).all(limit).map(toPhoto)
+  // Article pictures without metadata come first (they are on the site already), then the quickest to fix
+  const photos = db
+    .prepare(`SELECT * FROM photos WHERE (review = 1 AND status = 'tagget') OR (metadata_done = 0 AND status IN ('ny', 'tagget')) ORDER BY metadata_done, review_cost, match_date DESC, id LIMIT ?`)
+    .all(limit)
+    .map(toPhoto)
   const tags = tagsFor(db, photos.map((p) => p.id))
   return photos.map((p) => ({ photo: p, tags: tags.get(p.id) ?? [], suggestions: suggestions(db, p, tags.get(p.id) ?? []) }))
 }
@@ -393,6 +403,8 @@ export function setRights(db: Db, photoId: number, input: { credit?: string; lic
   const changes = input.wholeMatch
     ? db.prepare(sql + 'club IS ? AND match_date IS ? AND opponent IS ?').run(credit, until, row.club ?? null, row.match_date ?? null, row.opponent ?? null).changes
     : db.prepare(sql + 'id = ?').run(credit, until, photoId).changes
+  // Rights filled in for an article picture: its metadata is done
+  db.prepare(`UPDATE photos SET metadata_done = 1, review_reasons = '[]', review = CASE WHEN status = 'ny' THEN 0 ELSE review END WHERE id = ? AND metadata_done = 0`).run(photoId)
   return { count: Number(changes ?? 0) }
 }
 
@@ -634,4 +646,16 @@ export function pickerPhotos(db: Db, q: string, f: PhotoFilters & { status?: str
       alt: [names.slice(0, 3).join(', '), p.situation, p.club && p.opponent ? `${p.club} mod ${p.opponent}` : undefined].filter(Boolean).join(' – '),
     }
   })
+}
+
+/** Pictures in articles that are not in the archive yet (uploaded before the link existed): registered like a new upload */
+export function backfillArticleImages(db: Db, articleImageNames: string[]): number {
+  let added = 0
+  for (const name of articleImageNames) {
+    if (!/^[a-f0-9]{24}\.webp$/.test(name)) continue
+    if (db.prepare('SELECT 1 FROM article_images WHERE upload_name = ?').get(name)) continue
+    registerArticleUpload(db, name)
+    added++
+  }
+  return added
 }

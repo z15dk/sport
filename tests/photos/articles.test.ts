@@ -53,3 +53,20 @@ test('upload fra editoren: i arkivet, metadata, og ud af artiklerne når det sle
   for (const k of ['PHOTOS_DB', 'UPLOAD_DIR', 'ARTICLES_DB']) delete process.env[k]
   rmSync(dir, { recursive: true, force: true })
 })
+
+test('artikelbilleder fra før koblingen hentes ind, og "mangler metadata" står i gennemgang med det samme', async () => {
+  const { backfillArticleImages, reviewQueue, searchPhotos } = await import('../../src/lib/photos/store.ts')
+  const dir = mkdtempSync(path.join(tmpdir(), 'art2-'))
+  const db = openPhotoDb(path.join(dir, 'b.db'))
+  assert.equal(backfillArticleImages(db, ['cccccccccccccccccccccccc.webp', 'ikke-et-billede.png', 'cccccccccccccccccccccccc.webp']), 1)
+  assert.equal(backfillArticleImages(db, ['cccccccccccccccccccccccc.webp']), 0)
+  const q = reviewQueue(db)
+  assert.equal(q.length, 1)
+  assert.equal(q[0].photo.metadataDone, false)
+  assert.equal(q[0].photo.status, 'ny')
+  // Vises i arkivet, selv om AI'en ikke har set det endnu
+  assert.equal(searchPhotos(db, '').length, 1)
+  assert.equal(searchPhotos(db, '', 'gennemgang').length, 1)
+  db.close()
+  rmSync(dir, { recursive: true, force: true })
+})

@@ -69,5 +69,22 @@ export function unpublishPhoto(db: Db, cfg: PhotoConfig, photoId: number): { art
   return { articles, files }
 }
 
+/** Every /uploads picture used by an article (featured image or in the text) */
+export function articleImageNames(cfg: PhotoConfig): string[] {
+  if (!existsSync(cfg.articlesDb)) return []
+  const lib = process.getBuiltinModule?.('node:sqlite') as Sqlite | undefined
+  if (!lib) return []
+  const adb = new lib.DatabaseSync(cfg.articlesDb)
+  try {
+    const names = new Set<string>()
+    for (const a of adb.prepare('SELECT content, featured_image FROM articles').all()) {
+      for (const m of `${String(a.featured_image ?? '')} ${String(a.content ?? '')}`.matchAll(/\/uploads\/([a-f0-9]{24}\.webp)/g)) names.add(m[1])
+    }
+    return [...names]
+  } finally {
+    adb.close()
+  }
+}
+
 export const isUploadPhoto = (driveId: string) => driveId.startsWith('upload:')
 export { openPhotoDb }

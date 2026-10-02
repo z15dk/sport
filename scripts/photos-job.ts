@@ -7,6 +7,7 @@
 //   node --experimental-strip-types scripts/photos-job.ts retry        (photos with status fejl back in the queue)
 //   node --experimental-strip-types scripts/photos-job.ts retag        (names worked out again for tagged photos, no AI calls)
 //   node --experimental-strip-types scripts/photos-job.ts rapport      (the morning report; mailed when mail is set up)
+//   node --experimental-strip-types scripts/photos-job.ts artikler     (pictures already in articles into the archive)
 //   node --experimental-strip-types scripts/photos-job.ts maal         (sharpness and look-alike hash for photos processed before they existed)
 //
 // On the VPS: every 10 min 00–06 (scoreline-photos-nat.timer) and on the admin Sync button
@@ -17,7 +18,8 @@ import { nowIso, openPhotoDb, setMeta } from '../src/lib/photos/db.ts'
 import { syncDbu } from '../src/lib/photos/dbu.ts'
 import { photoStatus, retryFailed, runPhotoJob } from '../src/lib/photos/job.ts'
 import { buildReport, mailSettings, reportText, reportWorthSending, sendReportMail } from '../src/lib/photos/report.ts'
-import { retag } from '../src/lib/photos/store.ts'
+import { backfillArticleImages, retag } from '../src/lib/photos/store.ts'
+import { articleImageNames } from '../src/lib/photos/articles.ts'
 import { getMeta } from '../src/lib/photos/db.ts'
 import { measure } from '../src/lib/photos/quality.ts'
 import { driveClient } from '../src/lib/photos/drive.ts'
@@ -71,6 +73,12 @@ try {
     setMeta(db, 'report_since', nowIso())
     db.close()
     stamp(`Morgenrapport ${sent}: ${m.subject}`)
+  } else if (cmd === 'artikler') {
+    const cfg = photoConfig()
+    const db = openPhotoDb(cfg.db)
+    const n = backfillArticleImages(db, articleImageNames(cfg))
+    db.close()
+    stamp(`${n} artikelbillede(r) lagt i billedarkivet (mangler metadata)`)
   } else if (cmd === 'maal') {
     const cfg = photoConfig()
     const db = openPhotoDb(cfg.db)
@@ -91,7 +99,7 @@ try {
   } else if (cmd === 'retry') {
     stamp(`${retryFailed()} billede(r) sat tilbage i køen`)
   } else {
-    console.error(`Ukendt kommando "${cmd}" (run, status, dbu, retry, retag, rapport, maal)`)
+    console.error(`Ukendt kommando "${cmd}" (run, status, dbu, retry, retag, rapport, maal, artikler)`)
     process.exitCode = 2
   }
 } catch (e) {

@@ -153,7 +153,7 @@ Hvert billede logges i databasens `photo_log` (tid pr. trin, resultat, fejl) og 
 
 ### Artikler
 
-- **Upload i artikel-editoren** (i teksten eller som udvalgt billede): billedet lægges i billedarkivet (kilde "Artikel"), og en boks beder om alt-tekst, rettigheder (eget/lånt, foto, lånt til og med) og klub, modstander og dato. "Udfyld resten senere" lægger det i Gennemgang som "mangler metadata". AI-tagging sker ved Sync eller natkørslen.
+- **Upload i artikel-editoren** (i teksten eller som udvalgt billede): billedet lægges i billedarkivet (kilde "Artikel"), og en boks beder om alt-tekst, rettigheder (eget/lånt, foto, lånt til og med) og klub, modstander og dato. "Udfyld resten senere" lægger det i Gennemgang som "mangler metadata" (øverst, med det samme). Billedet ses i arkivet med det samme ("I kø"); numre og navne kommer ved Sync eller natkørslen. Billeder, der allerede står i artikler, men ikke er i arkivet (fx uploadet i en editor, der var åben fra før), hentes ind ved hver kørsel eller med `npm run -s photos -- artikler`.
 - **Vælg fra billedarkivet** (🗂 i værktøjslinjen eller ved Udvalgt billede): arkivet med samme søgning og filtre; det valgte billede lægges som offentlig kopi i `/uploads` (1600 px WebP, uden metadata). Udløbne lån tilbydes aldrig.
 - **Fotografens navn** står nederst i højre hjørne af alle artikelbilleder fra arkivet (stort billede, billeder i teksten og artikelkort): "Foto: " + billedets rettigheder, ellers `PHOTOS_DEFAULT_CREDIT`.
 - **Når et billede slettes eller et lån udløber**, tages det ud af alle artikler (udvalgt billede ryddes, `<img>` og krediteringslinjen fjernes) og de offentlige kopier slettes (tabel `article_images`).
