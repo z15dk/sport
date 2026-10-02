@@ -117,7 +117,10 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         {p.status === 'skipped' && <ActionButton body={{ action: 'unskip', id: p.id }} label="Med igen" />}
         {p.kind === 'own' && !out && <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />}
         {p.kind !== 'own' && !out && p.status !== 'skipped' && <ActionButton body={{ action: 'render', id: p.id }} label={p.images.length ? 'Lav billederne igen' : 'Lav billederne'} busyLabel="Laver billeder …" />}
-        {p.images.length > 0 && (p.status === 'waiting' || p.status === 'failed' || p.status === 'partly' || p.status === 'expired') && now < p.expiresAt + 12 * 3_600_000 && (
+        {/* Also a post that was only dry-run: it can be sent for real once the dry run is off */}
+        {p.images.length > 0 &&
+          (p.status === 'waiting' || p.status === 'failed' || p.status === 'partly' || p.status === 'expired' || (p.status === 'published' && Object.values(p.results).every((r) => r.status === 'dry'))) &&
+          now < p.expiresAt + 12 * 3_600_000 && (
           <ActionButton
             body={{ action: 'publish', id: p.id }}
             label={p.status === 'failed' || p.status === 'partly' ? 'Prøv igen' : 'Post nu'}
