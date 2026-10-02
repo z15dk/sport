@@ -38,7 +38,7 @@ export interface PostSpec {
   matchIds: string[]
   /** Women's football: its own posts and look */
   women?: boolean
-  /** One of our leagues (Division id): the post is made from that league alone instead of the day's picks and the topic league */
+  /** One of our leagues (Division id), or up to three separated by commas: the post is made from those leagues alone instead of the day's picks and the topic league */
   league?: string
 }
 
@@ -59,7 +59,9 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
   const { date, women } = spec
   // Made for one league: its own matches of the day (a whole round) instead of the picked ones
   const only = spec.league ? leagueOnly(spec.league) : () => true
-  const matchIds = spec.league ? pickMatches(date, now, only, LEAGUE_MATCHES).map((p) => p.fixture.id) : spec.matchIds
+  // A whole round for each chosen league
+  const leagueCount = spec.league ? spec.league.split(',').filter(Boolean).length : 0
+  const matchIds = spec.league ? pickMatches(date, now, only, LEAGUE_MATCHES * leagueCount).map((p) => p.fixture.id) : spec.matchIds
   switch (spec.kind) {
     case 'programme': {
       const picks = picksFor(date, now, matchIds)
@@ -74,7 +76,8 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
       return overview.length ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)), women } : undefined
     }
     case 'topic': {
-      const div = spec.league ? DIVISIONS.find((d) => d.id === spec.league) : topicDivision()
+      // A topic about one league: the first chosen
+      const div = spec.league ? DIVISIONS.find((d) => d.id === spec.league!.split(',')[0]) : topicDivision()
       switch (spec.topic) {
         case 'week': {
           const week = weekNumbers(date, only)
@@ -97,7 +100,7 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
           return pick ? { kind: 'topic', topic: 'bigmatch', date, pick } : undefined
         }
         case 'weekend': {
-          const days = weekendTopic(date, now, only, spec.league ? LEAGUE_MATCHES : undefined)
+          const days = weekendTopic(date, now, only, spec.league ? LEAGUE_MATCHES * leagueCount : undefined)
           return days ? { kind: 'topic', topic: 'weekend', date, days } : undefined
         }
         case 'facts': {
@@ -117,10 +120,10 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 /** The admin's name for the post */
 export function titleFor(spec: PostSpec): string {
   if (spec.women) return `Kvindefodbold: ${titleFor({ ...spec, women: false }).toLowerCase()}`
-  const league = spec.league && DIVISIONS.find((d) => d.id === spec.league)
+  const names = (spec.league ?? '').split(',').map((id) => DIVISIONS.find((d) => d.id === id)?.name).filter(Boolean)
   const title =
     spec.kind === 'programme' ? 'Dagens kampe' : spec.kind === 'story' ? `Story før kampstart kl. ${spec.slot}` : spec.kind === 'results' ? 'Resultater' : `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
-  return league ? `${title} · ${league.name}` : title
+  return names.length ? `${title} · ${names.join(', ')}` : title
 }
 
 /** The post's text (the platform's ending and hashtags are added when it is posted) */

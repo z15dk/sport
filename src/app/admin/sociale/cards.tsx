@@ -294,72 +294,70 @@ export function Day({ time, label, title, where, rail, tools, children }: { time
 
 // ---------------------------------------------------------------- morning: the day's programme
 
+/** At most this many matches on one graphic; more matches give more cards (a carousel) */
+const PER_PROGRAMME_CARD = 6
+
 export function Programme({ date, picks, logos }: { date: string; picks: Pick[]; logos: Logos }) {
   const long = formatLong(date)
   const day = long.charAt(0).toUpperCase() + long.slice(1)
+  const chunks: Pick[][] = []
+  for (let i = 0; i < picks.length; i += PER_PROGRAMME_CARD) chunks.push(picks.slice(i, i + PER_PROGRAMME_CARD))
+  const of = (i: number) => (chunks.length > 1 ? ` · ${i + 1}/${chunks.length}` : '')
+  const rows = (list: Pick[], story?: boolean) =>
+    list.map((p) => (
+      <div key={p.fixture.id} className={cx(s.fixtureRow, story && s.storyRow)}>
+        {[p.fixture.home, p.fixture.away].map((club, i) => (
+          <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
+            {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
+            <Crest club={club} logos={logos} plate />
+            {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
+          </div>
+        ))}
+        <div className={s.fixtureTime} style={{ gridColumn: 2, gridRow: 1 }}>
+          <b>{formatTime(p.fixture.kickoff)}</b>
+          <small>{p.league}</small>
+        </div>
+      </div>
+    ))
   return (
     <>
       <div className={s.rail}>
-        <StoryCard
-          caption="Feed (4:5)"
-          mark={String(new Date(`${date}T12:00:00Z`).getUTCDate())}
-          label={day}
-          headline="Dagens kampe"
-          size={10}
-          logoMark
-          crests={[]}
-          foot={`${picks.length} kampe`}
-          logos={logos}
-        >
-          <div className={s.fixtures}>
-            {picks.map((p) => (
-              <div key={p.fixture.id} className={s.fixtureRow}>
-                {[p.fixture.home, p.fixture.away].map((club, i) => (
-                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
-                    {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
-                    <Crest club={club} logos={logos} plate />
-                    {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
-                  </div>
-                ))}
-                <div className={s.fixtureTime} style={{ gridColumn: 2, gridRow: 1 }}>
-                  <b>{formatTime(p.fixture.kickoff)}</b>
-                  <small>{p.league}</small>
-                </div>
+        {chunks.map((list, i) => (
+          <StoryCard
+            key={`feed-${i}`}
+            caption={`Feed (4:5)${of(i)}`}
+            mark={String(new Date(`${date}T12:00:00Z`).getUTCDate())}
+            label={day}
+            headline="Dagens kampe"
+            size={8.5}
+            logoMark
+            crests={[]}
+            foot={chunks.length > 1 ? `${i + 1}/${chunks.length} · ${picks.length} kampe` : `${picks.length} kampe`}
+            logos={logos}
+          >
+            {/* Room for six whole matches between the headline and the Matchly bar */}
+            <div className={cx(s.fixtures, s.fixturesSix)}>{rows(list)}</div>
+          </StoryCard>
+        ))}
+        {chunks.map((list, i) => (
+          <Card key={`story-${i}`} story caption={`Story (9:16)${of(i)}`} style={BRAND} className={s.onColor}>
+            {/* Matchly's neon M, faint in outline, behind the day's matches (as on the feed card) */}
+            <span className={cx(s.wmM, s.wmMGreen)} aria-hidden>
+              M
+            </span>
+            <Head left={day} />
+            <div className={s.pad} style={{ marginTop: '4cqw' }}>
+              <div className={s.big} style={{ fontSize: '9cqw' }}>
+                Dagens udvalgte kampe
               </div>
-            ))}
-          </div>
-        </StoryCard>
-        <Card story caption="Story (9:16)" style={BRAND} className={s.onColor}>
-          {/* Matchly's neon M, faint in outline, behind the day's matches (as on the feed card) */}
-          <span className={cx(s.wmM, s.wmMGreen)} aria-hidden>
-            M
-          </span>
-          <Head left={day} />
-          <div className={s.pad} style={{ marginTop: '4cqw' }}>
-            <div className={s.big} style={{ fontSize: '9cqw' }}>
-              Dagens udvalgte kampe
             </div>
-          </div>
-          {/* Takes the room there is, so the Matchly bar always stays on the card */}
-          <div style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
-            {picks.map((p) => (
-              <div key={p.fixture.id} className={cx(s.fixtureRow, s.storyRow)}>
-                {[p.fixture.home, p.fixture.away].map((club, i) => (
-                  <div key={club.id} className={cx(s.fixtureTeam, i === 1 && s.right)} style={{ ...NEUTRAL_TEAM, gridColumn: i === 0 ? 1 : 3, gridRow: 1 }}>
-                    {i === 1 && <span className={s.fixtureName}>{club.name}</span>}
-                    <Crest club={club} logos={logos} plate />
-                    {i === 0 && <span className={s.fixtureName}>{club.name}</span>}
-                  </div>
-                ))}
-                <div className={s.fixtureTime} style={{ gridColumn: 2, gridRow: 1 }}>
-                  <b>{formatTime(p.fixture.kickoff)}</b>
-                  <small>{p.league}</small>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Foot left={`${picks.length} kampe`} />
-        </Card>
+            {/* Takes the room there is, so the Matchly bar always stays on the card */}
+            <div className={s.storySix} style={{ marginTop: '5cqw', display: 'flex', flexDirection: 'column', gap: '1.5cqw', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }} data-fit>
+              {rows(list, true)}
+            </div>
+            <Foot left={chunks.length > 1 ? `${i + 1}/${chunks.length} · ${picks.length} kampe` : `${picks.length} kampe`} />
+          </Card>
+        ))}
       </div>
     </>
   )

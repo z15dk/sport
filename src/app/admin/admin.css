@@ -449,5 +449,5 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 }
 
 /* The league a social template is made from (/admin/sociale/skabeloner, LeaguePicker) */
-.social-league-pick { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.social-league-pick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .social-league-pick select { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 220px; }

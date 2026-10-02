@@ -435,7 +435,11 @@ export const todayIso = (now: number) => isoDate(new Date(now))
 
 /** The league the one-league topics use: the admin's choice, else the Superliga */
 /** Only the matches of one of our leagues (a post made for that league alone) */
-export const leagueOnly = (id: string) => (f: Fixture) => f.division?.id === id
+/** One league, or up to three separated by commas ("superliga,1div") */
+export const leagueOnly = (id: string) => {
+  const ids = id.split(',').filter(Boolean)
+  return (f: Fixture) => !!f.division && ids.includes(f.division.id)
+}
 /** How many of a league's matches a post for one league shows at most (a whole round) */
 export const LEAGUE_MATCHES = 12
 

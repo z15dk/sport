@@ -270,3 +270,10 @@
 .women .wmMGreen { filter: drop-shadow(0 0 1.2cqw rgba(182, 156, 255, 0.45)); opacity: 0.45; }
 .women .brandbar { background: #15101f; }
 .women .fixtureTime { background: #15101f; }
+
+/* Dagens kampe: six matches on one graphic, a little lower rows so all six fit whole */
+.fixturesSix { gap: 1.4cqw; }
+.fixturesSix .fixtureRow { min-height: 9.8cqw; }
+.fixturesSix .fixtureTeam { font-size: 3.1cqw; padding: 1.2cqw 2cqw; }
+.fixturesSix .fixtureTime b { font-size: 4.8cqw; }
+.storySix .storyRow { min-height: 16.5cqw; }
