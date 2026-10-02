@@ -191,10 +191,50 @@
 .bs-scan__frame::after { content: ''; position: absolute; left: 6%; right: 6%; height: 2px; background: var(--lime); box-shadow: 0 0 14px var(--lime); animation: bs-sweep 2.2s ease-in-out infinite alternate; }
 @keyframes bs-sweep { from { top: 8%; } to { top: 92%; } }
 .bs-salesrow { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+/* The club's overview of all its sales (/billetsystem/demo/salg, ClubDashboardLive) */
+.bs-kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bs-kpis--4 .bs-kpi strong { font-size: 44px; }
+.bs-club__stack { display: flex; flex-direction: column; gap: 16px; }
+.bs-card__title small { font-family: var(--body); font-style: normal; font-weight: 600; font-size: 13px; text-transform: none; color: var(--ink-2); }
+.bs-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; height: 150px; align-items: end; }
+.bs-days li { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bs-days li i { display: flex; align-items: flex-end; width: 100%; flex: 1; border-radius: 6px; background: repeating-linear-gradient(0deg, transparent 0 24px, var(--line) 24px 25px); }
+.bs-days li b { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--ink); transition: height 0.6s ease; }
+.bs-days li:last-child b { background: var(--lime-deep); }
+.bs-days__n { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 15px; min-height: 18px; line-height: 1; }
+.bs-days__d { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
+.bs-matchrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.bs-matchrows li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 6px 14px; }
+.bs-matchrows__when { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: var(--ink); color: #fff; text-align: center; line-height: 1.1; }
+.bs-matchrows__when b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 15px; text-transform: uppercase; }
+.bs-matchrows__when span { font-size: 10px; color: rgba(255, 255, 255, 0.7); }
+.bs-matchrows__title { display: flex; flex-direction: column; min-width: 0; }
+.bs-matchrows__title > a { font-weight: 800; color: var(--ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bs-matchrows__title > a:hover { text-decoration: underline; }
+.bs-matchrows__title > span { font-size: 12px; color: var(--ink-2); }
+.bs-matchrows__title > span a { color: var(--ink-2); }
+.bs-matchrows__sold { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; }
+.bs-matchrows .bs-bar { grid-column: 1 / -1; }
+.bs-matchrows .bs-bar b { background: var(--ink); }
+.bs-clubs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.bs-clubs a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--radius); background: var(--surface); color: var(--ink); text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
+.bs-clubs a:hover { transform: translateY(-3px); box-shadow: 0 22px 44px -20px rgba(15, 17, 12, 0.35); }
+.bs-clubs__name { display: flex; flex-direction: column; min-width: 0; }
+.bs-clubs__name strong { font-size: 17px; }
+.bs-clubs__name span { font-size: 12px; color: var(--ink-2); }
+.bs-clubs__sold { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.bs-clubs__sold strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; }
+.bs-clubs__sold span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.bs-hero__club { display: flex; align-items: center; gap: 18px; }
+.bs-hero__club .badge, .bs-hero__club img { background: #fff; border-radius: 50%; padding: 4px; }
 @media (max-width: 900px) {
   .bs-try__cards, .bs-price, .bs-buy { grid-template-columns: 1fr; }
   .bs-summary { position: static; }
   .bs-kpis, .bs-club__cols { grid-template-columns: 1fr; }
+  .bs-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bs-days { gap: 3px; height: 120px; }
+  .bs-days__d { font-size: 8px; }
+  .bs-hero__club { align-items: flex-start; }
   .bs-kpi strong { font-size: 44px; }
   .bs-matches { grid-template-columns: 1fr; }
   .bs-hero { grid-template-columns: 1fr; padding: 26px 20px; }

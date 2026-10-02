@@ -1,4 +1,5 @@
 import 'server-only'
+import { isoDate } from './time'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -252,6 +253,89 @@ export function matchSales(match: string) {
   const sold = types.reduce((n, t) => n + t.sold, 0)
   const used = types.reduce((n, t) => n + t.used, 0)
   return { types, orders: Number(o?.n ?? 0), revenue: Number(o?.total ?? 0), fee: Number(o?.fee ?? 0), sold, used, latest }
+}
+
+/** A match's sales inside the club's overview */
+export interface ClubMatchSales {
+  match: string
+  title: string
+  kickoff: number
+  orders: number
+  sold: number
+  used: number
+  revenue: number
+}
+
+export interface ClubSales {
+  orders: number
+  sold: number
+  used: number
+  revenue: number
+  fee: number
+  matches: ClubMatchSales[]
+  /** The last 14 days, oldest first (Danish dates) */
+  days: { day: string; sold: number; revenue: number }[]
+  types: { type: string; label: string; price: number; sold: number; used: number }[]
+  latest: { id: string; created: number; name: string; total: number; tickets: number; title: string; match: string }[]
+}
+
+const DASH_DAYS = 14
+
+/** The club's overview across all its matches (/billetsystem/demo/salg/<klub>): totals, per match, per day, per type, the latest orders */
+export function clubSales(club: string): ClubSales | undefined {
+  const d = db()
+  if (!d || !club) return undefined
+  const matches = d
+    .prepare(
+      'SELECT o.match, o.title, o.kickoff, COUNT(DISTINCT o.id) AS orders, COUNT(t.id) AS sold, SUM(CASE WHEN t.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used, SUM(t.price) AS revenue FROM orders o JOIN tickets t ON t.order_id = o.id WHERE o.club = ? GROUP BY o.match ORDER BY o.kickoff',
+    )
+    .all(club)
+    .map((r) => ({ match: String(r.match), title: String(r.title), kickoff: Number(r.kickoff), orders: Number(r.orders), sold: Number(r.sold), used: Number(r.used), revenue: Number(r.revenue ?? 0) }))
+  const types = d
+    .prepare(
+      'SELECT t.type, t.label, t.price, COUNT(*) AS n, SUM(CASE WHEN t.used_at IS NOT NULL THEN 1 ELSE 0 END) AS used FROM tickets t JOIN orders o ON o.id = t.order_id WHERE o.club = ? GROUP BY t.type ORDER BY t.price DESC',
+    )
+    .all(club)
+    .map((r) => ({ type: String(r.type), label: String(r.label), price: Number(r.price), sold: Number(r.n), used: Number(r.used) }))
+  const o = d.prepare('SELECT COUNT(*) AS n, SUM(total) AS total, SUM(fee) AS fee FROM orders WHERE club = ?').get(club)
+  const latest = d
+    .prepare('SELECT o.id, o.created, o.name, o.total, o.title, o.match, COUNT(t.id) AS n FROM orders o JOIN tickets t ON t.order_id = o.id WHERE o.club = ? GROUP BY o.id ORDER BY o.created DESC LIMIT 12')
+    .all(club)
+    .map((r) => ({ id: String(r.id), created: Number(r.created), name: String(r.name ?? ''), total: Number(r.total), tickets: Number(r.n), title: String(r.title), match: String(r.match) }))
+  // Sold per day (Danish dates), the last two weeks
+  const now = Date.now()
+  const byDay = new Map<string, { sold: number; revenue: number }>()
+  for (let i = DASH_DAYS - 1; i >= 0; i--) byDay.set(isoDate(now - i * 86_400_000), { sold: 0, revenue: 0 })
+  for (const r of d
+    .prepare('SELECT o.created, COUNT(t.id) AS n, SUM(t.price) AS revenue FROM orders o JOIN tickets t ON t.order_id = o.id WHERE o.club = ? AND o.created > ? GROUP BY o.id')
+    .all(club, now - DASH_DAYS * 86_400_000)) {
+    const day = byDay.get(isoDate(Number(r.created)))
+    if (day) {
+      day.sold += Number(r.n)
+      day.revenue += Number(r.revenue ?? 0)
+    }
+  }
+  return {
+    orders: Number(o?.n ?? 0),
+    sold: types.reduce((n, t) => n + t.sold, 0),
+    used: types.reduce((n, t) => n + t.used, 0),
+    revenue: Number(o?.total ?? 0),
+    fee: Number(o?.fee ?? 0),
+    matches,
+    days: [...byDay].map(([day, v]) => ({ day, ...v })),
+    types,
+    latest,
+  }
+}
+
+/** Tickets sold and money per club, for the list of clubs in the demo */
+export function soldByClub(): Map<string, { sold: number; revenue: number }> {
+  const d = db()
+  const out = new Map<string, { sold: number; revenue: number }>()
+  if (!d) return out
+  for (const r of d.prepare("SELECT o.club, COUNT(t.id) AS n, SUM(t.price) AS revenue FROM orders o JOIN tickets t ON t.order_id = o.id WHERE o.club != '' GROUP BY o.club").all())
+    out.set(String(r.club), { sold: Number(r.n), revenue: Number(r.revenue ?? 0) })
+  return out
 }
 
 export type LeadKind = 'billet' | 'annoncering'

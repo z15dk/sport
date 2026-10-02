@@ -199,7 +199,6 @@ export default function AdvertisingPage() {
           M
         </span>
         <div className="wg-hero__text">
-          <p className="wg-hero__kicker">Annoncering på {SITE_NAME}</p>
           <h1 className="wg-hero__title adv-hero__title">
             Nå fansene,
             <br />

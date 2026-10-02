@@ -165,10 +165,10 @@ export default async function TicketSystemPage() {
             <strong>Scan ved indgangen</strong>
             <span>Åbn scanneren på en anden telefon, og scan billetten.</span>
           </Link>
-          <Link className="bs-try__card" href="/billetsystem/demo">
+          <Link className="bs-try__card" href="/billetsystem/demo/salg">
             <b>3</b>
             <strong>Se salget live</strong>
-            <span>Klubbens oversigt: solgt, til klubben, scannet.</span>
+            <span>Klubbens egen oversigt: solgt i alt, pr. dag og pr. kamp, til klubben, scannet.</span>
           </Link>
         </div>
       </section>
