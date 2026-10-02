@@ -2278,6 +2278,17 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .dash-chips li { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
 
 .dash-wide { margin-top: 14px; }
+/* "Serverens kapacitet": the verdict's mark, and seven small squares for the last seven days */
+.dash-cap.is-bad { border-left: 4px solid var(--live); }
+.dash-cap.is-warn { border-left: 4px solid var(--star); }
+.dash-cap__mark { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; background: var(--lime-deep); color: #fff; vertical-align: 1px; }
+.dash-cap__mark.is-warn { background: var(--star); color: var(--ink); }
+.dash-cap__mark.is-bad { background: var(--live); }
+.dash-cap__days { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 2px; }
+.dash-cap__days i { display: block; width: 9px; height: 9px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--line); }
+.dash-cap__days i.is-some { background: var(--star); border-color: transparent; }
+.dash-cap__days i.is-over { background: var(--live); border-color: transparent; }
+.dash-cap .api-check { margin-top: 6px; }
 .dash-stalls td { vertical-align: top; }
 .dash-stalls code { word-break: break-all; }
 .dash-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; align-items: start; }

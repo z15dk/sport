@@ -49,6 +49,9 @@ export function startLagMonitor() {
   timer.unref?.()
 }
 
+/** Every minute's longest wait (the last three hours), for the capacity watch (src/lib/capacity.ts) */
+export const lagMinutes = () => slow.minutes
+
 /** For /admin/data: the last three hours, and the slowest pieces of work (by label) */
 export function slowStatus() {
   const byLabel = new Map<string, { label: string; count: number; max: number; total: number; last: number }>()

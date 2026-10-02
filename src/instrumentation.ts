@@ -10,6 +10,9 @@ export async function register() {
   // What the server was busy with when it stalled (file and line, for /admin/data)
   const { startCpuWatch } = await import('./lib/cpuProfile')
   startCpuWatch()
+  // Is the server big enough? Machine memory, load and the site's waits, judged day by day; mails the owner when it is time (src/lib/capacity.ts)
+  const { startCapacityWatch } = await import('./lib/capacity')
+  startCapacityWatch()
   // SCORELINE_WORKER=on: the jobs run in a process of their own (src/lib/role.ts, src/lib/worker.ts); this one only serves pages
   if (process.env.SCORELINE_WORKER === 'on' && process.env.SCORELINE_ROLE !== 'worker') {
     process.env.SCORELINE_ROLE = 'web'
