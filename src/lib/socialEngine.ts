@@ -1,5 +1,8 @@
 import 'server-only'
-import { createHmac } from 'node:crypto'
+import { createHmac, randomBytes } from 'node:crypto'
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
 import { captionFor, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost } from './socialRender'
@@ -10,6 +13,7 @@ import {
   PLATFORM_NAMES,
   STORY_PLATFORMS,
   findPost,
+  imageDir,
   logLine,
   needsApproval,
   readPosts,
@@ -108,7 +112,8 @@ export function planDay(date: string, now = Date.now(), force = false) {
   const ids = cfg.manual[date]?.length ? cfg.manual[date] : pickMatches(date, now).map((p) => p.fixture.id)
   const posts = daySpecs(date, ids, now).map((p) => newPost(p, now))
   updatePosts((d) => {
-    const kept = d.posts.filter((p) => p.date === date && (keep(p) || p.kind === 'results'))
+    // Posts already out, the results post, and the admin's own posts are never planned away
+    const kept = d.posts.filter((p) => p.date === date && (keep(p) || p.kind === 'results' || p.kind === 'own'))
     d.posts = [...d.posts.filter((p) => p.date !== date), ...kept, ...posts.filter((p) => !kept.some((k) => k.id === p.id))]
     d.days[date] = { date, matchIds: ids, plannedAt: now, allFinishedAt: force ? undefined : d.days[date]?.allFinishedAt }
     d.log.push({ at: now, level: 'info', text: `${formatLong(date)} planlagt: ${ids.length} kampe, ${posts.filter((p) => p.status !== 'empty').length} opslag` })
@@ -154,7 +159,9 @@ function patch(id: string, change: (p: SocialPost) => void) {
 export async function renderOne(id: string): Promise<'ok' | 'empty' | 'error'> {
   const post = findPost(id)
   if (!post) throw new Error('Ukendt opslag')
-  const content = contentFor(post, Date.now())
+  // An own post brings its own pictures
+  if (post.kind === 'own') return post.images.length ? 'ok' : 'empty'
+  const content = contentFor({ ...post, kind: post.kind }, Date.now())
   if (!content) {
     patch(id, (p) => {
       p.status = 'empty'
@@ -222,7 +229,7 @@ async function mailPending() {
   const link = approvalLink(batch)
   const cfg = socialConfig()
   const platformsOf = (p: SocialPost) =>
-    cfg.kinds[p.kind].platforms
+    (p.kind === 'own' ? (p.own?.platforms ?? []) : cfg.kinds[p.kind].platforms)
       .filter((x) => cfg.platforms[x])
       .map((x) => PLATFORM_NAMES[x])
       .join(', ') || 'ingen platforme slået til'
@@ -289,6 +296,12 @@ export function setCaption(id: string, caption: string) {
 export function targetsOf(p: SocialPost): { platform: Platform; surface: Surface }[] {
   const cfg = socialConfig()
   const s = socialSecrets()
+  // An own post goes where the admin chose (every connected platform it names), the engine's by its kind's settings
+  if (p.kind === 'own') {
+    const own = (p.own?.platforms ?? []).filter((x) => cfg.dryRun || connected(x, s))
+    const surfaces: Surface[] = p.own?.story ? ['feed', 'story'] : ['feed']
+    return surfaces.flatMap((surface) => own.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
+  }
   const chosen = cfg.kinds[p.kind].platforms.filter((x) => cfg.platforms[x] && (cfg.dryRun || connected(x, s)))
   const surfaces: Surface[] = p.kind === 'programme' ? ['feed', 'story'] : p.kind === 'story' ? ['story'] : ['feed']
   return surfaces.flatMap((surface) => chosen.filter((x) => surface === 'feed' || STORY_PLATFORMS.includes(x)).map((platform) => ({ platform, surface })))
@@ -353,9 +366,10 @@ export async function publishOne(id: string) {
   }
 }
 
-async function publishDue(now: number) {
+async function publishDue(now: number, ownOnly = false) {
   for (const p of readPosts().posts) {
     if (p.status !== 'waiting' || !p.images.length || p.approval === 'pending') continue
+    if (ownOnly && p.kind !== 'own') continue
     if (now >= p.scheduledAt && now < p.expiresAt) await publishOne(p.id)
   }
 }
@@ -406,8 +420,19 @@ let started = false
 
 export async function socialTick(now = Date.now()) {
   const cfg = socialConfig()
-  if (!cfg.enabled || running) return
+  if (running) return
   running = true
+  // With the engine off, only the admin's own scheduled posts go out (nothing is planned or made by itself)
+  if (!cfg.enabled) {
+    try {
+      await publishDue(now, true)
+    } catch (e) {
+      logLine(`Egne opslag fejlede: ${e instanceof Error ? e.message : e}`, 'error')
+    } finally {
+      running = false
+    }
+    return
+  }
   try {
     const today = isoDate(now)
     if (now >= danishTime(today, cfg.times.draft).getTime()) planDay(today, now)
@@ -432,4 +457,82 @@ export function startSocialEngine() {
   started = true
   setTimeout(() => void socialTick(), 90_000).unref?.()
   setInterval(() => void socialTick(), MIN).unref?.()
+}
+
+// ---------------------------------------------------------------- own posts
+
+/** At most this many pictures in one own post (a carousel) */
+export const OWN_MAX_IMAGES = 10
+
+/**
+ * A post the admin writes: text, a link, 1–10 pictures (sent as data URLs, saved as JPEG for every
+ * platform), the platforms and the time. It is approved by being written, so it goes out at its time
+ * (or at once with `now`), also while the engine is switched off.
+ */
+export async function createOwnPost(input: { text: string; link?: string; images: string[]; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
+  const text = input.text.trim()
+  if (!text) throw new Error('Skriv en tekst')
+  if (!input.images.length) throw new Error('Vælg mindst ét billede (Facebook og Instagram poster billeder)')
+  if (!input.platforms.length) throw new Error('Vælg mindst én platform')
+  const s = socialSecrets()
+  const missing = input.platforms.filter((p) => !connected(p, s))
+  if (missing.length && !socialConfig().dryRun) throw new Error(`Ikke forbundet: ${missing.map((p) => PLATFORM_NAMES[p]).join(', ')}`)
+  const at = input.now ? Date.now() : input.at
+  if (!input.now && (!Number.isFinite(at) || at < Date.now() - MIN)) throw new Error('Tidspunktet er passeret')
+  const id = `own-${Date.now().toString(36)}${randomBytes(3).toString('hex')}`
+  mkdirSync(imageDir(), { recursive: true })
+  const images: SocialPost['images'] = []
+  for (const [i, url] of input.images.slice(0, OWN_MAX_IMAGES).entries()) {
+    const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(url)
+    if (!m) throw new Error(`Billede ${i + 1} kan ikke læses`)
+    // Upright, at most 2048 px, as JPEG (Instagram takes nothing else)
+    const jpeg = await sharp(Buffer.from(m[2], 'base64')).rotate().resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 88 }).toBuffer()
+    const file = `${id}-${i + 1}.jpg`
+    writeFileSync(path.join(imageDir(), file), jpeg)
+    images.push({ file, surface: 'feed' })
+  }
+  if (input.story) images.push({ file: images[0].file, surface: 'story' })
+  const post: SocialPost = {
+    id,
+    date: isoDate(at),
+    kind: 'own',
+    own: { platforms: input.platforms, story: input.story },
+    matchIds: [],
+    title: text.split('\n')[0].slice(0, 70),
+    caption: text,
+    captionEdited: true,
+    link: input.link?.trim() ?? '',
+    images,
+    scheduledAt: at,
+    // A day to get out (a server restart or a platform that is down for a while)
+    expiresAt: at + 24 * 60 * MIN,
+    status: 'waiting',
+    approval: 'approved',
+    approvedAt: Date.now(),
+    results: {},
+    createdAt: Date.now(),
+  }
+  updatePosts((d) => {
+    d.posts.push(post)
+  })
+  logLine(`Eget opslag "${post.title}" ${input.now ? 'udgives nu' : `planlagt til ${formatLong(post.date)} kl. ${formatTime(new Date(at))}`}`)
+  if (input.now) await publishOne(id)
+  return findPost(id)
+}
+
+/** Removes an own post that has not gone out, with its pictures */
+export function deleteOwnPost(id: string) {
+  const p = findPost(id)
+  if (!p || p.kind !== 'own') throw new Error('Ukendt opslag')
+  if (p.status === 'published' || p.status === 'partly' || p.status === 'publishing') throw new Error('Opslaget er allerede udgivet')
+  updatePosts((d) => {
+    d.posts = d.posts.filter((x) => x.id !== id)
+  })
+  for (const i of p.images) {
+    try {
+      unlinkSync(path.join(imageDir(), i.file))
+    } catch {
+      // already gone (the story uses the first picture too)
+    }
+  }
 }

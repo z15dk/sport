@@ -2,14 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
-import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker } from '../../../components/admin/SocialAdmin'
+import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker, OwnPostForm } from '../../../components/admin/SocialAdmin'
 import { isAdmin } from '../../../lib/admin'
 import { candidates, picksFor, todayIso } from '../../../lib/social'
 import { targetsOf } from '../../../lib/socialEngine'
 import { connected, platformCaption } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
 import { mailReady } from '../../../lib/mail'
-import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
+import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, STORY_PLATFORMS, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -114,7 +114,8 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         {p.approval === 'pending' && p.status === 'waiting' && <ActionButton pill body={{ action: 'approve', ids: [p.id] }} label="Godkend" />}
         {p.status === 'waiting' && <ActionButton body={{ action: 'skip', ids: [p.id] }} label="Spring over" />}
         {p.status === 'skipped' && <ActionButton body={{ action: 'unskip', id: p.id }} label="Med igen" />}
-        {!out && p.status !== 'skipped' && <ActionButton body={{ action: 'render', id: p.id }} label={p.images.length ? 'Lav billederne igen' : 'Lav billederne'} busyLabel="Laver billeder …" />}
+        {p.kind === 'own' && !out && <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />}
+        {p.kind !== 'own' && !out && p.status !== 'skipped' && <ActionButton body={{ action: 'render', id: p.id }} label={p.images.length ? 'Lav billederne igen' : 'Lav billederne'} busyLabel="Laver billeder …" />}
         {p.images.length > 0 && (p.status === 'waiting' || p.status === 'failed' || p.status === 'partly' || p.status === 'expired') && now < p.expiresAt + 12 * 3_600_000 && (
           <ActionButton
             body={{ action: 'publish', id: p.id }}
@@ -178,6 +179,40 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             {pending.length > 1 && <ActionButton pill body={{ action: 'approve', ids: pending.map((p) => p.id) }} label={`Godkend alle ${pending.length} ventende`} />}{' '}
             <ActionButton pill body={{ action: 'tick' }} label="Kør en runde nu" busyLabel="Kører …" />
           </p>
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Nyt opslag</h2>
+          <p className="muted small pad">
+            Skriv dit eget opslag med billeder og vælg, hvornår det skal ud. Det postes på sit tidspunkt – også når motoren er slået fra – og står i
+            dagens plan herunder.
+          </p>
+          <OwnPostForm
+            platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: STORY_PLATFORMS.includes(p) }))}
+          />
+          {(() => {
+            const upcoming = data.posts.filter((p) => p.kind === 'own' && p.status === 'waiting').sort((a, b) => a.scheduledAt - b.scheduledAt)
+            return (
+              upcoming.length > 0 && (
+                <>
+                  <h3 className="dash-sub pad">Planlagte egne opslag ({upcoming.length})</h3>
+                  <ul className="own-upcoming">
+                    {upcoming.map((p) => (
+                      <li key={p.id}>
+                        <span>
+                          {formatLong(p.date)} kl. {clock(p.scheduledAt)}
+                        </span>
+                        <strong>{p.title}</strong>
+                        <span className="muted small">{(p.own?.platforms ?? []).map((x) => PLATFORM_NAMES[x]).join(', ')}</span>
+                        <Link href={`/admin/sociale?dato=${p.date}`}>Vis</Link>
+                        <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )
+            )
+          })()}
         </section>
 
         <p className="filter-bar">

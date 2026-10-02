@@ -18,7 +18,9 @@ export const STORY_PLATFORMS: Platform[] = ['facebook', 'instagram']
 
 export const KINDS = ['programme', 'topic', 'story', 'results'] as const
 export type PostKind = (typeof KINDS)[number]
-export const KIND_NAMES: Record<PostKind, string> = { programme: 'Dagens kampe', topic: 'Dagens emne', story: 'Story før kampstart', results: 'Resultater' }
+/** The engine's kinds, and "own": a post the admin writes and schedules by hand (text, own pictures, chosen platforms) */
+export type AnyKind = PostKind | 'own'
+export const KIND_NAMES: Record<AnyKind, string> = { programme: 'Dagens kampe', topic: 'Dagens emne', story: 'Story før kampstart', results: 'Resultater', own: 'Eget opslag' }
 
 export type Surface = 'feed' | 'story'
 
@@ -142,7 +144,9 @@ export interface SocialPost {
   /** date-kind(-slot), so a day never gets the same post twice */
   id: string
   date: string
-  kind: PostKind
+  kind: AnyKind
+  /** An own post: the platforms it goes to, and whether its first picture is also a story */
+  own?: { platforms: Platform[]; story: boolean }
   topic?: TopicId
   /** Stories: the kick-off time "HH:MM" */
   slot?: string

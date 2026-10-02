@@ -617,3 +617,131 @@ export function TagsAdmin({ rows, platforms }: { rows: TagRow[]; platforms: Reco
     </>
   )
 }
+
+/** A picture made smaller in the browser before it is sent (at most 2048 px, JPEG), so a phone photo isn't megabytes */
+function shrink(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, 2048 / Math.max(img.naturalWidth, img.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.naturalWidth * scale)
+      canvas.height = Math.round(img.naturalHeight * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Billedet kan ikke læses'))
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(img.src)
+      resolve(canvas.toDataURL('image/jpeg', 0.9))
+    }
+    img.onerror = () => reject(new Error(`${file.name} kan ikke læses`))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+/** The next whole hour as "YYYY-MM-DDTHH:MM" in the browser's own (Danish) time */
+function nextHour() {
+  const d = new Date(Date.now() + 3_600_000)
+  d.setMinutes(0, 0, 0)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/**
+ * Write a post by hand: text, an optional link, 1–10 pictures, the platforms and a time – or
+ * out at once. It goes in the same queue as the engine's posts and is posted at its time.
+ */
+export function OwnPostForm({ platforms }: { platforms: { id: string; name: string; connected: boolean; story: boolean }[] }) {
+  const { busy, msg, run } = useAction()
+  const [text, setText] = useState('')
+  const [link, setLink] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [chosen, setChosen] = useState<string[]>(() => platforms.filter((p) => p.connected).slice(0, 1).map((p) => p.id))
+  const [story, setStory] = useState(false)
+  const [at, setAt] = useState(nextHour)
+  const [reading, setReading] = useState(false)
+  const add = async (files: FileList | null) => {
+    if (!files?.length) return
+    setReading(true)
+    try {
+      const list = await Promise.all([...files].slice(0, 10 - images.length).map(shrink))
+      setImages((x) => [...x, ...list].slice(0, 10))
+    } finally {
+      setReading(false)
+    }
+  }
+  const submit = async (now: boolean) => {
+    if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
+    const r = await run({ action: 'own', text, link, images, platforms: chosen, story, at, now })
+    if (!r.error) {
+      setText('')
+      setLink('')
+      setImages([])
+      setStory(false)
+      setAt(nextHour())
+    }
+  }
+  const canStory = chosen.some((id) => platforms.find((p) => p.id === id)?.story)
+  return (
+    <div className="own-post">
+      <label className="own-post__text">
+        <span>Tekst</span>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Skriv opslaget …" maxLength={5000} />
+        <small className="muted">{text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}</small>
+      </label>
+      <label>
+        <span>Link (valgfrit)</span>
+        <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://matchly.dk/…" />
+      </label>
+      <div className="own-post__images">
+        <span>Billeder ({images.length}/10)</span>
+        <div className="own-post__thumbs">
+          {images.map((src, i) => (
+            <figure key={i}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
+              <img src={src} alt="" />
+              <button type="button" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
+                ×
+              </button>
+            </figure>
+          ))}
+          {images.length < 10 && (
+            <label className="own-post__add">
+              {reading ? 'Læser …' : '+ Tilføj billeder'}
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => void add(e.target.files)} />
+            </label>
+          )}
+        </div>
+        {images.length > 1 && <small className="muted">Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+      </div>
+      <fieldset className="own-post__platforms">
+        <legend>Platforme</legend>
+        {platforms.map((p) => (
+          <label key={p.id} className="social-check" title={p.connected ? undefined : 'Ikke forbundet – sættes op under Indstillinger'}>
+            <input type="checkbox" disabled={!p.connected} checked={chosen.includes(p.id)} onChange={(e) => setChosen((x) => (e.target.checked ? [...x, p.id] : x.filter((y) => y !== p.id)))} /> {p.name}
+            {!p.connected && <span className="muted small"> (ikke forbundet)</span>}
+          </label>
+        ))}
+        {canStory && (
+          <label className="social-check">
+            <input type="checkbox" checked={story} onChange={(e) => setStory(e.target.checked)} /> Også som story (første billede)
+          </label>
+        )}
+      </fieldset>
+      <div className="own-post__when">
+        <label>
+          <span>Udgiv</span>
+          <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+        </label>
+        <button type="button" className="pill is-active" disabled={busy || reading} onClick={() => void submit(false)}>
+          {busy ? 'Gemmer …' : 'Planlæg'}
+        </button>
+        <button type="button" className="pill" disabled={busy || reading} onClick={() => void submit(true)}>
+          Udgiv nu
+        </button>
+        <Msg msg={msg} />
+      </div>
+    </div>
+  )
+}

@@ -451,3 +451,20 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 /* The league a social template is made from (/admin/sociale/skabeloner, LeaguePicker) */
 .social-league-pick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .social-league-pick select { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 220px; }
+/* /admin/sociale: write an own post */
+.own-post { display: grid; gap: 14px; padding: 4px 18px 18px; }
+.own-post label > span, .own-post__images > span, .own-post legend { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.own-post textarea, .own-post input[type='url'], .own-post input[type='datetime-local'] { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.own-post textarea { resize: vertical; min-height: 120px; }
+.own-post__thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.own-post__thumbs figure { position: relative; margin: 0; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.own-post__thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.own-post__thumbs button { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: rgba(15, 17, 12, 0.75); color: #fff; font-size: 15px; line-height: 1; cursor: pointer; }
+.own-post__add { display: grid; place-items: center; width: 96px; height: 96px; border: 2px dashed var(--line); border-radius: 10px; font-size: 12px; font-weight: 700; text-align: center; cursor: pointer; color: var(--ink-2); }
+.own-post__platforms { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.own-post__platforms legend { width: 100%; }
+.own-post__when { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.own-post__when label { flex: 0 1 240px; }
+.own-upcoming { list-style: none; margin: 0; padding: 0 18px 16px; display: grid; gap: 6px; }
+.own-upcoming li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+.own-upcoming li strong { flex: 1 1 200px; }

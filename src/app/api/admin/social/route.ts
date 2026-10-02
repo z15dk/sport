@@ -15,9 +15,9 @@ import {
   type SocialConfig,
 } from '../../../../lib/socialStore'
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
-import { approve, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
+import { approve, createOwnPost, deleteOwnPost, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
-import { isValidIsoDate } from '../../../../lib/time'
+import { danishTime, isValidIsoDate } from '../../../../lib/time'
 
 // Everything on /admin/sociale: settings, accounts, tests and the posts.
 
@@ -184,6 +184,20 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       saveHandles(name, Object.fromEntries(PLATFORMS.map((p) => [p, h[p]])) as Handles)
       return { message: 'Gemt' }
     }
+    case 'own': {
+      // An own post: text, pictures (data URLs), platforms and a time ("YYYY-MM-DDTHH:MM", Danish time) or now
+      const images = Array.isArray(b.images) ? b.images.filter((x): x is string => typeof x === 'string').slice(0, 10) : []
+      const platforms = Array.isArray(b.platforms) ? b.platforms.filter(isPlatform) : []
+      const when = str(b.at, 16)
+      const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(when)
+      const at = m ? danishTime(m[1], m[2]).getTime() : NaN
+      if (!b.now && !m) throw new Error('Vælg dato og klokkeslæt')
+      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, platforms, story: b.story === true, at, now: b.now === true })
+      return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
+    }
+    case 'ownDelete':
+      deleteOwnPost(str(b.id, 80))
+      return { message: 'Opslaget er slettet' }
     case 'tick':
       await socialTick()
       return { message: 'Motoren har kørt en runde' }

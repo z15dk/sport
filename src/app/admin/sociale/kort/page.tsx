@@ -17,8 +17,9 @@ export default async function CardsForPost({ searchParams }: { searchParams: Pro
   if (!(await isAdmin())) redirect('/admin')
   const { post: id } = await searchParams
   const post = id ? findPost(id) : undefined
-  if (!post) notFound()
-  const content = contentFor(post, Date.now())
+  // An own post has its own pictures, no cards
+  if (!post || post.kind === 'own') notFound()
+  const content = contentFor({ ...post, kind: post.kind }, Date.now())
   if (!content) notFound()
   return (
     <div className={s.render}>
