@@ -118,7 +118,7 @@ export function createDemoOrder(input: OrderInput): { id: string } | { error: st
   if (!d) return { error: 'Billetsalget er ikke tilgængeligt lige nu' }
   clean(d)
   const lines = DEMO_TYPES.flatMap((t) => {
-    const n = Math.max(0, Math.min(10, Math.floor(Number(input.quantities[t.id] ?? 0)) || 0))
+    const n = Math.max(0, Math.min(20, Math.floor(Number(input.quantities[t.id] ?? 0)) || 0))
     return Array.from({ length: n }, () => t)
   })
   if (!lines.length) return { error: 'Vælg mindst én billet' }
@@ -195,9 +195,16 @@ export function order(id: string): Order | undefined {
   }
 }
 
+/** Where the ticket sits in its order (no. 5 of 17) and how many of the order are in now */
+interface Group {
+  no: number
+  of: number
+  inside: number
+}
+
 export type ScanResult =
-  | { status: 'ok'; label: string; title: string; match: string }
-  | { status: 'used'; label: string; title: string; usedAt: number; match: string }
+  | ({ status: 'ok'; label: string; title: string; match: string } & Group)
+  | ({ status: 'used'; label: string; title: string; usedAt: number; match: string } & Group)
   | { status: 'wrong-match'; label: string; title: string }
   | { status: 'invalid' }
 
@@ -216,9 +223,14 @@ export function scanTicket(code: string, match?: string): ScanResult {
   if (match && String(t.match) !== match) return { status: 'wrong-match', label, title }
   // Marked used only if it wasn't already (two scanners at once can't both let it in)
   const changed = Number(d.prepare('UPDATE tickets SET used_at = ? WHERE id = ? AND used_at IS NULL').run(Date.now(), id).changes ?? 0)
-  if (changed) return { status: 'ok', label, title, match: String(t.match) }
+  const g = d
+    // Numbered as on the order page (price, then id)
+    .prepare('SELECT SUM(CASE WHEN price > ? OR (price = ? AND id <= ?) THEN 1 ELSE 0 END) AS no, COUNT(*) AS n, SUM(CASE WHEN used_at IS NOT NULL THEN 1 ELSE 0 END) AS inside FROM tickets WHERE order_id = ?')
+    .get(t.price, t.price, id, t.order_id)
+  const group: Group = { no: Number(g?.no ?? 1), of: Number(g?.n ?? 1), inside: Number(g?.inside ?? 0) }
+  if (changed) return { status: 'ok', label, title, match: String(t.match), ...group }
   const again = d.prepare('SELECT used_at FROM tickets WHERE id = ?').get(id)
-  return { status: 'used', label, title, usedAt: Number(again?.used_at ?? 0), match: String(t.match) }
+  return { status: 'used', label, title, usedAt: Number(again?.used_at ?? 0), match: String(t.match), ...group }
 }
 
 /** The club's view of a match: sold per type, money for the club, our fee, scanned, the latest orders */
