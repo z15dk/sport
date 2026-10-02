@@ -116,7 +116,7 @@ export const storyOk = (platform: Platform, s = socialSecrets()) => STORY_PLATFO
 
 /**
  * Sends the post to the Make scenario, which posts it on the Page with Make's own Facebook connection.
- * `photos` is the pictures as Make's Facebook "Create a Post" module maps them ({ url }); `image` the
+ * `photos` is the pictures as Make's Facebook "Create a Post with Photos" module maps them ({ type: 'url', url } – "Image input type" set to a link); `image` the
  * first one for "Upload a Photo". A "Webhook response" module may answer { "id", "url" }.
  */
 async function makeHook(s: SocialSecrets, payload: Record<string, unknown>) {
@@ -134,7 +134,7 @@ async function makeHook(s: SocialSecrets, payload: Record<string, unknown>) {
 
 const makePayload = (type: 'post' | 'test', caption: string, files: string[]) => {
   const images = files.map((f) => imageUrl(f))
-  return { type, platform: 'facebook', text: caption, image: images[0], imageCount: images.length, images, photos: images.map((url) => ({ url })) }
+  return { type, platform: 'facebook', text: caption, image: images[0], imageCount: images.length, images, photos: images.map((url) => ({ type: 'url', url })) }
 }
 
 // ---------------------------------------------------------------- Facebook
