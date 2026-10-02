@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { MasonryFlow } from '../../../components/MasonryFlow'
 import { notFound } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
 import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
@@ -203,7 +204,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
           </div>
         </section>
 
-        <div className="club-layout">
+        <MasonryFlow className="club-flow">
           <ClubMatches clubName={club.name} initialNow={now} />
           <div className="club-layout__side">
             <FormChart clubName={club.name} initialNow={now} />
@@ -224,7 +225,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
               </section>
             )}
           </div>
-        </div>
+        </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
         {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
@@ -464,7 +465,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
         )}
 
         {/* The same layout as our clubs' pages: the match list, with the table beside it */}
-        <div className="club-layout">
+        <MasonryFlow className="club-flow">
           <ClubMatches clubName={team.name} initialNow={now} matches={matches} />
           <div className="club-layout__side">
             {nearby.length > 0 && (
@@ -514,7 +515,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
               </section>
             )}
           </div>
-        </div>
+        </MasonryFlow>
 
         {n >= 3 && (
           <section className="panel stats-panel">

@@ -28,11 +28,11 @@ function boxesOf(el: HTMLElement): HTMLElement[] {
   return out
 }
 
-export function useMasonry(ref: RefObject<HTMLElement | null>, columns = 3) {
+export function useMasonry(ref: RefObject<HTMLElement | null>, columns = 3, wide = WIDE) {
   useLayoutEffect(() => {
     const el = ref.current
     if (!el || typeof window === 'undefined' || !window.matchMedia) return
-    const media = window.matchMedia(WIDE)
+    const media = window.matchMedia(wide)
     let frame = 0
     let watched: HTMLElement[] = []
     const clear = () => {
@@ -79,5 +79,5 @@ export function useMasonry(ref: RefObject<HTMLElement | null>, columns = 3) {
       window.removeEventListener('resize', soon)
       clear()
     }
-  }, [ref, columns])
+  }, [ref, columns, wide])
 }
