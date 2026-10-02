@@ -18,7 +18,7 @@ export default async function AdminShares() {
   const shares = withPhotoDb((db) => shareList(db))
   return (
     <div className="page">
-      <div className="admin">
+      <div className="clubs admin">
         <AdminNav current="/admin/billeder/delinger" />
         <h1 className="feed__title">
           Delinger
