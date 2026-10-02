@@ -171,10 +171,11 @@ export function AdminBar() {
       <div className="adminbar__in">
         <Menu
           key={`a${path}`}
+          href="/admin/indstillinger"
           label={
             <>
               <b className="adminbar__logo">M</b>
-              <span className="adminbar__hide-s">Matchly</span> <i className="adminbar__caret" aria-hidden />
+              <span className="adminbar__hide-s">Matchly</span>
             </>
           }
         >
