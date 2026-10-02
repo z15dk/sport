@@ -129,6 +129,14 @@ export const DIVISIONS: Division[] = [...DENMARK, ...GERMANY, ...ENGLAND, ...SOU
 
 /** Season shown for a league: "2026" for calendar-year leagues, otherwise 2026/27 */
 export const seasonOf = (d: Division) => d.seasonLabel ?? SEASON
+
+const TIER_WORDS = ['bedste', 'næstbedste', 'tredjebedste', 'fjerdebedste', 'femtebedste']
+/** Where a Danish football league sits in the pyramid (Superliga = 1), with the leagues above and below it in our data */
+export function danishTier(d: Division): { tier: number; words: string; above?: Division; below?: Division } | undefined {
+  const i = DENMARK.indexOf(d)
+  if (i < 0) return undefined
+  return { tier: i + 1, words: TIER_WORDS[i] ?? `${i + 1}.-bedste`, above: DENMARK[i - 1], below: DENMARK[i + 1] }
+}
 export const COUNTRIES = [...new Set(DIVISIONS.map((d) => d.country))]
 export const sportOf = (d: Division): SportId => d.sport ?? 'soccer'
 
