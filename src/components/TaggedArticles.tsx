@@ -7,10 +7,8 @@ export function TaggedArticles({ articles, title }: { articles: Article[]; title
   if (!articles.length) return null
   const names = new Map(categories().map((c) => [c.slug, c.name]))
   return (
-    <section className="league">
-      <header className="league__header">
-        <h2>{title}</h2>
-      </header>
+    <section className="panel tagged-articles">
+      <h2 className="panel__title">{title}</h2>
       <ArticleCards articles={articles} categoryNames={names} lead={false} />
     </section>
   )
