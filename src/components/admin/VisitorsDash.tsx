@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Bars } from './DashBars'
+import { DashFlow } from './DashFlow'
 import { visitStats } from '../../lib/visits'
 import { formatDayMonth } from '../../lib/time'
 
@@ -15,11 +16,20 @@ const num = (n: number) => n.toLocaleString('da-DK')
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)} %` : '–')
 const change = (now: number, before: number) => (before ? `${now >= before ? '+' : ''}${Math.round(((now - before) / before) * 100)} % mod i går` : 'ingen tal for i går')
 
-/** Tiles and cards with the visitors; `href` is the page the period links go to */
-export function VisitorsDash({ periode, href }: { periode?: string; href: string }) {
+/**
+ * Tiles and cards with the visitors; `href` is the page the period links go to. `children` (the page's
+ * own cards) join the same flow, so every card fills the shortest column and the dashboard has no holes
+ */
+export function VisitorsDash({ periode, href, children }: { periode?: string; href: string; children?: React.ReactNode }) {
   const period = PERIODS.find((p) => p.key === periode) ?? PERIODS[0]
   const s = visitStats(period.days)
-  if (!s) return <p className="unverified">Statistikken kan ikke læses på denne server.</p>
+  if (!s)
+    return (
+      <>
+        <p className="unverified">Statistikken kan ikke læses på denne server.</p>
+        <DashFlow>{children}</DashFlow>
+      </>
+    )
   const hourLabel = (h: number) => `kl. ${String(h).padStart(2, '0')}`
   const devicesTotal = s.devices.reduce((n, d) => n + d.visitors, 0)
   const refsTotal = s.refs.reduce((n, r) => n + r.visitors, 0)
@@ -58,7 +68,7 @@ export function VisitorsDash({ periode, href }: { periode?: string; href: string
         </div>
       </div>
 
-      <div className="dash-grid">
+      <DashFlow>
         <section className="panel dash-card">
           <h2 className="panel__title">Besøgende pr. dag</h2>
           <Bars values={s.days.map((d) => d.visitors)} labels={s.days.map((d) => formatDayMonth(d.day))} unit="besøgende" />
@@ -116,43 +126,42 @@ export function VisitorsDash({ periode, href }: { periode?: string; href: string
           </table>
         </section>
 
-        <div className="dash-col">
           <section className="panel dash-card">
-            <h2 className="panel__title">Hvor de kommer fra</h2>
-            <table className="dash-table">
-              <tbody>
-                {s.refs.map((r) => (
-                  <tr key={r.ref}>
-                    <td>{r.ref}</td>
-                    <td>{num(r.visitors)}</td>
-                    <td className="muted">{pct(r.visitors, refsTotal)}</td>
-                  </tr>
-                ))}
-                {!s.refs.length && (
-                  <tr>
-                    <td className="muted">Ingen endnu.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-          <section className="panel dash-card">
-            <h2 className="panel__title">Enheder</h2>
-            <table className="dash-table">
-              <tbody>
-                {s.devices.map((d) => (
-                  <tr key={d.device}>
-                    <td>{d.device === 'mobil' ? 'Mobil' : d.device === 'tablet' ? 'Tablet' : 'Computer'}</td>
-                    <td>{num(d.visitors)}</td>
-                    <td className="muted">{pct(d.visitors, devicesTotal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="muted small">Perioden: {period.label.toLowerCase()}.</p>
-          </section>
-        </div>
-      </div>
+          <h2 className="panel__title">Hvor de kommer fra</h2>
+          <table className="dash-table">
+            <tbody>
+              {s.refs.map((r) => (
+                <tr key={r.ref}>
+                  <td>{r.ref}</td>
+                  <td>{num(r.visitors)}</td>
+                  <td className="muted">{pct(r.visitors, refsTotal)}</td>
+                </tr>
+              ))}
+              {!s.refs.length && (
+                <tr>
+                  <td className="muted">Ingen endnu.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+        <section className="panel dash-card">
+          <h2 className="panel__title">Enheder</h2>
+          <table className="dash-table">
+            <tbody>
+              {s.devices.map((d) => (
+                <tr key={d.device}>
+                  <td>{d.device === 'mobil' ? 'Mobil' : d.device === 'tablet' ? 'Tablet' : 'Computer'}</td>
+                  <td>{num(d.visitors)}</td>
+                  <td className="muted">{pct(d.visitors, devicesTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted small">Perioden: {period.label.toLowerCase()}.</p>
+        </section>
+        {children}
+      </DashFlow>
     </>
   )
 }
