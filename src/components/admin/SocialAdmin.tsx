@@ -49,11 +49,12 @@ export function ActionButton({ body, label, busyLabel, confirm: ask, pill }: { b
 /** The settings a switch changes: the engine, dry run or one platform ("platform:facebook") */
 function switchConfig(setting: string, on: boolean): Record<string, unknown> {
   if (setting.startsWith('platform:')) return { platforms: { [setting.slice(9)]: on } }
+  if (setting === 'articles') return { articles: { enabled: on } }
   return { [setting]: on }
 }
 
 /** A switch for one yes/no setting */
-export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | `platform:${string}`; value: boolean; label: string }) {
+export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | 'articles' | `platform:${string}`; value: boolean; label: string }) {
   const { busy, msg, run } = useAction()
   return (
     <span className="social-switch">

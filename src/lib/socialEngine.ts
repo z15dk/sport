@@ -25,7 +25,9 @@ import {
   type Surface,
 } from './socialStore'
 import { addDays, danishTime, formatLong, formatTime, isoDate } from './time'
-import { SITE_URL } from './site'
+import { SITE_URL, paths } from './site'
+import { publishedArticles } from './articles'
+import { readUpload } from './uploads'
 
 // The social media engine, run every minute from src/instrumentation.ts:
 //
@@ -429,6 +431,7 @@ export async function socialTick(now = Date.now()) {
   // With the engine off, only the admin's own scheduled posts go out (nothing is planned or made by itself)
   if (!cfg.enabled) {
     try {
+      await shareNewArticles(now)
       await publishDue(now, true)
     } catch (e) {
       logLine(`Egne opslag fejlede: ${e instanceof Error ? e.message : e}`, 'error')
@@ -442,6 +445,7 @@ export async function socialTick(now = Date.now()) {
     if (now >= danishTime(today, cfg.times.draft).getTime()) planDay(today, now)
     checkResults(addDays(today, -1), now)
     checkResults(today, now)
+    await shareNewArticles(now)
     await renderPending(now)
     await mailPending()
     await publishDue(Date.now())
@@ -586,5 +590,85 @@ function dropUnusedTemplates() {
     }
   } catch {
     // no pictures yet
+  }
+}
+
+// ---------------------------------------------------------------- new articles
+
+/** Ten openings for a shared article (by the article's id, so each article keeps its own) */
+const ARTICLE_INTROS = [
+  'Ny artikel på Matchly 📰',
+  'Frisk fra redaktionen ✍️',
+  'Læs med 👇',
+  'Den her skal du ikke gå glip af 👀',
+  'Nyt på matchly.dk ⚽',
+  'Klar til lidt læsning? 📖',
+  'Vi har dykket ned i det 🤓',
+  'Netop udgivet 🔥',
+  'Til dig, der vil vide mere ⚽',
+  'Kaffepause? Her er noget at læse ☕',
+]
+
+/**
+ * A new article out on the platforms by itself: when an article goes live (also a scheduled one at its
+ * time), an own post is made with its picture, title, intro and link and goes out like the admin's own
+ * posts (also while the engine is off). Only articles that went live after sharing was switched on, and
+ * within the last day; each article once.
+ */
+async function shareNewArticles(now: number) {
+  const cfg = socialConfig()
+  if (!cfg.articles.enabled) return
+  const s = socialSecrets()
+  const platforms = (['facebook', 'instagram', 'threads', 'x'] as Platform[]).filter((p) => cfg.platforms[p] && (cfg.dryRun || connected(p, s)))
+  if (!platforms.length) return
+  const shared = new Set(readPosts().posts.map((p) => p.article).filter((x): x is number => x !== undefined))
+  for (const a of publishedArticles({ limit: 10 }).articles) {
+    const at = Date.parse(a.publishedAt ?? '')
+    if (!Number.isFinite(at) || shared.has(a.id) || at < (cfg.articles.since ?? now) || now - at > 24 * HOUR) continue
+    // The article's own picture, as a JPEG for every platform
+    const upload = /^\/uploads\/([a-f0-9]{24}\.webp)$/.exec(a.featuredImage ?? '')
+    const src = upload ? readUpload(upload[1]) : undefined
+    if (!src) {
+      logLine(`Artiklen "${a.title}" blev ikke delt: den har intet billede`, 'error')
+      updatePosts((d) => {
+        d.posts.push(articlePost(a, [], now, 'empty', 'Intet billede at dele'))
+      })
+      continue
+    }
+    mkdirSync(imageDir(), { recursive: true })
+    const file = `art-${a.id}-${Date.now().toString(36)}.jpg`
+    const jpeg = await sharp(src).resize({ width: 1600, height: 2000, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#0f110c' }).jpeg({ quality: 88 }).toBuffer()
+    writeFileSync(path.join(imageDir(), file), jpeg)
+    const post = articlePost(a, [{ file, surface: 'feed' }], now, 'waiting')
+    post.own = { platforms, story: false }
+    updatePosts((d) => {
+      d.posts.push(post)
+    })
+    logLine(`Ny artikel "${a.title}" sendes til ${platforms.map((p) => PLATFORM_NAMES[p]).join(', ')}`)
+  }
+}
+
+function articlePost(a: { id: number; title: string; excerpt: string; slug: string }, images: SocialPost['images'], now: number, status: SocialPost['status'], note?: string): SocialPost {
+  const intro = ARTICLE_INTROS[a.id % ARTICLE_INTROS.length]
+  return {
+    id: `art-${a.id}`,
+    date: isoDate(now),
+    kind: 'own',
+    article: a.id,
+    matchIds: [],
+    title: a.title,
+    caption: [intro, '', a.title, ...(a.excerpt ? ['', a.excerpt] : [])].join('\n'),
+    captionEdited: true,
+    link: `${SITE_URL}${paths.article(a.slug)}`,
+    images,
+    scheduledAt: now,
+    expiresAt: now + 24 * HOUR,
+    status,
+    note,
+    // The admin wrote and published the article: sharing it needs no approval of its own
+    approval: 'approved',
+    approvedAt: now,
+    results: {},
+    createdAt: now,
   }
 }

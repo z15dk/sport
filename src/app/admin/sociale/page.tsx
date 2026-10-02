@@ -46,7 +46,7 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         <div>
           <h3>{p.title}</h3>
           <p className="muted small">
-            {KIND_NAMES[p.kind]} · {state}
+            {p.article ? 'Ny artikel' : KIND_NAMES[p.kind]} · {state}
             {p.approval === 'approved' && p.approvedAt ? ` · godkendt ${clock(p.approvedAt)}` : ''}
             {p.mailedAt ? ` · mail sendt ${clock(p.mailedAt)}` : ''} · udløber {clock(p.expiresAt)}
             {' · '}
@@ -174,6 +174,7 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
           <div className="social-switches">
             <ConfigSwitch value={cfg.enabled} label="Motoren kører" setting="enabled" />
             <ConfigSwitch value={cfg.dryRun} label="Tør-kørsel (intet sendes til platformene)" setting="dryRun" />
+            <ConfigSwitch value={cfg.articles.enabled} label="Del nye artikler automatisk" setting="articles" />
           </div>
           <div className="social-switches">
             {PLATFORMS.map((p) => (

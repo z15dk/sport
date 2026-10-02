@@ -37,6 +37,8 @@ function merged(input: Partial<SocialConfig>, c: SocialConfig): SocialConfig {
   const out = structuredClone(c)
   if (typeof input.enabled === 'boolean') out.enabled = input.enabled
   if (typeof input.dryRun === 'boolean') out.dryRun = input.dryRun
+  // Sharing articles switched on: only articles that go live from now on are shared
+  if (typeof input.articles?.enabled === 'boolean') out.articles = { enabled: input.articles.enabled, since: input.articles.enabled ? (c.articles.enabled ? c.articles.since : Date.now()) : undefined }
   if (input.approval) {
     if (typeof input.approval.always === 'boolean') out.approval.always = input.approval.always
     if ('until' in input.approval) out.approval.until = isValidIsoDate(input.approval.until) ? input.approval.until : undefined
