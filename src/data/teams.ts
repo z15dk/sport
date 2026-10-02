@@ -145,19 +145,42 @@ function build(): TeamEntry[] {
   return [...ours, ...externalTeams(new Set(ours.map((t) => t.slug)))]
 }
 
-// Rebuilt when the season changes (new real data)
-let cache: { clubs: ReturnType<typeof seasonClubs>; version?: string; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
+/**
+ * What the register is built from, as one number: every team (league and name) and
+ * whether it has a logo, in any order. New real data arrives every half minute
+ * (live scores), but the teams in it rarely change – and the rebuild takes half a
+ * second with every page waiting, so it only happens when this changes.
+ */
+function teamSignature(external: ExternalGame[] | undefined): number {
+  let sum = 0
+  const add = (key: string) => {
+    let h = 2166136261
+    for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619)
+    sum = (sum + (h >>> 0)) % Number.MAX_SAFE_INTEGER
+  }
+  for (const g of external ?? []) {
+    const league = `${g.league.id}|${g.league.name}|${g.league.country ?? ''}`
+    add(`${league}|${g.home.name}|${g.home.logo ? 1 : 0}`)
+    add(`${league}|${g.away.name}|${g.away.logo ? 1 : 0}`)
+  }
+  return sum
+}
+
+// Rebuilt when the season changes, or the teams in the real data do (not for every new score)
+let cache: { clubs: ReturnType<typeof seasonClubs>; signature: number; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
 function teams() {
   const clubs = seasonClubs()
-  const version = getRealData()?.version
   const external = getRealData()?.external
-  // Also rebuilt when a page adds games in the browser (same version, more games)
-  if (cache?.clubs !== clubs || cache.version !== version || cache.external !== external) {
+  // The signature is only worked out when the data is another object (also when a page adds games in the browser)
+  const signature = cache && cache.external === external && cache.clubs === clubs ? cache.signature : teamSignature(external)
+  if (!cache || cache.clubs !== clubs || cache.signature !== signature) {
     const list = build()
     // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
     const byName = new Map<string, TeamEntry>()
     for (const t of list) for (const n of t.names ?? [t.name]) if (!byName.has(n)) byName.set(n, t)
-    cache = { clubs, version, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName }
+    cache = { clubs, signature, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName }
+  } else if (cache.external !== external) {
+    cache.external = external
   }
   return cache
 }

@@ -30,100 +30,94 @@ function otherLeagues(): Map<string, Other> {
   return others
 }
 
-/** Site-wide footer; one column per sport, and a path for crawlers to every league. */
+/** Site-wide footer: one compact band – the site's pages, our leagues by sport, every other tournament folded away (still a path for crawlers), and the small print. */
 export function Footer() {
   const divisions = shownDivisions()
   const tracking = trackingConfig()
   const hasTracking = !!(tracking.ga || tracking.metaPixel)
   // Every other league and cup we fetch from API-Sports (the admin's choice and the built-in list), once each
-  const others = otherLeagues()
-  const sports = [...new Set([...divisions.map(sportOf), ...[...others.values()].map((o) => o.sport)])]
+  const others = [...otherLeagues().values()]
+  const sports = [...new Set(divisions.map(sportOf))]
   const byCountry = (a: { country?: string; name: string }, b: { country?: string; name: string }) =>
     danishCountry(a.country).localeCompare(danishCountry(b.country), 'da') || a.name.localeCompare(b.name, 'da')
+  const otherSports = [...new Set(others.map((o) => o.sport))]
+  const year = new Date().getFullYear()
   return (
     <footer className="footer">
-      {/* The logo as in the top bar, in white */}
-      <Link className="logo footer__logo" href="/" aria-label="Matchly – til forsiden">
-        Matchly<span className="logo__dot">.</span>
-      </Link>
-      <nav className="footer__cols" aria-label="Sidefod">
-        {sports.map((sport) => {
-          const leagues = divisions.filter((d) => sportOf(d) === sport)
-          const more = [...others.values()].filter((o) => o.sport === sport).sort(byCountry)
-          const count = leagues.length + more.length
-          return (
-            <div key={sport} className={count > 14 ? 'footer__col--wide footer__col--wider' : count > 6 ? 'footer__col--wide' : undefined}>
-              <h2>{sportById(sport).label}</h2>
+      <div className="footer__in">
+        <div className="footer__top">
+          <Link className="logo footer__logo" href="/" aria-label="Matchly – til forsiden">
+            Matchly<span className="logo__dot">.</span>
+          </Link>
+          <nav className="footer__links" aria-label="Sidens sider">
+            <Link href="/">Dagens kampe</Link>
+            <Link href="/kampe/i-gaar">I går</Link>
+            <Link href="/kampe/i-morgen">I morgen</Link>
+            <Link href={paths.tv()}>Fodbold i TV</Link>
+            <Link href={paths.women()}>Kvindesport</Link>
+            <Link href={paths.clubs()}>Klubber</Link>
+            <Link href={paths.articles()}>Artikler</Link>
+            <Link href="/widget">Tabel til din side</Link>
+            <Link href={paths.advertising()}>Annoncering</Link>
+            <Link href={paths.about()}>Om {SITE_NAME}</Link>
+            <Link href={paths.privacy()}>Privatliv</Link>
+            {hasTracking && <ConsentSettingsLink />}
+          </nav>
+        </div>
+
+        <nav className="footer__leagues" aria-label="Vores ligaer">
+          {sports.map((sport) => (
+            <div key={sport} className="footer__row">
+              <span className="footer__sport">{sportById(sport).label}</span>
               <ul>
-                {leagues.map((d) => (
-                  <li key={d.id}>
-                    <Link href={paths.league(d.slug)}>
-                      <Flag country={d.country} /> {d.name}
-                    </Link>
-                  </li>
-                ))}
-                {more.map((o) => (
-                  <li key={o.key}>
-                    <Link href={paths.league(o.key)}>
-                      <Flag country={danishCountry(o.country)} /> {o.name}
-                    </Link>
-                  </li>
-                ))}
+                {divisions
+                  .filter((d) => sportOf(d) === sport)
+                  .map((d) => (
+                    <li key={d.id}>
+                      <Link href={paths.league(d.slug)}>
+                        <Flag country={d.country} /> {d.name}
+                      </Link>
+                    </li>
+                  ))}
               </ul>
             </div>
-          )
-        })}
-        <div>
-          <h2>{SITE_NAME}</h2>
-          <ul>
-            <li>
-              <Link href="/">Dagens kampe</Link>
-            </li>
-            <li>
-              <Link href="/kampe/i-gaar">Resultater i går</Link>
-            </li>
-            <li>
-              <Link href="/kampe/i-morgen">Kampe i morgen</Link>
-            </li>
-            <li>
-              <Link href={paths.tv()}>Fodbold i TV i dag</Link>
-            </li>
-            <li>
-              <Link href={paths.women()}>Kvindesport</Link>
-            </li>
-            <li>
-              <Link href={paths.women({ sport: 'soccer' })}>Kvindefodbold</Link>
-            </li>
-            <li>
-              <Link href={paths.clubs()}>Alle klubber</Link>
-            </li>
-            <li>
-              <Link href={paths.articles()}>Artikler</Link>
-            </li>
-            <li>
-              <Link href="/widget">Ligatabel til din side</Link>
-            </li>
-            <li>
-              <Link href={paths.about()}>Om {SITE_NAME}</Link>
-            </li>
-            <li>
-              <Link href={paths.privacy()}>Privatliv og cookies</Link>
-            </li>
-            {hasTracking && (
-              <li>
-                <ConsentSettingsLink />
-              </li>
-            )}
-          </ul>
-        </div>
-      </nav>
-      {!indexable() && <p className="footer__note">Under udvikling.</p>}
-      <p className="footer__note">
-        Odds vises for spillere over 18 år.{' '}
-        <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
-          {RESPONSIBLE_GAMBLING.text}
-        </a>
-      </p>
+          ))}
+        </nav>
+
+        {others.length > 0 && (
+          <details className="footer__more">
+            <summary>Alle turneringer, vi følger ({others.length})</summary>
+            {otherSports.map((sport) => (
+              <div key={sport} className="footer__row">
+                <span className="footer__sport">{sportById(sport).label}</span>
+                <ul>
+                  {others
+                    .filter((o) => o.sport === sport)
+                    .sort(byCountry)
+                    .map((o) => (
+                      <li key={o.key}>
+                        <Link href={paths.league(o.key)}>
+                          <Flag country={danishCountry(o.country)} /> {o.name}
+                        </Link>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </details>
+        )}
+
+        <p className="footer__bottom">
+          <span>© {year} {SITE_NAME} · Live score og stats</span>
+          <span>
+            Odds vises for spillere over 18 år ·{' '}
+            <a href={RESPONSIBLE_GAMBLING.url} target="_blank" rel="noopener">
+              {RESPONSIBLE_GAMBLING.text}
+            </a>
+          </span>
+          {!indexable() && <span>Under udvikling</span>}
+        </p>
+      </div>
     </footer>
   )
 }

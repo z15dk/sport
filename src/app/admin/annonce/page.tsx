@@ -7,6 +7,7 @@ import { isAdmin } from '../../../lib/admin'
 import { adStats, ctr } from '../../../lib/adStats'
 import { SITE_URL } from '../../../lib/site'
 import { formatDayMonth } from '../../../lib/time'
+import '../../widget/widget.css'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Matchly-annoncen · Admin', robots: { index: false, follow: false } }

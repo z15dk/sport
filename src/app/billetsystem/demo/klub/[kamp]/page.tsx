@@ -5,6 +5,7 @@ import { demoMatch } from '../../../../../lib/ticketDemo'
 import { loadRealData } from '../../../../../lib/realdata'
 import { ClubSalesLive } from '../../../../../components/ClubSalesLive'
 import { formatLong, formatTime } from '../../../../../lib/time'
+import { findClub } from '../../../../../data/matchInsights'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Demo: klubbens salg', robots: { index: false, follow: false } }
@@ -16,6 +17,7 @@ export default async function DemoClub({ params }: { params: Params }) {
   loadRealData()
   const m = demoMatch((await params).kamp)
   if (!m) notFound()
+  const clubSlug = findClub(m.home.name)?.club.slug
   return (
     <div className="page">
       <div className="clubs bs-demo">
@@ -50,6 +52,11 @@ export default async function DemoClub({ params }: { params: Params }) {
             <Link className="wg-btn" href={`/billetsystem/demo/${m.slug}`}>
               Køb flere billetter
             </Link>
+            {clubSlug && (
+              <Link className="wg-btn" href={`/billetsystem/demo/salg/${clubSlug}`}>
+                Hele klubbens salg
+              </Link>
+            )}
           </div>
         </header>
         <ClubSalesLive match={m.slug} />

@@ -10,7 +10,7 @@ Status: **demo / pilot**. Salgsside `/billetsystem` (skjult for Google, ikke i s
 | Kampene, der kan sælges til (vores kampprogram) | `src/lib/ticketDemo.ts` | – |
 | Køb | `src/app/api/billetsystem/ordre/route.ts` | `POST /api/billetsystem/ordre` |
 | Scanning ved indgangen | `src/app/api/billetsystem/scan/route.ts` | `POST /api/billetsystem/scan` |
-| Klubbens salgstal | `src/app/api/billetsystem/salg/route.ts` | `GET /api/billetsystem/salg?kamp=` |
+| Klubbens salgstal (én kamp eller hele klubben) | `src/app/api/billetsystem/salg/route.ts` | `GET /api/billetsystem/salg?kamp=` / `?klub=<klub-id>` |
 | Henvendelser fra klubber | `src/app/api/billetsystem/kontakt/route.ts` | `POST /api/billetsystem/kontakt` (vises på `/admin/billetter`) |
 | Sider | `src/app/billetsystem/**`, `TicketCard`, `TicketCheckout`, `TicketScanner`, `ClubSalesLive`, `LeadForm` | `/billetsystem`, `/billetsystem/demo/…` |
 
@@ -20,7 +20,7 @@ Browser-delene (køb, scanner, klubbens oversigt) taler kun med `/api/billetsyst
 
 `TICKET_SHOP_DIR` (standard `/opt/scoreline/data/billetsalg/`):
 
-- `billetsalg.db` – SQLite: `orders`, `tickets` (en række pr. billet, `used_at` når den er scannet), `leads`.
+- `billetsalg.db` – SQLite: `orders` (med `club` = klubbens id), `tickets` (en række pr. billet, `used_at` når den er scannet), `leads` (`kind`: billet eller annoncering).
 - `billetsalg.secret` – nøglen, QR-koderne signeres med (`MTK1.<billet-id>.<signatur>`). Uden den kan udstedte billetter ikke scannes. `TICKET_SHOP_SECRET` (hex, mindst 32 tegn) vinder over filen, så flere servere kan dele den.
 
 ## Flyt til en anden server

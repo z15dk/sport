@@ -85,7 +85,8 @@ function Badge({ name, src, size = 20, colors, label }: Omit<Props, 'link'>) {
   const code = src || known || nationOf(name) ? undefined : flagCode(name, true)
   const url = src ?? known ?? (code ? flagImage(code, size) : undefined)
   const [failed, setFailed] = useState(false)
-  const light = useLightLogo(failed ? undefined : url)
+  // The pixel check needs only a tiny copy, never the full upload (a crest can be hundreds of KB)
+  const light = useLightLogo(failed || !url ? undefined : sizedImage(url, 16))
 
   if (url && !failed) {
     return (

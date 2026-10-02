@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, startTransition, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { SportSprite } from './SportIcon'
 import { LiveStrip } from './LiveStrip'
 import { DateStrip } from './DateStrip'
@@ -21,6 +21,7 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
+import { ListMore } from './ListMore'
 import { getRealData } from '../data/real'
 import { realLeagues } from '../data/season'
 import { DIVISIONS, shownDivisions, sportOf } from '../data/leagues'
@@ -91,8 +92,10 @@ interface Props {
   below?: ReactNode
 }
 
-/** Matches in the page's HTML; the rest follow in the browser */
-const FIRST_ROWS = 150
+/** Matches in the page's HTML; the rest follow as the reader scrolls (fewer rows = less HTML to parse and hydrate on phones) */
+const FIRST_ROWS = 100
+/** Rows added each time the end of the list comes near */
+const MORE_ROWS = 80
 
 export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, scrollAd, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
@@ -152,13 +155,9 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
 
   const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
   // The page's HTML carries the first matches only (a busy day has more than a thousand, megabytes of HTML);
-  // the rest are drawn in the browser right after it has started
-  const [whole, setWhole] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => startTransition(() => setWhole(true)), 0)
-    return () => clearTimeout(t)
-  }, [])
-  const cap = whole ? Infinity : FIRST_ROWS
+  // the rest are drawn when the reader scrolls down to them (ListMore), a few at a time, so a phone never
+  // lays out a thousand rows nobody looks at
+  const [cap, setCap] = useState(FIRST_ROWS)
   const allGroups0 = useMemo(() => groupByLeague(visible, pinned), [visible, pinned])
   const groups = useMemo(() => {
     if (cap === Infinity) return allGroups0
@@ -325,6 +324,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < days.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
+              <ListMore left={visible.length - days.reduce((n, [, list]) => n + list.length, 0)} onMore={() => setCap((c) => c + MORE_ROWS)} />
             </div>
           ) : (
             <div className="league-list">
@@ -340,6 +340,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
+              <ListMore left={visible.length - groups.reduce((n, g) => n + g.matches.length, 0)} onMore={() => setCap((c) => c + MORE_ROWS)} />
             </div>
           )}
         </main>

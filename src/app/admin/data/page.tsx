@@ -21,6 +21,7 @@ import { LeagueTeamsAdmin, type LeagueRow } from '../../../components/admin/Leag
 import { Bars } from '../../../components/admin/DashBars'
 import { capacityStatus, LIMITS } from '../../../lib/capacity'
 import { CapacityMailButton } from '../../../components/admin/CapacityMailButton'
+import { DashFlow } from '../../../components/admin/DashFlow'
 import { normalize, SEARCH_NAMES } from '../../../data/aliases'
 
 /** What the kinds of API-Sports requests are (/admin/data's usage) */
@@ -169,7 +170,7 @@ export default async function DataStatusPage() {
             label="Hukommelse"
             value={`${num(mem.rss + (worker?.rss ?? 0))} MB`}
             sub={`${worker ? `siden ${num(mem.rss)} · baggrund ${num(worker.rss)} MB` : `JavaScript ${num(mem.heap)} MB`} · maskinen ${cap.machine.pct} % brugt`}
-            level={cap.machine.pct >= LIMITS.memPct || cap.machine.swapMb >= LIMITS.swapMb ? 'bad' : cap.machine.pct >= 75 ? 'warn' : 'ok'}
+            level={cap.machine.pct >= LIMITS.memPct || (cap.machine.swapMb >= LIMITS.swapMb && cap.machine.pct >= LIMITS.swapMemPct) ? 'bad' : cap.machine.pct >= 75 ? 'warn' : 'ok'}
           />
           <Tile
             label="Fodbold-kald tilbage"
@@ -187,258 +188,260 @@ export default async function DataStatusPage() {
           <Tile label="Historik" value={h.error ? 'fejl' : `${num(h.matches)} kampe`} sub={h.error ?? `${h.clubs} klubber · ${h.from ?? ''}–${h.to ?? ''}`} level={h.error ? 'warn' : 'ok'} />
         </div>
 
-        <div className="dash-grid">
-          <div className="dash-col">
-          <section className="panel dash-card">
-            <h2 className="panel__title">Serverens svartid</h2>
-            {slow.recent.length > 0 ? (
-              <>
-                <Bars values={slow.recent.map((m) => m.max)} labels={slow.recent.map((m) => clock(m.at))} unit="ms længste ventetid" limit={1000} />
-                <p className="dash-axis muted small">
-                  <span>{clock(slow.recent[0].at)}</span>
-                  <span>Længste ventetid pr. minut · streg = 1 sek.</span>
-                  <span>{clock(slow.recent.at(-1)!.at)}</span>
-                </p>
-              </>
-            ) : (
-              <p className="muted small">Måles fra serverstart – kom tilbage om et par minutter.</p>
-            )}
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Opgave over 0,2 sek.</th>
-                  <th>Længste</th>
-                  <th>Gange</th>
-                  <th>Senest</th>
-                </tr>
-              </thead>
-              <tbody>
-                {slow.tasks.slice(0, 8).map((x) => (
-                  <tr key={x.label}>
-                    <td>{x.label}</td>
-                    <td className={x.max >= 1000 ? 'is-bad' : undefined}>{num(x.max)} ms</td>
-                    <td>{x.count}</td>
-                    <td>{clock(x.last)}</td>
-                  </tr>
-                ))}
-                {!slow.tasks.length && (
-                  <tr>
-                    <td colSpan={4} className="muted">
-                      Ingen endnu.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-
-
-          <section className={`panel dash-card dash-cap is-${capLevel[cap.level]}`}>
-            <h2 className="panel__title">Serverens kapacitet</h2>
-            <p className="small">
-              <b className={`dash-cap__mark is-${capLevel[cap.level]}`}>{MARK[capLevel[cap.level]]}</b> <strong>{capText[cap.level]}</strong> · {cap.machine.cores} kerner · {num(cap.machine.totalMb)} MB ·{' '}
-              {cap.measuredDays ? `målt i ${cap.measuredDays} ${cap.measuredDays === 1 ? 'dag' : 'dage'}` : 'måler fra serverstart'}
-            </p>
-            {cap.level !== 'ok' && <p className="small">{cap.advice}</p>}
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Signal</th>
-                  <th>Nu</th>
-                  <th>Værst i døgnet</th>
-                  <th>7 dage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cap.signals.map((x) => (
-                  <tr key={x.id}>
-                    <td title={`Grænse: ${x.limit}`}>
-                      {x.name}
-                      <div className="muted small">{x.limit}</div>
-                    </td>
-                    <td>{x.now}</td>
-                    <td>{x.worst24}</td>
-                    <td className={x.level === 'upgrade' ? 'is-bad' : x.level === 'watch' ? 'is-warn' : undefined}>
-                      <span className="dash-cap__days" aria-label={`${x.badDays} af 7 dage over grænsen`}>
-                        {x.days.map((d) => (
-                          <i key={d.date} className={d.over ? 'is-over' : d.hours ? 'is-some' : undefined} title={`${d.date}: ${d.hours} ${d.hours === 1 ? 'time' : 'timer'} over grænsen`} />
-                        ))}
-                      </span>{' '}
-                      {x.badDays}/7
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {cap.recent.length > 1 && (
-              <>
-                <Bars values={cap.recent.map((h) => h.mem)} labels={cap.recent.map((h) => clock(h.at))} unit="% af maskinens hukommelse" limit={LIMITS.memPct} />
-                <p className="dash-axis muted small">
-                  <span>{clock(cap.recent[0].at)}</span>
-                  <span>Hukommelse pr. time, sidste 2 døgn · streg = {LIMITS.memPct} %</span>
-                  <span>{clock(cap.recent.at(-1)!.at)}</span>
-                </p>
-              </>
-            )}
-            <p className="muted small">
-              En dag tæller, når et signal er over grænsen i mindst {LIMITS.hoursPerDay} timer. Er det {LIMITS.daysOfSeven} af de sidste 7 dage, er det tid til at opgradere, og der sendes en mail (højst én om ugen).{' '}
-              {cap.mail.ready ? (
-                <>
-                  Mail til {cap.mail.to}
-                  {cap.mail.sentAt ? ` · sidst sendt ${new Date(cap.mail.sentAt).toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short' })}` : ' · ingen sendt endnu'}.
-                </>
-              ) : (
-                <span className="is-bad">
-                  Mail er ikke sat op: udfyld SMTP og modtager under <Link href="/admin/sociale/indstillinger">Sociale medier → Indstillinger</Link>.
-                </span>
-              )}
-            </p>
-            {cap.mail.ready && <CapacityMailButton to={cap.mail.to} />}
-          </section>
-          {role() === 'web' && (
-            <section className="panel dash-card">
-              <h2 className="panel__title">Baggrundsprocessen</h2>
-              {!worker ? (
-                <p className="is-bad small">Har ikke skrevet endnu – den starter (eller kan ikke starte).</p>
-              ) : (
-                <>
-                  <p className={`small${worker.stale ? ' is-bad' : ''}`}>
-                    {worker.stale ? 'Svarer ikke: sidst hørt fra ' : 'Kører · sidst hørt fra '}
-                    {clock(worker.at)} · startet {clock(worker.startedAt)} · {num(worker.rss)} MB · længste ventetid sidste 15 min.{' '}
-                    {num(worker.slow.recent.length ? Math.max(...worker.slow.recent.map((m) => m.max)) : 0)} ms (det mærker siden ikke)
-                  </p>
-                  <table className="dash-table">
-                    <tbody>
-                      {worker.slow.tasks.slice(0, 12).map((x) => (
-                        <tr key={x.label}>
-                          <td>{x.label}</td>
-                          <td>{num(x.max)} ms</td>
-                          <td>{x.count}</td>
-                          <td>{clock(x.last)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </section>
-          )}
-          <section className="panel dash-card">
-            <h2 className="panel__title">DBU (1., 2. og 3. division)</h2>
-            <p className="muted small">
-              Holdopstillinger og topscorere fra kampsiderne · sidst kørt {dbuJob?.at ? clock(dbuJob.at) : 'ikke endnu'}
-              {dbuJob?.error && (
-                <span className="is-bad">
-                  {' '}
-                  · fejl {clock(dbuJob.errorAt ?? 0)}: {dbuJob.error}
-                </span>
-              )}
-            </p>
-            <table className="dash-table">
-              <tbody>
-                {poolStatus.map((p) => (
-                  <tr key={p.pool}>
-                    <td>
-                      Pulje {p.pool} <span className="muted">({p.league})</span>
-                    </td>
-                    <td>{p.read ? `${p.fixtures} kampe · ${p.upcoming} kommende` : 'kampprogram ikke hentet'}</td>
-                    <td className={p.played && p.results < p.played ? 'is-warn' : undefined}>
-                      {p.results}/{p.played} spillede læst
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-          <section className="panel dash-card">
-            <h2 className="panel__title">Filer og kilder</h2>
-            <table className="dash-table">
-              <tbody>
-                {mem.files
-                  .filter((f) => f.mb !== undefined)
-                  .map((f) => (
-                    <tr key={f.name}>
-                      <td>{f.name}</td>
-                      <td>{num(f.mb!)} MB</td>
-                    </tr>
-                  ))}
-                <tr>
-                  <td>TheSportsDB</td>
-                  <td>
-                    {s.requests} forespørgsler · løbende {ago(s.lastHot)}
+        <DashFlow>
+        <section className="panel dash-card">
+          <h2 className="panel__title">Vores ligaer</h2>
+          <LeagueTeamsAdmin rows={leagueRows} />
+        </section>
+        <section className="panel dash-card">
+          <h2 className="panel__title">API-Sports</h2>
+          <table className="dash-table">
+            <thead>
+              <tr>
+                <th>Sport</th>
+                <th>Kampe</th>
+                <th>Kald tilbage</th>
+                <th>Brugt i dag</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apis.map((x) => (
+                <tr key={x.api}>
+                  <td>{x.label}</td>
+                  <td>{x.hasKey ? num(x.games) : '–'}</td>
+                  <td>{x.hasKey ? `${x.remaining ?? '?'}${x.limit ? `/${num(x.limit)}` : ''}` : '–'}</td>
+                  <td>{x.usage ? num(x.usage.hours.reduce((n, v) => n + v, 0)) : '–'}</td>
+                  <td className={x.lastError || x.pausedUntil ? 'is-bad' : undefined}>
+                    {!x.hasKey ? 'ingen nøgle' : x.pausedUntil ? `pause til ${clock(x.pausedUntil)}` : x.lastError ? `fejl: ${x.lastError}` : `hentet ${clock(x.todayFetchedAt)}`}
                   </td>
                 </tr>
-                <tr>
-                  <td>Kampdatabase</td>
-                  <td>{h.error ? <span className="is-bad">{h.error}</span> : `${h.tournaments.length} turneringer · ${h.unmatched.length} hold uden klub`}</td>
+              ))}
+            </tbody>
+          </table>
+          {football?.usage && (
+            <>
+              <h3 className="dash-sub">Fodbold i dag pr. time (dansk tid)</h3>
+              <Bars values={football.usage.hours} labels={football.usage.hours.map((_, i) => `kl. ${hourLabel(i)}`)} unit="kald" />
+              <p className="dash-axis muted small">
+                <span>{hourLabel(0)}</span>
+                <span>baggrund og opslag stopper under {num(football.reserveNow)} tilbage</span>
+                <span>{hourLabel(23)}</span>
+              </p>
+              <ul className="dash-chips">
+                {Object.entries(
+                  // Several kinds of request share a name (a player's page asks for four things): one chip each
+                  Object.entries(football.usage.kinds).reduce<Record<string, number>>((m, [k, n]) => ((m[USAGE_NAMES[k] ?? k] = (m[USAGE_NAMES[k] ?? k] ?? 0) + n), m), {}),
+                )
+                  .sort((p, q) => q[1] - p[1])
+                  .slice(0, 8)
+                  .map(([k, n]) => (
+                    <li key={k}>
+                      {k} <b>{num(n)}</b>
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )}
+          <ApiStatusCheck />
+        </section>
+        <section className="panel dash-card">
+          <h2 className="panel__title">Serverens svartid</h2>
+          {slow.recent.length > 0 ? (
+            <>
+              <Bars values={slow.recent.map((m) => m.max)} labels={slow.recent.map((m) => clock(m.at))} unit="ms længste ventetid" limit={1000} />
+              <p className="dash-axis muted small">
+                <span>{clock(slow.recent[0].at)}</span>
+                <span>Længste ventetid pr. minut · streg = 1 sek.</span>
+                <span>{clock(slow.recent.at(-1)!.at)}</span>
+              </p>
+            </>
+          ) : (
+            <p className="muted small">Måles fra serverstart – kom tilbage om et par minutter.</p>
+          )}
+          <table className="dash-table">
+            <thead>
+              <tr>
+                <th>Opgave over 0,2 sek.</th>
+                <th>Længste</th>
+                <th>Gange</th>
+                <th>Senest</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slow.tasks.slice(0, 8).map((x) => (
+                <tr key={x.label}>
+                  <td>{x.label}</td>
+                  <td className={x.max >= 1000 ? 'is-bad' : undefined}>{num(x.max)} ms</td>
+                  <td>{x.count}</td>
+                  <td>{clock(x.last)}</td>
                 </tr>
+              ))}
+              {!slow.tasks.length && (
                 <tr>
-                  <td>Denne sæson (database)</td>
-                  <td>{h.season.length ? h.season.map((x) => `${x.id} ${x.events}`).join(', ') : 'ingen danske rækker'}</td>
+                  <td colSpan={4} className="muted">
+                    Ingen endnu.
+                  </td>
                 </tr>
-              </tbody>
-            </table>
-          </section>
-          </div>
-          <section className="panel dash-card">
-            <h2 className="panel__title">API-Sports</h2>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Sport</th>
-                  <th>Kampe</th>
-                  <th>Kald tilbage</th>
-                  <th>Brugt i dag</th>
-                  <th>Status</th>
+              )}
+            </tbody>
+          </table>
+        </section>
+
+
+        <section className={`panel dash-card dash-cap is-${capLevel[cap.level]}`}>
+          <h2 className="panel__title">Serverens kapacitet</h2>
+          <p className="small">
+            <b className={`dash-cap__mark is-${capLevel[cap.level]}`}>{MARK[capLevel[cap.level]]}</b> <strong>{capText[cap.level]}</strong> · {cap.machine.cores} kerner · {num(cap.machine.totalMb)} MB ·{' '}
+            {cap.measuredDays ? `målt i ${cap.measuredDays} ${cap.measuredDays === 1 ? 'dag' : 'dage'}` : 'måler fra serverstart'}
+          </p>
+          {cap.level !== 'ok' && <p className="small">{cap.advice}</p>}
+          <table className="dash-table dash-cap__table">
+            <thead>
+              <tr>
+                <th>Signal</th>
+                <th>Nu</th>
+                <th>Værst i døgnet</th>
+                <th>7 dage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cap.signals.map((x) => (
+                <tr key={x.id}>
+                  <td title={`Grænse: ${x.limit}`}>
+                    {x.name}
+                    <div className="muted small">{x.limit}</div>
+                  </td>
+                  <td>
+                    {x.now.split(' · ')[0]}
+                    {x.now.includes(' · ') && <div className="muted small">{x.now.split(' · ').slice(1).join(' · ')}</div>}
+                  </td>
+                  <td>
+                    {x.worst24.split(' · ')[0]}
+                    {x.worst24.includes(' · ') && <div className="muted small">{x.worst24.split(' · ').slice(1).join(' · ')}</div>}
+                  </td>
+                  <td className={x.level === 'upgrade' ? 'is-bad' : x.level === 'watch' ? 'is-warn' : undefined}>
+                    <span className="dash-cap__days" aria-label={`${x.badDays} af 7 dage over grænsen`}>
+                      {x.days.map((d) => (
+                        <i key={d.date} className={d.over ? 'is-over' : d.hours ? 'is-some' : undefined} title={`${d.date}: ${d.hours} ${d.hours === 1 ? 'time' : 'timer'} over grænsen`} />
+                      ))}
+                    </span>
+                    <div className="small">{x.badDays} af 7</div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {apis.map((x) => (
-                  <tr key={x.api}>
-                    <td>{x.label}</td>
-                    <td>{x.hasKey ? num(x.games) : '–'}</td>
-                    <td>{x.hasKey ? `${x.remaining ?? '?'}${x.limit ? `/${num(x.limit)}` : ''}` : '–'}</td>
-                    <td>{x.usage ? num(x.usage.hours.reduce((n, v) => n + v, 0)) : '–'}</td>
-                    <td className={x.lastError || x.pausedUntil ? 'is-bad' : undefined}>
-                      {!x.hasKey ? 'ingen nøgle' : x.pausedUntil ? `pause til ${clock(x.pausedUntil)}` : x.lastError ? `fejl: ${x.lastError}` : `hentet ${clock(x.todayFetchedAt)}`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {football?.usage && (
+              ))}
+            </tbody>
+          </table>
+          {cap.recent.length > 1 && (
+            <>
+              <Bars values={cap.recent.map((h) => h.mem)} labels={cap.recent.map((h) => clock(h.at))} unit="% af maskinens hukommelse" limit={LIMITS.memPct} />
+              <p className="dash-axis muted small">
+                <span>{clock(cap.recent[0].at)}</span>
+                <span>Hukommelse pr. time, sidste 2 døgn · streg = {LIMITS.memPct} %</span>
+                <span>{clock(cap.recent.at(-1)!.at)}</span>
+              </p>
+            </>
+          )}
+          <p className="muted small">
+            En dag tæller, når et signal er over grænsen i mindst {LIMITS.hoursPerDay} timer. Er det {LIMITS.daysOfSeven} af de sidste 7 dage, er det tid til at opgradere, og der sendes en mail (højst én om ugen).{' '}
+            {cap.mail.ready ? (
               <>
-                <h3 className="dash-sub">Fodbold i dag pr. time (dansk tid)</h3>
-                <Bars values={football.usage.hours} labels={football.usage.hours.map((_, i) => `kl. ${hourLabel(i)}`)} unit="kald" />
-                <p className="dash-axis muted small">
-                  <span>{hourLabel(0)}</span>
-                  <span>baggrund og opslag stopper under {num(football.reserveNow)} tilbage</span>
-                  <span>{hourLabel(23)}</span>
+                Mail til {cap.mail.to}
+                {cap.mail.sentAt ? ` · sidst sendt ${new Date(cap.mail.sentAt).toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short' })}` : ' · ingen sendt endnu'}.
+              </>
+            ) : (
+              <span className="is-bad">
+                Mail er ikke sat op: udfyld SMTP og modtager under <Link href="/admin/sociale/indstillinger">Sociale medier → Indstillinger</Link>.
+              </span>
+            )}
+          </p>
+          {cap.mail.ready && <CapacityMailButton to={cap.mail.to} />}
+        </section>
+        {role() === 'web' && (
+          <section className="panel dash-card">
+            <h2 className="panel__title">Baggrundsprocessen</h2>
+            {!worker ? (
+              <p className="is-bad small">Har ikke skrevet endnu – den starter (eller kan ikke starte).</p>
+            ) : (
+              <>
+                <p className={`small${worker.stale ? ' is-bad' : ''}`}>
+                  {worker.stale ? 'Svarer ikke: sidst hørt fra ' : 'Kører · sidst hørt fra '}
+                  {clock(worker.at)} · startet {clock(worker.startedAt)} · {num(worker.rss)} MB · længste ventetid sidste 15 min.{' '}
+                  {num(worker.slow.recent.length ? Math.max(...worker.slow.recent.map((m) => m.max)) : 0)} ms (det mærker siden ikke)
                 </p>
-                <ul className="dash-chips">
-                  {Object.entries(
-                    // Several kinds of request share a name (a player's page asks for four things): one chip each
-                    Object.entries(football.usage.kinds).reduce<Record<string, number>>((m, [k, n]) => ((m[USAGE_NAMES[k] ?? k] = (m[USAGE_NAMES[k] ?? k] ?? 0) + n), m), {}),
-                  )
-                    .sort((p, q) => q[1] - p[1])
-                    .slice(0, 8)
-                    .map(([k, n]) => (
-                      <li key={k}>
-                        {k} <b>{num(n)}</b>
-                      </li>
+                <table className="dash-table">
+                  <tbody>
+                    {worker.slow.tasks.slice(0, 12).map((x) => (
+                      <tr key={x.label}>
+                        <td>{x.label}</td>
+                        <td>{num(x.max)} ms</td>
+                        <td>{x.count}</td>
+                        <td>{clock(x.last)}</td>
+                      </tr>
                     ))}
-                </ul>
+                  </tbody>
+                </table>
               </>
             )}
-            <ApiStatusCheck />
           </section>
-
-          <section className="panel dash-card">
-            <h2 className="panel__title">Vores ligaer</h2>
-            <LeagueTeamsAdmin rows={leagueRows} />
-          </section>
-
-        </div>
+        )}
+        <section className="panel dash-card">
+          <h2 className="panel__title">DBU (1., 2. og 3. division)</h2>
+          <p className="muted small">
+            Holdopstillinger og topscorere fra kampsiderne · sidst kørt {dbuJob?.at ? clock(dbuJob.at) : 'ikke endnu'}
+            {dbuJob?.error && (
+              <span className="is-bad">
+                {' '}
+                · fejl {clock(dbuJob.errorAt ?? 0)}: {dbuJob.error}
+              </span>
+            )}
+          </p>
+          <table className="dash-table">
+            <tbody>
+              {poolStatus.map((p) => (
+                <tr key={p.pool}>
+                  <td>
+                    Pulje {p.pool} <span className="muted">({p.league})</span>
+                  </td>
+                  <td>{p.read ? `${p.fixtures} kampe · ${p.upcoming} kommende` : 'kampprogram ikke hentet'}</td>
+                  <td className={p.played && p.results < p.played ? 'is-warn' : undefined}>
+                    {p.results}/{p.played} spillede læst
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <section className="panel dash-card">
+          <h2 className="panel__title">Filer og kilder</h2>
+          <table className="dash-table">
+            <tbody>
+              {mem.files
+                .filter((f) => f.mb !== undefined)
+                .map((f) => (
+                  <tr key={f.name}>
+                    <td>{f.name}</td>
+                    <td>{num(f.mb!)} MB</td>
+                  </tr>
+                ))}
+              <tr>
+                <td>TheSportsDB</td>
+                <td>
+                  {s.requests} forespørgsler · løbende {ago(s.lastHot)}
+                </td>
+              </tr>
+              <tr>
+                <td>Kampdatabase</td>
+                <td>{h.error ? <span className="is-bad">{h.error}</span> : `${h.tournaments.length} turneringer · ${h.unmatched.length} hold uden klub`}</td>
+              </tr>
+              <tr>
+                <td>Denne sæson (database)</td>
+                <td>{h.season.length ? h.season.map((x) => `${x.id} ${x.events}`).join(', ') : 'ingen danske rækker'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        </DashFlow>
 
         <section className="panel dash-card dash-wide">
           <h2 className="panel__title">Hvad blokerede serveren</h2>

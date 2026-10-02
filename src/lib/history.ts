@@ -1,5 +1,4 @@
 import 'server-only'
-import { timed } from './slow'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { DIVISIONS, SEASON, seasonOf, sportOf, type Club } from '../data/leagues'
@@ -11,7 +10,7 @@ import type { ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
-import { archiveDetailedEvents, archiveFile, archiveIncidents, intern, readArchive, type ArchivedMatch } from './archive'
+import { archiveDetailedEvents, archiveFile, archiveIncidents, intern, prefetchArchive, readArchive, type ArchivedMatch } from './archive'
 import { hashString } from '../data/fixtures'
 import { cupOfGame } from '../data/cups'
 import { matchSlug } from './slug'
@@ -84,7 +83,7 @@ const historyHolder = globalThis as typeof globalThis & {
   __scorelineHistory?: { loaded?: Loaded; checkedAt: number; lastError?: string; building?: boolean; lastBuildMs?: number }
   __scorelineHistoryDb?: { dbTime: number; rows: DbMatch[] }
   __scorelineHistoryRows?: WeakMap<ArchivedMatch, DbMatch>
-  __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[] }
+  __scorelinePast?: { loaded: Loaded; bySlug: Map<string, PastGame>; list: PastGame[]; byPair: Map<string, PastGame[]> }
   __scorelineSeason?: SeasonData
   __scorelineResolved?: Map<SportId, Map<string, Club | undefined>>
   __scorelineResolvedAt?: number
@@ -182,9 +181,9 @@ function dbRows(file: string | undefined): DbMatch[] {
 
 /**
  * The history built from both databases, step by step: it pauses (yield)
- * every couple of thousand matches, so a rebuild can run in small slices while
- * pages keep using the history already built (runSliced); the very first build
- * runs in one go (runNow).
+ * every couple of hundred matches, so a rebuild can run in small slices while
+ * pages keep using the history already built (runSliced). The very first build
+ * runs the same way, after the archive has been read in a worker thread.
  */
 function* readSteps(file: string | undefined, mtime: number): Generator<void, Loaded> {
   let n = 0
@@ -192,9 +191,10 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
 
   // Our own statistics bank: every other league, and anything football.db no longer has
   const seen = new Set<string>()
+  // Small steps: a name seen for the first time after a restart is matched loosely against every club (milliseconds each)
   for (const m of fromDb) {
     seen.add(matchKey(m.date.toISOString(), m.homeName, m.awayName))
-    if (++n % 2000 === 0) yield
+    if (++n % 200 === 0) yield
   }
   // A team is its name within its sport ("Randers" in football is not "Randers" in basketball)
   const teamId = (sport: SportId, name: string) => -hashString(`${sport}|${normalize(name)}`)
@@ -202,7 +202,7 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   const made = (historyHolder.__scorelineHistoryRows ??= new WeakMap())
   const fromArchive: DbMatch[] = []
   for (const a of readArchive()) {
-    if (++n % 2000 === 0) yield
+    if (++n % 200 === 0) yield
     if (seen.has(matchKey(a.date.toISOString(), a.homeName, a.awayName))) continue
     const have = made.get(a)
     if (have) {
@@ -246,7 +246,7 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   const clubOf = new Map<number, Club>()
   const unmatched: string[] = []
   for (const [id, { name, sport }] of names) {
-    if (++n % 500 === 0) yield
+    if (++n % 50 === 0) yield
     const club = find(name, sport)
     if (club) clubOf.set(id, club)
     else unmatched.push(name)
@@ -262,14 +262,6 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
     }
   }
   return { mtime, matches, clubOf, byClub, unmatched: unmatched.sort((a, b) => a.localeCompare(b, 'da')) }
-}
-
-/** Runs the steps in one go */
-function runNow<T>(steps: Generator<void, T>): T {
-  for (;;) {
-    const r = steps.next()
-    if (r.done) return r.value
-  }
 }
 
 /** Runs the steps a few milliseconds at a time, letting pages be served in between; `done` gets the result */
@@ -290,7 +282,7 @@ function runSliced<T>(steps: Generator<void, T>, done: (value: T) => void, fail:
   setImmediate(slice)
 }
 
-/** Builds the history now (the site process before it takes visitors, so no visitor waits for the first build) */
+/** Starts building the history (at server start, so it is there a few seconds later without any page having waited for it) */
 export function warmHistory() {
   data()
 }
@@ -305,6 +297,7 @@ export function forgetResolvedNames() {
 /** The database in memory; re-read when the file changes (checked at most once a minute) */
 function data(): Loaded | undefined {
   const now = Date.now()
+  if (hist.building) return hist.loaded
   if (hist.loaded && now - hist.checkedAt < 60_000) return hist.loaded
   hist.checkedAt = now
   const file = historyFile()
@@ -320,25 +313,27 @@ function data(): Loaded | undefined {
     const dbTime = hasDb ? statSync(file).mtimeMs : 0
     const mtime = dbTime + (hasArchive ? statSync(archiveFile()).mtimeMs / 1000 : 0)
     const stale = !hist.loaded || hist.loaded.dbTime !== dbTime || (hist.loaded.mtime !== mtime && now - (hist.loaded.readAt ?? 0) > 60 * 60_000)
-    if (stale && !hist.loaded) {
-      // The first build: in one go
-      hist.loaded = { ...timed('Historik bygges (football.db + statistikbank)', () => runNow(readSteps(hasDb ? file : undefined, mtime))), dbTime, readAt: now }
-    } else if (stale && !hist.building) {
-      // A rebuild: in small slices while pages keep the history they have
+    if (stale && !hist.building) {
+      // Built in small slices while pages are served in between (the first time they have no history for those seconds;
+      // before, the first build ran in one go and held every page for 7–10 seconds after each restart)
       hist.building = true
       const began = Date.now()
-      runSliced(
-        readSteps(hasDb ? file : undefined, mtime),
-        (built) => {
-          hist.loaded = { ...built, dbTime, readAt: Date.now() }
-          hist.building = false
-          hist.lastBuildMs = Date.now() - began
-        },
-        (err) => {
-          hist.building = false
-          hist.lastError = (err as Error).message
-        },
-      )
+      const build = () =>
+        runSliced(
+          readSteps(hasDb ? file : undefined, mtime),
+          (built) => {
+            hist.loaded = { ...built, dbTime, readAt: Date.now() }
+            hist.building = false
+            hist.lastBuildMs = Date.now() - began
+          },
+          (err) => {
+            hist.building = false
+            hist.lastError = (err as Error).message
+          },
+        )
+      // The archive's first read takes seconds: done in a worker thread first, so the slices only fold in what it read
+      if (hasArchive) prefetchArchive().then(build, build)
+      else build()
     }
     hist.lastError = hasDb ? undefined : `Filen ${file} findes ikke (bruger kun statistikbanken)`
   } catch (err) {
@@ -1103,9 +1098,21 @@ function pastIndex() {
       source: m.eventId ? { archive: m.eventId } : { db: m.id },
     })
   }
-  historyHolder.__scorelinePast = { loaded: d, bySlug, list: [...bySlug.values()] }
+  const list = [...bySlug.values()]
+  // The two teams' meetings (any order), newest first, so a match page finds its head-to-head without reading every match
+  const byPair = new Map<string, PastGame[]>()
+  for (const g of list) {
+    if (g.home === g.away) continue
+    const key = pairKey(g.sport, g.home, g.away)
+    const l = byPair.get(key)
+    if (l) l.push(g)
+    else byPair.set(key, [g])
+  }
+  historyHolder.__scorelinePast = { loaded: d, bySlug, list, byPair }
   return historyHolder.__scorelinePast
 }
+
+const pairKey = (sport: string, a: string, b: string) => (a < b ? `${sport}|${a}|${b}` : `${sport}|${b}|${a}`)
 
 /** Every played match we know of, newest first */
 export const pastGames = (): PastGame[] => pastIndex()?.list ?? []
@@ -1138,10 +1145,9 @@ export function pastGameIncidents(g: PastGame): Incident[] {
 
 /** Earlier meetings of the two teams (any tournament), newest first */
 export function pastMeetings(g: PastGame, count = 5): PastMatch[] {
-  const pair = new Set([g.home, g.away])
   const out: PastMatch[] = []
-  for (const m of pastGames()) {
-    if (m.date >= g.date || m.sport !== g.sport || !pair.has(m.home) || !pair.has(m.away) || m.home === m.away) continue
+  for (const m of pastIndex()?.byPair.get(pairKey(g.sport, g.home, g.away)) ?? []) {
+    if (m.date >= g.date) continue
     out.push({ date: m.date, competition: m.tournament, home: m.home, away: m.away, homeScore: m.homeScore, awayScore: m.awayScore })
     if (out.length >= count) break
   }

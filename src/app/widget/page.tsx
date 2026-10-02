@@ -8,6 +8,7 @@ import { Faq } from '../../components/Faq'
 import type { FaqItem } from '../../lib/faq'
 import { WidgetBuilder, type WidgetLeague } from '../../components/WidgetBuilder'
 import { WidgetShowcase } from '../../components/WidgetShowcase'
+import './widget.css'
 
 export const metadata: Metadata = {
   title: { absolute: 'Gratis ligatabel til din hjemmeside – Superligaen og flere | Matchly' },

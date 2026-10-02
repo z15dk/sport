@@ -119,7 +119,16 @@ const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.leng
 /** Whether one of a club's names matches a name from another source ("HV 71" / "HV71", "Djurgarden" / "Djurgårdens IF") */
 /** Generic words that still tell two clubs of one city apart ("Manchester City" / "Manchester United") */
 const DISTINCT = new Set(['city', 'united', 'real', 'sporting', 'athletic', 'county', 'town', 'rovers', 'wanderers'])
-const distinctWords = (name: string) => fold(name).split(' ').filter((w) => DISTINCT.has(w))
+const distinctMemo = new Map<string, string[]>()
+const distinctWords = (name: string) => {
+  let words = distinctMemo.get(name)
+  if (!words) {
+    words = fold(name).split(' ').filter((w) => DISTINCT.has(w))
+    if (distinctMemo.size > 50_000) distinctMemo.clear()
+    distinctMemo.set(name, words)
+  }
+  return words
+}
 
 /** Names that only ever match exactly: their one long word is another club's ("AB Copenhagen" is not FC Copenhagen) */
 const EXACT_ONLY = new Set(['AB Copenhagen', 'AB Gladsaxe'].map((n) => fold(n)))

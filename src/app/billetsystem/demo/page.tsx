@@ -33,6 +33,9 @@ export default function TicketDemo() {
             <Link className="wg-btn wg-btn--lime" href="/billetsystem/demo/scanner">
               Åbn scanneren
             </Link>
+            <Link className="wg-btn" href="/billetsystem/demo/salg">
+              Klubbens salg
+            </Link>
             <Link className="wg-btn" href="/billetsystem">
               Om billetsystemet
             </Link>

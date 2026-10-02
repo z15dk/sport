@@ -17,13 +17,8 @@ import { trackingConfig } from '../lib/tracking'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
 import { AD_TURN_SCRIPT, adTurnCss } from '../data/ads'
-// The site's fonts, served from our own domain (no request to Google that holds up the first paint)
-import '@fontsource/barlow-condensed/latin-600.css'
-import '@fontsource/barlow-condensed/latin-700.css'
-import '@fontsource/barlow-condensed/latin-800.css'
-import '@fontsource/barlow-condensed/latin-700-italic.css'
-import '@fontsource/barlow-condensed/latin-800-italic.css'
-import '@fontsource-variable/dm-sans/opsz.css'
+// The site's fonts, served from our own domain (src/app/fonts.ts: preloaded body font, fallback with matching metrics)
+import { body, display } from './fonts'
 import './globals.css'
 
 export function generateMetadata(): Metadata {
@@ -62,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const real = loadRealData()
   return (
     // The attribute and class below are set by the scripts before the page is drawn (not by React)
-    <html lang="da" suppressHydrationWarning>
+    <html lang="da" suppressHydrationWarning className={`${display.variable} ${body.variable}`}>
       <head>
         {/* A closed "Følg dine hold" stays closed from the first paint (the box itself reads the choice only after loading) */}
         <script

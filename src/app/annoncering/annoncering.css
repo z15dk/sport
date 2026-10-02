@@ -1,0 +1,63 @@
+/* /annoncering: advertising on Matchly – the formats, where they show, the audience and the form (imported by the page; the hero, buttons, benefits and steps come from ../widget/widget.css) */
+.adv-hero__title { font-size: clamp(44px, 6vw, 88px); }
+.adv-hero__pitch { position: relative; display: grid; gap: 10px; }
+.adv-hero__card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(6px); }
+.adv-hero__card b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; color: var(--lime); min-width: 56px; }
+.adv-hero__card span { font-size: 14px; line-height: 1.4; color: rgba(255, 255, 255, 0.85); }
+.adv-hero__card strong { color: #fff; }
+
+.adv-formats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.adv-format { display: flex; flex-direction: column; gap: 12px; padding: 20px; background: var(--surface); border-radius: var(--radius); }
+.adv-format h3 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; text-transform: uppercase; line-height: 1; }
+.adv-format__sizes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.adv-format__sizes span { padding: 4px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.adv-format__sizes span.is-mobile { background: var(--surface-2, #e6e8e1); color: var(--ink); }
+.adv-format p { margin: 0; color: var(--ink-2); line-height: 1.5; font-size: 14px; }
+/* The format drawn to scale on a little grey "page" */
+.adv-format__draw { position: relative; height: 92px; border-radius: 12px; background: repeating-linear-gradient(0deg, #eef0ea 0 10px, #e7eae2 10px 11px); overflow: hidden; }
+.adv-format__draw i { position: absolute; display: grid; place-items: center; background: var(--lime); color: var(--ink); border-radius: 4px; font-style: normal; font-weight: 800; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; box-shadow: 0 6px 16px rgba(15, 17, 12, 0.18); }
+.adv-format__draw .is-top { left: 10%; right: 10%; top: 10px; height: 12px; }
+.adv-format__draw .is-feed { left: 16%; right: 16%; top: 40px; height: 12px; }
+.adv-format__draw .is-side { right: 10%; top: 10px; width: 16%; height: 72px; }
+.adv-format__draw .is-content { left: 50%; top: 24px; width: 24%; height: 44px; transform: translateX(-50%); }
+.adv-format__draw .is-scroll { left: 10%; right: 10%; top: 10px; bottom: 10px; }
+.adv-format__draw .is-sponsor { left: 10%; right: 10%; top: 28px; height: 36px; background: var(--ink); color: var(--lime); }
+.adv-format__draw em { position: absolute; left: 10%; right: 10%; height: 6px; border-radius: 3px; background: rgba(15, 17, 12, 0.08); }
+
+.adv-two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 12px; align-items: start; }
+.adv-panel { padding: 22px; }
+.adv-panel h2 { margin: 0 0 10px; }
+.adv-panel p, .adv-panel li { line-height: 1.55; color: var(--ink-2); }
+.adv-panel ul { margin: 0; padding-left: 18px; }
+.adv-leagues { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.adv-leagues li a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--surface-2, #e6e8e1); color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; }
+.adv-leagues li a:hover { background: var(--ink); color: #fff; }
+.adv-leagues .flag { width: 14px; height: 10px; border-radius: 2px; }
+.adv-sport { margin: 12px 0 6px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.adv-sport:first-child { margin-top: 0; }
+.adv-rules { display: grid; gap: 8px; }
+.adv-rules li { list-style: none; display: flex; gap: 10px; align-items: flex-start; }
+.adv-rules li::before { content: '✓'; flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 800; }
+
+.adv-contact { scroll-margin-top: 16px; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 24px; padding: 28px; background: var(--ink); color: #fff; border-radius: var(--radius); }
+.adv-contact h2 { color: #fff; }
+.adv-contact p { color: rgba(255, 255, 255, 0.78); line-height: 1.55; }
+.adv-contact a { color: var(--lime); }
+.adv-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.adv-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.85); }
+.adv-form input, .adv-form textarea { font: inherit; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; background: rgba(255, 255, 255, 0.06); color: #fff; }
+.adv-form input:focus, .adv-form textarea:focus { outline: 2px solid var(--lime); outline-offset: 1px; }
+.adv-form .bs-form__wide { grid-column: 1 / -1; }
+.adv-form .bs-form__trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.adv-contact .bs-contact__done { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; color: var(--lime); }
+.adv-contact .is-error { color: #ffb4a0; margin-left: 10px; }
+
+@media (max-width: 960px) {
+  .adv-formats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adv-two, .adv-contact { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .adv-formats { grid-template-columns: 1fr; }
+  .adv-form { grid-template-columns: 1fr; }
+  .adv-contact { padding: 22px 18px; }
+}

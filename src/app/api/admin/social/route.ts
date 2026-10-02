@@ -132,8 +132,8 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       if (!isPlatform(b.platform)) throw new Error('Ukendt platform')
       return { message: await testPlatform(b.platform) }
     case 'testMail':
-      await sendMail('Matchly: testmail', '<p>Mailen virker. Godkendelser af opslag kommer herfra.</p>', 'Mailen virker. Godkendelser af opslag kommer herfra.')
-      return { message: `Sendt til ${socialConfig().email.to}` }
+      const sent = await sendMail('Matchly: testmail', '<p>Mailen virker. Godkendelser af opslag kommer herfra.</p>', 'Mailen virker. Godkendelser af opslag kommer herfra.')
+      return { message: `Sendt til ${sent.to} fra ${sent.from}${sent.rejected.length ? ` · afvist: ${sent.rejected.join(', ')}` : ''}${sent.response ? ` · serveren svarede: ${sent.response}` : ''}` }
     case 'approve':
       approve(ids(b.ids))
       return { message: 'Godkendt' }
