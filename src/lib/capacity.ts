@@ -293,7 +293,7 @@ async function maybeMail() {
 export async function sendCapacityTestMail() {
   const s = capacityStatus()
   const { subject, html, text } = capacityMail(s, true)
-  await sendMail(subject, html, text)
+  return sendMail(subject, html, text)
 }
 
 /** Starts the watch (once, in the site process: it is the one whose waits matter) */
