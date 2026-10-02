@@ -40,7 +40,7 @@ export function AdminSubNav() {
         <span key={g.name ?? ''} className="admin-subnav__group">
           {g.name && <span className="admin-subnav__name">{g.name}</span>}
           {g.items.map((c) => (
-            <Link key={c.href} href={c.href} className={`pill${c.href === page ? ' is-active' : ''}`} aria-current={c.href === page ? 'page' : undefined}>
+            <Link key={c.href} href={c.href} className={`admin-subnav__link${c.href === page ? ' is-active' : ''}`} aria-current={c.href === page ? 'page' : undefined}>
               {c.label}
             </Link>
           ))}

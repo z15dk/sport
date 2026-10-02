@@ -29,7 +29,8 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
   const competitions = useMemo(() => [...new Set(all.map((m) => m.league))], [all])
   const [competition, setCompetition] = useState('all')
   const [view, setView] = useState<'list' | 'calendar'>('list')
-  const [tab, setTab] = useState<Tab>('finished')
+  // The coming matches first; only results when the club has nothing left to play
+  const [tab, setTab] = useState<Tab>(() => (all.some((m) => m.state !== 'finished') ? 'upcoming' : 'finished'))
   const [page, setPage] = useState(0)
   const [month, setMonth] = useState(() => isoDate(initialNow).slice(0, 7))
 
@@ -94,7 +95,7 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
       {view === 'list' ? (
         <>
           <div className="club-matches__bar">
-            {(['finished', 'upcoming'] as const).map((t) => (
+            {(['upcoming', 'finished'] as const).map((t) => (
               <button
                 key={t}
                 className={`pill${tab === t ? ' is-active' : ''}`}
