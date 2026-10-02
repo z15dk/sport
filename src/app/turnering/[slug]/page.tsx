@@ -10,6 +10,8 @@ import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { NewsList } from '../../../components/NewsList'
+import { TaggedArticles } from '../../../components/TaggedArticles'
+import { articlesAbout } from '../../../lib/articleTopics'
 import { newsFor, newsMentioning } from '../../../lib/news'
 import { allTeams, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
@@ -323,6 +325,7 @@ export default async function LeaguePage({ params }: { params: Params }) {
           cta="Lav din tabel →"
         />
         <LeagueStats division={division} leaders={leaders} />
+        <TaggedArticles articles={articlesAbout({ division })} title={`Artikler om ${division.name}`} />
         <NewsList articles={newsFor({ league: division.id }, 10)} division={division} />
         {/* The rounds under the statistics, beside the players */}
         {byRound ? (

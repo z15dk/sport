@@ -164,6 +164,15 @@ const SCHEMA = `
     last_view_at TEXT
   );
 
+  -- Public copies in /uploads used by articles, and the photo each one is: an expired loan
+  -- or a deleted photo is taken out of the articles and its public copy removed
+  CREATE TABLE IF NOT EXISTS article_images (
+    upload_name TEXT PRIMARY KEY,
+    photo_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS article_images_photo ON article_images (photo_id);
+
   CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -197,6 +206,9 @@ export function openPhotoDb(file: string): Db {
     // Result and goals from DBU's match page (has_events = the goals have been read)
     'ALTER TABLE matches ADD COLUMN home_score INTEGER',
     'ALTER TABLE matches ADD COLUMN away_score INTEGER',
+    // Photos from the article editor (source 'artikel', file in UPLOAD_DIR) and whether their metadata has been filled in
+    "ALTER TABLE photos ADD COLUMN source TEXT NOT NULL DEFAULT 'drive'",
+    'ALTER TABLE photos ADD COLUMN metadata_done INTEGER NOT NULL DEFAULT 1',
     // Once, when results arrive: fetch every played match page again for its goals
     'ALTER TABLE matches ADD COLUMN has_events INTEGER NOT NULL DEFAULT 0; UPDATE matches SET fetched_at = NULL',
   ]) {

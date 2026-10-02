@@ -5,6 +5,7 @@ import { isAdmin } from '../../../../lib/admin'
 import { articleById, categories } from '../../../../lib/articles'
 import { AdminNav } from '../../../../components/admin/AdminNav'
 import { ArticleEditor, type EditorArticle } from '../../../../components/admin/ArticleEditor'
+import { tagOptions } from '../../../../lib/articleTopics'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Rediger artikel · Admin', robots: { index: false, follow: false } }
@@ -44,7 +45,7 @@ export default async function EditArticle({ params }: { params: Promise<{ id: st
           </Link>
         </p>
         <h1 className="feed__title">{found ? 'Rediger artikel' : 'Tilføj ny artikel'}</h1>
-        <ArticleEditor key={found?.id ?? 'ny'} initial={initial} categories={categories()} />
+        <ArticleEditor key={found?.id ?? 'ny'} initial={initial} categories={categories()} tagOptions={tagOptions()} />
       </div>
     </div>
   )

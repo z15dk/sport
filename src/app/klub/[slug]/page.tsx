@@ -24,6 +24,8 @@ import { clubAbout, clubSeasons } from '../../../lib/seoText'
 import { AdSlot } from '../../../components/AdSlot'
 import { ClubSeasonStats } from '../../../components/ClubSeasonStats'
 import { NewsList } from '../../../components/NewsList'
+import { TaggedArticles } from '../../../components/TaggedArticles'
+import { articlesAbout } from '../../../lib/articleTopics'
 import { newsFor } from '../../../lib/news'
 import { archiveLeagueTable } from '../../../lib/history'
 import { readArchive } from '../../../lib/archive'
@@ -226,6 +228,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 
         {/* The source's team statistics replace our own box where it has them */}
         {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
         <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />

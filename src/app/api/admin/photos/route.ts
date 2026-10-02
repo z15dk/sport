@@ -1,7 +1,7 @@
 import { isAdmin, sameOrigin } from '../../../../lib/admin'
 import { photoConfig } from '../../../../lib/photos/config'
-import { deletePhotos, requestSync, withPhotoDb } from '../../../../lib/photos/server'
-import { addSquadRow, addTag, createShare, deleteSquadRow, deleteTag, revokeShare, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
+import { deletePhotos, publishForArticle, requestSync, withPhotoDb } from '../../../../lib/photos/server'
+import { addSquadRow, addTag, clubList, createShare, filterOptions, pickerPhotos, setArticleMetadata, deleteSquadRow, deleteTag, revokeShare, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
 
 // Changes from the photo admin: JSON { action, … }.
 //   approve { photo, approved }         add-tag { photo, number, name?, side? }
@@ -13,6 +13,8 @@ import { addSquadRow, addTag, createShare, deleteSquadRow, deleteTag, revokeShar
 //   sync {}                               (run the job now)
 //   bulk { ids, op: approve|unapprove|rights|match|delete, credit?, licenseUntil?, clubId?, date?, opponentId? }
 //   share { ids, days, title }   revoke-share { id }
+//   article-metadata { photo, credit?, licenseUntil?, clubId?, opponentId?, date? }   publish { photo } (copy for an article)
+// GET ?q=&klub=&modstander=&situation=&spiller=&status= – the editor's archive picker
 
 type Body = Record<string, unknown>
 
@@ -32,6 +34,10 @@ export async function POST(request: Request) {
     if (!ids.length) return Response.json({ error: 'Vælg billeder først' }, { status: 400 })
     const r = await deletePhotos(ids)
     return Response.json(r.errors.length ? { error: `${r.deleted} slettet, ${r.errors.length} fejl: ${r.errors.slice(0, 3).join(' | ')}`, count: r.deleted } : { ok: true, count: r.deleted }, { status: r.errors.length ? 502 : 200 })
+  }
+  if (b.action === 'publish') {
+    const r = await publishForArticle(Number(b.photo))
+    return Response.json(r.error ? r : { ok: true, ...r }, { status: r.error ? 400 : 200 })
   }
   if (b.action === 'sync') {
     const r = requestSync()
@@ -75,6 +81,8 @@ export async function POST(request: Request) {
       }
       case 'share':
         return createShare(db, ids, Number(b.days ?? 30), String(b.title ?? ''))
+      case 'article-metadata':
+        return setArticleMetadata(db, Number(b.photo), { credit: String(b.credit ?? ''), licenseUntil: String(b.licenseUntil ?? ''), clubId: b.clubId ? String(b.clubId) : undefined, opponentId: b.opponentId ? String(b.opponentId) : undefined, date: b.date ? String(b.date) : undefined }, photoConfig().minConfidence)
       case 'revoke-share':
         return revokeShare(db, Number(b.id))
       default:
@@ -82,4 +90,20 @@ export async function POST(request: Request) {
     }
   })
   return Response.json(result.error ? result : { ok: true, ...result }, { status: result.error ? 400 : 200 })
+}
+
+export async function GET(request: Request) {
+  if (!(await isAdmin())) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const q = new URL(request.url).searchParams
+  const get = (k: string) => q.get(k) ?? ''
+  const cfg = photoConfig()
+  return Response.json(
+    withPhotoDb((db) => ({
+      photos: pickerPhotos(db, get('q'), { clubId: get('klub'), opponentId: get('modstander'), situation: get('situation'), player: get('spiller'), from: get('fra'), to: get('til'), status: get('status') }, cfg.defaultCredit),
+      options: filterOptions(db, get('klub') || undefined),
+      clubs: clubList(db).map((c) => ({ id: c.id, name: c.name })),
+      defaultCredit: cfg.defaultCredit,
+    })),
+    { headers: { 'cache-control': 'private, no-store' } },
+  )
 }

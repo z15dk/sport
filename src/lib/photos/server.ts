@@ -1,10 +1,11 @@
 import 'server-only'
-import { existsSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensurePhotoDirs, photoConfig } from './config.ts'
 import sharp from 'sharp'
 import type { SomeFormat } from './crop.ts'
 import { openPhotoDb, type Db } from './db.ts'
+import { createHash } from 'node:crypto'
 import { bestPhotos, openShare, runningSince } from './store.ts'
 import { driveClient } from './drive.ts'
 import { deletePhotoEverywhere } from './remove.ts'
@@ -41,7 +42,13 @@ export async function photoImage(id: number, variant: 'thumb' | 'web'): Promise<
     }
     return readFileSync(cached)
   }
-  const webId = withPhotoDb((db) => db.prepare('SELECT web_drive_id FROM photos WHERE id = ?').get(id)?.web_drive_id)
+  const row = withPhotoDb((db) => db.prepare('SELECT web_drive_id, drive_id FROM photos WHERE id = ?').get(id))
+  // A picture from the article editor: its public file is the web version
+  if (row && String(row.drive_id).startsWith('upload:')) {
+    const f = path.join(/*turbopackIgnore: true*/ cfg.uploadDir, String(row.drive_id).slice('upload:'.length))
+    return existsSync(f) ? readFileSync(f) : undefined
+  }
+  const webId = row?.web_drive_id
   if (!webId || !cfg.serviceAccountFile || !cfg.driveId) return undefined
   const bytes = await driveClient(cfg.serviceAccountFile, cfg.driveId).download(String(webId))
   ensurePhotoDirs(cfg)
@@ -53,7 +60,7 @@ export async function photoImage(id: number, variant: 'thumb' | 'web'): Promise<
 async function originalFromDrive(id: number): Promise<Buffer | undefined> {
   const cfg = photoConfig()
   const row = withPhotoDb((db) => db.prepare('SELECT drive_id, status, archive_state FROM photos WHERE id = ?').get(id))
-  if (!row || !cfg.serviceAccountFile || !cfg.driveId || row.status === 'arkiveret' || row.archive_state === 'slettet_fra_drive') return undefined
+  if (!row || !cfg.serviceAccountFile || !cfg.driveId || row.status === 'arkiveret' || row.archive_state === 'slettet_fra_drive' || String(row.drive_id).startsWith('upload:')) return undefined
   try {
     return await driveClient(cfg.serviceAccountFile, cfg.driveId).download(String(row.drive_id))
   } catch {
@@ -186,4 +193,28 @@ export async function sharedZip(token: string): Promise<{ zip: Buffer; name: str
   }
   files.push({ name: 'kreditering.txt', data: Buffer.from(`Foto: ${photoConfig().defaultCredit}\n`) })
   return { zip: zip(files), name: `${safeName(share.title) || 'billeder'}.zip` }
+}
+
+/**
+ * A photo from the archive put into an article: a public copy in /uploads (the 1600 px
+ * WebP, no metadata), remembered so an expired loan or a deleted photo is taken out of
+ * the article again. Never for a loan that has run out.
+ */
+export async function publishForArticle(photoId: number): Promise<{ url?: string; credit?: string; borrowed?: boolean; error?: string }> {
+  const cfg = photoConfig()
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const p = withPhotoDb((db) => db.prepare('SELECT status, credit, license_until, drive_id FROM photos WHERE id = ?').get(photoId))
+  if (!p || p.status === 'slettet' || p.status === 'fejl') return { error: 'Billedet findes ikke' }
+  if (p.license_until && String(p.license_until) < today) return { error: 'Låneperioden er udløbet – billedet må ikke bruges' }
+  const web = await photoImage(photoId, 'web')
+  if (!web) return { error: 'Billedet er ikke behandlet endnu – tryk Sync eller vent til natkørslen' }
+  const name = `${createHash('sha256').update(web).digest('hex').slice(0, 24)}.webp`
+  if (!String(p.drive_id).startsWith('upload:')) {
+    mkdirSync(cfg.uploadDir, { recursive: true })
+    const file = path.join(/*turbopackIgnore: true*/ cfg.uploadDir, name)
+    if (!existsSync(file)) writeFileSync(file, web)
+    withPhotoDb((db) => db.prepare('INSERT OR IGNORE INTO article_images (upload_name, photo_id, created_at) VALUES (?, ?, ?)').run(name, photoId, new Date().toISOString()))
+  }
+  const url = String(p.drive_id).startsWith('upload:') ? `/uploads/${String(p.drive_id).slice('upload:'.length)}` : `/uploads/${name}`
+  return { url, credit: (p.credit as string) ?? cfg.defaultCredit, borrowed: !!p.license_until }
 }

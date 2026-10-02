@@ -8,6 +8,7 @@ import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { slugify } from '../../lib/slug'
 import { seoChecks, type SeoCheck } from '../../lib/seoChecks'
+import { ArchivePicker, PhotoMetaDialog } from './ArticlePhotos'
 
 // The article editor in /admin/artikler, laid out like WordPress: title,
 // permalink and text in the middle, and boxes on the side for publishing, the
@@ -32,24 +33,24 @@ export interface EditorArticle {
   publishedAt?: string
 }
 
-async function upload(file: File): Promise<{ url?: string; error?: string }> {
+async function upload(file: File): Promise<{ url?: string; photoId?: number; error?: string }> {
   const form = new FormData()
   form.append('file', file)
   const res = await fetch('/api/admin/upload', { method: 'POST', body: form }).catch(() => undefined)
   if (!res) return { error: 'Ingen forbindelse' }
-  return (await res.json().catch(() => ({ error: 'Upload fejlede' }))) as { url?: string; error?: string }
+  return (await res.json().catch(() => ({ error: 'Upload fejlede' }))) as { url?: string; photoId?: number; error?: string }
 }
 
-/** Picks a picture file and uploads it */
-function pickPicture(onDone: (url: string) => void, onError: (e: string) => void) {
+/** Picks a picture file and uploads it (it also goes into the photo archive) */
+function pickPicture(onDone: (url: string, photoId?: number) => void, onError: (e: string) => void) {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/jpeg,image/png,image/webp,image/gif,image/avif'
   input.onchange = async () => {
     const file = input.files?.[0]
     if (!file) return
-    const { url, error } = await upload(file)
-    if (url) onDone(url)
+    const { url, photoId, error } = await upload(file)
+    if (url) onDone(url, photoId)
     else onError(error ?? 'Upload fejlede')
   }
   input.click()
@@ -63,7 +64,7 @@ const localInput = (iso?: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function Toolbar({ editor, onError }: { editor: Editor; onError: (e: string) => void }) {
+function Toolbar({ editor, onImage, onArchive }: { editor: Editor; onImage: () => void; onArchive: () => void }) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -90,11 +91,6 @@ function Toolbar({ editor, onError }: { editor: Editor; onError: (e: string) => 
     if (!url.trim()) editor.chain().focus().extendMarkRange('link').unsetLink().run()
     else editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
   }
-  const addImage = () =>
-    pickPicture((src) => {
-      const alt = window.prompt('Alt-tekst (beskriv billedet – vigtigt for Google og skærmlæsere)', '') ?? ''
-      editor.chain().focus().setImage({ src, alt }).run()
-    }, onError)
   return (
     <div className="ed-toolbar" role="toolbar" aria-label="Formatering">
       <select
@@ -123,7 +119,8 @@ function Toolbar({ editor, onError }: { editor: Editor; onError: (e: string) => 
       {btn('1.', 'Nummereret liste', state.ordered, () => editor.chain().focus().toggleOrderedList().run())}
       {btn('❝', 'Citat', state.quote, () => editor.chain().focus().toggleBlockquote().run())}
       {btn('―', 'Vandret linje', false, () => editor.chain().focus().setHorizontalRule().run())}
-      {btn('🖼', 'Indsæt billede', false, addImage)}
+      {btn('🖼', 'Upload billede', false, onImage)}
+      {btn('🗂', 'Vælg fra billedarkivet', false, onArchive)}
       <span className="ed-sep" />
       {btn('↶', 'Fortryd (Ctrl+Z)', false, () => editor.chain().focus().undo().run())}
       {btn('↷', 'Gentag (Ctrl+Y)', false, () => editor.chain().focus().redo().run())}
@@ -142,7 +139,16 @@ function Box({ title, children, open = true }: { title: string; children: React.
 
 const CHECK_ICON: Record<SeoCheck['level'], string> = { good: '🟢', ok: '🟠', bad: '🔴' }
 
-export function ArticleEditor({ initial, categories: initialCategories }: { initial: EditorArticle; categories: { slug: string; name: string }[] }) {
+export function ArticleEditor({
+  initial,
+  categories: initialCategories,
+  tagOptions = [],
+}: {
+  initial: EditorArticle
+  categories: { slug: string; name: string }[]
+  /** Leagues and their clubs for the tag menu; the first club (else league) tag sets the article's side column */
+  tagOptions?: { league: string; clubs: string[] }[]
+}) {
   const router = useRouter()
   const [a, setA] = useState<EditorArticle>(initial)
   const [slugTouched, setSlugTouched] = useState(!!initial.id)
@@ -153,6 +159,8 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
   const [message, setMessage] = useState<{ text: string; error?: boolean }>()
   const [dirty, setDirty] = useState(false)
   const saved = useRef(JSON.stringify(initial))
+  // Pictures: after an upload the archive asks for its metadata; or a photo is taken from the archive
+  const [photoFlow, setPhotoFlow] = useState<{ kind: 'meta'; url: string; photoId?: number; target: 'inline' | 'featured' } | { kind: 'archive'; target: 'inline' | 'featured' }>()
 
   const set = <K extends keyof EditorArticle>(key: K, value: EditorArticle[K]) =>
     setA((prev) => {
@@ -237,6 +245,19 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
     setTagInput('')
   }
 
+  const onError = (e: string) => setMessage({ text: e, error: true })
+  const uploadFor = (target: 'inline' | 'featured') => pickPicture((url, photoId) => setPhotoFlow({ kind: 'meta', url, photoId, target }), onError)
+  const placePicture = (target: 'inline' | 'featured', url: string, alt: string, creditLine?: string) => {
+    if (target === 'featured') {
+      setA((prev) => ({ ...prev, featuredImage: url, featuredAlt: alt }))
+      return
+    }
+    const chain = editor?.chain().focus().setImage({ src: url, alt })
+    // Borrowed pictures carry the owner's name right under them
+    if (creditLine) chain?.insertContent(`<p><em>${creditLine.replace(/[<>&]/g, '')}</em></p>`)
+    chain?.run()
+  }
+
   const published = a.status === 'published'
   const future = !!a.publishedAt && Date.parse(a.publishedAt) > Date.now()
   const seoTitle = a.seoTitle || a.title
@@ -258,7 +279,7 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
           />
         </label>
         <div className="ed-editor">
-          {editor && <Toolbar editor={editor} onError={(e) => setMessage({ text: e, error: true })} />}
+          {editor && <Toolbar editor={editor} onImage={() => uploadFor('inline')} onArchive={() => setPhotoFlow({ kind: 'archive', target: 'inline' })} />}
           <EditorContent editor={editor} />
         </div>
       </div>
@@ -312,8 +333,11 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
                 <input value={a.featuredAlt ?? ''} onChange={(e) => set('featuredAlt', e.target.value)} placeholder="Beskriv billedet" />
               </label>
               <div className="ed-actions">
-                <button type="button" className="text-btn" onClick={() => pickPicture((u) => set('featuredImage', u), (e) => setMessage({ text: e, error: true }))}>
+                <button type="button" className="text-btn" onClick={() => uploadFor('featured')}>
                   Skift billede
+                </button>
+                <button type="button" className="text-btn" onClick={() => setPhotoFlow({ kind: 'archive', target: 'featured' })}>
+                  Fra billedarkivet
                 </button>
                 <button type="button" className="text-btn" onClick={() => set('featuredImage', undefined)}>
                   Fjern
@@ -321,10 +345,15 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
               </div>
             </>
           ) : (
-            <button type="button" className="ed-dropzone" onClick={() => pickPicture((u) => set('featuredImage', u), (e) => setMessage({ text: e, error: true }))}>
-              Vælg udvalgt billede
-              <small>JPG, PNG, WebP eller GIF – gøres automatisk mindre</small>
-            </button>
+            <>
+              <button type="button" className="ed-dropzone" onClick={() => uploadFor('featured')}>
+                Upload udvalgt billede
+                <small>JPG, PNG, WebP eller GIF – gøres automatisk mindre og lægges i billedarkivet</small>
+              </button>
+              <button type="button" className="text-btn" onClick={() => setPhotoFlow({ kind: 'archive', target: 'featured' })}>
+                Vælg fra billedarkivet
+              </button>
+            </>
           )}
         </Box>
 
@@ -352,6 +381,31 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
         </Box>
 
         <Box title="Tags">
+          <select
+            className="ed-tagpick"
+            value=""
+            aria-label="Tilføj klub eller liga"
+            onChange={(e) => e.target.value && addTags(e.target.value)}
+            style={{ width: '100%', font: 'inherit', fontSize: 14, padding: '7px 9px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface)', marginBottom: 8 }}
+          >
+            <option value="">Vælg klub eller liga …</option>
+            <optgroup label="Ligaer">
+              {tagOptions.map((o) => (
+                <option key={o.league} value={o.league} disabled={a.tags.includes(o.league)}>
+                  {o.league}
+                </option>
+              ))}
+            </optgroup>
+            {tagOptions.map((o) => (
+              <optgroup key={o.league} label={o.league}>
+                {o.clubs.map((c) => (
+                  <option key={c} value={c} disabled={a.tags.includes(c)}>
+                    {c}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <div className="ed-inline">
             <input
               value={tagInput}
@@ -363,7 +417,7 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
               Tilføj
             </button>
           </div>
-          <small className="muted">Adskil med komma eller Enter.</small>
+          <small className="muted">Adskil med komma eller Enter. Det første klub-tag (ellers liga-tag) bestemmer stilling og kampe ved artiklen, og artiklen vises på klubbens og ligaens side.</small>
           <ul className="ed-tags">
             {a.tags.map((t) => (
               <li key={t}>
@@ -409,6 +463,27 @@ export function ArticleEditor({ initial, categories: initialCategories }: { init
           </ul>
         </Box>
       </aside>
+      {photoFlow?.kind === 'meta' && (
+        <PhotoMetaDialog
+          url={photoFlow.url}
+          photoId={photoFlow.photoId}
+          onDone={(alt) => {
+            placePicture(photoFlow.target, photoFlow.url, alt)
+            setPhotoFlow(undefined)
+          }}
+        />
+      )}
+      {photoFlow?.kind === 'archive' && (
+        <ArchivePicker
+          onClose={() => setPhotoFlow(undefined)}
+          onPick={(p) => {
+            // The archive suggests the alt text from the players and situation; it can be changed here
+            const alt = window.prompt('Alt-tekst (beskriv billedet – vigtigt for Google og skærmlæsere)', p.alt) ?? p.alt
+            placePicture(photoFlow.target, p.url, alt, p.borrowed ? `Foto: ${p.credit.replace(/^Foto:\s*/i, '')}` : undefined)
+            setPhotoFlow(undefined)
+          }}
+        />
+      )}
     </div>
   )
 }
