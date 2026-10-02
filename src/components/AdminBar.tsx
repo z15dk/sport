@@ -3,30 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ADMIN_MENU, adminSection } from '../lib/adminMenu'
 
-// The admin bar (as in WordPress): a thin dark bar at the top of the public pages
-// while logged in as admin – today's visitors, "+ Ny", links to edit what this
-// page shows, the admin's sections and log out. Ordinary visitors never see it
+// The admin bar (as in WordPress): a thin dark bar at the top of every page while
+// logged in as admin. On the admin pages it is the admin's menu (every section,
+// with its sub-pages as a dropdown); on the public pages today's visitors, "+ Ny",
+// links to edit what this page shows, the sections and log out. Ordinary visitors never see it
 // and never cost a request: only a browser with the flag cookie (set at login and
 // by the admin pages) asks /api/admin/bar, which checks the real login.
 
 const FLAG = 'scoreline_bar'
 const hasFlag = () => typeof document !== 'undefined' && document.cookie.split('; ').some((c) => c === `${FLAG}=1`)
-
-const SECTIONS = [
-  { href: '/admin/besoegende', label: 'Besøgende' },
-  { href: '/admin/artikler', label: 'Artikler' },
-  { href: '/admin/klubber', label: 'Klubber' },
-  { href: '/admin/ligaer', label: 'Ligaer' },
-  { href: '/admin/kanaler', label: 'Kanaler' },
-  { href: '/admin/billetter', label: 'Billetter' },
-  { href: '/admin/kvindesport', label: 'Kvindesport' },
-  { href: '/admin/reklamer', label: 'Reklamer' },
-  { href: '/admin/sociale', label: 'Sociale medier' },
-  { href: '/admin/billeder', label: 'Billeder' },
-  { href: '/admin/data', label: 'Data & API' },
-  { href: '/admin/indstillinger', label: 'Indstillinger' },
-]
 
 interface Bar {
   now: number
@@ -42,7 +29,7 @@ export function AdminBarFlag() {
   return null
 }
 
-function Menu({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+function Menu({ label, children, active }: { label: React.ReactNode; children: React.ReactNode; active?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -52,8 +39,8 @@ function Menu({ label, children }: { label: React.ReactNode; children: React.Rea
     return () => document.removeEventListener('click', close)
   }, [open])
   return (
-    <div ref={ref} className={`adminbar__menu${open ? ' is-open' : ''}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <button type="button" className="adminbar__item" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+    <div ref={ref} className={`adminbar__menu${open ? ' is-open' : ''}`} onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)} onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}>
+      <button type="button" className={`adminbar__item${active ? ' is-active' : ''}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {label}
       </button>
       {open && (
@@ -71,7 +58,8 @@ export function AdminBar() {
   const onAdmin = path.startsWith('/admin')
 
   useEffect(() => {
-    if (onAdmin || !hasFlag()) return
+    // On the admin pages always (only admins get past the login there), elsewhere only with the flag
+    if (!onAdmin && !hasFlag()) return
     let alive = true
     fetch(`/api/admin/bar?sti=${encodeURIComponent(path)}`, { cache: 'no-store' })
       .then((r) => (r.ok ? (r.json() as Promise<Bar>) : undefined))
@@ -82,7 +70,53 @@ export function AdminBar() {
     }
   }, [path, onAdmin])
 
-  if (onAdmin || !bar) return null
+  if (!bar) return null
+  const { section, page } = adminSection(path)
+  const visitors = (
+    <Link className="adminbar__item" href="/admin/besoegende" title="Besøgende lige nu og i dag">
+      <span className="adminbar__dot" aria-hidden />
+      {bar.now} nu <span className="adminbar__muted">· {bar.today.toLocaleString('da-DK')} i dag</span>
+    </Link>
+  )
+  const logout = (
+    <form method="post" action="/api/admin/logout">
+      <button className="adminbar__item" type="submit">
+        Log ud
+      </button>
+    </form>
+  )
+
+  if (onAdmin)
+    return (
+      <div className="adminbar is-admin" role="navigation" aria-label="Admin">
+        <div className="adminbar__in">
+          <Link className="adminbar__item" href="/" title="Gå til siden">
+            <b className="adminbar__logo">M</b>
+            <span className="adminbar__hide-s">Se siden</span>
+          </Link>
+          <span className="adminbar__sep" aria-hidden />
+          {ADMIN_MENU.map((s) =>
+            s.children ? (
+              <Menu key={`${s.href}${path}`} active={s === section} label={<>{s.label} <i className="adminbar__caret" aria-hidden /></>}>
+                {s.children.map((c) => (
+                  <Link key={c.href} href={c.href} className={c.href === page ? 'is-active' : undefined} aria-current={c.href === page ? 'page' : undefined}>
+                    {c.label}
+                  </Link>
+                ))}
+              </Menu>
+            ) : (
+              <Link key={s.href} href={s.href} className={`adminbar__item${s === section ? ' is-active' : ''}`} aria-current={s === section ? 'page' : undefined}>
+                {s.label}
+              </Link>
+            ),
+          )}
+          <span className="adminbar__space" />
+          {visitors}
+          {logout}
+        </div>
+      </div>
+    )
+
   return (
     <div className="adminbar" role="navigation" aria-label="Admin">
       <div className="adminbar__in">
@@ -91,21 +125,17 @@ export function AdminBar() {
           label={
             <>
               <b className="adminbar__logo">M</b>
-              <span className="adminbar__hide-s">Matchly</span>
+              <span className="adminbar__hide-s">Matchly</span> <i className="adminbar__caret" aria-hidden />
             </>
           }
         >
-          <Link href="/admin/indstillinger">Admin</Link>
-          {SECTIONS.map((s) => (
+          {ADMIN_MENU.map((s) => (
             <Link key={s.href} href={s.href}>
               {s.label}
             </Link>
           ))}
         </Menu>
-        <Link className="adminbar__item" href="/admin/besoegende" title="Besøgende i dag og lige nu">
-          <span className="adminbar__dot" aria-hidden />
-          {bar.now} nu <span className="adminbar__muted">· {bar.today.toLocaleString('da-DK')} i dag</span>
-        </Link>
+        {visitors}
         <Menu key={`n${path}`} label={<>+ Ny</>}>
           <Link href="/admin/artikler/ny">Artikel</Link>
           <Link href="/admin/kanaler">TV-kanal eller regel</Link>
@@ -120,11 +150,7 @@ export function AdminBar() {
         <Link className="adminbar__item adminbar__hide-s" href="/admin/data">
           Data
         </Link>
-        <form method="post" action="/api/admin/logout">
-          <button className="adminbar__item" type="submit">
-            Log ud
-          </button>
-        </form>
+        {logout}
       </div>
     </div>
   )
