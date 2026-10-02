@@ -1,7 +1,8 @@
 import 'server-only'
-import { DIVISIONS, seasonOf, sportOf, type Club, type Division } from '../data/leagues'
+import { DIVISIONS, danishTier, seasonOf, sportOf, type Club, type Division } from '../data/leagues'
 import { clubSeasonStats, leagueStats } from '../data/stats'
-import { standings } from '../data/season'
+import { allFixtures, standings } from '../data/season'
+import { formatLong } from './time'
 import { pastSeasons } from './history'
 
 // Text for the club and league pages ("Om FC København", "Om Superligaen"),
@@ -67,31 +68,72 @@ export function clubAbout(club: Club, division: Division, now: number): string[]
   return out.filter(Boolean)
 }
 
-export function leagueAbout(division: Division, now: number): string[] {
+/** A top scorer from another source than the season's own statistics (1.–3. division: counted from the DBU match pages) */
+export interface AboutExtra {
+  topScorer?: { player: string; club?: string; goals: number }
+}
+
+/**
+ * "Om <liga>": written so that search engines and answer engines get the facts in plain, self-contained sentences –
+ * what the league is (level, the leagues above and below, the official name), who plays in it this season, how the
+ * season works, the season in numbers, the history we have, and what the page offers. Every sentence needs its data.
+ */
+export function leagueAbout(division: Division, now: number, extra?: AboutExtra): string[] {
   const sport = sportOf(division)
   const goals = sport === 'basketball' ? 'point' : 'mål'
+  const season = seasonOf(division)
   const rows = standings(division, now)
   const out: string[] = []
+  const ladder = sport === 'soccer' ? danishTier(division) : undefined
+  const official = division.originalName && division.originalName !== division.name ? division.originalName : undefined
+
+  // What the league is, and who plays in it
+  const intro: string[] = []
+  if (ladder) {
+    const below = ladder.below?.name ?? (ladder.tier === 4 ? 'Danmarksserien' : undefined)
+    intro.push(
+      `${division.name} er Danmarks ${ladder.words} fodboldrække${ladder.tier === 1 ? '' : ` – niveau ${ladder.tier} i dansk fodbold, lige under ${ladder.above?.name}${below ? ` og over ${below}` : ''}`}.`,
+    )
+    if (official) intro.push(`Rækken hedder officielt ${division.name} efter sin sponsor, men kaldes i daglig tale ${official}.`)
+  } else if (official) {
+    intro.push(`${division.name} er det officielle navn på ${official}.`)
+  }
+  const clubs = (rows.length ? rows.map((r) => r.club) : division.clubs).map((c) => (c.city && !c.name.includes(c.city) ? `${c.name} (${c.city})` : c.name)).sort((a, b) => a.localeCompare(b, 'da'))
+  intro.push(`I sæsonen ${season} deltager ${clubs.length} hold: ${list(clubs)}.`)
+  const fixtures = allFixtures().filter((f) => f.division?.id === division.id)
+  const first = fixtures.reduce<Date | undefined>((d, f) => (!d || f.kickoff < d ? f.kickoff : d), undefined)
+  const last = fixtures.reduce<Date | undefined>((d, f) => (!d || f.kickoff > d ? f.kickoff : d), undefined)
+  if (first && last && last.getTime() - first.getTime() > 30 * 86_400_000)
+    intro.push(`Sæsonen ${first.getTime() <= now ? 'begyndte' : 'begynder'} ${formatLong(first)} og ${last.getTime() <= now ? 'sluttede' : 'slutter efter planen'} ${formatLong(last)}.`)
+  out.push(intro.join(' '))
+
+  // How the season works
+  const meetings = division.meetings ?? 2
+  const TIMES: Record<number, string> = { 1: 'én gang', 2: 'to gange', 3: 'tre gange', 4: 'fire gange' }
+  out.push(`Holdene møder hinanden ${TIMES[meetings] ?? `${meetings} gange`}${ladder && ladder.tier >= 3 ? ' i grundspillet' : ''}. ${division.movement}`)
+
+  // The season in numbers
   const st = leagueStats(division)
-  const first = [`${division.name} ${seasonOf(division)} har ${rows.length} hold.`]
   if (st?.played) {
-    first.push(`Der er spillet ${st.played} kampe med ${st.goals.toLocaleString('da-DK')} ${goals} – ${num(st.goalsPerMatch, 2)} pr. kamp.`)
-    first.push(
+    const nums = [`Der er spillet ${st.played} kampe i ${division.name} ${season} med ${st.goals.toLocaleString('da-DK')} ${goals} – ${num(st.goalsPerMatch, 2)} pr. kamp.`]
+    nums.push(
       sport === 'soccer'
         ? `Hjemmeholdet har vundet ${pct(st.homeWinPct)} af kampene, ${pct(st.drawPct)} er endt uafgjort, og ${pct(st.over25Pct)} har haft mere end 2,5 mål.`
         : `Hjemmeholdet har vundet ${pct(st.homeWinPct)} af kampene.`,
     )
-    const top = st.scorers[0]
-    if (top) first.push(`${top.player} (${top.club.name}) fører topscorerlisten med ${top.goals} mål.`)
+    const top = st.scorers[0] ? { player: st.scorers[0].player, club: st.scorers[0].club.name, goals: st.scorers[0].goals } : extra?.topScorer
+    if (top) nums.push(`${top.player}${top.club ? ` (${top.club})` : ''} fører topscorerlisten i ${division.name} med ${top.goals} mål.`)
     const crowd = st.attendance[0]
-    if (crowd) first.push(`Flest tilskuere har ${crowd.club.name} med ${crowd.average.toLocaleString('da-DK')} i gennemsnit.`)
+    if (crowd) nums.push(`Flest tilskuere har ${crowd.club.name} med ${crowd.average.toLocaleString('da-DK')} i gennemsnit.`)
+    if (rows[0]) nums.push(`${rows[0].club.name} fører rækken med ${rows[0].points} point efter ${rows[0].played} kampe.`)
+    out.push(nums.join(' '))
   }
-  out.push(first.join(' '))
 
+  // The history we have
   const past = pastSeasons(division.id)
   if (past.length) {
-    const [last] = past
-    const lines = [`Sidste afsluttede sæson i vores data, ${last.label}, vandt ${last.table[0].name}${last.hasDraws ? ` med ${last.table[0].points} point` : ''}.`]
+    const [latest] = past
+    const lines = [`Sidste afsluttede sæson i vores data, ${latest.label}, vandt ${latest.table[0].name}${latest.hasDraws ? ` med ${latest.table[0].points} point` : ''}.`]
     const wins = new Map<string, string[]>()
     for (const s of past) wins.set(s.table[0].name, [...(wins.get(s.table[0].name) ?? []), s.label])
     const most = [...wins].sort((a, b) => b[1].length - a[1].length)[0]
@@ -99,5 +141,10 @@ export function leagueAbout(division: Division, now: number): string[] {
     lines.push(`Se slutstilling, topscorere og alle kampe for ${past.length === 1 ? 'den sæson' : `hver af de ${past.length} sæsoner`} under "Tidligere sæsoner".`)
     out.push(lines.join(' '))
   }
+
+  // What the page offers
+  out.push(
+    `På Matchly finder du stillingen i ${division.name} opdateret efter hver kamp, kampprogrammet med tidspunkt og TV-kanal, resultater runde for runde, topscorerlisten og en side for hver kamp og hver klub med live-stilling, statistik og indbyrdes opgør.`,
+  )
   return out.filter(Boolean)
 }

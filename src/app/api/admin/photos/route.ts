@@ -1,4 +1,4 @@
-import { isAdmin, sameOrigin } from '../../../../lib/admin'
+import { adminDenied, isAdmin } from '../../../../lib/admin'
 import { photoConfig } from '../../../../lib/photos/config'
 import { deletePhotos, publishForArticle, requestSync, withPhotoDb } from '../../../../lib/photos/server'
 import { addSquadRow, addTag, clubList, createShare, filterOptions, pickerPhotos, setArticleMetadata, setInfo, deleteSquadRow, deleteTag, revokeShare, setApproved, setMatch, setRights, updateClub, updateTag, type TagInput } from '../../../../lib/photos/store'
@@ -28,7 +28,8 @@ const tagInput = (b: Body): TagInput => ({
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(',') : undefined)
 
 export async function POST(request: Request) {
-  if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const denied = await adminDenied(request)
+  if (denied) return Response.json({ error: denied }, { status: 401 })
   const b = (await request.json().catch(() => ({}))) as Body
   const ids = Array.isArray(b.ids) ? b.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 500) : []
   if (b.action === 'bulk' && b.op === 'delete') {

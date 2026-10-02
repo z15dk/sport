@@ -216,6 +216,10 @@ export function openPhotoDb(file: string): Db {
     'ALTER TABLE photos ADD COLUMN metadata_done INTEGER NOT NULL DEFAULT 1',
     // Once, when results arrive: fetch every played match page again for its goals
     'ALTER TABLE matches ADD COLUMN has_events INTEGER NOT NULL DEFAULT 0; UPDATE matches SET fetched_at = NULL',
+    // Kick-off time (hh:mm, Danish time), ground and TV channel from DBU's fixture list
+    'ALTER TABLE matches ADD COLUMN kickoff TEXT',
+    'ALTER TABLE matches ADD COLUMN venue TEXT',
+    'ALTER TABLE matches ADD COLUMN tv TEXT',
   ]) {
     try {
       db.exec(sql)

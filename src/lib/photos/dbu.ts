@@ -51,9 +51,13 @@ export function parseTeams(html: string): DbuClub[] {
 export interface DbuFixture {
   key: string
   date: string
+  /** hh:mm (Danish time), when DBU has it */
+  time?: string
   home: string
   away: string
   url: string
+  venue?: string
+  tv?: string
 }
 
 export function parseProgram(html: string): DbuFixture[] {
@@ -63,7 +67,11 @@ export function parseProgram(html: string): DbuFixture[] {
     const key = /\/kamp\/(\d+_\d+)\//.exec(url)?.[1]
     const date = /matchprogram-date"><span>[^<]*<\/span>\s*(\d{2})-(\d{2}) (\d{4})/.exec(row)
     const teams = [...row.matchAll(/href="\/resultater\/hold\/[^"]+">([\s\S]*?)<\/a>/g)].map((m) => text(m[1]))
-    if (key && date && teams.length >= 2) out.push({ key, date: `${date[3]}-${date[2]}-${date[1]}`, home: teams[0], away: teams[1], url })
+    const time = /matchprogram-date">[\s\S]*?<\/td>\s*<td[^>]*>\s*(\d{1,2}[:.]\d{2})\s*</.exec(row)?.[1]?.replace('.', ':')
+    const venue = /href="\/resultater\/stadium\/\d+">([\s\S]*?)<\/a>/.exec(row)?.[1]
+    const tv = /tv-logo-text">([\s\S]*?)<\/div>/.exec(row)?.[1]
+    if (key && date && teams.length >= 2)
+      out.push({ key, date: `${date[3]}-${date[2]}-${date[1]}`, time: time?.padStart(5, '0'), home: teams[0], away: teams[1], url, venue: venue ? text(venue) : undefined, tv: tv ? text(tv) || undefined : undefined })
   }
   return out
 }
@@ -150,9 +158,10 @@ export async function syncDbu(db: Db, pools: string[], pauseMs: number, log: (s:
         const home = idOf.get(clubKey(f.home)) ?? clubSlug(f.home)
         const away = idOf.get(clubKey(f.away)) ?? clubSlug(f.away)
         db.prepare(
-          `INSERT INTO matches (match_key, date, home_id, away_id, source, url) VALUES (?, ?, ?, ?, 'dbu', ?)
-           ON CONFLICT(match_key) DO UPDATE SET date = excluded.date, home_id = excluded.home_id, away_id = excluded.away_id, url = excluded.url`,
-        ).run(`dbu:${f.key}`, f.date, home, away, f.url)
+          `INSERT INTO matches (match_key, date, home_id, away_id, source, url, kickoff, venue, tv) VALUES (?, ?, ?, ?, 'dbu', ?, ?, ?, ?)
+           ON CONFLICT(match_key) DO UPDATE SET date = excluded.date, home_id = excluded.home_id, away_id = excluded.away_id, url = excluded.url,
+             kickoff = excluded.kickoff, venue = excluded.venue, tv = excluded.tv`,
+        ).run(`dbu:${f.key}`, f.date, home, away, f.url, f.time ?? null, f.venue ?? null, f.tv ?? null)
         res.fixtures++
       }
       // Played matches without a sheet or result, not tried in the last 12 hours

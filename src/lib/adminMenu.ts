@@ -30,6 +30,10 @@ const PHOTOS = [
   { href: '/admin/billeder/delinger', label: 'Delinger' },
   { href: '/admin/billeder/trupper', label: 'Trupper' },
 ]
+const ARTICLES = [
+  { href: '/admin/artikler', label: 'Alle artikler' },
+  { href: '/admin/artikler/optakter', label: 'Optakter' },
+]
 const VISITORS = [
   { href: '/admin/besoegende', label: 'Siden' },
   { href: '/admin/widget', label: 'Widget' },
@@ -41,7 +45,7 @@ const ADS = [
 export const ADMIN_MENU: AdminMenuItem[] = [
   { href: '/admin/besoegende', label: 'Besøgende', children: VISITORS },
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
-  { href: '/admin/artikler', label: 'Artikler' },
+  { href: '/admin/artikler', label: 'Artikler', children: ARTICLES },
   { href: '/admin/klubber', label: 'Klubber' },
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },

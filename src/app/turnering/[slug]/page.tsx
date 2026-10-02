@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
-import { DIVISIONS, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
+import { DIVISIONS, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
 import { allFixtures, clubInDivision, isFinished, standings, toMatch } from '../../../data/season'
 import { externalMatch, getMatches, isFriendly } from '../../../data/matches'
@@ -81,9 +81,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const table = standings(division, Date.now())
   const leader = table[0]
   const rounds = Math.max(...table.map((r) => r.played))
+  const tier = sportOf(division) === 'soccer' ? danishTier(division) : undefined
   return {
     title: `${division.name} ${seasonOf(division)} – stilling, resultater og kampprogram`,
-    description: `Stillingen i ${division.name} ${seasonOf(division)} efter ${rounds} runder. ${leader.club.name} fører med ${leader.points} point. Se alle ${division.clubs.length} klubber, resultater og kommende kampe.`,
+    description: `${tier ? `${division.name} er Danmarks ${tier.words} fodboldrække. ` : ''}Stillingen i ${division.name} ${seasonOf(division)} efter ${rounds} runder: ${leader.club.name} fører med ${leader.points} point. Alle ${division.clubs.length} klubber, resultater, kampprogram og topscorere.`,
     alternates: { canonical: paths.league(division.slug) },
   }
 }
@@ -389,7 +390,10 @@ export default async function LeaguePage({ params }: { params: Params }) {
         )}
 
 
-        <AboutText title={`Om ${division.name}`} paragraphs={leagueAbout(division, now)} />
+        <AboutText
+          title={`Om ${division.name}`}
+          paragraphs={leagueAbout(division, now, { topScorer: dbuScorers?.scorers[0] ? { player: dbuScorers.scorers[0].name, club: dbuScorers.scorers[0].club, goals: dbuScorers.scorers[0].goals } : undefined })}
+        />
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>

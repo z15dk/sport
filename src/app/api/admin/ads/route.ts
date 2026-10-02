@@ -1,4 +1,4 @@
-import { isAdmin, sameOrigin } from '../../../../lib/admin'
+import { adminDenied } from '../../../../lib/admin'
 import { saveUpload } from '../../../../lib/uploads'
 import { saveAds } from '../../../../lib/adsConfig'
 import { refreshRealData } from '../../../../lib/realdata'
@@ -7,7 +7,8 @@ import { AD_PLACEMENTS, AD_PLACEMENT_IDS, type AdPlacementId } from '../../../..
 // /admin/reklamer: a banner for a placement (multipart "file", "slot", "variant" desktop|mobile, "creative" 0–3),
 // or a placement's choices, the head code or ads.txt (JSON)
 export async function POST(request: Request) {
-  if (!(await isAdmin()) || !sameOrigin(request)) return Response.json({ error: 'Ikke logget ind' }, { status: 401 })
+  const denied = await adminDenied(request)
+  if (denied) return Response.json({ error: denied }, { status: 401 })
   if ((request.headers.get('content-type') ?? '').startsWith('multipart/')) {
     const form = await request.formData().catch(() => undefined)
     const file = form?.get('file')

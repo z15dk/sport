@@ -1,5 +1,5 @@
 import type { Match } from '../types'
-import type { Club, Division } from '../data/leagues'
+import { danishTier, seasonOf, type Club, type Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
 import type { ClubStats, PastMatch } from '../data/matchInsights'
 import type { TeamEntry } from '../data/teams'
@@ -131,7 +131,23 @@ const TIMES: Record<number, string> = { 2: 'to', 3: 'tre', 4: 'fire', 6: 'seks' 
 export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
   const [first] = rows
   const bottom = rows.at(-1)!
+  const ladder = (division.sport ?? 'soccer') === 'soccer' ? danishTier(division) : undefined
+  const official = division.originalName && division.originalName !== division.name ? division.originalName : undefined
+  const extra: FaqItem[] = []
+  if (ladder) {
+    const below = ladder.below?.name ?? (ladder.tier === 4 ? 'Danmarksserien' : undefined)
+    extra.push({
+      q: `Hvilket niveau er ${division.name}?`,
+      a: `${division.name} er Danmarks ${ladder.words} fodboldrække${ladder.tier === 1 ? '.' : ` – niveau ${ladder.tier} i dansk fodbold, lige under ${ladder.above?.name}${below ? ` og over ${below}` : ''}.`}`,
+    })
+  }
+  if (official) extra.push({ q: `Hvad hedder ${official} officielt?`, a: `${official} hedder officielt ${division.name} efter rækkens sponsor. Navnet skifter, når sponsoren gør.` })
+  extra.push({
+    q: `Hvilke hold spiller i ${division.name} ${seasonOf(division)}?`,
+    a: `${rows.length} hold: ${rows.map((r) => r.club.name).sort((a, b) => a.localeCompare(b, 'da')).join(', ')}.`,
+  })
   return [
+    ...extra,
     { q: `Hvem fører ${division.name}?`, a: `${first.club.name} fører med ${first.points} point efter ${first.played} kampe.` },
     { q: `Hvem ligger sidst i ${division.name}?`, a: `${bottom.club.name} ligger sidst med ${bottom.points} point.` },
     {
