@@ -19,6 +19,11 @@ type Params = Promise<{ slug: string }>
 
 const describe = (a: { metaDescription?: string; excerpt: string; content: string }) => (a.metaDescription || a.excerpt || plainText(a.content).slice(0, 157) + '…').trim()
 const absolute = (url?: string) => (url?.startsWith('/') ? `${SITE_URL}${url}` : url)
+/** The share picture: an uploaded picture as /delingsbillede/<name>.jpg, else the site's own */
+const shareImage = (featured?: string) => {
+  const m = featured && /^\/uploads\/([a-f0-9]{24})\.webp$/.exec(featured)
+  return m ? `/delingsbillede/${m[1]}.jpg` : featured && /^https?:\/\//.test(featured) ? featured : '/opengraph-image'
+}
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const a = articleBySlug((await params).slug)
@@ -37,9 +42,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       publishedTime: a.publishedAt,
       modifiedTime: a.updatedAt,
       tags: a.tags,
-      ...(a.featuredImage && { images: [{ url: absolute(a.featuredImage)!, alt: a.featuredAlt ?? a.title }] }),
+      // A 1200×630 JPEG for sharing (many apps show no preview for WebP); without a picture the site's own share image
+      images: [{ url: absolute(shareImage(a.featuredImage))!, width: 1200, height: 630, type: shareImage(a.featuredImage).endsWith('.jpg') ? 'image/jpeg' : 'image/png', alt: a.featuredAlt ?? a.title }],
     },
-    twitter: { card: a.featuredImage ? 'summary_large_image' : 'summary' },
+    twitter: { card: 'summary_large_image', images: [absolute(shareImage(a.featuredImage))!] },
   }
 }
 
