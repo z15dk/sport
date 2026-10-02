@@ -2,10 +2,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd, breadcrumbLd } from '../../lib/jsonld'
 import { SITE_NAME, paths } from '../../lib/site'
+import { trackingConfig } from '../../lib/tracking'
+import { ConsentSettingsLink } from '../../components/ConsentBanner'
 
 export const metadata: Metadata = {
   title: { absolute: `Privatliv og cookies · ${SITE_NAME}` },
-  description: `Sådan behandler ${SITE_NAME} oplysninger: ingen brugerkonti, ingen sporing på tværs af sider, og dine hold gemmes kun i din egen browser.`,
+  description: `Sådan behandler ${SITE_NAME} oplysninger og cookies: ingen brugerkonti, statistik og annoncemåling kun med dit samtykke, og dine hold gemmes kun i din egen browser.`,
   alternates: { canonical: paths.privacy() },
 }
 
@@ -13,7 +15,11 @@ export const metadata: Metadata = {
 // nothing). Also the address Meta and X ask for when the site's apps post to
 // our social media accounts.
 
+export const dynamic = 'force-dynamic'
+
 export default function PrivacyPage() {
+  const { ga, metaPixel } = trackingConfig()
+  const tracked = !!(ga || metaPixel)
   return (
     <div className="page">
       <JsonLd data={breadcrumbLd([{ name: 'Privatliv og cookies', path: paths.privacy() }])} />
@@ -23,7 +29,10 @@ export default function PrivacyPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Kort fortalt</h2>
           <p>
-            {SITE_NAME} har ingen brugerkonti og beder dig ikke om oplysninger. Vi sporer dig ikke på tværs af andre hjemmesider, og vi sælger ikke oplysninger til nogen.
+            {SITE_NAME} har ingen brugerkonti og beder dig ikke om oplysninger, og vi sælger ikke oplysninger til nogen.
+            {tracked
+              ? ' Statistik- og marketingcookies fra Google og Meta bruges kun, hvis du siger ja i cookie-banneret, og du kan altid ændre dit valg.'
+              : ' Vi sporer dig ikke på tværs af andre hjemmesider.'}
           </p>
         </section>
 
@@ -38,9 +47,36 @@ export default function PrivacyPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Cookies</h2>
           <p>
-            Siden sætter ingen cookies for besøgende. Den eneste cookie bruges af redaktionen, når vi logger ind for at redigere siden, og den er nødvendig for
-            login. Annoncerne på siden er vores egne aftaler med annoncører: et billede og et link, uden sporing og uden cookies.
+            {tracked ? 'Uden dit samtykke sætter siden ingen cookies.' : 'Siden sætter ingen cookies for besøgende.'} Den eneste nødvendige cookie bruges af
+            redaktionen, når vi logger ind for at redigere siden. Annoncerne på siden er vores egne aftaler med annoncører: et billede og et link, uden sporing og
+            uden cookies.
           </p>
+          {tracked && (
+            <>
+              <p>Siger du ja i cookie-banneret, bruger vi:</p>
+              <ul>
+                {ga && (
+                  <li>
+                    <strong>Statistik – Google Analytics</strong> (Google Ireland Ltd.): hvilke sider der bliver set, hvor besøgende kommer fra, og hvilken
+                    enhed de bruger, så vi kan gøre siden bedre. Cookies: <code>_ga</code> og <code>_ga_*</code>, op til 2 år. Data kan blive behandlet i USA
+                    under EU-USA-databeskyttelsesrammen.
+                  </li>
+                )}
+                {metaPixel && (
+                  <li>
+                    <strong>Marketing – Meta Pixel</strong> (Meta Platforms Ireland Ltd.): måler vores egne annoncer på Facebook og Instagram og lader os vise
+                    dem til folk, der har besøgt siden. Cookies: <code>_fbp</code> (3 måneder) og <code>_fbc</code>, når du kommer fra en annonce. Data kan
+                    blive behandlet i USA under EU-USA-databeskyttelsesrammen.
+                  </li>
+                )}
+              </ul>
+              <p>
+                Dit valg gemmes i din browser (<code>matchly_consent</code>) i 12 måneder, så vi ikke spørger igen hver gang; derefter spørger vi igen.
+                Grundlaget er dit samtykke, og du kan til enhver tid trække det tilbage – så slettes cookies fra Google og Meta på siden:{' '}
+                <ConsentSettingsLink />.
+              </p>
+            </>
+          )}
         </section>
 
         <section className="panel prose__section">

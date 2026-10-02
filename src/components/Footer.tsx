@@ -10,6 +10,8 @@ import { divisionOfGame } from '../data/ourLeagues'
 import { danishCountry } from '../data/countries'
 import { externalLeagueKey } from '../data/external'
 import type { SportId } from '../types'
+import { ConsentSettingsLink } from './ConsentBanner'
+import { trackingConfig } from '../lib/tracking'
 
 type Other = { key: string; name: string; sport: SportId; country?: string }
 // Worked out once per data (every page has the footer, and the data has thousands of games)
@@ -31,6 +33,8 @@ function otherLeagues(): Map<string, Other> {
 /** Site-wide footer; one column per sport, and a path for crawlers to every league. */
 export function Footer() {
   const divisions = shownDivisions()
+  const tracking = trackingConfig()
+  const hasTracking = !!(tracking.ga || tracking.metaPixel)
   // Every other league and cup we fetch from API-Sports (the admin's choice and the built-in list), once each
   const others = otherLeagues()
   const sports = [...new Set([...divisions.map(sportOf), ...[...others.values()].map((o) => o.sport)])]
@@ -105,6 +109,11 @@ export function Footer() {
             <li>
               <Link href={paths.privacy()}>Privatliv og cookies</Link>
             </li>
+            {hasTracking && (
+              <li>
+                <ConsentSettingsLink />
+              </li>
+            )}
           </ul>
         </div>
       </nav>

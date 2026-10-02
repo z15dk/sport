@@ -6,6 +6,8 @@ import { SETTINGS } from '../../../data/settingsDef'
 import { SettingToggle } from '../../../components/admin/SettingToggle'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
+import { TrackingAdmin } from '../../../components/admin/TrackingAdmin'
+import { trackingConfig } from '../../../lib/tracking'
 import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
 import { DIVISIONS } from '../../../data/leagues'
@@ -64,6 +66,15 @@ export default async function AdminSettings() {
             )}
           </section>
         ))}
+        <section className="panel prose__section">
+          <h2 className="panel__title">Sporing og cookies</h2>
+          <p className="muted small">
+            Google Analytics og Meta Pixel indlæses først, når den besøgende har sagt ja i cookie-banneret (Statistik → Google Analytics, Marketing → Meta
+            Pixel). Banneret vises kun, når mindst ét id er udfyldt, og aldrig for dig, når du er logget ind (du tælles heller ikke). Tomt felt = slået fra.
+            Id&apos;erne findes i Google Analytics under Administrator → Datastrømme og i Meta Events Manager under Datakilder.
+          </p>
+          <TrackingAdmin {...trackingConfig()} />
+        </section>
         <section className="panel prose__section">
           <h2 className="panel__title">Nyheder</h2>
           <p className="muted small">

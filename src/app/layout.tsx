@@ -12,6 +12,8 @@ import { clientRealData } from '../lib/clientData'
 import { liveCursor } from '../lib/liveFeed'
 import { VisitBeacon } from '../components/VisitBeacon'
 import { AdminBar } from '../components/AdminBar'
+import { ConsentBanner } from '../components/ConsentBanner'
+import { trackingConfig } from '../lib/tracking'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
 import { AD_TURN_SCRIPT, adTurnCss } from '../data/ads'
@@ -87,6 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
             <Footer />
             <VisitBeacon />
+            <ConsentBanner {...trackingConfig()} />
             {/* An ad network's main script, set in /admin/reklamer */}
             {real?.settings?.ads && real.ads?.head && <AdHeadCode code={real.ads.head} />}
           </BadgeProvider>
