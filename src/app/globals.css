@@ -2207,6 +2207,10 @@ a.player-games__match:hover { text-decoration: underline; }
 .adminbar__drop { position: absolute; top: 36px; left: 0; min-width: 210px; padding: 6px 0; background: #1b1e17; border-radius: 0 0 10px 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; }
 .adminbar__drop a { padding: 8px 14px; color: #fff; text-decoration: none; }
 .adminbar__drop a:hover { background: rgba(255, 255, 255, 0.08); color: var(--lime); }
+.adminbar__group { display: flex; flex-direction: column; min-width: 190px; }
+/* A dropdown with headings (Indstillinger): the groups side by side */
+.adminbar__drop:has(.adminbar__group-name) { flex-direction: row; flex-wrap: wrap; gap: 4px 8px; padding: 10px 6px 8px; }
+.adminbar__group-name { padding: 4px 14px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 @media (max-width: 700px) {
   .adminbar__in { overflow-x: auto; padding: 0 4px; }
   .adminbar__hide-s, .adminbar__muted { display: none; }

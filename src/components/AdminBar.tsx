@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ADMIN_MENU, adminSection } from '../lib/adminMenu'
+import { ADMIN_MENU, adminSection, type AdminMenuItem } from '../lib/adminMenu'
 
 // The admin bar (as in WordPress): a thin dark bar at the top of every page while
 // logged in as admin. On the admin pages it is the admin's menu (every section,
@@ -27,6 +27,17 @@ export function AdminBarFlag() {
     if (!hasFlag()) document.cookie = `${FLAG}=1; path=/; max-age=${7 * 24 * 3600}; samesite=lax${location.protocol === 'https:' ? '; secure' : ''}`
   }, [])
   return null
+}
+
+/** A dropdown's items by their heading (one unnamed group when none has one) */
+function groups(items: NonNullable<AdminMenuItem['children']>) {
+  const out: { name?: string; items: typeof items }[] = []
+  for (const c of items) {
+    const last = out[out.length - 1]
+    if (last && last.name === c.group) last.items.push(c)
+    else out.push({ name: c.group, items: [c] })
+  }
+  return out
 }
 
 function Menu({ label, children, active }: { label: React.ReactNode; children: React.ReactNode; active?: boolean }) {
@@ -73,7 +84,7 @@ export function AdminBar() {
   if (!bar) return null
   const { section, page } = adminSection(path)
   const visitors = (
-    <Link className="adminbar__item" href="/admin/besoegende" title="Besøgende lige nu og i dag">
+    <Link className="adminbar__item" href="/admin/indstillinger" title="Besøgende lige nu og i dag">
       <span className="adminbar__dot" aria-hidden />
       {bar.now} nu <span className="adminbar__muted">· {bar.today.toLocaleString('da-DK')} i dag</span>
     </Link>
@@ -98,10 +109,15 @@ export function AdminBar() {
           {ADMIN_MENU.map((s) =>
             s.children ? (
               <Menu key={`${s.href}${path}`} active={s === section} label={<>{s.label} <i className="adminbar__caret" aria-hidden /></>}>
-                {s.children.map((c) => (
-                  <Link key={c.href} href={c.href} className={c.href === page ? 'is-active' : undefined} aria-current={c.href === page ? 'page' : undefined}>
-                    {c.label}
-                  </Link>
+                {groups(s.children).map((g) => (
+                  <div key={g.name ?? ''} className="adminbar__group">
+                    {g.name && <span className="adminbar__group-name">{g.name}</span>}
+                    {g.items.map((c) => (
+                      <Link key={c.href} href={c.href} className={c.href === page ? 'is-active' : undefined} aria-current={c.href === page ? 'page' : undefined}>
+                        {c.label}
+                      </Link>
+                    ))}
+                  </div>
                 ))}
               </Menu>
             ) : (

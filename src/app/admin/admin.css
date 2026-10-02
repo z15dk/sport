@@ -413,3 +413,17 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .ticket-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
 .ticket-stats h3 { font-size: 14px; margin: 0 0 6px; }
 @media (max-width: 640px) { .ticket-row { grid-template-columns: 1fr; } .ticket-row > .small { grid-column: 1; } }
+
+/* /admin/indstillinger and /admin/kvalitet: a heading between the dashboard's parts, and the old full-width blocks made to fit a card */
+.dash-section { margin: 18px 0 8px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; text-transform: uppercase; line-height: 1.1; }
+.dash-setting + .dash-setting { border-top: 1px solid var(--line); }
+.admin .dash-card .dash-setting .dash-sub { margin-left: 0; margin-right: 0; }
+.admin .dash-card .setting-row { padding: 6px 0; }
+.admin .dash-card .setting-row p { padding-left: 0; margin: 0; }
+.admin .dash-card .news-coverage { padding: 12px 0 0; }
+.admin .dash-card h3 { font-size: 14px; margin: 14px 0 6px; }
+.admin .dash-card .tracking-form input { min-width: 0; width: 100%; }
+.admin .dash-card .tracking-form label { flex: 1 1 180px; }
+.admin .dash-card > .panel__title.quality__name { display: flex; margin: 0; }
+.admin .dash-card .quality__checks { font-size: 13px; }
+.dash-table .quality__badge { white-space: nowrap; }
