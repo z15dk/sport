@@ -29,7 +29,16 @@ export async function photoImage(id: number, variant: 'thumb' | 'web'): Promise<
   const cfg = photoConfig()
   if (variant === 'thumb') {
     const file = path.join(/*turbopackIgnore: true*/ cfg.thumbDir, `${id}.webp`)
-    return existsSync(file) ? readFileSync(file) : undefined
+    if (existsSync(file)) return readFileSync(file)
+    // An article picture not yet through the job: its thumbnail is made from the public file now
+    const drive = withPhotoDb((db) => db.prepare('SELECT drive_id FROM photos WHERE id = ?').get(id)?.drive_id)
+    if (!drive || !String(drive).startsWith('upload:')) return undefined
+    const up = path.join(/*turbopackIgnore: true*/ cfg.uploadDir, String(drive).slice('upload:'.length))
+    if (!existsSync(up)) return undefined
+    const thumb = await sharp(readFileSync(up)).resize(480, 480, { fit: 'inside' }).webp({ quality: 50 }).toBuffer()
+    ensurePhotoDirs(cfg)
+    writeFileSync(file, thumb, { mode: 0o600 })
+    return thumb
   }
   const cached = path.join(/*turbopackIgnore: true*/ cfg.cacheDir, `${id}.webp`)
   if (existsSync(cached)) {

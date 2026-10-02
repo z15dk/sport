@@ -56,7 +56,7 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
         <div className={s.detail}>
           <div>
             <div className={s.stage}>
-              {photo.processedAt && (
+              {(photo.processedAt || photo.source === 'artikel') && (
                 // eslint-disable-next-line @next/next/no-img-element -- private admin picture from Drive via our own route
                 <img src={webUrl(photo.id)} alt="" />
               )}
@@ -89,6 +89,8 @@ export default async function AdminPhoto({ params }: { params: Promise<{ id: str
           <div className={s.side}>
             {photo.error && <p className={s.error}>{photo.error}</p>}
             {photo.status === 'slettet' && <p className={s.error}>Slettet: {String(data.found.row.deleted_reason ?? 'låneperioden udløb')}</p>}
+            {!photo.metadataDone && <p className={s.note}>Billedet er brugt i en artikel, men mangler rettigheder og kamp. Udfyld Rettigheder og Kamp nedenfor.</p>}
+            {photo.status === 'ny' && <p className={s.muted}>I kø: numre og navne findes ved næste Sync eller natkørsel.</p>}
             {photo.review && photo.status === 'tagget' && <p className={s.note}>Til gennemgang: {photo.reviewReasons.join(', ')}</p>}
             {(photo.status === 'tagget' || photo.status === 'godkendt') && <ApproveButton photoId={photo.id} approved={photo.status === 'godkendt'} />}
             <h2>Spillere</h2>

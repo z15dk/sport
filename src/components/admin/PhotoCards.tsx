@@ -47,7 +47,7 @@ export function PhotoCard({ photo, tags, burst }: { photo: Photo; tags: Tag[]; b
         </Link>
       )}
     <Link href={`/admin/billeder/${photo.id}`} className={s.card} prefetch={false}>
-      {photo.processedAt ? (
+      {photo.processedAt || photo.source === 'artikel' ? (
         // eslint-disable-next-line @next/next/no-img-element -- private admin thumbnails, already sized
         <img className={s.thumb} src={thumbUrl(photo.id)} alt="" loading="lazy" />
       ) : (
@@ -55,13 +55,15 @@ export function PhotoCard({ photo, tags, burst }: { photo: Photo; tags: Tag[]; b
       )}
       <div className={s.cardBody}>
         <span className={s.cardTitle}>
-          {photo.club ?? 'Ukendt klub'} – {photo.opponent ?? '?'}
+          {photo.club ? `${photo.club} – ${photo.opponent ?? '?'}` : photo.source === 'artikel' ? 'Artikelbillede' : 'Ukendt klub'}
         </span>
         <span className={s.muted}>{dateDk(photo.matchDate)}</span>
         {photo.licenseUntil && <span className={`${s.chip} ${s.unknown}`}>Lånt til {dateDk(photo.licenseUntil)} · {photo.credit}</span>}
         <span className={s.chips}>{tags.length ? tags.map((t) => <TagChip key={t.id} tag={t} />) : <span className={s.muted}>ingen numre</span>}</span>
+        {!photo.metadataDone && <span className={`${s.chip} ${s.unknown}`}>Mangler metadata</span>}
         <span className={photo.status === 'godkendt' ? s.approved : s.muted}>
-          {STATUS[photo.status] ?? photo.status}
+          {photo.source === 'artikel' ? 'Artikel · ' : ''}
+          {photo.status === 'ny' ? 'I kø – tagges ved Sync eller i nat' : (STATUS[photo.status] ?? photo.status)}
           {photo.review && photo.status === 'tagget' ? ' · til gennemgang' : ''}
           {photo.situation ? ` · ${photo.situation}` : ''}
         </span>
