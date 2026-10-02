@@ -378,11 +378,11 @@ export interface WeekNumbers {
 }
 
 /** The seven days before `date`: most goals, biggest upset, longest unbeaten run, biggest crowd */
-export function weekNumbers(date: string): WeekNumbers {
+export function weekNumbers(date: string, only: (f: Fixture) => boolean = () => true): WeekNumbers {
   const from = addDays(date, -7)
   const to = addDays(date, -1)
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i))
-  const week = days.flatMap((d) => fixturesOn(d)).filter((f) => f.division && isFinished(f))
+  const week = days.flatMap((d) => fixturesOn(d)).filter((f) => f.division && isFinished(f) && only(f))
   const out: WeekNumbers = { from, to }
 
   const byGoals = week
@@ -434,6 +434,11 @@ export const todayIso = (now: number) => isoDate(new Date(now))
 // ---------------------------------------------------------------- the day's topic (10–11)
 
 /** The league the one-league topics use: the admin's choice, else the Superliga */
+/** Only the matches of one of our leagues (a post made for that league alone) */
+export const leagueOnly = (id: string) => (f: Fixture) => f.division?.id === id
+/** How many of a league's matches a post for one league shows at most (a whole round) */
+export const LEAGUE_MATCHES = 12
+
 export function topicDivision(): Division | undefined {
   const id = socialConfig().topicLeague
   return DIVISIONS.find((d) => d.id === id) ?? DIVISIONS.find((d) => d.id === 'superliga')
@@ -480,10 +485,10 @@ export function tableTopic(div: Division, now: number) {
 }
 
 /** The biggest match of the next 4 days that isn't played yet */
-export function bigMatchTopic(date: string, now: number): Pick | undefined {
+export function bigMatchTopic(date: string, now: number, only: (f: Fixture) => boolean = () => true): Pick | undefined {
   let best: { scored: Scored[]; s: Scored } | undefined
   for (let i = 0; i < 4; i++) {
-    const scored = scoredMatches(addDays(date, i), now, (f) => !isFinished(f) && f.kickoff.getTime() > now)
+    const scored = scoredMatches(addDays(date, i), now, (f) => !isFinished(f) && f.kickoff.getTime() > now && only(f))
     if (scored[0] && (!best || scored[0].score > best.s.score)) best = { scored, s: scored[0] }
   }
   return best ? decorate([best.s], best.scored, now)[0] : undefined
@@ -497,8 +502,8 @@ export function weekendDates(date: string): [string, string] {
 }
 
 /** The picked matches of the weekend's two days */
-export function weekendTopic(date: string, now: number): { date: string; picks: Pick[] }[] | undefined {
-  const days = weekendDates(date).map((d) => ({ date: d, picks: pickMatches(d, now, (f) => !isFinished(f)) })).filter((d) => d.picks.length)
+export function weekendTopic(date: string, now: number, only: (f: Fixture) => boolean = () => true, count?: number): { date: string; picks: Pick[] }[] | undefined {
+  const days = weekendDates(date).map((d) => ({ date: d, picks: pickMatches(d, now, (f) => !isFinished(f) && only(f), count) })).filter((d) => d.picks.length)
   return days.length ? days : undefined
 }
 

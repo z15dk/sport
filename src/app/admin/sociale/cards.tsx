@@ -269,7 +269,7 @@ const dm = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}`
 const score = (f: Fixture) => `${f.score[0]}–${f.score[1]}`
 const dots = (n: number) => n.toLocaleString('da-DK')
 
-export function Day({ time, label, title, where, rail, children }: { time: string; label: string; title: string; where: string; rail: string; children: ReactNode }) {
+export function Day({ time, label, title, where, rail, tools, children }: { time: string; label: string; title: string; where: string; rail: string; tools?: ReactNode; children: ReactNode }) {
   return (
     <section className={s.day}>
       <div className={s.when}>
@@ -280,7 +280,10 @@ export function Day({ time, label, title, where, rail, children }: { time: strin
       <div className={s.body} data-rail={rail}>
         <div className={s.titleRow}>
           <h2>{title}</h2>
-          <RailDownload />
+          <span className={s.tools}>
+            {tools}
+            <RailDownload />
+          </span>
         </div>
         <p className={s.where}>{where}</p>
         {children}

@@ -95,7 +95,7 @@ export function VisitorsDash({ periode, href, children }: { periode?: string; hr
               </Link>
             ))}
           </p>
-          <table className="dash-table">
+          <table className="dash-table dash-pages">
             <thead>
               <tr>
                 <th>Side</th>
@@ -128,7 +128,7 @@ export function VisitorsDash({ periode, href, children }: { periode?: string; hr
 
           <section className="panel dash-card">
           <h2 className="panel__title">Hvor de kommer fra</h2>
-          <table className="dash-table">
+          <table className="dash-table dash-pages">
             <tbody>
               {s.refs.map((r) => (
                 <tr key={r.ref}>

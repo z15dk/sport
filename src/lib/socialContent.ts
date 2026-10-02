@@ -5,6 +5,9 @@ import {
   formTopic,
   hasNamedScorers,
   isFinishedMatch,
+  LEAGUE_MATCHES,
+  leagueOnly,
+  pickMatches,
   picksFor,
   scorersTopic,
   tableTopic,
@@ -15,7 +18,7 @@ import {
   type Pick,
   type WeekNumbers,
 } from './social'
-import type { Division } from '../data/leagues'
+import { DIVISIONS, type Division } from '../data/leagues'
 import type { ScorerRow } from '../data/stats'
 import type { StandingRow } from '../data/season'
 import { getBadges } from './badges'
@@ -35,6 +38,8 @@ export interface PostSpec {
   matchIds: string[]
   /** Women's football: its own posts and look */
   women?: boolean
+  /** One of our leagues (Division id): the post is made from that league alone instead of the day's picks and the topic league */
+  league?: string
 }
 
 export type Content =
@@ -51,7 +56,10 @@ export type Content =
 
 /** The post's data, or undefined when there is nothing good enough to post */
 export function contentFor(spec: PostSpec, now: number): Content | undefined {
-  const { date, matchIds, women } = spec
+  const { date, women } = spec
+  // Made for one league: its own matches of the day (a whole round) instead of the picked ones
+  const only = spec.league ? leagueOnly(spec.league) : () => true
+  const matchIds = spec.league ? pickMatches(date, now, only, LEAGUE_MATCHES).map((p) => p.fixture.id) : spec.matchIds
   switch (spec.kind) {
     case 'programme': {
       const picks = picksFor(date, now, matchIds)
@@ -66,10 +74,10 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
       return overview.length ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)), women } : undefined
     }
     case 'topic': {
-      const div = topicDivision()
+      const div = spec.league ? DIVISIONS.find((d) => d.id === spec.league) : topicDivision()
       switch (spec.topic) {
         case 'week': {
-          const week = weekNumbers(date)
+          const week = weekNumbers(date, only)
           return week.mostGoals || week.upset || week.streak || week.crowd ? { kind: 'topic', topic: 'week', date, week } : undefined
         }
         case 'scorers': {
@@ -85,11 +93,11 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
           return t ? { kind: 'topic', topic: 'table', date, ...t } : undefined
         }
         case 'bigmatch': {
-          const pick = bigMatchTopic(date, now)
+          const pick = bigMatchTopic(date, now, only)
           return pick ? { kind: 'topic', topic: 'bigmatch', date, pick } : undefined
         }
         case 'weekend': {
-          const days = weekendTopic(date, now)
+          const days = weekendTopic(date, now, only, spec.league ? LEAGUE_MATCHES : undefined)
           return days ? { kind: 'topic', topic: 'weekend', date, days } : undefined
         }
         case 'facts': {
@@ -109,10 +117,10 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 /** The admin's name for the post */
 export function titleFor(spec: PostSpec): string {
   if (spec.women) return `Kvindefodbold: ${titleFor({ ...spec, women: false }).toLowerCase()}`
-  if (spec.kind === 'programme') return 'Dagens kampe'
-  if (spec.kind === 'story') return `Story før kampstart kl. ${spec.slot}`
-  if (spec.kind === 'results') return 'Resultater'
-  return `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
+  const league = spec.league && DIVISIONS.find((d) => d.id === spec.league)
+  const title =
+    spec.kind === 'programme' ? 'Dagens kampe' : spec.kind === 'story' ? `Story før kampstart kl. ${spec.slot}` : spec.kind === 'results' ? 'Resultater' : `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
+  return league ? `${title} · ${league.name}` : title
 }
 
 /** The post's text (the platform's ending and hashtags are added when it is posted) */
