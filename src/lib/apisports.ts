@@ -634,8 +634,22 @@ const PAID_RESERVE = 300
  * from the day's spare calls without eating the evening's live games.
  */
 const LIVE_BUDGET = 2_500
+/**
+ * The last stretch before the reset (00:00 UTC, 01–02 Danish time): the day's calls are lost at the
+ * reset, so the background work may use them down to a small floor – unless one of our leagues', cups'
+ * or the Champions League's games is on or about to start, then the normal reserve holds
+ */
+const LAST_CALLS_MS = 90 * 60_000
+const LAST_CALLS_FLOOR = 50
+const oursOn = (s: ApiState) => {
+  const until = Date.now() + LAST_CALLS_MS
+  return (s.days[isoDate(Date.now())]?.games ?? []).some(
+    (g) => (g.state === 'live' || (g.state === 'upcoming' && Date.parse(g.kickoff) < until)) && (!!divisionOfGame(g) || wholeSeason(g)),
+  )
+}
 function backgroundReserve(s: ApiState | undefined): number {
   if (!isPaid(s)) return 40
+  if (msUntilReset() < LAST_CALLS_MS && !oursOn(s!)) return LAST_CALLS_FLOOR
   const budget = Math.min(LIVE_BUDGET, Math.round((s!.limit ?? 100) * 0.35))
   return PAID_RESERVE + Math.round((budget * msUntilReset()) / 86_400_000)
 }
