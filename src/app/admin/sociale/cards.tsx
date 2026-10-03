@@ -949,7 +949,7 @@ export function TableCards({ division, rows, logos }: { division: Division; rows
   const one = rows.length <= 14
   const per = one ? rows.length : 6
   const parts = Array.from({ length: Math.ceil(Math.min(rows.length, 24) / per) }, (_, i) => rows.slice(i * per, i * per + per))
-  const total = parts.length + 1
+  const total = parts.length
   return (
     <div className={s.rail}>
       {parts.map((part, k) => (
@@ -993,7 +993,6 @@ export function TableCards({ division, rows, logos }: { division: Division; rows
           </table>
         </StoryCard>
       ))}
-      <EndCard label={division.name} mark="1" crests={[leader.club]} total={total} logos={logos} />
     </div>
   )
 }
