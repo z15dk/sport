@@ -134,6 +134,7 @@ table.visually-hidden { display: block; }
   font-variant-numeric: tabular-nums;
 }
 .score-card--live .score-card__score { color: var(--live); }
+.score-card--live { background: var(--live-soft); }
 .score-card__team.is-lost { color: var(--ink-3); }
 
 .banner {
