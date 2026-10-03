@@ -1037,25 +1037,31 @@ export function BigMatchCards({ p, logos }: { p: Pick; logos: Logos }) {
 
 /** The weekend's programme: one card per day */
 export function WeekendCards({ days, logos }: { days: { date: string; picks: Pick[] }[]; logos: Logos }) {
-  const total = days.length + 1
+  // At most six matches on a card: a day with more goes on over more cards
+  const cards = days.flatMap((d) => {
+    const parts: Pick[][] = []
+    for (let i = 0; i < d.picks.length; i += PER_PROGRAMME_CARD) parts.push(d.picks.slice(i, i + PER_PROGRAMME_CARD))
+    return parts.map((picks, n) => ({ date: d.date, picks, part: parts.length > 1 ? n + 1 : 0 }))
+  })
+  const total = cards.length + 1
   return (
     <div className={s.rail}>
-      {days.map((d, i) => {
+      {cards.map((d, i) => {
         const long = formatLong(d.date)
         return (
           <StoryCard
-            key={d.date}
-            caption={long}
+            key={`${d.date}-${d.part}`}
+            caption={d.part ? `${long} (${d.part})` : long}
             mark={String(new Date(`${d.date}T12:00:00Z`).getUTCDate())}
             logoMark={i === 0}
-            label={i === 0 ? 'Weekendens kampe' : 'Weekendens kampe'}
+            label={d.part > 1 ? 'Weekendens kampe (fortsat)' : 'Weekendens kampe'}
             headline={long.charAt(0).toUpperCase() + long.slice(1)}
-            size={9}
+            size={8.5}
             crests={[]}
             foot={`${i + 1}/${total}`}
             logos={logos}
           >
-            <div className={s.fixtures}>
+            <div className={cx(s.fixtures, s.fixturesSix)}>
               {d.picks.map((p) => (
                 <FixtureRow key={p.fixture.id} p={p} logos={logos} />
               ))}

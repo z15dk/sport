@@ -463,7 +463,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__thumbs figure.is-story { max-width: 220px; }
 .own-post__open { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
 .own-post__thumbs img { width: 100%; height: auto; display: block; }
-.own-post__thumbs figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(15, 17, 12, 0.75); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
+.own-post__thumbs figcaption { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(15, 17, 12, 0.75); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
 .own-post__remove { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(15, 17, 12, 0.8); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; }
 .own-post__big { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: rgba(10, 11, 8, 0.88); }
 .own-post__big img { max-width: min(100%, 1080px); max-height: calc(100vh - 110px); object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
