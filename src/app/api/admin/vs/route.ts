@@ -1,13 +1,15 @@
 import { adminDenied, isAdmin } from '../../../../lib/admin'
 import { getBadges } from '../../../../lib/badges'
 import { makeVsGraphic } from '../../../../lib/vsGraphic'
+import { nationalTeams } from '../../../../lib/nationalTeams'
 
-// The VS graphic maker in the article editor: GET the clubs with a logo (for the pickers), POST makes
+// The VS graphic maker in the article editor: GET the clubs (and national teams) with a logo (for the pickers), POST makes
 // the graphic and answers its upload's address.
 
 export async function GET() {
   if (!(await isAdmin())) return Response.json({ error: 'Log ind' }, { status: 401 })
-  const names = Object.keys(await getBadges()).sort((x, y) => x.localeCompare(y, 'da'))
+  // Our clubs and leagues with a logo, and the national teams with their flags
+  const names = [...new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams())])].sort((x, y) => x.localeCompare(y, 'da'))
   return Response.json({ clubs: names })
 }
 

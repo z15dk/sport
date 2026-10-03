@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { isAdmin } from '../../../../lib/admin'
 import { getBadges } from '../../../../lib/badges'
 import { sizedImage } from '../../../../lib/imageSize'
+import { nationalTeams } from '../../../../lib/nationalTeams'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'VS-grafik', robots: { index: false, follow: false } }
@@ -20,13 +21,16 @@ export default async function VsGraphic({ searchParams }: { searchParams: Params
   if (!(await isAdmin())) redirect('/admin')
   const { h = '', a = '', top = '', bg } = await searchParams
   const badges = await getBadges()
-  const logo = (name: string) => sizedImage(badges[name], 512)
+  const flags = nationalTeams()
+  // A national team's flag when the name is one (our clubs' logos win, e.g. a club named like a country)
+  const logo = (name: string) => sizedImage(badges[name] ?? flags[name], 512)
+  const isFlag = (name: string) => !badges[name] && !!flags[name]
   const back = ownPath(bg)
   const club = (name: string) => (
     <div className="vsg__club">
       {logo(name) ? (
         // eslint-disable-next-line @next/next/no-img-element -- the club's logo on the picture
-        <img src={logo(name)} alt="" />
+        <img src={logo(name)} alt="" className={isFlag(name) ? 'is-flag' : undefined} />
       ) : (
         <span className="vsg__initials">{name.slice(0, 2).toUpperCase()}</span>
       )}
