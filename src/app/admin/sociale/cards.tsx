@@ -943,31 +943,35 @@ export function FormCards({ division, rows, logos }: { division: Division; rows:
   )
 }
 
-/** The league table: 6 teams per card */
+/** The league table: a league of up to 14 teams on one card, a bigger one 6 teams per card */
 export function TableCards({ division, rows, logos }: { division: Division; rows: StandingRow[]; logos: Logos }) {
   const leader = rows[0]
-  const parts = Array.from({ length: Math.ceil(Math.min(rows.length, 24) / 6) }, (_, i) => rows.slice(i * 6, i * 6 + 6))
+  const one = rows.length <= 14
+  const per = one ? rows.length : 6
+  const parts = Array.from({ length: Math.ceil(Math.min(rows.length, 24) / per) }, (_, i) => rows.slice(i * per, i * per + per))
   const total = parts.length + 1
   return (
     <div className={s.rail}>
       {parts.map((part, k) => (
         <StoryCard
           key={k}
-          caption={k === 0 ? 'Tabellen' : `Nr. ${k * 6 + 1}–${k * 6 + part.length}`}
+          caption={k === 0 ? 'Tabellen' : `Nr. ${k * per + 1}–${k * per + part.length}`}
           club={k === 0 ? leader.club : undefined}
-          mark={k === 0 ? undefined : String(k * 6 + 1)}
+          // The leader's logo in its own colours, faint behind the table
+          natural={k === 0}
+          mark={k === 0 ? undefined : String(k * per + 1)}
           label={k === 0 ? `${division.name} · ${leader.played} kampe spillet` : division.name}
-          headline={k === 0 ? 'Stillingen' : `Nr. ${k * 6 + 1}–${k * 6 + part.length}`}
+          headline={k === 0 ? 'Stillingen' : `Nr. ${k * per + 1}–${k * per + part.length}`}
           crests={[]}
           foot={`${k + 1}/${total}`}
           logos={logos}
-          size={11}
+          size={one && per > 12 ? 7 : one && per > 8 ? 8 : 11}
         >
-          <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.4cqw' }}>
+          <table className={cx(s.tb, s.oneLine, one && part.length > 8 && s.tight)} style={{ fontSize: one && part.length > 8 ? '2.9cqw' : '3.4cqw' }}>
             <tbody>
               {part.map((r, i) => (
                 <tr key={r.club.id}>
-                  <td style={{ width: '8cqw', fontWeight: 700 }}>{k * 6 + i + 1}.</td>
+                  <td style={{ width: '8cqw', fontWeight: 700 }}>{k * per + i + 1}.</td>
                   <td>
                     <span className={s.team}>
                       <Crest club={r.club} logos={logos} plate /> {r.club.name}

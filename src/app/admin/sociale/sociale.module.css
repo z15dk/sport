@@ -189,6 +189,10 @@
 /* rows of one line each; long names end in "…" */
 .oneLine { table-layout: fixed; }
 .oneLine td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A whole league table on one card */
+.tight td { padding: 0.35cqw 0; line-height: 1.2; }
+.tight .plate { padding: 0.45cqw; border-radius: 1cqw; }
+.tight .crest { width: 3.3cqw; height: 3.3cqw; }
 .oneLine td.r { width: 17cqw; }
 
 /* the day's programme: each match in the two clubs' colours, the time between them */
