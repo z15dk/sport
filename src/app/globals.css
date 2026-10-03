@@ -133,8 +133,6 @@ table.visually-hidden { display: block; }
   font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.score-card--live .score-card__score { color: var(--live); }
-.score-card--live { background: var(--live-soft); }
 .score-card__team.is-lost { color: var(--ink-3); }
 
 .banner {
@@ -254,8 +252,6 @@ table.visually-hidden { display: block; }
   padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2);
 }
 .match:hover { background: #eef0e8; }
-.match--live { background: var(--live-soft); }
-.match--live:hover { background: #ffdcd2; }
 .match__time { font-size: 13px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: center; }
 .match__teams { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .team { display: flex; align-items: center; gap: 10px; font-weight: 600; }
@@ -267,7 +263,6 @@ table.visually-hidden { display: block; }
 }
 .match__scores .is-lost { color: var(--ink-3); }
 .match--upcoming .match__scores { color: var(--ink-3); font-weight: 600; }
-.match--live .match__scores { color: var(--live); }
 .status {
   justify-self: end; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px;
   background: var(--surface); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums;
@@ -2355,7 +2350,6 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
   .league .match { border-radius: 0; background: var(--surface); padding: 7px 16px 7px 10px; }
   .league .match + .match { box-shadow: inset 0 1px 0 var(--line); }
   .league .match:hover { background: var(--surface-2); }
-  .league .match--live { background: var(--live-soft); }
   .league .match__teams { gap: 2px; }
   .league .team { gap: 8px; line-height: 1.25; }
   .league .team__name { font-size: 15px; }
