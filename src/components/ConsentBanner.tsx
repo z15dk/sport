@@ -183,11 +183,9 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
   return (
     <div className="consent" role="dialog" aria-modal="false" aria-labelledby="consent-title">
       <div className="consent__box">
-        {/* Drawn as SVG, not text: a decoration must not count as the page's largest content (LCP) */}
+        {/* Matchly's M drawn as a shape, not text: a decoration must not count as the page's largest content (LCP), nor wait for the font */}
         <svg className="consent__m" aria-hidden viewBox="0 0 240 230">
-          <text x="4" y="224">
-            M
-          </text>
+          <path d="M2 226 V6 H66 L110 104 L154 6 H218 V226 H164 V100 L124 186 H96 L56 100 V226 Z" transform="skewX(-11) translate(40 0)" />
         </svg>
         <h2 id="consent-title">
           Må vi bruge <em>cookies?</em>
