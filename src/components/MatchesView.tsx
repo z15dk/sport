@@ -93,9 +93,9 @@ interface Props {
 }
 
 /** Matches in the page's HTML; the rest follow as the reader scrolls (fewer rows = less HTML to parse and hydrate on phones) */
-const FIRST_ROWS = 100
+const FIRST_ROWS = 40
 /** Rows added each time the end of the list comes near */
-const MORE_ROWS = 80
+const MORE_ROWS = 60
 
 export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, scrollAd, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
