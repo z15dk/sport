@@ -4,6 +4,7 @@ import { isAdmin } from '../../../../lib/admin'
 import { contentFor, logosFor, type PostSpec } from '../../../../lib/socialContent'
 import { KINDS, findPost, isTopic } from '../../../../lib/socialStore'
 import { isValidIsoDate } from '../../../../lib/time'
+import { loadFocusHeadToHead } from '../../../../lib/social'
 import { PostCards } from '../cards'
 import { FitRows } from '../FitRows'
 import s from '../sociale.module.css'
@@ -42,6 +43,8 @@ export default async function CardsForPost({ searchParams }: { searchParams: Pro
   // An own post has its own pictures, no cards
   const spec = raw ? specOf(raw) : post && post.kind !== 'own' ? { ...post, kind: post.kind } : undefined
   if (!spec) notFound()
+  // A focus match's meetings from the partner (women's and foreign games), before the cards are drawn
+  if (spec.focus) await loadFocusHeadToHead(spec.focus)
   const content = contentFor(spec, Date.now())
   if (!content) notFound()
   return (

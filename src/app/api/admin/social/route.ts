@@ -233,7 +233,7 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       // The matches to pick a focus match from (the day and the next three)
       const date = str(b.date, 10)
       if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
-      return { data: focusCandidates(date, Date.now()) }
+      return { data: focusCandidates(date, Date.now(), str(b.q, 80)) }
     }
     case 'ownDelete':
       deleteOwnPost(str(b.id, 80))

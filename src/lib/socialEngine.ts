@@ -3,7 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
-import { pickMatches, picksFor } from './social'
+import { loadFocusHeadToHead, pickMatches, picksFor } from './social'
 import { captionFor, captionList, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost, renderSpec } from './socialRender'
 import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
@@ -394,6 +394,7 @@ async function makeTemplatePictures(id: string): Promise<boolean> {
   const t = p?.own?.template
   if (!p || !t) return false
   const spec = templateSpec(t, Date.now())
+  if (spec.focus) await loadFocusHeadToHead(spec.focus)
   const content = contentFor(spec, Date.now())
   if (!content) {
     patch(id, (x) => {
@@ -648,6 +649,7 @@ function templateSpec(t: { kind: PostSpec['kind']; topic?: PostSpec['topic']; le
 export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; date: string; now?: number }) {
   const now = input.now ?? Date.now()
   const spec = templateSpec(input, now)
+  if (spec.focus) await loadFocusHeadToHead(spec.focus)
   const content = contentFor(spec, now)
   if (!content) throw new Error('Skabelonen har ingen data den dag (prøv en anden liga eller dato)')
   dropUnusedTemplates()

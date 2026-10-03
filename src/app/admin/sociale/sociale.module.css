@@ -283,3 +283,7 @@
 .h2hNums div { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3cqw 1cqw; border-radius: 2cqw; background: rgba(0, 0, 0, 0.22); }
 .h2hNums b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16cqw; line-height: 1; }
 .h2hNums span { margin-top: 1.4cqw; font-size: 3cqw; font-weight: 700; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* The league's logo on the focus match card */
+.leagueLine { display: flex; align-items: center; gap: 2.4cqw; margin-bottom: 3cqw; font-size: 3.6cqw; font-weight: 700; }
+.leagueLine img { width: 10cqw; height: 10cqw; object-fit: contain; padding: 1.2cqw; border-radius: 2cqw; background: #fff; }

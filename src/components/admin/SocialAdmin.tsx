@@ -684,14 +684,19 @@ export function OwnPostForm({
   // The focus match (its id) and the matches to pick it from, for the day under "Udgiv" and the next three
   const [focus, setFocus] = useState('')
   const [focusList, setFocusList] = useState<{ id: string; label: string }[]>([])
+  const [focusQ, setFocusQ] = useState('')
   const focusDate = at.slice(0, 10)
+  // Searched on the server (there can be thousands of matches): the 30 best that have every word typed
   useEffect(() => {
     if (tpl !== 'focus') return
-    void fetch('/api/admin/social', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'focusMatches', date: focusDate }) })
-      .then((r) => r.json())
-      .then((d: { data?: { id: string; label: string }[] }) => setFocusList(d.data ?? []))
-      .catch(() => undefined)
-  }, [tpl, focusDate])
+    const t = setTimeout(() => {
+      void fetch('/api/admin/social', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'focusMatches', date: focusDate, q: focusQ }) })
+        .then((r) => r.json())
+        .then((d: { data?: { id: string; label: string }[] }) => setFocusList(d.data ?? []))
+        .catch(() => undefined)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [tpl, focusDate, focusQ])
   /** The chosen template as the server takes it: "focus", "women:<kind>", "topic:<id>" or a kind */
   const tplParams = () => {
     if (tpl === 'focus') return { kind: 'topic', topic: 'bigmatch', focus }
@@ -759,17 +764,20 @@ export function OwnPostForm({
           </select>
         </label>
         {tpl === 'focus' && (
-          <label className="own-post__focus">
-            <span>Kamp</span>
-            <select value={focus} onChange={(e) => setFocus(e.target.value)}>
-              <option value="">Vælg kampen …</option>
+          <div className="own-post__focus">
+            <label>
+              <span>Søg kamp</span>
+              <input value={focusQ} onChange={(e) => setFocusQ(e.target.value)} placeholder="Hold eller liga, fx Brøndby" />
+            </label>
+            <div className="own-post__focus-list" role="listbox" aria-label="Kampe">
               {focusList.map((m) => (
-                <option key={m.id} value={m.id}>
+                <button key={m.id} type="button" role="option" aria-selected={m.id === focus} className={m.id === focus ? 'is-active' : undefined} onClick={() => setFocus(m.id)}>
                   {m.label}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
+              {!focusList.length && <span className="muted small">Ingen kampe fundet</span>}
+            </div>
+          </div>
         )}
         {tpl !== 'focus' && !tpl.startsWith('women:') && (leagueList.length < 3 ? [...leagueList, ''] : leagueList).map((id, i) => (
           <label key={`${i}-${id}`}>

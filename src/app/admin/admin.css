@@ -517,4 +517,10 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .vsd__preview p { color: #b9bdb0; }
 @media (max-width: 560px) { .vsd__grid { grid-template-columns: 1fr; } }
 .own-post__later { flex-basis: 100%; font-size: 14px; }
-.own-post__tpl label.own-post__focus { flex: 1 1 360px; }
+.own-post__focus { flex: 1 1 100%; display: grid; gap: 6px; }
+.own-post__focus input { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.own-post__focus-list { display: grid; max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.own-post__focus-list button { text-align: left; font: inherit; font-size: 13.5px; padding: 7px 10px; border: 0; border-bottom: 1px solid var(--line); background: none; cursor: pointer; }
+.own-post__focus-list button:hover { background: var(--surface-2); }
+.own-post__focus-list button.is-active { background: var(--ink); color: #fff; }
+.own-post__focus-list span { padding: 8px 10px; }

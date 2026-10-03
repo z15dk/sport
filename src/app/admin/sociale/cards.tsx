@@ -59,12 +59,13 @@ export function Crest({ club, logos, large, plate }: { club: Club; logos: Logos;
 }
 
 /** The club's logo, large, faint and one colour, behind a colour field */
-function Watermark({ club, logos, style }: { club: Club; logos: Logos; style: CSSProperties }) {
+function Watermark({ club, logos, style, natural }: { club: Club; logos: Logos; style: CSSProperties; natural?: boolean }) {
   const url = logos[club.name]
   if (!url) return null
   const dark = isLight(String(field(club).background))
+  // natural: the logo in its own colours, faint (the focus match), else one colour that reads on the field
   // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts
-  return <img className={s.wm} src={url} alt="" aria-hidden style={{ ...style, filter: dark ? 'brightness(0)' : 'brightness(0) invert(1)' }} />
+  return <img className={s.wm} src={url} alt="" aria-hidden style={{ ...style, ...(natural ? { opacity: 0.16 } : { filter: dark ? 'brightness(0)' : 'brightness(0) invert(1)' }) }} />
 }
 
 /** The post's text under the cards (as it goes out with the pictures) */
@@ -146,6 +147,7 @@ export function StoryCard({
   logos,
   size = 13,
   logoMark,
+  natural,
 }: {
   caption: string
   club?: Club
@@ -162,11 +164,13 @@ export function StoryCard({
   size?: number
   /** Matchly's green M as the watermark instead of `mark` */
   logoMark?: boolean
+  /** The club's logo as the watermark in its own colours (faint) */
+  natural?: boolean
 }) {
   return (
     <Card caption={caption} style={colourOf(club)} className={s.onColor}>
       {club ? (
-        <Watermark club={club} logos={logos} style={{ width: '95cqw', height: '95cqw', right: '-30cqw', bottom: '-12cqw' }} />
+        <Watermark club={club} logos={logos} natural={natural} style={{ width: '95cqw', height: '95cqw', right: '-30cqw', bottom: '-12cqw' }} />
       ) : logoMark ? (
         <span className={cx(s.wmM, s.wmMGreen)} aria-hidden>
           M
@@ -1025,12 +1029,21 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         club={f.home}
         label={`${p.league} · ${weekdayTime(f.kickoff)}`}
         headline={focus ? 'Kampens fokus' : 'Ugens kamp'}
+        natural={focus}
         crests={[f.home, f.away]}
         line={`${f.home.name} – ${f.away.name}`}
         foot={h2h ? '1/2' : 'Optakt'}
         logos={logos}
         size={12}
       >
+        {/* The league's own logo by its name */}
+        {focus && logos[p.league] && (
+          <div className={s.leagueLine}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the league's logo */}
+            <img src={logos[p.league]} alt="" />
+            <span>{p.league}</span>
+          </div>
+        )}
         {p.fact ? (
           <FactBlock p={p} size={6.4} rows={h2h ? 3 : undefined} />
         ) : (
@@ -1045,7 +1058,8 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
       {h2h && meet && (
         <StoryCard
           caption="Indbyrdes opgør"
-          club={f.away}
+          club={f.home}
+          natural
           label={`${p.league} · indbyrdes`}
           headline="Head to head"
           size={11}

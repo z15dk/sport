@@ -52,7 +52,7 @@ export type Content =
   | { kind: 'topic'; topic: 'scorers'; date: string; division: Division; rows: ScorerRow[] }
   | { kind: 'topic'; topic: 'form'; date: string; division: Division; rows: FormRow[] }
   | { kind: 'topic'; topic: 'table'; date: string; division: Division; rows: StandingRow[] }
-  | { kind: 'topic'; topic: 'bigmatch'; date: string; pick: Pick; focus?: boolean }
+  | { kind: 'topic'; topic: 'bigmatch'; date: string; pick: Pick; focus?: boolean; women?: boolean }
   | { kind: 'topic'; topic: 'weekend'; date: string; days: { date: string; picks: Pick[] }[] }
   | { kind: 'topic'; topic: 'facts'; date: string; picks: Pick[] }
 
@@ -100,7 +100,7 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
         case 'bigmatch': {
           // A focus match picked by hand, else the week's biggest
           const pick = spec.focus ? focusPick(date, now, spec.focus) : bigMatchTopic(date, now, only)
-          return pick ? { kind: 'topic', topic: 'bigmatch', date, pick, focus: !!spec.focus } : undefined
+          return pick ? { kind: 'topic', topic: 'bigmatch', date, pick, focus: !!spec.focus, women: !!(spec.women || pick.women) } : undefined
         }
         case 'weekend': {
           const days = weekendTopic(date, now, only, spec.league ? LEAGUE_MATCHES * leagueCount : undefined)
