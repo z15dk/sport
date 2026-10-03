@@ -1057,7 +1057,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         line={`${f.home.name} – ${f.away.name}`}
         foot="Optakt"
         logos={logos}
-        size={focus ? 10 : 12}
+        size={focus ? 8.5 : 12}
       >
         {/* The league's own logo by its name */}
         {focus && logos[p.league] && (
