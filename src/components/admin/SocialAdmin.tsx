@@ -668,6 +668,9 @@ export function OwnPostForm({
   const [tpl, setTpl] = useState('')
   // Up to three leagues for the template (empty: the day's picked matches)
   const [leagueList, setLeagueList] = useState<string[]>([])
+  // Make the template's pictures at the post's time (results not played yet), and put its list under the text
+  const [later, setLater] = useState(false)
+  const [appendList, setAppendList] = useState(true)
   const [storyImage, setStoryImage] = useState<string>()
   // The template's ten texts, to step through with "Ny tekst"
   const [captions, setCaptions] = useState<string[]>([])
@@ -691,7 +694,9 @@ export function OwnPostForm({
   }
   const submit = async (now: boolean) => {
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
-    const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now })
+    const [kind, topic] = tpl.split(':')
+    const template = later && tpl ? { kind, topic, league: leagueList.join(','), appendList } : undefined
+    const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now, template })
     if (!r.error) {
       setText('')
       setLink('')
@@ -763,9 +768,21 @@ export function OwnPostForm({
             </select>
           </label>
         ))}
-        <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
-          {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
-        </button>
+        {!later && (
+          <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
+            {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
+          </button>
+        )}
+        {tpl && (
+          <label className="social-check own-post__later">
+            <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /> Lav billederne først, når opslaget skal ud (fx resultater af kampe, der ikke er spillet endnu)
+          </label>
+        )}
+        {tpl && later && (
+          <label className="social-check own-post__later">
+            <input type="checkbox" checked={appendList} onChange={(e) => setAppendList(e.target.checked)} /> Sæt listen (kampe/resultater) ind under min tekst
+          </label>
+        )}
         <Msg msg={tplAction.msg} />
         <small className="muted own-post__tpl-note">Billederne laves til dagen under &quot;Udgiv&quot;. Du kan rette teksten og tilføje egne billeder bagefter.</small>
       </div>

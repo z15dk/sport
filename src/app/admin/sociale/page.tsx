@@ -235,7 +235,7 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
                           <strong>{p.title}</strong>
                           <span className="muted small">
                             {p.article ? 'Ny artikel' : KIND_NAMES[p.kind]} ·{' '}
-                            {p.approval === 'pending' ? 'venter på godkendelse' : !p.images.length ? 'laver billeder' : 'klar'} ·{' '}
+                            {p.approval === 'pending' ? 'venter på godkendelse' : p.own?.template && !p.images.length ? 'billederne laves, når det skal ud' : !p.images.length ? 'laver billeder' : 'klar'} ·{' '}
                             {targetsOf(p)
                               .map((t) => `${PLATFORM_NAMES[t.platform]}${t.surface === 'story' ? ' story' : ''}`)
                               .join(', ') || 'ingen platforme slået til'}

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import path from 'node:path'
 import sharp from 'sharp'
 import { pickMatches, picksFor } from './social'
-import { captionFor, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
+import { captionFor, captionList, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost, renderSpec } from './socialRender'
 import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
@@ -374,9 +374,62 @@ export async function publishOne(id: string, again = false) {
 
 async function publishDue(now: number, ownOnly = false) {
   for (const p of readPosts().posts) {
-    if (p.status !== 'waiting' || !p.images.length || p.approval === 'pending') continue
+    // An own post made from a template at its time has no pictures until then
+    const later = p.kind === 'own' && !!p.own?.template && !p.images.length
+    if (p.status !== 'waiting' || (!p.images.length && !later) || p.approval === 'pending') continue
     if (ownOnly && p.kind !== 'own') continue
-    if (now >= p.scheduledAt && now < p.expiresAt) await publishOne(p.id)
+    if (now < p.scheduledAt || now >= p.expiresAt) continue
+    if (later && !(await makeTemplatePictures(p.id))) continue
+    await publishOne(p.id)
+  }
+}
+
+/**
+ * An own post planned with a template made at its time: the template's cards made now (with the
+ * results as they are), and its list put under the admin's text when asked for. False when there is
+ * nothing to show (the post then fails with a note).
+ */
+async function makeTemplatePictures(id: string): Promise<boolean> {
+  const p = findPost(id)
+  const t = p?.own?.template
+  if (!p || !t) return false
+  const spec: PostSpec = {
+    kind: t.kind,
+    topic: t.kind === 'topic' ? t.topic : undefined,
+    date: t.date,
+    league: t.league || undefined,
+    matchIds: readPosts().days[t.date]?.matchIds ?? pickMatches(t.date, Date.now()).map((x) => x.fixture.id),
+  }
+  const content = contentFor(spec, Date.now())
+  if (!content) {
+    patch(id, (x) => {
+      x.status = 'failed'
+      x.note = 'Skabelonen havde ingen data, da opslaget skulle ud'
+    })
+    logLine(`Eget opslag "${p.title}": skabelonen havde ingen data`, 'error')
+    return false
+  }
+  try {
+    const made = await renderSpec(`tpl-${Date.now().toString(36)}${randomBytes(2).toString('hex')}`, spec)
+    const feed = made.filter((i) => i.surface === 'feed').slice(0, OWN_MAX_IMAGES)
+    const story = made.find((i) => i.surface === 'story')
+    patch(id, (x) => {
+      const images: SocialPost['images'] = [...feed]
+      // The story: the template's story card, else the first picture
+      const st = story ?? feed[0]
+      if (x.own?.story && st) images.push({ file: st.file, surface: 'story' })
+      x.images = images
+      if (t.appendList) x.caption = [x.caption.trim(), captionList(content)].filter(Boolean).join('\n\n')
+      if (!x.link) x.link = linkFor(content)
+      x.renderedAt = Date.now()
+    })
+    return true
+  } catch (e) {
+    patch(id, (x) => {
+      x.renderError = e instanceof Error ? e.message : String(e)
+      x.renderTries = (x.renderTries ?? 0) + 1
+    })
+    return false
   }
 }
 
@@ -477,10 +530,21 @@ export const OWN_MAX_IMAGES = 10
  * platform), the platforms and the time. It is approved by being written, so it goes out at its time
  * (or at once with `now`), also while the engine is switched off.
  */
-export async function createOwnPost(input: { text: string; link?: string; images: string[]; storyImage?: string; platforms: Platform[]; story: boolean; at: number; now?: boolean }) {
+export async function createOwnPost(input: {
+  text: string
+  link?: string
+  images: string[]
+  storyImage?: string
+  platforms: Platform[]
+  story: boolean
+  at: number
+  now?: boolean
+  /** Make the pictures from this template at the post's time (fresh results) */
+  template?: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; appendList: boolean }
+}) {
   const text = input.text.trim()
   if (!text) throw new Error('Skriv en tekst')
-  if (!input.images.length) throw new Error('Vælg mindst ét billede (Facebook og Instagram poster billeder)')
+  if (!input.images.length && !input.template) throw new Error('Vælg mindst ét billede (Facebook og Instagram poster billeder)')
   if (!input.platforms.length) throw new Error('Vælg mindst én platform')
   const s = socialSecrets()
   const missing = input.platforms.filter((p) => !connected(p, s))
@@ -506,12 +570,17 @@ export async function createOwnPost(input: { text: string; link?: string; images
     images.push({ file, surface: 'feed' })
   }
   // The story: the template's own story card when it has one, else the first picture
-  if (input.story) images.push({ file: templateFile(input.storyImage ?? '') ?? images[0].file, surface: 'story' })
+  if (input.story && images.length) images.push({ file: templateFile(input.storyImage ?? '') ?? images[0].file, surface: 'story' })
   const post: SocialPost = {
     id,
     date: isoDate(at),
     kind: 'own',
-    own: { platforms: input.platforms, story: input.story },
+    own: {
+      platforms: input.platforms,
+      story: input.story,
+      // The template's day is the post's day: the results of that evening
+      ...(input.template && { template: { ...input.template, date: isoDate(at) } }),
+    },
     matchIds: [],
     title: text.split('\n')[0].slice(0, 70),
     caption: text,
@@ -531,7 +600,10 @@ export async function createOwnPost(input: { text: string; link?: string; images
     d.posts.push(post)
   })
   logLine(`Eget opslag "${post.title}" ${input.now ? 'udgives nu' : `planlagt til ${formatLong(post.date)} kl. ${formatTime(new Date(at))}`}`)
-  if (input.now) await publishOne(id)
+  if (input.now) {
+    if (input.template && !images.length && !(await makeTemplatePictures(id))) return findPost(id)
+    await publishOne(id)
+  }
   return findPost(id)
 }
 

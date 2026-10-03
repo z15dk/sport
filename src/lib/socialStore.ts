@@ -153,7 +153,12 @@ export interface SocialPost {
   /** A shared article (its id): an own post the engine made when the article went live */
   article?: number
   /** An own post: the platforms it goes to, and whether its first picture is also a story */
-  own?: { platforms: Platform[]; story: boolean }
+  own?: {
+    platforms: Platform[]
+    story: boolean
+    /** A template whose pictures are made at the post's time (fresh results), and whether its list goes under the admin's text */
+    template?: { kind: PostKind; topic?: TopicId; league?: string; date: string; appendList: boolean }
+  }
   topic?: TopicId
   /** Stories: the kick-off time "HH:MM" */
   slot?: string

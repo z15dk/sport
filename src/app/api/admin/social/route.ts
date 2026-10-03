@@ -206,7 +206,11 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(when)
       const at = m ? danishTime(m[1], m[2]).getTime() : NaN
       if (!b.now && !m) throw new Error('Vælg dato og klokkeslæt')
-      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true })
+      // A template made at the post's time: { kind, topic, league, appendList }
+      const t = (b.template ?? undefined) as Record<string, unknown> | undefined
+      const tKind = t && KINDS.find((k) => k === t.kind && k !== 'story')
+      const template = tKind ? { kind: tKind, topic: isTopic(t!.topic) ? t!.topic : undefined, league: str(t!.league, 100) || undefined, appendList: t!.appendList === true } : undefined
+      const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true, template })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
     }
     case 'ownTemplate': {

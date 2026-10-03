@@ -516,3 +516,4 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .vsd__preview iframe { position: absolute; left: 0; top: 0; width: 1200px; height: 630px; border: 0; transform-origin: 0 0; pointer-events: none; }
 .vsd__preview p { color: #b9bdb0; }
 @media (max-width: 560px) { .vsd__grid { grid-template-columns: 1fr; } }
+.own-post__later { flex-basis: 100%; font-size: 14px; }

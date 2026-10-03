@@ -367,6 +367,12 @@ export function captionVariants(c: Content): string[] {
   }
 }
 
+/** The list in a post's text (the matches, results or numbers), without the opening and the ending */
+export function captionList(c: Content): string {
+  const lines = captionVariants(c)[0].split('\n')
+  return c.kind === 'story' ? lines.join('\n') : lines.slice(2, -2).join('\n')
+}
+
 /** The post's text: one of its ten versions (by default the day's own, so the text changes from day to day) */
 export function captionFor(c: Content, variant?: number): string {
   const all = captionVariants(c)
