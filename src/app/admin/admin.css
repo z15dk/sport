@@ -112,8 +112,8 @@
 .admin-articles { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 .art-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; padding: 14px; border-radius: var(--radius); background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 10px 28px -22px rgba(15, 17, 12, 0.35); }
 .art-card.is-draft { background: var(--surface-2); }
-.art-card__img { display: grid; place-items: center; align-self: stretch; min-height: 150px; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
-.art-card__img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
+.art-card__img { position: relative; display: grid; place-items: center; align-self: stretch; min-height: 150px; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.art-card__img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
 .art-card__img:hover img { transform: scale(1.03); }
 .art-card__noimg { font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .art-card__body { display: flex; flex-direction: column; min-width: 0; }
@@ -133,9 +133,11 @@
 @media (max-width: 700px) {
   .art-card { grid-template-columns: 1fr; gap: 12px; }
   .art-card__img { aspect-ratio: 16 / 7; min-height: 0; }
-  .art-card__head { grid-template-columns: minmax(0, 1fr) auto; }
-  .art-card__date { grid-column: 1 / -1; padding-top: 0; }
-  .art-card__title a { font-size: 20px; }
+  /* On a phone the title gets the whole width; links, state and date go on their own lines under it */
+  .art-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+  .art-card__title { flex: 1 0 100%; }
+  .art-card__date { padding-top: 0; }
+  .art-card__title a { font-size: 24px; line-height: 1.02; }
 }
 @media (max-width: 520px) { .admin-article__facts { grid-template-columns: 1fr; } }
 .admin-article__state { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--surface); }
@@ -481,3 +483,4 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__tpl select { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .own-post__tpl-note { flex-basis: 100%; }
 .art-card__links { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; }
+@media (max-width: 700px) { .art-card__links { flex: 1 0 100%; justify-content: flex-start; gap: 8px 18px; } }
