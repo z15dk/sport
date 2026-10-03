@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 
 // The social media admin (/admin/sociale): buttons, the text editor, the
@@ -681,6 +681,24 @@ export function OwnPostForm({
   const [chosen, setChosen] = useState<string[]>(() => platforms.filter((p) => p.connected).slice(0, 1).map((p) => p.id))
   const [story, setStory] = useState(false)
   const [at, setAt] = useState(nextHour)
+  // The focus match (its id) and the matches to pick it from, for the day under "Udgiv" and the next three
+  const [focus, setFocus] = useState('')
+  const [focusList, setFocusList] = useState<{ id: string; label: string }[]>([])
+  const focusDate = at.slice(0, 10)
+  useEffect(() => {
+    if (tpl !== 'focus') return
+    void fetch('/api/admin/social', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'focusMatches', date: focusDate }) })
+      .then((r) => r.json())
+      .then((d: { data?: { id: string; label: string }[] }) => setFocusList(d.data ?? []))
+      .catch(() => undefined)
+  }, [tpl, focusDate])
+  /** The chosen template as the server takes it: "focus", "women:<kind>", "topic:<id>" or a kind */
+  const tplParams = () => {
+    if (tpl === 'focus') return { kind: 'topic', topic: 'bigmatch', focus }
+    if (tpl.startsWith('women:')) return { kind: tpl.slice(6), women: true }
+    const [kind, topic] = tpl.split(':')
+    return { kind, topic, league: leagueList.join(',') }
+  }
   const [reading, setReading] = useState(false)
   const add = async (files: FileList | null) => {
     if (!files?.length) return
@@ -694,8 +712,7 @@ export function OwnPostForm({
   }
   const submit = async (now: boolean) => {
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
-    const [kind, topic] = tpl.split(':')
-    const template = later && tpl ? { kind, topic, league: leagueList.join(','), appendList } : undefined
+    const template = later && tpl ? { ...tplParams(), appendList } : undefined
     const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now, template })
     if (!r.error) {
       setText('')
@@ -709,8 +726,7 @@ export function OwnPostForm({
   // A template's cards (made on the server for the chosen day) and its text as the start of the post
   const applyTemplate = async () => {
     if (!tpl) return
-    const [kind, topic] = tpl.split(':')
-    const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league: leagueList.join(','), date: at.slice(0, 10) })
+    const r = await tplAction.run({ action: 'ownTemplate', ...tplParams(), date: at.slice(0, 10) })
     const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
     if (r.error || !d) return
     const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
@@ -742,7 +758,20 @@ export function OwnPostForm({
             ))}
           </select>
         </label>
-        {(leagueList.length < 3 ? [...leagueList, ''] : leagueList).map((id, i) => (
+        {tpl === 'focus' && (
+          <label className="own-post__focus">
+            <span>Kamp</span>
+            <select value={focus} onChange={(e) => setFocus(e.target.value)}>
+              <option value="">Vælg kampen …</option>
+              {focusList.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {tpl !== 'focus' && !tpl.startsWith('women:') && (leagueList.length < 3 ? [...leagueList, ''] : leagueList).map((id, i) => (
           <label key={`${i}-${id}`}>
             <span>{i === 0 ? 'Liga' : `Liga ${i + 1}`}</span>
             <select
@@ -769,7 +798,7 @@ export function OwnPostForm({
           </label>
         ))}
         {!later && (
-          <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
+          <button type="button" className="pill" disabled={!tpl || (tpl === 'focus' && !focus) || tplAction.busy} onClick={() => void applyTemplate()}>
             {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
           </button>
         )}

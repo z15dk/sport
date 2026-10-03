@@ -82,6 +82,8 @@ export interface Fact {
   /** The numbers behind the fact */
   proof: { label: string; value: string }[]
   proofTitle: string
+  /** The meetings counted: home team's wins, draws, away team's wins (the head-to-head card) */
+  h2h?: { w: number; d: number; l: number; n: number }
 }
 
 export interface Pick {
@@ -95,6 +97,8 @@ export interface Pick {
   away: { pos?: number; points?: number }
   /** One fact for the preview */
   fact?: Fact
+  /** The head-to-head of a focus match (always looked up for it, whatever the fact is) */
+  h2h?: Fact
   /** Table position after the match, when it is the club's latest */
   after?: { home?: number; away?: number }
   /** Logos the source sent with the match (API-Sports' games) */
@@ -127,10 +131,11 @@ function headToHeadFact(f: Fixture): Fact | undefined {
   const n = h2h.length
   const proof = h2h.map((m) => ({ label: `${m.date.getFullYear()} · ${m.home} – ${m.away}`, value: `${m.homeScore}–${m.awayScore}` }))
   const proofTitle = `De seneste ${n} opgør`
-  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle }
-  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle }
-  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle }
-  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle }
+  const counts = { w, d, l, n }
+  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle, h2h: counts }
+  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle, h2h: counts }
+  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle, h2h: counts }
+  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle, h2h: counts }
 }
 
 /** A club's current run before a time: wins in a row, unbeaten or without a win */
@@ -525,6 +530,27 @@ export function bigMatchTopic(date: string, now: number, only: (f: Fixture) => b
     if (scored[0] && (!best || scored[0].score > best.s.score)) best = { scored, s: scored[0] }
   }
   return best ? decorate([best.s], best.scored, now)[0] : undefined
+}
+
+/** One match picked by hand (the focus match of an own post): looked for from `date` and the next week */
+export function focusPick(date: string, now: number, matchId: string): Pick | undefined {
+  for (let i = 0; i < 8; i++) {
+    const day = addDays(date, i)
+    const pick = picksFor(day, now, [matchId])[0]
+    if (pick) return { ...pick, h2h: headToHeadFact(pick.fixture) }
+  }
+  return undefined
+}
+
+/** The matches to pick a focus match from: from `date` and the next few days, best first per day */
+export function focusCandidates(date: string, now: number, days = 4): { id: string; label: string }[] {
+  const out: { id: string; label: string }[] = []
+  for (let i = 0; i < days; i++)
+    for (const c of candidates(addDays(date, i), now)) {
+      const k = c.fixture.kickoff
+      out.push({ id: c.fixture.id, label: `${k.getDate()}/${k.getMonth() + 1} ${String(k.getHours()).padStart(2, '0')}.${String(k.getMinutes()).padStart(2, '0')} · ${c.fixture.home.name} – ${c.fixture.away.name} (${c.league})` })
+    }
+  return out
 }
 
 /** The coming Saturday and Sunday (today and tomorrow on a Saturday) */

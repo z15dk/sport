@@ -1,5 +1,5 @@
 import 'server-only'
-import { leagueName,
+import { focusPick, leagueName,
   bigMatchTopic,
   factsTopic,
   formTopic,
@@ -40,6 +40,8 @@ export interface PostSpec {
   women?: boolean
   /** One of our leagues (Division id), or up to three separated by commas: the post is made from those leagues alone instead of the day's picks and the topic league */
   league?: string
+  /** A match picked by hand (its id): the focus match card with the head-to-head, instead of the week's biggest match */
+  focus?: string
 }
 
 export type Content =
@@ -50,7 +52,7 @@ export type Content =
   | { kind: 'topic'; topic: 'scorers'; date: string; division: Division; rows: ScorerRow[] }
   | { kind: 'topic'; topic: 'form'; date: string; division: Division; rows: FormRow[] }
   | { kind: 'topic'; topic: 'table'; date: string; division: Division; rows: StandingRow[] }
-  | { kind: 'topic'; topic: 'bigmatch'; date: string; pick: Pick }
+  | { kind: 'topic'; topic: 'bigmatch'; date: string; pick: Pick; focus?: boolean }
   | { kind: 'topic'; topic: 'weekend'; date: string; days: { date: string; picks: Pick[] }[] }
   | { kind: 'topic'; topic: 'facts'; date: string; picks: Pick[] }
 
@@ -96,8 +98,9 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
           return t ? { kind: 'topic', topic: 'table', date, ...t } : undefined
         }
         case 'bigmatch': {
-          const pick = bigMatchTopic(date, now, only)
-          return pick ? { kind: 'topic', topic: 'bigmatch', date, pick } : undefined
+          // A focus match picked by hand, else the week's biggest
+          const pick = spec.focus ? focusPick(date, now, spec.focus) : bigMatchTopic(date, now, only)
+          return pick ? { kind: 'topic', topic: 'bigmatch', date, pick, focus: !!spec.focus } : undefined
         }
         case 'weekend': {
           const days = weekendTopic(date, now, only, spec.league ? LEAGUE_MATCHES * leagueCount : undefined)
@@ -122,7 +125,7 @@ export function titleFor(spec: PostSpec): string {
   if (spec.women) return `Kvindefodbold: ${titleFor({ ...spec, women: false }).toLowerCase()}`
   const names = (spec.league ?? '').split(',').filter(Boolean).map(leagueName)
   const title =
-    spec.kind === 'programme' ? 'Dagens kampe' : spec.kind === 'story' ? `Story før kampstart kl. ${spec.slot}` : spec.kind === 'results' ? 'Resultater' : `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
+    spec.focus ? 'Fokuskamp' : spec.kind === 'programme' ? 'Dagens kampe' : spec.kind === 'story' ? `Story før kampstart kl. ${spec.slot}` : spec.kind === 'results' ? 'Resultater' : `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
   return names.length ? `${title} · ${names.join(', ')}` : title
 }
 
@@ -309,7 +312,18 @@ export function captionVariants(c: Content): string[] {
           const when = `${formatLong(p.fixture.kickoff)} kl. ${formatTime(p.fixture.kickoff)}`
           const body = [`${vs(p)} · ${when} (${p.league})`, ...(p.fact ? ['', p.fact.text] : [])]
           return out(
-            [
+            c.focus ? [
+              'Dagens fokuskamp 🔥',
+              'Den her kamp skal du ikke gå glip af 👀',
+              'Vi har sat fokus på det her opgør ⚽',
+              'Klar til kamp? Her er det indbyrdes regnskab 📊',
+              'Der er lagt op til et brag 💥',
+              'Hvem vinder? Historikken taler sit tydelige sprog 👇',
+              'Alt er klar – og sådan har det gået i de seneste opgør:',
+              'Opgøret alle taler om ⚽🔥',
+              'Fokus på kampen – og på tallene bag 🤓',
+              'Glæd dig til kampen – her er optakten:',
+            ] : [
               'Ugens kamp 🔥',
               'Den her kamp skal du ikke gå glip af 👀',
               'Sæt kryds i kalenderen – ugens store opgør:',

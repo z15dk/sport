@@ -18,6 +18,7 @@ import { connectMeta, connectThreads, connectX, testPlatform } from '../../../..
 import { approve, createOwnPost, deleteOwnPost, ownTemplate, shareArticle, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
+import { focusCandidates } from '../../../../lib/social'
 
 // Everything on /admin/sociale: settings, accounts, tests and the posts.
 
@@ -209,7 +210,9 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       // A template made at the post's time: { kind, topic, league, appendList }
       const t = (b.template ?? undefined) as Record<string, unknown> | undefined
       const tKind = t && KINDS.find((k) => k === t.kind && k !== 'story')
-      const template = tKind ? { kind: tKind, topic: isTopic(t!.topic) ? t!.topic : undefined, league: str(t!.league, 100) || undefined, appendList: t!.appendList === true } : undefined
+      const template = tKind
+        ? { kind: tKind, topic: isTopic(t!.topic) ? t!.topic : undefined, league: str(t!.league, 100) || undefined, focus: str(t!.focus, 100) || undefined, women: t!.women === true, appendList: t!.appendList === true }
+        : undefined
       const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true, template })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
     }
@@ -219,12 +222,18 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       if (!kind || kind === 'story') throw new Error('Vælg en skabelon')
       const date = str(b.date, 10)
       if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
-      const r = await ownTemplate({ kind, topic: isTopic(b.topic) ? b.topic : undefined, league: str(b.league, 100), date })
+      const r = await ownTemplate({ kind, topic: isTopic(b.topic) ? b.topic : undefined, league: str(b.league, 100), focus: str(b.focus, 100) || undefined, women: b.women === true, date })
       return { message: `${r.title}: ${r.images.length} billeder`, data: r }
     }
     case 'shareArticle': {
       const post = await shareArticle(int(b.id, 0, 0, 1e9))
       return { message: post ? `${STATUS_NAMES[post.status]}: ${Object.values(post.results).map((r) => (r.status === 'error' ? `fejl – ${r.error}` : r.status === 'dry' ? 'tør-kørt' : 'sendt')).join(', ')}` : 'Delt' }
+    }
+    case 'focusMatches': {
+      // The matches to pick a focus match from (the day and the next three)
+      const date = str(b.date, 10)
+      if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
+      return { data: focusCandidates(date, Date.now()) }
     }
     case 'ownDelete':
       deleteOwnPost(str(b.id, 80))

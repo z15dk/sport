@@ -268,6 +268,9 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             templates={[
               { value: 'programme', label: 'Dagens kampe' },
               { value: 'results', label: 'Resultater' },
+              { value: 'focus', label: 'Fokuskamp med head-to-head' },
+              { value: 'women:programme', label: 'Kvindefodbold: dagens kampe' },
+              { value: 'women:results', label: 'Kvindefodbold: resultater' },
               ...TOPICS.map((t) => ({ value: `topic:${t.id}`, label: t.name })),
             ]}
             leagues={[...shownDivisions().map((d) => ({ id: d.id, name: d.name, group: 'Vores ligaer' })), ...otherLeagues(now).map((l) => ({ ...l, group: 'Pokaler og andre turneringer' }))]}

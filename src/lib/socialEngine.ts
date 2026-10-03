@@ -393,13 +393,7 @@ async function makeTemplatePictures(id: string): Promise<boolean> {
   const p = findPost(id)
   const t = p?.own?.template
   if (!p || !t) return false
-  const spec: PostSpec = {
-    kind: t.kind,
-    topic: t.kind === 'topic' ? t.topic : undefined,
-    date: t.date,
-    league: t.league || undefined,
-    matchIds: readPosts().days[t.date]?.matchIds ?? pickMatches(t.date, Date.now()).map((x) => x.fixture.id),
-  }
+  const spec = templateSpec(t, Date.now())
   const content = contentFor(spec, Date.now())
   if (!content) {
     patch(id, (x) => {
@@ -540,7 +534,7 @@ export async function createOwnPost(input: {
   at: number
   now?: boolean
   /** Make the pictures from this template at the post's time (fresh results) */
-  template?: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; appendList: boolean }
+  template?: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; appendList: boolean }
 }) {
   const text = input.text.trim()
   if (!text) throw new Error('Skriv en tekst')
@@ -634,16 +628,26 @@ function templateFile(ref: string): string | undefined {
  * One of the engine's templates as the start of an own post: its cards made into pictures now,
  * with its text and link. The admin edits the text and adds pictures before planning it.
  */
-export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; date: string; now?: number }) {
-  const now = input.now ?? Date.now()
-  const spec: PostSpec = {
-    kind: input.kind,
-    topic: input.kind === 'topic' ? input.topic : undefined,
-    date: input.date,
-    league: input.league || undefined,
-    // The day's matches as planned, else as the engine would pick them now
-    matchIds: readPosts().days[input.date]?.matchIds ?? pickMatches(input.date, now).map((p) => p.fixture.id),
+/** A template's spec for an own post: a league (or more), a focus match, or women's football */
+function templateSpec(t: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; date: string }, now: number): PostSpec {
+  const women = !!t.women
+  return {
+    kind: t.focus ? 'topic' : t.kind,
+    topic: t.focus ? 'bigmatch' : t.kind === 'topic' ? t.topic : undefined,
+    date: t.date,
+    league: women ? undefined : t.league || undefined,
+    focus: t.focus || undefined,
+    women: women || undefined,
+    // Women's football: its own pick of the day's women's games; else the day's matches as planned, or as the engine would pick them now
+    matchIds: women
+      ? pickMatches(t.date, now, () => true, socialConfig().matches || 5, true).map((p) => p.fixture.id)
+      : (readPosts().days[t.date]?.matchIds ?? pickMatches(t.date, now).map((p) => p.fixture.id)),
   }
+}
+
+export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; date: string; now?: number }) {
+  const now = input.now ?? Date.now()
+  const spec = templateSpec(input, now)
   const content = contentFor(spec, now)
   if (!content) throw new Error('Skabelonen har ingen data den dag (prøv en anden liga eller dato)')
   dropUnusedTemplates()

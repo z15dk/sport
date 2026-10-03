@@ -517,3 +517,4 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .vsd__preview p { color: #b9bdb0; }
 @media (max-width: 560px) { .vsd__grid { grid-template-columns: 1fr; } }
 .own-post__later { flex-basis: 100%; font-size: 14px; }
+.own-post__tpl label.own-post__focus { flex: 1 1 360px; }

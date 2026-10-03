@@ -277,3 +277,9 @@
 .fixturesSix .fixtureTeam { font-size: 3.1cqw; padding: 1.2cqw 2cqw; }
 .fixturesSix .fixtureTime b { font-size: 4.8cqw; }
 .storySix .storyRow { min-height: 16.5cqw; }
+
+/* The head-to-head card: wins, draws and the other team's wins in big numbers */
+.h2hNums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2cqw; }
+.h2hNums div { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3cqw 1cqw; border-radius: 2cqw; background: rgba(0, 0, 0, 0.22); }
+.h2hNums b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16cqw; line-height: 1; }
+.h2hNums span { margin-top: 1.4cqw; font-size: 3cqw; font-weight: 700; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

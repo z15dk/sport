@@ -992,7 +992,8 @@ function FactBlock({ p, size = 7, rows }: { p: Pick; size?: number; rows?: numbe
         {p.fact.text}
       </p>
       <div className={s.sub} style={{ marginTop: '4cqw', marginBottom: '1cqw' }}>
-        {proof.length < p.fact.proof.length ? `De ${proof.length} nyeste opgør` : p.fact.proofTitle}
+        {/* Cut short: the fact's own heading, with how many of them are shown */}
+        {proof.length < p.fact.proof.length ? `${p.fact.proofTitle} – de ${proof.length} nyeste` : p.fact.proofTitle}
       </div>
       <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.3cqw' }}>
         <tbody>
@@ -1011,24 +1012,27 @@ function FactBlock({ p, size = 7, rows }: { p: Pick; size?: number; rows?: numbe
 const weekdayTime = (d: Date) => `${formatLong(d).split(' ')[0]} kl. ${formatTime(d)}`
 
 /** The week's biggest match */
-export function BigMatchCards({ p, logos }: { p: Pick; logos: Logos }) {
+export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focus?: boolean }) {
   const f = p.fixture
   const pos = [p.home.pos && `${f.home.name} er nr. ${p.home.pos}`, p.away.pos && `${f.away.name} nr. ${p.away.pos}`].filter(Boolean).join(', ')
+  // The head-to-head card: the focus match's own lookup, else the fact when it is the head-to-head
+  const meet = p.h2h ?? (p.fact?.h2h ? p.fact : undefined)
+  const h2h = meet?.h2h
   return (
     <div className={s.rail}>
       <StoryCard
-        caption="Ugens kamp"
+        caption={focus ? 'Fokuskamp' : 'Ugens kamp'}
         club={f.home}
         label={`${p.league} · ${weekdayTime(f.kickoff)}`}
-        headline="Ugens kamp"
+        headline={focus ? 'Kampens fokus' : 'Ugens kamp'}
         crests={[f.home, f.away]}
         line={`${f.home.name} – ${f.away.name}`}
-        foot="Optakt"
+        foot={h2h ? '1/2' : 'Optakt'}
         logos={logos}
         size={12}
       >
         {p.fact ? (
-          <FactBlock p={p} size={6.4} />
+          <FactBlock p={p} size={6.4} rows={h2h ? 3 : undefined} />
         ) : (
           pos && (
             <p className={s.serif} style={{ fontSize: '6.4cqw' }}>
@@ -1037,6 +1041,45 @@ export function BigMatchCards({ p, logos }: { p: Pick; logos: Logos }) {
           )
         )}
       </StoryCard>
+      {/* Head to head: the meetings counted in big numbers, and the latest of them */}
+      {h2h && meet && (
+        <StoryCard
+          caption="Indbyrdes opgør"
+          club={f.away}
+          label={`${p.league} · indbyrdes`}
+          headline="Head to head"
+          size={11}
+          crests={[f.home, f.away]}
+          line={`De seneste ${h2h.n} opgør`}
+          foot="2/2"
+          logos={logos}
+        >
+          <div className={s.h2hNums}>
+            <div>
+              <b>{h2h.w}</b>
+              <span>{f.home.name}</span>
+            </div>
+            <div>
+              <b>{h2h.d}</b>
+              <span>Uafgjort</span>
+            </div>
+            <div>
+              <b>{h2h.l}</b>
+              <span>{f.away.name}</span>
+            </div>
+          </div>
+          <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.3cqw', marginTop: '4cqw' }}>
+            <tbody>
+              {meet.proof.slice(0, 4).map((r) => (
+                <tr key={r.label}>
+                  <td>{r.label}</td>
+                  <td className={s.r}>{r.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </StoryCard>
+      )}
     </div>
   )
 }
@@ -1152,7 +1195,7 @@ function PostCardsOf(c: Content, logos: Logos) {
         case 'table':
           return <TableCards division={c.division} rows={c.rows} logos={logos} />
         case 'bigmatch':
-          return <BigMatchCards p={c.pick} logos={logos} />
+          return <BigMatchCards p={c.pick} logos={logos} focus={c.focus} />
         case 'weekend':
           return <WeekendCards days={c.days} logos={logos} />
         case 'facts':

@@ -26,6 +26,9 @@ function specOf(raw?: string): PostSpec | undefined {
       slot: typeof v.slot === 'string' ? v.slot : undefined,
       league: typeof v.league === 'string' ? v.league : undefined,
       matchIds: Array.isArray(v.matchIds) ? v.matchIds.filter((x): x is string => typeof x === 'string') : [],
+      // A focus match picked by hand, and women's football
+      focus: typeof v.focus === 'string' ? v.focus : undefined,
+      women: v.women === true ? true : undefined,
     }
   } catch {
     return undefined

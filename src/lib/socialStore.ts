@@ -157,7 +157,7 @@ export interface SocialPost {
     platforms: Platform[]
     story: boolean
     /** A template whose pictures are made at the post's time (fresh results), and whether its list goes under the admin's text */
-    template?: { kind: PostKind; topic?: TopicId; league?: string; date: string; appendList: boolean }
+    template?: { kind: PostKind; topic?: TopicId; league?: string; focus?: string; women?: boolean; date: string; appendList: boolean }
   }
   topic?: TopicId
   /** Stories: the kick-off time "HH:MM" */
