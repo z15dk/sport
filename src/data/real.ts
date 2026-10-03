@@ -114,6 +114,9 @@ export function addRealExtras(extra: { games?: ExternalGame[]; leagues?: Record<
   if (typeof window === 'undefined') return
   const cur = holder.__scorelineReal
   if (!cur) return
+  // A page's games replace the same games from an earlier page (a day list has them without the match page's details)
+  const given = new Map((extra.games ?? []).map((g) => [g.id, g]))
+  const replaced = (cur.external ?? []).some((g) => given.has(g.id) && given.get(g.id) !== g && JSON.stringify(given.get(g.id)) !== JSON.stringify(g))
   const have = new Set((cur.external ?? []).map((g) => g.id))
   const games = (extra.games ?? []).filter((g) => !have.has(g.id))
   const newNames = Object.keys(extra.teamIndex ?? {}).some((k) => !(k in (cur.teamIndex ?? {})))
@@ -127,10 +130,10 @@ export function addRealExtras(extra: { games?: ExternalGame[]; leagues?: Record<
     if (add.length) leagues = { ...(leagues ?? cur.leagues), [id]: [...had, ...add] }
   }
   // Nothing new: keep the same objects, so what is worked out from them stays cached
-  if (!games.length && !newNames && !newPairs && !leagues) return
+  if (!games.length && !replaced && !newNames && !newPairs && !leagues) return
   holder.__scorelineReal = {
     ...cur,
-    external: games.length ? [...(cur.external ?? []), ...games] : cur.external,
+    external: games.length || replaced ? [...(cur.external ?? []).map((g) => given.get(g.id) ?? g), ...games] : cur.external,
     leagues: leagues ?? cur.leagues,
     teamIndex: newNames ? { ...cur.teamIndex, ...extra.teamIndex } : cur.teamIndex,
     leagueTeamIndex: newPairs ? { ...cur.leagueTeamIndex, ...extra.leagueTeamIndex } : cur.leagueTeamIndex,

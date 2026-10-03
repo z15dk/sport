@@ -65,6 +65,19 @@ export function clubLeagues(clubIds: string[]): Record<string, RealEvent[]> {
   return Object.fromEntries([...ids].filter((id) => leagues[id]).map((id) => [id, leagues[id]]))
 }
 
+/**
+ * A day list's games as the browser needs them for the list: the goals and red cards (no yellow cards), and
+ * none of the match page's details (periods, stadium, referee). A match page adds its own game in full.
+ */
+export function listGames(games: ExternalGame[]): ExternalGame[] {
+  return games.map((g) => {
+    const { periods, stadium, referee, eventsFor, round, incidents, ...rest } = g
+    void periods, stadium, referee, eventsFor, round
+    const shown = incidents?.filter((i) => i.kind !== 'yellow')
+    return { ...rest, ...(shown?.length && { incidents: shown }) }
+  })
+}
+
 /** One day's games in our leagues (a day page outside the days the browser gets) */
 export function leaguesOn(date: string): Record<string, RealEvent[]> {
   const out: Record<string, RealEvent[]> = {}
