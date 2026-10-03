@@ -7,7 +7,8 @@ import { useLayoutEffect } from 'react'
 // hidden instead of being cut in half. Runs again when the page is resized.
 
 function fit(box: HTMLElement) {
-  const rows = [...box.querySelectorAll<HTMLElement>('tr')]
+  // Table rows, and blocks marked [data-fit-item] (shown whole or not at all)
+  const rows = [...box.querySelectorAll<HTMLElement>('tr, [data-fit-item]')]
   rows.forEach((r) => (r.style.display = ''))
   const bottom = box.getBoundingClientRect().bottom
   for (const r of rows) if (r.getBoundingClientRect().bottom > bottom + 0.5) r.style.display = 'none'

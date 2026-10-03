@@ -1161,7 +1161,8 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
             </div>
           )}
           {meet.meetings && meet.meetings.length > (h2h.n < 3 ? 1 : 0) && (
-            <div className={s.h2hRows}>
+            // Left out when it does not fit whole above the Matchly bar
+            <div className={s.h2hRows} data-fit-item>
               <div className={s.h2hRowsTitle}>{h2h.n < 3 ? 'Opgøret før' : 'Seneste opgør'}</div>
               {meet.meetings.slice(h2h.n < 3 ? 1 : 0, h2h.n < 3 ? 2 : 1).map((m, i) => {
                 const club = (name: string) => (name === f.home.name ? f.home : name === f.away.name ? f.away : undefined)
