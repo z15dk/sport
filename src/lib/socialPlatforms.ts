@@ -464,8 +464,9 @@ export async function testPlatform(platform: Platform): Promise<string> {
   switch (platform) {
     case 'facebook': {
       if (viaMake(s)) {
-        // A sample post marked "test", for Make to learn the data's structure (the scenario's filter keeps it from being posted)
-        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg']))
+        // A sample post marked "test", for Make to learn the data's structure (the scenario's filter keeps it from being posted);
+        // two pictures, so Make sees photos as a list and the whole list is mapped – not just the first
+        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg']))
         return 'Eksemplet er sendt til Make'
       }
       if (!s.meta.pageToken) throw new ApiError('Ikke forbundet')
