@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker, OwnPostForm } from '../../../components/admin/SocialAdmin'
 import { isAdmin } from '../../../lib/admin'
-import { candidates, picksFor, todayIso } from '../../../lib/social'
+import { candidates, otherLeagues, picksFor, todayIso } from '../../../lib/social'
 import { targetsOf } from '../../../lib/socialEngine'
 import { connected, platformCaption, storyOk } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
@@ -270,7 +270,7 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
               { value: 'results', label: 'Resultater' },
               ...TOPICS.map((t) => ({ value: `topic:${t.id}`, label: t.name })),
             ]}
-            leagues={shownDivisions().map((d) => ({ id: d.id, name: d.name }))}
+            leagues={[...shownDivisions().map((d) => ({ id: d.id, name: d.name, group: 'Vores ligaer' })), ...otherLeagues(now).map((l) => ({ ...l, group: 'Pokaler og andre turneringer' }))]}
             platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: storyOk(p, secrets) }))}
           />
         </section>

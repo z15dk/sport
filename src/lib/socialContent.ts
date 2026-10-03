@@ -1,5 +1,5 @@
 import 'server-only'
-import {
+import { leagueName,
   bigMatchTopic,
   factsTopic,
   formTopic,
@@ -120,7 +120,7 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 /** The admin's name for the post */
 export function titleFor(spec: PostSpec): string {
   if (spec.women) return `Kvindefodbold: ${titleFor({ ...spec, women: false }).toLowerCase()}`
-  const names = (spec.league ?? '').split(',').map((id) => DIVISIONS.find((d) => d.id === id)?.name).filter(Boolean)
+  const names = (spec.league ?? '').split(',').filter(Boolean).map(leagueName)
   const title =
     spec.kind === 'programme' ? 'Dagens kampe' : spec.kind === 'story' ? `Story før kampstart kl. ${spec.slot}` : spec.kind === 'results' ? 'Resultater' : `Dagens emne: ${TOPICS.find((t) => t.id === spec.topic)?.name ?? spec.topic}`
   return names.length ? `${title} · ${names.join(', ')}` : title

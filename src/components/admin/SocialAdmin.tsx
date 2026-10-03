@@ -661,7 +661,7 @@ export function OwnPostForm({
   platforms: { id: string; name: string; connected: boolean; story: boolean }[]
   /** The engine's templates: "programme", "results" or "topic:<id>" */
   templates: { value: string; label: string }[]
-  leagues: { id: string; name: string }[]
+  leagues: { id: string; name: string; group?: string }[]
 }) {
   const { busy, msg, run } = useAction()
   const tplAction = useAction()
@@ -749,13 +749,17 @@ export function OwnPostForm({
               }}
             >
               <option value="">{i === 0 ? 'Dagens udvalgte' : i < leagueList.length ? '– fjern –' : '+ tilføj liga'}</option>
-              {leagues
-                .filter((l) => l.id === id || !leagueList.includes(l.id))
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
+              {[...new Set(leagues.map((l) => l.group ?? ''))].map((g) => (
+                <optgroup key={g} label={g || 'Ligaer'}>
+                  {leagues
+                    .filter((l) => (l.group ?? '') === g && (l.id === id || !leagueList.includes(l.id)))
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
             </select>
           </label>
         ))}

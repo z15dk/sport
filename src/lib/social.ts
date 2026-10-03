@@ -438,11 +438,31 @@ export const todayIso = (now: number) => isoDate(new Date(now))
 
 /** The league the one-league topics use: the admin's choice, else the Superliga */
 /** Only the matches of one of our leagues (a post made for that league alone) */
-/** One league, or up to three separated by commas ("superliga,1div") */
+/**
+ * One league, or up to three separated by commas: our leagues by id ("superliga,1div"), and cups and
+ * other tournaments as "liga:<league id>" ("liga:cup-fa")
+ */
 export const leagueOnly = (id: string) => {
   const ids = id.split(',').filter(Boolean)
-  return (f: Fixture) => !!f.division && ids.includes(f.division.id)
+  return (f: Fixture) => (!!f.division && ids.includes(f.division.id)) || (!!f.leagueId && ids.includes(`liga:${f.leagueId}`))
 }
+
+let otherCache: { at: number; list: { id: string; name: string }[] } | undefined
+/** Cups and other tournaments with matches the next two weeks, to pick for a post ("liga:<league id>") */
+export function otherLeagues(now = Date.now()): { id: string; name: string }[] {
+  if (otherCache && now - otherCache.at < 10 * 60_000) return otherCache.list
+  const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
+  const found = new Map<string, string>()
+  for (let i = -1; i < 14; i++)
+    for (const m of getMatches(addDays(isoDate(now), i), 'all', now))
+      if (m.leagueId && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && !found.has(m.leagueId)) found.set(m.leagueId, m.country ? `${m.league} (${m.country})` : m.league)
+  const list = [...found.entries()].map(([id, name]) => ({ id: `liga:${id}`, name })).sort((a, b) => a.name.localeCompare(b.name, 'da'))
+  otherCache = { at: now, list }
+  return list
+}
+
+/** A league's name for a title: ours by id, a cup or other tournament by "liga:<id>" */
+export const leagueName = (id: string) => DIVISIONS.find((d) => d.id === id)?.name ?? otherLeagues().find((l) => l.id === id)?.name.replace(/ \(.*\)$/, '') ?? id
 /** How many of a league's matches a post for one league shows at most (a whole round) */
 export const LEAGUE_MATCHES = 12
 

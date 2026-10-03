@@ -3,14 +3,14 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../../components/admin/AdminNav'
 import { isAdmin } from '../../../../lib/admin'
-import { LEAGUE_MATCHES, leagueOnly, pickMatches, todayIso } from '../../../../lib/social'
+import { LEAGUE_MATCHES, leagueName, leagueOnly, otherLeagues, pickMatches, todayIso } from '../../../../lib/social'
 import { captionFor, contentFor, logosFor, type PostSpec } from '../../../../lib/socialContent'
 import { readPosts, socialConfig, TOPICS } from '../../../../lib/socialStore'
 import { addDays, formatLong, isValidIsoDate } from '../../../../lib/time'
 import s from '../sociale.module.css'
 import { getMatches } from '../../../../data/matches'
 import { teamByName } from '../../../../data/teams'
-import { DIVISIONS, shownDivisions } from '../../../../data/leagues'
+import { shownDivisions } from '../../../../data/leagues'
 import { paths } from '../../../../lib/site'
 import { CaptionBox, Day, PostCards, slotsOf } from '../cards'
 import { FitRows } from '../FitRows'
@@ -29,7 +29,7 @@ type SearchParams = Promise<{ dato?: string; liga?: string; [param: string]: str
 /** One kind of post: its cards and text, or why it is left out; `pick` lets the admin choose the league it is made from */
 async function Section({ spec, now, time, label, title, where, empty, pick }: { spec: PostSpec; now: number; time: string; label: string; title: string; where: string; empty: string; pick?: { param: string; value?: string; options: LeagueOption[] } }) {
   const content = contentFor(spec, now)
-  const leagues = (spec.league ?? '').split(',').flatMap((id) => DIVISIONS.filter((d) => d.id === id))
+  const leagues = (spec.league ?? '').split(',').filter(Boolean).map((id) => ({ slug: id.replace(/[^a-z0-9]+/gi, '-'), name: leagueName(id) }))
   const rail = `${spec.date}-${spec.kind}${spec.topic ? `-${spec.topic}` : ''}${spec.slot ? `-${spec.slot.replace(/\D/g, '')}` : ''}${leagues.map((l) => `-${l.slug}`).join('')}`
   const tools = pick && <LeaguePicker param={pick.param} value={pick.value} options={pick.options} auto="Automatisk (motorens valg)" />
   return (
@@ -91,7 +91,10 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Se
   const { dato } = params
   const date = isValidIsoDate(dato) ? dato : todayIso(now)
   // The league each template is made from: ?liga-<section>=<id> for one, ?liga=<id> for all; else the engine's own choice
-  const options: LeagueOption[] = shownDivisions().map((d) => ({ id: d.id, name: d.name, sport: sportById(d.sport ?? 'soccer').label }))
+  const options: LeagueOption[] = [
+    ...shownDivisions().map((d) => ({ id: d.id, name: d.name, sport: sportById(d.sport ?? 'soccer').label })),
+    ...otherLeagues(now).map((l) => ({ ...l, sport: 'Pokaler og andre turneringer' })),
+  ]
   // Up to three leagues, separated by commas in the address
   const valid = (value?: string) => {
     const ids = [...new Set((value ?? '').split(',').filter((id) => options.some((o) => o.id === id)))].slice(0, 3)
