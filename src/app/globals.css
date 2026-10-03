@@ -2290,3 +2290,14 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 @media (max-width: 900px) {
   body:has(> .adminbar) .rail { top: 44px; height: auto; }
 }
+
+/* "N nu" in the admin bar: who is on which page right now */
+.adminbar__drop.adminbar__live { left: auto; right: 0; width: min(380px, calc(100vw - 16px)); max-height: 70vh; overflow-y: auto; padding: 8px 0; }
+.adminbar__live .adminbar__group-name { display: block; padding: 8px 14px 4px; }
+.adminbar__live-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 14px; color: #fff; text-decoration: none; font-size: 13px; }
+.adminbar__live-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adminbar__live-row b { color: var(--lime); }
+.adminbar__live-row.is-visitor { flex-direction: column; align-items: flex-start; gap: 2px; }
+.adminbar__live-row small { color: rgba(255, 255, 255, 0.55); font-size: 11.5px; }
+.adminbar__live-empty { margin: 0; padding: 10px 14px; color: rgba(255, 255, 255, 0.7); font-size: 13px; }
+.adminbar__drop a.adminbar__live-all { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); color: var(--lime); font-weight: 700; }
