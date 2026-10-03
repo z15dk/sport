@@ -343,5 +343,11 @@
 .centerCard .h2hBig { padding: 2cqw 3cqw; gap: 2cqw; }
 .centerCard .h2hBig > div:not(.h2hBigScore) { gap: 1.2cqw; }
 .centerCard .h2hBigScore b { font-size: 10cqw; }
+/* …and compact enough that a two-line head-to-head sentence leaves the numbers whole above the Matchly bar */
+.centerCard .crestLg { width: 10.5cqw; height: 10.5cqw; }
+.centerCard .leagueLine { margin-bottom: 1.2cqw; }
+.centerCard .leagueLine img { width: 8cqw; height: 8cqw; padding: 1cqw; }
+.centerCard .h2hNums div { padding: 1.2cqw 1cqw; }
+.centerCard .h2hNums b { font-size: 8.5cqw; }
 /* Tables on a centred card stay left (the goals) */
 .centerCard .tb { text-align: left; }

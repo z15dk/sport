@@ -1100,7 +1100,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         line={`${f.home.name} – ${f.away.name}`}
         foot="Optakt"
         logos={logos}
-        size={focus ? 8.5 : 12}
+        size={focus ? 7.5 : 12}
       >
         {/* The league's own logo by its name */}
         {focus && logos[p.league] && (
@@ -1112,7 +1112,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         {/* One card: the match on top, the head-to-head under it (who leads, the latest meeting large or the meetings counted) */}
         {h2h && meet ? (
           <>
-          <p className={s.serif} style={{ fontSize: '5.2cqw', lineHeight: 1.08, marginBottom: '3cqw' }}>
+          <p className={s.serif} style={{ fontSize: focus ? '4.6cqw' : '5.2cqw', lineHeight: 1.08, marginBottom: focus ? '2cqw' : '3cqw' }}>
             {h2hSentence(f.home.name, f.away.name, h2h, meet.meetings?.[0])}
           </p>
           {h2h.n < 3 && meet.meetings?.[0] ? (
