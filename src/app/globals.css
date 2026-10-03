@@ -2356,3 +2356,10 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
   .league .team__name { font-size: 15px; }
   .league .match__scores { font-size: 19px; gap: 3px; }
 }
+
+/* A match's substitutions (SubsList) */
+.subs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.subs-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 6px; align-items: start; }
+.subs-list__min { font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.subs-list__on { color: #2f9e44; font-weight: 800; }
+.subs-list__off { color: var(--live); font-weight: 800; }

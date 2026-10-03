@@ -6,7 +6,8 @@ import path from 'node:path'
 import type { Incident, MatchState, PeriodScore, SportId } from '../types'
 import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
 import { alike } from '../data/aliases'
-import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
+import { normalize } from '../data/aliases'
+import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -1321,7 +1322,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[] }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1516,8 +1517,42 @@ export async function apiMatchEvents(game: ExternalGame, opts: { spend?: boolean
   if (error) return entry?.incidents
   const incidents = toIncidents(response ?? [], game)
   store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
+  const subs = toSubs(response ?? [], game, store.entries[`${api}|lineups|${game.id}`]?.lineups ?? [])
+  if (subs.length) store.entries[`${api}|subs|${game.id}`] = { fetchedAt: Date.now(), subs, final: game.state === 'finished' }
   extrasStore().flush()
   return incidents
+}
+
+/**
+ * The substitutions among API-Sports' events. Which of the two names went off is told by who was on the
+ * pitch (the starting eleven, then the ones who came on), as the two fields are not always the same way round.
+ */
+function toSubs(events: Raw[], game: Pick<ExternalGame, 'home' | 'away'>, lineups: Lineup[]): Substitution[] {
+  const subs: Substitution[] = []
+  const onPitch = new Set(lineups.flatMap((l) => l.startXI.map((p) => normalize(p.name))))
+  const ordered = [...events].sort((a, b) => Number(a.time?.elapsed ?? 0) + Number(a.time?.extra ?? 0) - (Number(b.time?.elapsed ?? 0) + Number(b.time?.extra ?? 0)))
+  for (const r of ordered) {
+    if (String(r.type ?? '').toLowerCase() !== 'subst') continue
+    const side = num(r.team?.id) === game.home.id ? 'home' : num(r.team?.id) === game.away.id ? 'away' : undefined
+    const minute = Number(r.time?.elapsed ?? 0) + Number(r.time?.extra ?? 0)
+    const a = r.player?.name ? String(r.player.name) : undefined
+    const b = r.assist?.name ? String(r.assist.name) : undefined
+    if (!side || !a || !b) continue
+    // The one on the pitch goes off; with no line-up to tell, API-Sports' "player" is the one going off
+    const aOn = onPitch.has(normalize(a))
+    const bOn = onPitch.has(normalize(b))
+    const [off, on] = bOn && !aOn ? [b, a] : [a, b]
+    onPitch.delete(normalize(off))
+    onPitch.add(normalize(on))
+    subs.push({ minute, side, on, off })
+  }
+  return subs
+}
+
+/** A game's saved substitutions (no request) */
+export function savedSubs(gameId: string): Substitution[] | undefined {
+  const subs = extrasStore().entries[`${gameId.split('-')[0]}|subs|${gameId}`]?.subs
+  return subs?.length ? subs : undefined
 }
 
 /** API-Sports' events (goals, cards) as our incidents */
@@ -1562,8 +1597,9 @@ function keepEvents(before: ExternalGame[], after: ExternalGame[]): ExternalGame
 
 /** What a game's goals and cards were fetched for: they are fetched again when this changes (live: also every 5 minutes, for the cards) */
 // A live game in our leagues and cups again every 5 minutes (cards, line-up changes); any other game when its score changes
+// "s": fetched with the substitutions (games fetched before they were saved come once more)
 const eventsKey = (g: ExternalGame) =>
-  `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : g.state === 'upcoming' ? `|${Math.floor(Date.now() / 900_000)}` : ''}`
+  `s|${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : g.state === 'upcoming' ? `|${Math.floor(Date.now() / 900_000)}` : ''}`
 
 /**
  * Football games whose goals, cards and line-ups are missing or out of date (a finished game once, a
@@ -1687,6 +1723,9 @@ async function fetchEvents(api: Api, ids: string[]) {
         // The line-ups come with them: saved for the match page
         const lineups = toLineups(r.lineups ?? [])
         if (lineups.length === 2) store.entries[`${api}|lineups|${id}`] = { fetchedAt: Date.now(), lineups, final: true }
+        // The substitutions come with the events: saved for the match page
+        const subs = toSubs(r.events ?? [], g, lineups)
+        if (subs.length) store.entries[`${api}|subs|${id}`] = { fetchedAt: Date.now(), subs, final: g.state === 'finished' }
         if (lineups.length === 2) statsChanged = true
         // The match statistics come with them: saved for the match page
         if (Array.isArray(r.statistics) && r.statistics.length) {

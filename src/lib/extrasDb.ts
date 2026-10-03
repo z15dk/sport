@@ -112,7 +112,7 @@ export function kvStore<E extends { fetchedAt: number }>(file: string, legacyJso
       if (Date.now() - lastPrune > 3_600_000) {
         lastPrune = Date.now()
         db.prepare(
-          "DELETE FROM entries WHERE fetched_at < ? AND key != '__spent' AND key NOT LIKE '%|lineups|%' AND key NOT LIKE '%|stats|%' AND key NOT LIKE '%|events|%'",
+          "DELETE FROM entries WHERE fetched_at < ? AND key != '__spent' AND key NOT LIKE '%|lineups|%' AND key NOT LIKE '%|stats|%' AND key NOT LIKE '%|events|%' AND key NOT LIKE '%|subs|%'",
         ).run(Date.now() - MAX_AGE)
       }
       db.exec('COMMIT')

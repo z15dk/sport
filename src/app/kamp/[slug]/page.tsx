@@ -14,7 +14,7 @@ import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
 import { lineupPhotos } from '../../../lib/playerPhotos'
-import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
+import { savedSubs, apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -89,7 +89,7 @@ async function PastMatchPage({ game: g, match: original }: { game: PastGame; mat
           { name: title, path: paths.match(g.slug) },
         ])}
       />
-      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} />
+      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} subs={partnerId ? savedSubs(partnerId) : undefined} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
       </div>
@@ -245,7 +245,7 @@ export default async function MatchPage({ params }: { params: Params }) {
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
       />
-      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

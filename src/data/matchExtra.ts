@@ -63,6 +63,14 @@ export interface LineupPlayer {
   photo?: string
 }
 
+/** A substitution: who came on and who went off, at which minute */
+export interface Substitution {
+  minute: number
+  side: 'home' | 'away'
+  on: string
+  off: string
+}
+
 export interface Lineup {
   team: string
   formation?: string

@@ -10,6 +10,8 @@ import { formatLong, formatShortYear, formatTime } from '../lib/time'
 import type { Lineup, MatchStats } from '../data/matchExtra'
 import { StatBar } from './StatBar'
 import { LineupPitch } from './LineupPitch'
+import { SubsList } from './SubsList'
+import type { Substitution } from '../data/matchExtra'
 
 // The page of an older match (from the match database or the statistics bank):
 // the result, goals and cards, the players' ratings, earlier meetings and a
@@ -27,6 +29,7 @@ interface Props {
   /** The statistics and line-ups saved when the game was fetched (none for older games) */
   stats?: MatchStats
   lineups?: Lineup[]
+  subs?: Substitution[]
 }
 
 function TeamName({ name, href }: { name: string; href?: string }) {
@@ -44,7 +47,7 @@ function Side({ team, href }: { team: Match['home']; href?: string }) {
   )
 }
 
-export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players, stats, lineups }: Props) {
+export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players, stats, lineups, subs }: Props) {
   const { home, away } = match
   const sides = (['home', 'away'] as const).map((side) => ({
     side,
@@ -120,6 +123,7 @@ export function PastMatchView({ match, season, spectators, teamPath, report, h2h
             <LineupPitch lineups={[lineups[0], lineups[1]]} />
           </section>
         )}
+        {subs && subs.length > 0 && <SubsList subs={subs} home={match.home.name} away={match.away.name} />}
         {sides.some((s) => s.list.length) && (
           <section className="sheet__section">
             <h2 className="sheet__title">Spillerne</h2>
