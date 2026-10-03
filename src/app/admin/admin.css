@@ -484,3 +484,35 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__tpl-note { flex-basis: 100%; }
 .art-card__links { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; }
 @media (max-width: 700px) { .art-card__links { flex: 1 0 100%; justify-content: flex-start; gap: 8px 18px; } }
+/* /admin/grafik/vs: the VS graphic, exactly 1200×630 */
+.vsg { position: relative; width: 1200px; height: 630px; overflow: hidden; background: #11130e; color: #fff; font-family: var(--body); flex: none; }
+.vsg__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* The photo darkened, most in the middle and at the top, so the logos and text stand out */
+.vsg.has-photo::before { content: ''; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse 60% 70% at 50% 52%, rgba(17, 19, 14, 0.35), rgba(17, 19, 14, 0.82)), linear-gradient(180deg, rgba(17, 19, 14, 0.75), rgba(17, 19, 14, 0.25) 35%, rgba(17, 19, 14, 0.55)); }
+.vsg__m { position: absolute; z-index: 1; left: 50%; top: -60px; transform: translateX(-50%); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 760px; line-height: 1; color: transparent; -webkit-text-stroke: 2px #23271a; }
+.vsg.has-photo .vsg__m { -webkit-text-stroke-color: rgba(198, 241, 53, 0.18); }
+.vsg__top { position: absolute; z-index: 2; left: 0; right: 0; top: 44px; text-align: center; font-size: 18px; font-weight: 700; letter-spacing: 2px; color: #c6f135; text-transform: uppercase; }
+.vsg__row { position: absolute; z-index: 2; left: 0; right: 0; top: 110px; display: flex; justify-content: center; align-items: center; gap: 70px; }
+.vsg__club { width: 330px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.vsg__club img { width: 280px; height: 280px; object-fit: contain; filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.6)); }
+.vsg__initials { display: grid; place-items: center; width: 220px; height: 220px; border-radius: 50%; background: #2a2d26; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 90px; }
+.vsg__club b { margin-top: 22px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 44px; line-height: 1; text-transform: uppercase; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
+.vsg__vs { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 150px; line-height: 1; color: #c6f135; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.5); }
+.vsg__logo { position: absolute; z-index: 2; right: 56px; bottom: 30px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; }
+.vsg__logo i { color: #ff4a1f; font-style: normal; }
+/* The VS graphic maker (VsDialog) */
+.vsd { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: 16px; background: rgba(10, 11, 8, 0.6); }
+.vsd__panel { width: min(100%, 720px); max-height: calc(100vh - 32px); overflow-y: auto; display: grid; gap: 14px; padding: 18px 20px 20px; border-radius: var(--radius); background: var(--surface); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
+.vsd__head { display: flex; align-items: center; justify-content: space-between; }
+.vsd__head h2 { margin: 0; font-size: 20px; }
+.vsd__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.vsd__wide { grid-column: 1 / -1; }
+.vsd label > span, .vsd__bg > span { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.vsd input:not([type='file']) { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.vsd__bg-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.vsd__bg-actions label.pill { cursor: pointer; }
+/* 1200×630 shown at half size */
+.vsd__preview { position: relative; width: 100%; aspect-ratio: 1200 / 630; border-radius: 10px; overflow: hidden; background: #11130e; display: grid; place-items: center; }
+.vsd__preview iframe { position: absolute; left: 0; top: 0; width: 1200px; height: 630px; border: 0; transform-origin: 0 0; pointer-events: none; }
+.vsd__preview p { color: #b9bdb0; }
+@media (max-width: 560px) { .vsd__grid { grid-template-columns: 1fr; } }
