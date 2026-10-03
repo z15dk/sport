@@ -2,6 +2,7 @@ import { MatchesView } from './MatchesView'
 import { RealDataExtra } from './RealDataExtra'
 import { externalOn, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { addDays } from '../lib/time'
+import { leaguesOn } from '../lib/clientData'
 import type { SportFilter } from '../types'
 
 /** One day's matches (the front page, and /kampe/<dag>) */
@@ -17,7 +18,7 @@ export function DayPage({ sport, date, today, now, live, heading, frontPage }: {
   const days = { prev: nearestMatchDay(date, sport, -1, now), next: nearestMatchDay(date, sport, 1, now) }
   return (
     <>
-      <RealDataExtra games={shown} />
+      <RealDataExtra games={shown} leagues={leaguesOn(date)} />
       <MatchesView key={live ? 'live' : 'all'} sport={sport} date={date} today={today} initialNow={now} initialFilter={live ? 'live' : 'all'} nearDays={days} upcoming={upcomingMatches(sport, today, now)} heading={heading} scrollAd={frontPage} />
     </>
   )

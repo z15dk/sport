@@ -9,7 +9,7 @@ import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf
 import { rivalryPath } from '../../../lib/rivalry'
 import { matchTicketUrl, ticketClickPath } from '../../../lib/tickets'
 import { RealDataExtra } from '../../../components/RealDataExtra'
-import { realExtras } from '../../../lib/clientData'
+import { clubLeagues, realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import { danishRound } from '../../../data/external'
@@ -244,6 +244,8 @@ export default async function MatchPage({ params }: { params: Params }) {
           ].map((g) => [g.id, g])).values()],
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
+        // Both clubs' leagues in full: the table, the form and the clubs' other matches
+        leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
       <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
         <WidgetPromo

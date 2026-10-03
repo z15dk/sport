@@ -7,6 +7,7 @@ import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/tea
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
+import { clubLeagues } from '../../../lib/clientData'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
 import { FormChart } from '../../../components/FormChart'
@@ -110,7 +111,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 
   return (
     <div className="page">
-      <RealDataExtra games={clubExternalGames(club.name)} />
+      <RealDataExtra games={clubExternalGames(club.name)} leagues={clubLeagues([club.id])} />
       <JsonLd data={clubLd(club, division)} />
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd
