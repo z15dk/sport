@@ -104,13 +104,18 @@ export function Card({ children, story, caption, style, className }: { children:
 const Head = ({ left }: { left: string }) => (
   <div className={s.hd}>
     <span>
-      <b className={s.womenTag}>Kvindefodbold</b>
+      <b className={s.womenTag} />
       {left}
     </span>
   </div>
 )
 /** The Matchly bar at the foot of every card, with the address, so the sender shows wherever a card is shared */
-const Foot = ({ left, right }: { left?: string; right?: string }) => (
+/** No page numbers on the pictures ("1/2", "3/7"): only the address and a word like "Optakt" or "8 kampe" */
+const noCount = (t?: string) => t?.replace(/\b\d+\/\d+\b(\s*·\s*)?/g, '').trim() || undefined
+const Foot = ({ left: l, right: r }: { left?: string; right?: string }) => {
+  const left = noCount(l)
+  const right = noCount(r)
+  return (
   <div className={s.brandbar}>
     <span className={s.brandLogo}>
       Matchly<b>.</b>
@@ -118,7 +123,8 @@ const Foot = ({ left, right }: { left?: string; right?: string }) => (
     <small className={s.siteAll}>{['matchly.dk', left, right].filter(Boolean).join(' · ')}</small>
     <small className={s.siteWomen}>{['matchly.dk/kvindefodbold', left, right].filter(Boolean).join(' · ')}</small>
   </div>
-)
+  )
+}
 
 const BRAND: CSSProperties = { background: '#16181a', color: '#ffffff' }
 /** A card's colour: the club's field, or Matchly's own for a carousel's first and last card */
@@ -1016,6 +1022,18 @@ function FactBlock({ p, size = 7, rows }: { p: Pick; size?: number; rows?: numbe
 const weekdayTime = (d: Date) => `${formatLong(d).split(' ')[0]} kl. ${formatTime(d)}`
 
 /** The week's biggest match */
+/** The head-to-head in words: who leads, or the one meeting there is */
+function h2hSentence(home: string, away: string, h: { w: number; d: number; l: number; n: number }, last?: { home: string; away: string; hs: number; as: number }) {
+  if (h.n === 1 && last) {
+    if (last.hs === last.as) return `Det seneste opgør endte uafgjort ${last.hs}–${last.as}.`
+    const winner = last.hs > last.as ? last.home : last.away
+    return `${winner} vandt det seneste opgør ${Math.max(last.hs, last.as)}–${Math.min(last.hs, last.as)}.`
+  }
+  if (h.w > h.l) return `${home} fører ${h.w}–${h.l} i de seneste ${h.n} opgør.`
+  if (h.l > h.w) return `${away} fører ${h.l}–${h.w} i de seneste ${h.n} opgør.`
+  return `Helt lige: ${h.w}–${h.l} i de seneste ${h.n} opgør.`
+}
+
 export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focus?: boolean }) {
   const f = p.fixture
   const pos = [p.home.pos && `${f.home.name} er nr. ${p.home.pos}`, p.away.pos && `${f.away.name} nr. ${p.away.pos}`].filter(Boolean).join(', ')
@@ -1032,7 +1050,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         natural={focus}
         crests={[f.home, f.away]}
         line={`${f.home.name} – ${f.away.name}`}
-        foot={h2h ? '1/2' : 'Optakt'}
+        foot="Optakt"
         logos={logos}
         size={12}
       >
@@ -1054,44 +1072,55 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
           )
         )}
       </StoryCard>
-      {/* Head to head: the meetings counted in big numbers, and the latest of them */}
+      {/* Head to head: who leads in words, the meetings counted with the clubs' logos, and the latest meetings as match rows */}
       {h2h && meet && (
-        <StoryCard
-          caption="Indbyrdes opgør"
-          club={f.home}
-          natural
-          label={`${p.league} · indbyrdes`}
-          headline="Head to head"
-          size={11}
-          crests={[f.home, f.away]}
-          line={`De seneste ${h2h.n} opgør`}
-          foot="2/2"
-          logos={logos}
-        >
+        <StoryCard caption="Indbyrdes opgør" club={f.home} natural label={`${p.league} · indbyrdes opgør`} headline="Head to head" size={9} crests={[]} foot="" logos={logos}>
+          <p className={s.serif} style={{ fontSize: '5.2cqw', lineHeight: 1.08, marginBottom: '3cqw' }}>
+            {h2hSentence(f.home.name, f.away.name, h2h, meet.meetings?.[0])}
+          </p>
           <div className={s.h2hNums}>
-            <div>
+            <div className={h2h.w > h2h.l ? s.lead : undefined}>
+              <Crest club={f.home} logos={logos} plate />
               <b>{h2h.w}</b>
-              <span>{f.home.name}</span>
+              <span>sejre</span>
             </div>
             <div>
+              <i className={s.h2hEq}>=</i>
               <b>{h2h.d}</b>
-              <span>Uafgjort</span>
+              <span>uafgjort</span>
             </div>
-            <div>
+            <div className={h2h.l > h2h.w ? s.lead : undefined}>
+              <Crest club={f.away} logos={logos} plate />
               <b>{h2h.l}</b>
-              <span>{f.away.name}</span>
+              <span>sejre</span>
             </div>
           </div>
-          <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.3cqw', marginTop: '4cqw' }}>
-            <tbody>
-              {meet.proof.slice(0, 4).map((r) => (
-                <tr key={r.label}>
-                  <td>{r.label}</td>
-                  <td className={s.r}>{r.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {meet.meetings && meet.meetings.length > 0 && (
+            <div className={s.h2hRows}>
+              <div className={s.h2hRowsTitle}>{meet.meetings.length === 1 ? 'Seneste opgør' : `De seneste ${Math.min(3, meet.meetings.length)} opgør`}</div>
+              {meet.meetings.slice(0, 3).map((m, i) => {
+                const club = (name: string) => (name === f.home.name ? f.home : name === f.away.name ? f.away : undefined)
+                const home = club(m.home)
+                const away = club(m.away)
+                return (
+                  <div key={i} className={s.h2hRow}>
+                    <small>{m.year}</small>
+                    <span className={s.h2hTeam}>
+                      {home && <Crest club={home} logos={logos} plate />}
+                      {m.home}
+                    </span>
+                    <b className={s.h2hScore}>
+                      {m.hs}–{m.as}
+                    </b>
+                    <span className={cx(s.h2hTeam, s.right)}>
+                      {m.away}
+                      {away && <Crest club={away} logos={logos} plate />}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </StoryCard>
       )}
     </div>
@@ -1182,7 +1211,18 @@ export function FactsCards({ date, picks, logos }: { date: string; picks: Pick[]
 /** Every card of one post, from its content (src/lib/socialContent.ts) */
 export function PostCards({ content: c, logos }: { content: Content; logos: Logos }) {
   // Women's football: the same cards in its own colours and with its tag
-  if ('women' in c && c.women) return <div className={s.women}>{PostCardsOf(c, logos)}</div>
+  if ('women' in c && c.women) {
+    // The tag says the league when every match is from one ("A-LIGA"), else women's football
+    const leagues = new Set(
+      (c.kind === 'programme' || c.kind === 'story' ? c.picks : c.kind === 'results' ? c.overview : c.kind === 'topic' && c.topic === 'bigmatch' ? [c.pick] : []).map((p) => p.league),
+    )
+    const tag = leagues.size === 1 ? [...leagues][0] : 'Kvindefodbold'
+    return (
+      <div className={s.women} style={{ '--women-tag': JSON.stringify(tag) } as CSSProperties}>
+        {PostCardsOf(c, logos)}
+      </div>
+    )
+  }
   return PostCardsOf(c, logos)
 }
 

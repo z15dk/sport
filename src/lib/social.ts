@@ -86,6 +86,8 @@ export interface Fact {
   proofTitle: string
   /** The meetings counted: home team's wins, draws, away team's wins (the head-to-head card) */
   h2h?: { w: number; d: number; l: number; n: number }
+  /** The meetings themselves, newest first (the head-to-head card's rows) */
+  meetings?: { year: number; home: string; away: string; hs: number; as: number }[]
 }
 
 export interface Pick {
@@ -136,10 +138,13 @@ function headToHeadFact(f: Fixture, least = 3): Fact | undefined {
   const proof = h2h.map((m) => ({ label: `${m.date.getFullYear()} · ${m.home} – ${m.away}`, value: `${m.homeScore}–${m.awayScore}` }))
   const proofTitle = `De seneste ${n} opgør`
   const counts = { w, d, l, n }
-  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle, h2h: counts }
-  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle, h2h: counts }
-  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle, h2h: counts }
-  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle, h2h: counts }
+  // Our names for the two teams in the rows (the database writes them its own way)
+  const named = (name: string) => (isHomeIn(f.home, name) ? f.home.name : isHomeIn(f.away, name) ? f.away.name : name)
+  const meetings = h2h.map((m) => ({ year: m.date.getFullYear(), home: named(m.home), away: named(m.away), hs: m.homeScore, as: m.awayScore }))
+  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle, h2h: counts, meetings }
+  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle, h2h: counts, meetings }
+  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle, h2h: counts, meetings }
+  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle, h2h: counts, meetings }
 }
 
 /** A club's current run before a time: wins in a row, unbeaten or without a win */
@@ -620,6 +625,7 @@ function partnerHeadToHead(matchId: string, f: Fixture): Fact | undefined {
   let d = 0
   let l = 0
   const proof: Fact['proof'] = []
+  const meetings: NonNullable<Fact['meetings']> = []
   for (const g of games) {
     if (g.homeScore === undefined || g.awayScore === undefined) continue
     // The focus match's home team by the partner's team id
@@ -631,8 +637,9 @@ function partnerHeadToHead(matchId: string, f: Fixture): Fact | undefined {
     else l++
     const name = (id: number | undefined, fallback: string) => (id === game.home.id ? f.home.name : id === game.away.id ? f.away.name : fallback)
     proof.push({ label: `${new Date(g.kickoff).getFullYear()} · ${name(g.home.id, g.home.name)} – ${name(g.away.id, g.away.name)}`, value: `${g.homeScore}–${g.awayScore}` })
+    meetings.push({ year: new Date(g.kickoff).getFullYear(), home: name(g.home.id, g.home.name), away: name(g.away.id, g.away.name), hs: g.homeScore, as: g.awayScore })
   }
   const n = proof.length
   if (!n) return undefined
-  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle: `De seneste ${n} opgør`, h2h: { w, d, l, n } }
+  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle: `De seneste ${n} opgør`, h2h: { w, d, l, n }, meetings }
 }

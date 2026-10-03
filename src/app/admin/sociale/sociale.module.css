@@ -287,3 +287,28 @@
 /* The league's logo on the focus match card */
 .leagueLine { display: flex; align-items: center; gap: 2.4cqw; margin-bottom: 3cqw; font-size: 3.6cqw; font-weight: 700; }
 .leagueLine img { width: 10cqw; height: 10cqw; object-fit: contain; padding: 1.2cqw; border-radius: 2cqw; background: #fff; }
+
+.women .womenTag::after { content: var(--women-tag, 'Kvindefodbold'); }
+/* The head-to-head card: the clubs' logos over their wins, the leader in lime, the meetings as match rows */
+.h2hNums div { position: relative; gap: 1cqw; }
+.h2hNums div.lead { background: #c6f135; color: #11130e; }
+.h2hNums div > span:first-child { margin-bottom: 1cqw; }
+.h2hEq { display: grid; place-items: center; width: 11cqw; height: 11cqw; font-style: normal; font-family: var(--display); font-weight: 800; font-size: 9cqw; line-height: 1; opacity: 0.6; }
+.h2hRows { margin-top: 4cqw; }
+.h2hRowsTitle { font-size: 3cqw; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; margin-bottom: 1.4cqw; }
+.h2hRow { display: grid; grid-template-columns: 8cqw minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 2cqw; padding: 1.6cqw 0; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: 3.2cqw; font-weight: 600; }
+.h2hRow small { opacity: 0.65; font-size: 2.8cqw; }
+.h2hTeam { display: flex; align-items: center; gap: 1.6cqw; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.h2hTeam.right { justify-content: flex-end; text-align: right; }
+.h2hScore { padding: 0.8cqw 2.4cqw; border-radius: 1.4cqw; background: #11130e; color: #fff; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 4.4cqw; }
+/* Compact enough for the rows under it */
+.h2hNums div { padding: 2cqw 1cqw; }
+.h2hNums b { font-size: 11cqw; }
+.h2hEq { width: 7cqw; height: 7cqw; font-size: 6cqw; }
+.h2hRows { margin-top: 3cqw; }
+.h2hNums div { padding: 1.4cqw 1cqw; gap: 0.6cqw; }
+.h2hNums b { font-size: 10cqw; }
+.h2hNums span { margin-top: 0.4cqw; }
+.h2hRows { margin-top: 2.4cqw; }
+.h2hRowsTitle { margin-bottom: 0.6cqw; }
+.h2hRow { padding: 1cqw 0; }

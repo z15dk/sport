@@ -859,9 +859,6 @@ export function OwnPostForm({
                 {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
                 <img src={thumb(src)} alt="" />
               </button>
-              <figcaption>
-                {i + 1}/{images.length}
-              </figcaption>
               <button type="button" className="own-post__remove" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
                 ×
               </button>
