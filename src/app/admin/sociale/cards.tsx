@@ -154,6 +154,7 @@ export function StoryCard({
   size = 13,
   logoMark,
   natural,
+  center,
 }: {
   caption: string
   club?: Club
@@ -172,9 +173,11 @@ export function StoryCard({
   logoMark?: boolean
   /** The club's logo as the watermark in its own colours (faint) */
   natural?: boolean
+  /** Everything centred (the focus match) */
+  center?: boolean
 }) {
   return (
-    <Card caption={caption} style={colourOf(club)} className={s.onColor}>
+    <Card caption={caption} style={colourOf(club)} className={cx(s.onColor, center && s.centerCard)}>
       {club ? (
         <Watermark club={club} logos={logos} natural={natural} style={{ width: '95cqw', height: '95cqw', right: '-30cqw', bottom: '-12cqw' }} />
       ) : logoMark ? (
@@ -1045,9 +1048,11 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
       <StoryCard
         caption={focus ? 'Fokuskamp' : 'Ugens kamp'}
         club={f.home}
-        label={`${p.league} · ${weekdayTime(f.kickoff)}`}
+        // A women's card has the league in its tag: the line only says when
+        label={p.women ? weekdayTime(f.kickoff) : `${p.league} · ${weekdayTime(f.kickoff)}`}
         headline={focus ? 'Kampens fokus' : 'Ugens kamp'}
         natural={focus}
+        center={focus}
         crests={[f.home, f.away]}
         line={`${f.home.name} – ${f.away.name}`}
         foot="Optakt"
@@ -1058,8 +1063,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         {focus && logos[p.league] && (
           <div className={s.leagueLine}>
             {/* eslint-disable-next-line @next/next/no-img-element -- the league's logo */}
-            <img src={logos[p.league]} alt="" />
-            <span>{p.league}</span>
+            <img src={logos[p.league]} alt={p.league} />
           </div>
         )}
         {/* One card: the match on top, the head-to-head under it (who leads, the latest meeting large or the meetings counted) */}

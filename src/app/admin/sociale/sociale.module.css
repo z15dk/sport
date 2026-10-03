@@ -326,3 +326,10 @@
 .h2hBig { padding: 2.6cqw 3cqw; }
 .h2hBigScore b { font-size: 11cqw; }
 .leagueLine { margin-bottom: 2cqw; }
+
+/* The focus match: everything centred on the card */
+.centerCard .hd { justify-content: center; text-align: center; }
+.centerCard .pad { text-align: center; }
+.centerCard .pad > div { justify-content: center; }
+.centerCard .leagueLine { justify-content: center; }
+.centerCard .h2hRowsTitle { text-align: center; }
