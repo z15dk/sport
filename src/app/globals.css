@@ -678,7 +678,9 @@ h2.league__name { margin: 0; }
 /* Logo left, the site's pages in one row on the right */
 .footer__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
 .footer .footer__logo { color: #fff; opacity: 1; font-size: 22px; text-decoration: none; }
-.footer__links { display: flex; flex-wrap: wrap; gap: 4px 18px; font-weight: 600; }
+.footer__links { display: flex; flex-wrap: wrap; gap: 0 18px; font-weight: 600; }
+/* 24 px finger targets (the gap that was between the rows is now inside the links) */
+.footer__links a { padding-block: 3px; }
 .footer__links .footer__linkbtn { opacity: 0.82; font-weight: 600; }
 .footer__links .footer__linkbtn:hover { opacity: 1; }
 /* Our leagues: one line per sport, the sport as a small label, the leagues as inline links with flags */
