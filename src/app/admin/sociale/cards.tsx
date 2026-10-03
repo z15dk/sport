@@ -818,33 +818,8 @@ export function Results({ date, overview, picks, logos }: { date: string; overvi
 /** A team from the statistics as a club for the cards */
 const asClub = (t: { id: string; name: string; colors?: [string, string] }): Club => ({ id: t.id, slug: t.id, name: t.name, city: '', colors: t.colors ?? ['#16181a', '#ffffff'] })
 
-/** A carousel's closing card: where to find the rest */
-function EndCard({ label, mark, crests, total, logos, next }: { label: string; mark: string; crests: Club[]; total: number; logos: Logos; next?: string }) {
-  return (
-    <StoryCard
-      caption="Afslutning"
-      mark={mark}
-      label={label}
-      headline={
-        <>
-          Alle kampe,
-          <br />
-          tabeller og tal
-        </>
-      }
-      crests={crests}
-      foot={`${total}/${total}`}
-      logos={logos}
-    >
-      <p className={s.serif} style={{ fontSize: '6.2cqw' }}>
-        Link i profilen.{next ? ` ${next}` : ''}
-      </p>
-    </StoryCard>
-  )
-}
-
 /** The league's top scorers */
-export function ScorersCards({ division, rows, logos }: { division: Division; rows: ScorerRow[]; logos: Logos }) {
+export function ScorersCards({ rows, logos }: { division: Division; rows: ScorerRow[]; logos: Logos }) {
   const top = rows[0]
   return (
     <div className={s.rail}>
@@ -855,7 +830,7 @@ export function ScorersCards({ division, rows, logos }: { division: Division; ro
         label=""
         headline="Topscorerne"
         crests={[]}
-        foot="1/2"
+        foot="1/1"
         logos={logos}
         size={12}
       >
@@ -877,7 +852,6 @@ export function ScorersCards({ division, rows, logos }: { division: Division; ro
           </tbody>
         </table>
       </StoryCard>
-      <EndCard label={division.name} mark="#" crests={[asClub(top.club)]} total={2} logos={logos} />
     </div>
   )
 }
@@ -915,17 +889,19 @@ export function FormCards({ division, rows, logos }: { division: Division; rows:
   )
   return (
     <div className={s.rail}>
-      <StoryCard caption="Formtabellen" mark="5" label={`${division.name} · de seneste 5 kampe`} headline="Formtabellen" crests={[]} foot="1/3" logos={logos} size={12}>
+      <StoryCard caption="Formtabellen" mark="5" label={`${division.name} · de seneste 5 kampe`} headline="Formtabellen" crests={[]} foot="1/2" logos={logos} size={12}>
         {list(rows.slice(0, 8))}
       </StoryCard>
       <StoryCard
         caption="I form"
         club={best.club}
+        // The club's logo in its own colours, faint behind the text
+        natural
         label={`${division.name} · nr. ${best.pos} i tabellen`}
         headline={`${best.points} af 15 point`}
         crests={[best.club]}
         line={`${best.club.name} er ligaens bedste hold lige nu`}
-        foot="2/3"
+        foot="2/2"
         logos={logos}
         size={11}
       >
@@ -938,7 +914,6 @@ export function FormCards({ division, rows, logos }: { division: Division; rows:
           </p>
         )}
       </StoryCard>
-      <EndCard label={division.name} mark="5" crests={[best.club]} total={3} logos={logos} />
     </div>
   )
 }
@@ -1231,7 +1206,7 @@ export function WeekendCards({ days, logos }: { days: { date: string; picks: Pic
     for (let i = 0; i < d.picks.length; i += PER_PROGRAMME_CARD) parts.push(d.picks.slice(i, i + PER_PROGRAMME_CARD))
     return parts.map((picks, n) => ({ date: d.date, picks, part: parts.length > 1 ? n + 1 : 0 }))
   })
-  const total = cards.length + 1
+  const total = cards.length
   return (
     <div className={s.rail}>
       {cards.map((d, i) => {
@@ -1257,7 +1232,6 @@ export function WeekendCards({ days, logos }: { days: { date: string; picks: Pic
           </StoryCard>
         )
       })}
-      <EndCard label="Weekenden" mark="W" crests={[]} total={total} logos={logos} next="Live-stilling og målscorere hele weekenden." />
     </div>
   )
 }
