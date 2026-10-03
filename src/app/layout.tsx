@@ -13,6 +13,7 @@ import { liveCursor } from '../lib/liveFeed'
 import { VisitBeacon } from '../components/VisitBeacon'
 import { AdminBar } from '../components/AdminBar'
 import { ConsentBanner } from '../components/ConsentBanner'
+import { CONSENT_DONE_SCRIPT } from '../lib/consentScript'
 import { trackingConfig } from '../lib/tracking'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
@@ -71,6 +72,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: "try{if(localStorage.getItem('myTeamsHintHidden')==='true')document.documentElement.setAttribute('data-teams-hint','hidden')}catch(e){}",
           }}
         />
+        {/* The cookie banner comes with the page (drawn at once for a new visitor); a choice already made, or an admin, hides it before the page is drawn */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_DONE_SCRIPT }} />
         {/* Placements shared by several advertisers show one banner per visit, chosen here before the page is drawn (src/data/ads.ts) */}
         <script dangerouslySetInnerHTML={{ __html: AD_TURN_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: adTurnCss() }} />

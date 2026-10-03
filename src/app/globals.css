@@ -2241,6 +2241,8 @@ a.player-games__match:hover { text-decoration: underline; }
 }
 
 /* Cookie banner (ConsentBanner): only when Google Analytics or Meta Pixel is set up */
+/* Hidden before the page is drawn when the choice is already made (CONSENT_DONE_SCRIPT) */
+.consent-done .consent { display: none; }
 .consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 9000; display: flex; justify-content: center; pointer-events: none; }
 .consent__box { position: relative; overflow: hidden; pointer-events: auto; width: 100%; max-width: 580px; padding: 24px 24px 0; border-radius: var(--radius); background: radial-gradient(120% 120% at 100% 0%, #2c3a0c 0%, #141a08 55%, #0b0d07 100%); color: #fff; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); animation: bs-in 0.35s ease-out; }
 .consent__box > * { position: relative; }
