@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
 import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
@@ -137,10 +138,12 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Also older matches: API-Sports' whole season as the job has kept it
   const external = findExternalGame(match) ?? apiGameFor(match, { home: namesOf(match.home.name), away: namesOf(match.away.name) })
   const game = external && !external.id.startsWith('db-') ? external : undefined
+  // Robots (search engines, link previews) read what is there: they never spend the partner's budget on goals of a game
+  const robot = ROBOT_UA.test((await headers()).get('user-agent') ?? '')
   // API-Sports' lookups at once, and never more than a moment's wait: what isn't ready is cached for the next visit
   const [fromApi, fromEventsApi, lineups, h2hGames, injuries] = await Promise.all([
     game ? within(apiMatchExtra(game)) : undefined,
-    game && !match.incidents?.length ? within(apiMatchEvents(game)) : undefined,
+    game && !match.incidents?.length ? within(apiMatchEvents(game, { spend: !robot })) : undefined,
     game ? within(apiMatchLineups(game)) : undefined,
     game && (dbH2h?.length ?? 0) < 5 ? within(apiHeadToHead(game)) : undefined,
     game?.sport === 'soccer' && game.id.startsWith('football-') ? within(apiInjuries(String(game.league.id))) : undefined,
@@ -244,3 +247,5 @@ export default async function MatchPage({ params }: { params: Params }) {
     </div>
   )
 }
+
+const ROBOT_UA = /bot|crawl|spider|slurp|preview|headless|lighthouse|pagespeed|facebookexternalhit|embedly|whatsapp|telegram|curl|wget|python|axios|node-fetch|playwright|puppeteer/i

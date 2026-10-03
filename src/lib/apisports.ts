@@ -1495,9 +1495,11 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
  * and once more when the match is over (for late cards), so a live match
  * costs a request per goal, not per page view.
  */
-export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | undefined> {
+export async function apiMatchEvents(game: ExternalGame, opts: { spend?: boolean } = {}): Promise<Incident[] | undefined> {
   const api = apiOf(game)
   if (api !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return undefined
+  // The goals come with the next batch anyway; a request of its own only for a person (not a robot) while the budget lasts
+  wantEvents(game)
   const store = extrasStore()
   const key = `${api}|events|${game.id}`
   const entry = store.entries[key]
@@ -1505,7 +1507,9 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
   const counted = (entry?.incidents ?? []).filter((i) => i.kind !== 'yellow' && i.kind !== 'red').length
   const fresh = entry && counted === goals && (game.state !== 'finished' || entry.final)
   if (fresh || (entry && Date.now() - entry.fetchedAt < 60_000)) return entry.incidents
-  if (!keyFor(api)) return entry?.incidents
+  // The batch's own goals (saved on the game itself) when they are there
+  if (!entry && game.incidents?.length) return game.incidents
+  if (!keyFor(api) || opts.spend === false) return entry?.incidents
   if (!spendExtra(api)) return entry?.incidents
   const id = game.id.split('-').pop()
   const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
@@ -1557,22 +1561,46 @@ function keepEvents(before: ExternalGame[], after: ExternalGame[]): ExternalGame
 // ---------------------------------------------------------------- goals and cards for every game (paid plans)
 
 /** What a game's goals and cards were fetched for: they are fetched again when this changes (live: also every 5 minutes, for the cards) */
-const eventsKey = (g: ExternalGame) => `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' ? `|${Math.floor(Date.now() / 300_000)}` : ''}`
+// A live game in our leagues and cups again every 5 minutes (cards, line-up changes); any other game when its score changes
+const eventsKey = (g: ExternalGame) =>
+  `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : ''}`
 
 /**
- * Football games in our leagues and cups whose goals and cards are missing or
- * out of date (a finished game once, a live one when the score changes), up to
- * 20: API-Sports gives 20 games with their events in one request.
+ * Football games whose goals, cards and line-ups are missing or out of date (a finished game once, a
+ * live one when the score changes), up to 20: API-Sports gives 20 games with their events, line-ups,
+ * statistics and players in one request. Every game, ours first, within the budget kept for live scores.
  */
+/**
+ * Games outside our leagues whose match page someone opened (friendlies, foreign leagues): their goals
+ * come with the next batch of 20 instead of a request of their own. Kept two days.
+ */
+const viewedGames = new Map<string, number>()
+export function wantEvents(game: ExternalGame) {
+  if (apiOf(game) !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return
+  viewedGames.set(game.id, Date.now())
+  for (const [id, at] of viewedGames) if (Date.now() - at > 2 * 86_400_000) viewedGames.delete(id)
+}
+
 function eventsDue(s: ApiState): string[] {
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (!isPaid(s) || remaining <= PAID_RESERVE) return []
   const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
   const due = new Set<string>()
-  // Live games first, then the newest finished ones
+  // Every football game's goals, line-ups and statistics (20 a request): live games first, then our leagues
+  // and cups, the games someone opened, and the rest of the last two days' finished games, newest first
+  const recent = isoDate(Date.now() - 2 * 86_400_000)
+  const ours = (g: ExternalGame) => !!(divisionOfGame(g) || wholeSeason(g))
+  const rank = (g: ExternalGame) => (g.state === 'live' ? 0 : ours(g) ? 1 : viewedGames.has(g.id) ? 2 : 3)
   const wanted = games
-    .filter((g) => (g.state === 'live' || (g.state === 'finished' && remaining > backgroundReserve(s))) && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
-    .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
+    .filter(
+      (g) =>
+        g.id.startsWith('football-') &&
+        g.eventsFor !== eventsKey(g) &&
+        // Our live games always; everything else only while the budget kept for live scores is not touched
+        ((g.state === 'live' && (ours(g) || remaining > backgroundReserve(s))) ||
+          (g.state === 'finished' && remaining > backgroundReserve(s) && (ours(g) || viewedGames.has(g.id) || g.kickoff.slice(0, 10) >= recent))),
+    )
+    .sort((a, b) => rank(a) - rank(b) || b.kickoff.localeCompare(a.kickoff))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)
     if (due.size >= 20) break
