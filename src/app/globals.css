@@ -889,6 +889,10 @@ h2.league__name { margin: 0; }
 .match__odds { display: inline-flex; gap: 4px; }
 .match__odds .odds-chip { flex-direction: column; gap: 0; min-width: 46px; padding: 3px 6px; line-height: 1.15; font-size: 12px; }
 .match__odds .odds-chip em { font-size: 10px; }
+/* Compact rows in the league lists, as on the phone */
+.league .match { padding-block: 6px; }
+.league .match__teams { gap: 2px; }
+.league .match__scores { font-size: 19px; gap: 3px; }
 .odds-by { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 .odds-by .partner-chip { height: 18px; font-size: 10px; }
 .odds-by .partner-logo { position: relative; z-index: 2; }
