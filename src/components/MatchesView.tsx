@@ -18,7 +18,7 @@ import { AdSlot } from './AdSlot'
 import { chunksWithAds, feedAdPlan, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { externalMatch, getMatches, isWomenGame, isWomenMatch, leaguePriority, nearestMatchDay, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
 import { ListMore } from './ListMore'
@@ -56,12 +56,12 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
   const groups = [...map.values()]
   for (const g of groups) g.matches.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 
-  // Favourites first, then leagues being played right now, then the league's own
-  // order (Superliga before 1. division), then alphabetically
+  // Favourites first, then leagues being played right now, then by country (Danish first, then England,
+  // Spain, Germany, France, Sweden – leaguePriority) and the league's own order, then alphabetically
   const rank = (g: LeagueGroup) =>
-    (pinned.has(g.leagueId) ? 0 : 100_000) +
-    (g.matches.some((m) => m.state === 'live') ? 0 : 10_000) +
-    (g.matches[0].leagueOrder ?? 99) * 10 +
+    (pinned.has(g.leagueId) ? 0 : 2e12) +
+    (g.matches.some((m) => m.state === 'live') ? 0 : 1e12) +
+    leaguePriority(g.matches[0]) * 10 +
     Math.min(...g.matches.map((m) => STATE_ORDER[m.state]))
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
 }
@@ -168,7 +168,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const days = useMemo(() => {
     const liveFirst = (m: Match) => (m.state === 'live' ? 0 : 1)
     const sorted = [...visible].sort(
-      (a, b) => liveFirst(a) - liveFirst(b) || a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99),
+      (a, b) => liveFirst(a) - liveFirst(b) || a.kickoff.getTime() - b.kickoff.getTime() || leaguePriority(a) - leaguePriority(b),
     )
     const byDay = new Map<string, Match[]>()
     for (const m of sorted) {

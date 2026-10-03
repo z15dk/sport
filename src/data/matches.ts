@@ -288,9 +288,13 @@ export function upcomingMatches(sport: SportFilter, today: string, now: number, 
   return Array.from({ length: days + 1 }, (_, i) => getMatches(addDays(today, i), sport, now))
     .flat()
     .filter((m) => m.state === 'upcoming' && m.kickoff.getTime() > now && m.kickoff.getTime() <= until)
-    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    // The countries in focus first (Danish, England, Spain, Germany, France, Sweden and the international
+    // competitions), so a lower league elsewhere doesn't take the places; then shown by kick-off
+    .sort((a, b) => focusOf(a) - focusOf(b) || a.kickoff.getTime() - b.kickoff.getTime())
     .slice(0, limit)
+    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 }
+const focusOf = (m: Match) => (countryRank(m.country) <= COUNTRY_FOCUS.length ? 0 : 1)
 
 /** The nearest day after (or before) `date` with matches, looking up to 60 days away */
 export function nearestMatchDay(date: string, sport: SportFilter, direction: 1 | -1, now: number): string | undefined {
@@ -316,4 +320,26 @@ export function findExternalGame(match: Match): ExternalGame | undefined {
   const away = namesOf(match.away.name)
   const candidates = sameDay.filter((g) => alike(home, g.home.name) && alike(away, g.away.name))
   return candidates.length === 1 ? candidates[0] : undefined
+}
+
+/**
+ * The front page's order of countries: Danish matches first, then England, Spain, Germany, France and
+ * Sweden, then the international club and national-team competitions, then the rest
+ */
+const COUNTRY_FOCUS = ['denmark', 'england', 'spain', 'germany', 'france', 'sweden']
+const INTERNATIONAL = new Set(['world', 'europe'])
+export function countryRank(country?: string): number {
+  const key = countryKey(country)
+  const i = COUNTRY_FOCUS.indexOf(key)
+  return i >= 0 ? i : INTERNATIONAL.has(key) ? COUNTRY_FOCUS.length : COUNTRY_FOCUS.length + 1
+}
+
+/**
+ * A match's place in the front page's lists: the country first, then our own leagues in their order
+ * (Superliga before 1. division) and the cup after them, then the source's other leagues of the
+ * country with the lowest league number first (the top flight usually has the lowest)
+ */
+export function leaguePriority(m: Pick<Match, 'country' | 'leagueOrder' | 'leagueId'>): number {
+  const sourceLeague = Number(/^ext-[a-z]+-(\d+)$/.exec(m.leagueId)?.[1] ?? 0)
+  return countryRank(m.country) * 1_000_000 + (m.leagueOrder ?? 99) * 10_000 + Math.min(sourceLeague, 9_999)
 }
