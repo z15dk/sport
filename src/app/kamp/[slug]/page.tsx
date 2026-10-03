@@ -71,7 +71,9 @@ async function PastMatchPage({ game: g, match: original }: { game: PastGame; mat
   const asGame = partnerId
     ? ({ id: partnerId, sport: 'soccer', league: { id: '', name: g.tournament }, home: { name: g.home }, away: { name: g.away }, kickoff: g.date.toISOString(), state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore } as ExternalGame)
     : undefined
-  const [lineups, stats] = asGame ? await Promise.all([within(apiMatchLineups(asGame)), within(apiMatchStats(asGame, match.incidents))]) : [undefined, undefined]
+  const [saved, stats] = asGame ? await Promise.all([within(apiMatchLineups(asGame)), within(apiMatchStats(asGame, match.incidents))]) : [undefined, undefined]
+  // The players' photos (their pictures cost no calls) and the national teams' Danish names on the pitch
+  const lineups = lineupPhotos(saved)?.map((l) => ({ ...l, team: danishCountry(l.team) }))
   const h2h = withMatchLinks(pastMeetings(g))
   const teamPath = Object.fromEntries([g.home, g.away].flatMap((n) => [n, danishCountry(n)].map((k) => [k, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined])))
   const report = matchReport({ match, now, h2h })
