@@ -1052,7 +1052,7 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
         line={`${f.home.name} – ${f.away.name}`}
         foot="Optakt"
         logos={logos}
-        size={12}
+        size={focus ? 10 : 12}
       >
         {/* The league's own logo by its name */}
         {focus && logos[p.league] && (
@@ -1062,43 +1062,61 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
             <span>{p.league}</span>
           </div>
         )}
-        {p.fact ? (
-          <FactBlock p={p} size={6.4} rows={h2h ? 3 : undefined} />
-        ) : (
-          pos && (
-            <p className={s.serif} style={{ fontSize: '6.4cqw' }}>
-              {pos}.
-            </p>
-          )
-        )}
-      </StoryCard>
-      {/* Head to head: who leads in words, the meetings counted with the clubs' logos, and the latest meetings as match rows */}
-      {h2h && meet && (
-        <StoryCard caption="Indbyrdes opgør" club={f.home} natural label={`${p.league} · indbyrdes opgør`} headline="Head to head" size={9} crests={[]} foot="" logos={logos}>
+        {/* One card: the match on top, the head-to-head under it (who leads, the latest meeting large or the meetings counted) */}
+        {h2h && meet ? (
+          <>
           <p className={s.serif} style={{ fontSize: '5.2cqw', lineHeight: 1.08, marginBottom: '3cqw' }}>
             {h2hSentence(f.home.name, f.away.name, h2h, meet.meetings?.[0])}
           </p>
-          <div className={s.h2hNums}>
-            <div className={h2h.w > h2h.l ? s.lead : undefined}>
-              <Crest club={f.home} logos={logos} plate />
-              <b>{h2h.w}</b>
-              <span>sejre</span>
+          {h2h.n < 3 && meet.meetings?.[0] ? (
+            // One or two meetings: the latest one large, logos and score (counting wins says nothing yet)
+            (() => {
+              const m = meet.meetings![0]
+              const club = (name: string) => (name === f.home.name ? f.home : name === f.away.name ? f.away : undefined)
+              const home = club(m.home)
+              const away = club(m.away)
+              return (
+                <div className={s.h2hBig}>
+                  <div>
+                    {home && <Crest club={home} logos={logos} large plate />}
+                    <span>{m.home}</span>
+                  </div>
+                  <div className={s.h2hBigScore}>
+                    <b>
+                      {m.hs}–{m.as}
+                    </b>
+                    <small>{m.year}</small>
+                  </div>
+                  <div>
+                    {away && <Crest club={away} logos={logos} large plate />}
+                    <span>{m.away}</span>
+                  </div>
+                </div>
+              )
+            })()
+          ) : (
+            <div className={s.h2hNums}>
+              <div className={h2h.w > h2h.l ? s.lead : undefined}>
+                <Crest club={f.home} logos={logos} plate />
+                <b>{h2h.w}</b>
+                <span>sejre</span>
+              </div>
+              <div>
+                <i className={s.h2hEq}>=</i>
+                <b>{h2h.d}</b>
+                <span>uafgjort</span>
+              </div>
+              <div className={h2h.l > h2h.w ? s.lead : undefined}>
+                <Crest club={f.away} logos={logos} plate />
+                <b>{h2h.l}</b>
+                <span>sejre</span>
+              </div>
             </div>
-            <div>
-              <i className={s.h2hEq}>=</i>
-              <b>{h2h.d}</b>
-              <span>uafgjort</span>
-            </div>
-            <div className={h2h.l > h2h.w ? s.lead : undefined}>
-              <Crest club={f.away} logos={logos} plate />
-              <b>{h2h.l}</b>
-              <span>sejre</span>
-            </div>
-          </div>
-          {meet.meetings && meet.meetings.length > 0 && (
+          )}
+          {meet.meetings && meet.meetings.length > (h2h.n < 3 ? 1 : 0) && (
             <div className={s.h2hRows}>
-              <div className={s.h2hRowsTitle}>{meet.meetings.length === 1 ? 'Seneste opgør' : `De seneste ${Math.min(3, meet.meetings.length)} opgør`}</div>
-              {meet.meetings.slice(0, 3).map((m, i) => {
+              <div className={s.h2hRowsTitle}>{h2h.n < 3 ? 'Opgøret før' : 'Seneste opgør'}</div>
+              {meet.meetings.slice(h2h.n < 3 ? 1 : 0, h2h.n < 3 ? 2 : 1).map((m, i) => {
                 const club = (name: string) => (name === f.home.name ? f.home : name === f.away.name ? f.away : undefined)
                 const home = club(m.home)
                 const away = club(m.away)
@@ -1121,8 +1139,17 @@ export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focu
               })}
             </div>
           )}
-        </StoryCard>
-      )}
+          </>
+        ) : p.fact ? (
+          <FactBlock p={p} size={6.4} />
+        ) : (
+          pos && (
+            <p className={s.serif} style={{ fontSize: '6.4cqw' }}>
+              {pos}.
+            </p>
+          )
+        )}
+      </StoryCard>
     </div>
   )
 }
