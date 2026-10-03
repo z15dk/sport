@@ -681,17 +681,22 @@ function FixtureRow({ p, logos, story }: { p: Pick; logos: Logos; story?: boolea
 
 /** The evening carousel: the first card lists up to 5 results (scorers or not); a card of its own only for matches with every scorer named */
 export function Results({ date, overview, picks, logos }: { date: string; overview: Pick[]; picks: Pick[]; logos: Logos }) {
-  const done = picks.filter((p) => p.finished)
   if (!overview.length) return <p className={s.empty}>Ingen færdige kampe endnu.</p>
-  const total = done.length + 1
+  // All results, six to a card; a card of its own per match (with its scorers) only while it all fits a carousel of ten
+  const pages: Pick[][] = []
+  for (let i = 0; i < overview.length; i += PER_PROGRAMME_CARD) pages.push(overview.slice(i, i + PER_PROGRAMME_CARD))
+  const finished = picks.filter((p) => p.finished)
+  const done = pages.length + finished.length <= 10 ? finished : []
+  const total = pages.length + done.length
   const day = String(new Date(`${date}T12:00:00Z`).getUTCDate())
   return (
     <>
       <div className={s.rail}>
-        <StoryCard caption="Forside" mark={day} label={formatLong(date)} headline="Resultater" crests={[]} foot={`1/${total}`} logos={logos}>
+        {pages.map((page, n) => (
+        <StoryCard key={n} caption={pages.length > 1 ? `Resultater ${n + 1}/${pages.length}` : 'Forside'} mark={day} label={formatLong(date)} headline="Resultater" crests={[]} foot={`${n + 1}/${total}`} logos={logos}>
           <table className={s.tb} style={{ fontSize: '3.4cqw' }}>
             <tbody>
-              {overview.map((p) => (
+              {page.map((p) => (
                 <tr key={p.fixture.id}>
                   <td>
                     <span className={s.team}>
@@ -709,6 +714,7 @@ export function Results({ date, overview, picks, logos }: { date: string; overvi
             </tbody>
           </table>
         </StoryCard>
+        ))}
         {done.map((p, k) => {
           const f = p.fixture
           const goals = goalsOf(f)
@@ -727,7 +733,7 @@ export function Results({ date, overview, picks, logos }: { date: string; overvi
               headline={score(f)}
               crests={[f.home, f.away]}
               line={`${f.home.name} – ${f.away.name}`}
-              foot={`${k + 2}/${total}`}
+              foot={`${pages.length + k + 1}/${total}`}
               logos={logos}
             >
               {goals.length > 0 ? (
