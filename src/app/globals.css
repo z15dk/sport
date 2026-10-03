@@ -195,6 +195,8 @@ table.visually-hidden { display: block; }
 .pill.is-active { background: var(--ink); color: #fff; }
 .pill--live.is-active { background: var(--live); }
 .pill__count { font-size: 11px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+/* Readable on the light pills (WCAG AA): a solid grey instead of faded text */
+.pill:not(.is-active) .pill__count { opacity: 1; color: var(--ink-3); }
 
 /* Date strip */
 .date-strip { display: flex; gap: 6px; }
@@ -714,6 +716,8 @@ h2.league__name { margin: 0; }
 .stretched-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .match .badge-link, .score-card .badge-link { position: relative; z-index: 2; }
 .badge-link { display: inline-flex; flex: none; border-radius: 50%; transition: transform 0.15s; }
+/* A finger-sized target (24 px) around the 20 px logo, without moving anything */
+.badge-link { padding: 2px; margin: -2px; }
 .badge-link:hover { transform: scale(1.12); }
 .badge-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .match { cursor: pointer; }
@@ -1137,7 +1141,7 @@ h2.league__name { margin: 0; }
 .side-list__country { font-size: 11px; flex: 0 1000 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-list__count { font-size: 11px; min-width: 20px; height: 20px; padding: 0 6px; }
 .side-list .live-dot { width: 7px; height: 7px; }
-.side-list__page { width: 22px; height: 22px; }
+.side-list__page { width: 24px; height: 24px; }
 
 /* Sidebar tournaments by country, each a drop-down */
 .side-countries { list-style: none; margin: 0; padding: 0 6px 8px; }
@@ -1241,6 +1245,8 @@ h2.league__name { margin: 0; }
 .featured__nav button { border: 0; background: none; cursor: pointer; color: var(--ink); font-size: 18px; font-weight: 800; padding: 2px 6px; line-height: 1; }
 .featured__nav .featured__dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.25); }
 .featured__nav .featured__dot.is-active { background: var(--ink); width: 20px; border-radius: 4px; }
+/* The dots stay small, the finger target around them is 24 px: the padding is clear (the colour is only the content box) */
+.featured__nav .featured__dot { box-sizing: content-box; padding: 8px; margin: -8px -3px; background-clip: content-box; }
 @media (prefers-reduced-motion: reduce) { .featured__teams { animation: none; } }
 .history__sub { padding: 14px 18px 4px; margin: 0; }
 .history__missing td { color: var(--ink-3); font-style: italic; }
@@ -1479,7 +1485,8 @@ a.pitch__player:hover .pitch__shirt--photo img { box-shadow: 0 0 0 3px var(--lim
   .bottombar .is-active svg path[d^="m12 3.8"] { fill: currentColor; }
   .bottombar a:active .bottombar__icon, .bottombar button:active .bottombar__icon { background: rgba(255, 255, 255, 0.12); }
   .bottombar__live { display: inline-flex; gap: 5px; }
-  .bottombar__live b { font-size: 11px; color: #fff; background: var(--live); border-radius: 999px; padding: 0 6px; line-height: 17px; }
+  /* A shade darker than the live colour: white 11 px numbers need 4.5:1 (WCAG AA) */
+  .bottombar__live b { font-size: 11px; color: #fff; background: #d63a12; border-radius: 999px; padding: 0 6px; line-height: 17px; }
   .sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(15, 17, 12, 0.35); }
   .nav-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow-y: auto;
