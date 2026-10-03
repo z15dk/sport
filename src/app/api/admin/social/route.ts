@@ -15,7 +15,7 @@ import {
   type SocialConfig,
 } from '../../../../lib/socialStore'
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
-import { approve, createOwnPost, deleteOwnPost, ownTemplate, shareArticle, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
+import { approve, createOwnPost, deleteOwnPost, ownTemplate, scheduleProgrammeResults, shareArticle, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
 import { focusCandidates } from '../../../../lib/social'
@@ -215,6 +215,14 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
         : undefined
       const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true, template })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }
+    }
+    case 'ownResults': {
+      // The results to a programme post, planned 2½ hours after the day's last kick-off
+      const date = str(b.date, 10)
+      if (!isValidIsoDate(date)) throw new Error('Ugyldig dato')
+      const platforms = Array.isArray(b.platforms) ? b.platforms.filter(isPlatform) : []
+      const post = await scheduleProgrammeResults({ league: str(b.league, 100) || undefined, women: b.women === true, date, text: str(b.text, 5000), platforms })
+      return { message: 'Resultaterne er planlagt', data: { id: post?.id, at: post?.scheduledAt } }
     }
     case 'ownTemplate': {
       // A template's cards and text as the start of an own post

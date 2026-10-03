@@ -648,6 +648,27 @@ function templateSpec(t: { kind: PostSpec['kind']; topic?: PostSpec['topic']; le
   }
 }
 
+/**
+ * The results post to a programme made from a template: the same leagues (or the same picked matches) that
+ * day, 2½ hours after the last kick-off, its pictures made then (the final scores) with the list under the text
+ */
+export async function scheduleProgrammeResults(input: { league?: string; women?: boolean; date: string; text: string; platforms: Platform[] }) {
+  const now = Date.now()
+  const c = contentFor(templateSpec({ kind: 'programme', league: input.league, women: input.women, date: input.date }, now), now)
+  if (!c || c.kind !== 'programme' || !c.picks.length) throw new Error('Ingen kampe den dag – resultaterne blev ikke planlagt')
+  const at = Math.max(...c.picks.map((p) => p.fixture.kickoff.getTime())) + 150 * MIN
+  if (at < now) throw new Error('Kampene er allerede spillet – resultaterne blev ikke planlagt')
+  return createOwnPost({
+    text: input.text.trim() || 'Dagens resultater ⚽',
+    link: '',
+    images: [],
+    platforms: input.platforms,
+    story: false,
+    at,
+    template: { kind: 'results', league: input.league, women: input.women, date: input.date, appendList: true },
+  })
+}
+
 export async function ownTemplate(input: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; date: string; now?: number }) {
   const now = input.now ?? Date.now()
   const spec = templateSpec(input, now)

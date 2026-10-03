@@ -688,6 +688,10 @@ export function OwnPostForm({
   // The focus match's result posted by itself 2½ hours after kick-off, with this text over the score
   const [autoResult, setAutoResult] = useState(true)
   const [resultText, setResultText] = useState('Slutfløjt! 🏁')
+  // A programme's results posted by themselves 2½ hours after the day's last kick-off
+  const [autoResults, setAutoResults] = useState(true)
+  const [resultsText, setResultsText] = useState('Dagens resultater ⚽')
+  const programme = tpl === 'programme' || tpl === 'women:programme'
   const [focusQ, setFocusQ] = useState('')
   // The day the template is made for: today and up to seven days ahead ('' is the post's own day)
   const [matchDay, setMatchDay] = useState('')
@@ -741,6 +745,10 @@ export function OwnPostForm({
       const p2 = (n: number) => String(n).padStart(2, '0')
       const when = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`
       await run({ action: 'own', text: resultText.trim() || 'Slutfløjt! 🏁', link: '', images: [], platforms: chosen, story: false, at: when, template: { kind: 'results', focus, appendList: true } })
+    }
+    if (!r.error && programme && autoResults) {
+      const p = tplParams()
+      await run({ action: 'ownResults', league: 'league' in p ? p.league : undefined, women: 'women' in p && p.women, date: focusDate, text: resultsText, platforms: chosen })
     }
     if (!r.error) {
       setText('')
@@ -861,6 +869,14 @@ export function OwnPostForm({
               )}
             </label>
             {autoResult && <input value={resultText} onChange={(e) => setResultText(e.target.value)} placeholder="Tekst over resultatet" aria-label="Tekst til resultatopslaget" />}
+          </div>
+        )}
+        {programme && (
+          <div className="own-post__later own-post__result">
+            <label className="social-check">
+              <input type="checkbox" checked={autoResults} onChange={(e) => setAutoResults(e.target.checked)} /> Post også resultaterne automatisk 2½ time efter dagens sidste kampstart
+            </label>
+            {autoResults && <input value={resultsText} onChange={(e) => setResultsText(e.target.value)} placeholder="Tekst over resultaterne" aria-label="Tekst til resultatopslaget" />}
           </div>
         )}
         {tpl && (
