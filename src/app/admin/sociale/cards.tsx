@@ -316,6 +316,9 @@ export function Programme({ date, picks, logos }: { date: string; picks: Pick[];
   const chunks: Pick[][] = []
   for (let i = 0; i < picks.length; i += PER_PROGRAMME_CARD) chunks.push(picks.slice(i, i + PER_PROGRAMME_CARD))
   const of = (i: number) => (chunks.length > 1 ? ` · ${i + 1}/${chunks.length}` : '')
+  // The league's name over a card whose matches are all in one league, else "Dagens kampe"
+  const title = (list: Pick[]) => (list.every((p) => p.league === list[0].league) ? list[0].league : 'Dagens kampe')
+  const titleSize = (t: string) => (t.length > 16 ? 7 : 8.5)
   const rows = (list: Pick[], story?: boolean) =>
     list.map((p) => (
       <div key={p.fixture.id} className={cx(s.fixtureRow, story && s.storyRow)}>
@@ -341,8 +344,8 @@ export function Programme({ date, picks, logos }: { date: string; picks: Pick[];
             caption={`Feed (4:5)${of(i)}`}
             mark={String(new Date(`${date}T12:00:00Z`).getUTCDate())}
             label={day}
-            headline="Dagens kampe"
-            size={8.5}
+            headline={title(list)}
+            size={titleSize(title(list))}
             logoMark
             crests={[]}
             foot={chunks.length > 1 ? `${i + 1}/${chunks.length} · ${picks.length} kampe` : `${picks.length} kampe`}
@@ -361,7 +364,7 @@ export function Programme({ date, picks, logos }: { date: string; picks: Pick[];
             <Head left={day} />
             <div className={s.pad} style={{ marginTop: '4cqw' }}>
               <div className={s.big} style={{ fontSize: '9cqw' }}>
-                Dagens udvalgte kampe
+                {title(list) === 'Dagens kampe' ? 'Dagens udvalgte kampe' : title(list)}
               </div>
             </div>
             {/* Takes the room there is, so the Matchly bar always stays on the card */}
