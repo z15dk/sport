@@ -183,9 +183,12 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
   return (
     <div className="consent" role="dialog" aria-modal="false" aria-labelledby="consent-title">
       <div className="consent__box">
-        <span className="consent__m" aria-hidden>
-          M
-        </span>
+        {/* Drawn as SVG, not text: a decoration must not count as the page's largest content (LCP) */}
+        <svg className="consent__m" aria-hidden viewBox="0 0 240 230">
+          <text x="4" y="224">
+            M
+          </text>
+        </svg>
         <h2 id="consent-title">
           Må vi bruge <em>cookies?</em>
         </h2>
