@@ -463,8 +463,8 @@ export function otherLeagues(now = Date.now()): { id: string; name: string }[] {
 
 /** A league's name for a title: ours by id, a cup or other tournament by "liga:<id>" */
 export const leagueName = (id: string) => DIVISIONS.find((d) => d.id === id)?.name ?? otherLeagues().find((l) => l.id === id)?.name.replace(/ \(.*\)$/, '') ?? id
-/** How many of a league's matches a post for one league shows at most (a whole round) */
-export const LEAGUE_MATCHES = 12
+/** How many of a league's matches a post for one league shows at most: a whole round, also a cup round of 40 (6 per card, so up to 10 cards) */
+export const LEAGUE_MATCHES = 60
 
 export function topicDivision(): Division | undefined {
   const id = socialConfig().topicLeague
