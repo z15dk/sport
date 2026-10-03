@@ -7,6 +7,9 @@ import { MatchTimeline } from './MatchTimeline'
 import { playerPath } from '../data/player'
 import { paths } from '../lib/site'
 import { formatLong, formatShortYear, formatTime } from '../lib/time'
+import type { Lineup, MatchStats } from '../data/matchExtra'
+import { StatBar } from './StatBar'
+import { LineupPitch } from './LineupPitch'
 
 // The page of an older match (from the match database or the statistics bank):
 // the result, goals and cards, the players' ratings, earlier meetings and a
@@ -21,6 +24,9 @@ interface Props {
   report?: string[]
   h2h: PastMatch[]
   players: PlayerGame[]
+  /** The statistics and line-ups saved when the game was fetched (none for older games) */
+  stats?: MatchStats
+  lineups?: Lineup[]
 }
 
 function TeamName({ name, href }: { name: string; href?: string }) {
@@ -38,7 +44,7 @@ function Side({ team, href }: { team: Match['home']; href?: string }) {
   )
 }
 
-export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players }: Props) {
+export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players, stats, lineups }: Props) {
   const { home, away } = match
   const sides = (['home', 'away'] as const).map((side) => ({
     side,
@@ -91,6 +97,29 @@ export function PastMatchView({ match, season, spectators, teamPath, report, h2h
       )}
 
       <div className="match-page__flow">
+        {stats && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Kampstatistik</h2>
+            {stats.xg && (
+              <StatBar
+                label={stats.xg.source === 'api-sports' ? 'xG (forventede mål)' : 'Chance-tal (estimat)'}
+                home={stats.xg.home}
+                away={stats.xg.away}
+                homeText={stats.xg.home.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                awayText={stats.xg.away.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              />
+            )}
+            {stats.rows.map((r) => (
+              <StatBar key={r.label} {...r} lowerIsBetter={r.label === 'Frispark begået' || r.label === 'Offside'} />
+            ))}
+          </section>
+        )}
+        {lineups?.length === 2 && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Opstillinger</h2>
+            <LineupPitch lineups={[lineups[0], lineups[1]]} />
+          </section>
+        )}
         {sides.some((s) => s.list.length) && (
           <section className="sheet__section">
             <h2 className="sheet__title">Spillerne</h2>

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { danishCountry } from '../../../data/countries'
+import type { ExternalGame } from '../../../data/external'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
 import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
@@ -43,7 +45,9 @@ const loadPast = loadPastMatch
 async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
-  const { game: g, match } = past
+  const { game: raw, match } = past
+  // National teams by their Danish names in the title too
+  const g = { ...raw, home: danishCountry(raw.home), away: danishCountry(raw.away) }
   // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
   const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
@@ -58,10 +62,18 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   }
 }
 
-function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
+async function PastMatchPage({ game: g, match: original }: { game: PastGame; match: Match }) {
   const now = Date.now()
+  // National teams by their Danish names ("Denmark" is Danmark)
+  const match: Match = { ...original, home: { ...original.home, name: danishCountry(original.home.name) }, away: { ...original.away, name: danishCountry(original.away.name) } }
+  // The line-ups and statistics saved when the game was fetched (read, not fetched again for a finished game)
+  const partnerId = g.source.archive && /^football-\d+$/.test(g.source.archive) ? g.source.archive : undefined
+  const asGame = partnerId
+    ? ({ id: partnerId, sport: 'soccer', league: { id: '', name: g.tournament }, home: { name: g.home }, away: { name: g.away }, kickoff: g.date.toISOString(), state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore } as ExternalGame)
+    : undefined
+  const [lineups, stats] = asGame ? await Promise.all([within(apiMatchLineups(asGame)), within(apiMatchStats(asGame, match.incidents))]) : [undefined, undefined]
   const h2h = withMatchLinks(pastMeetings(g))
-  const teamPath = Object.fromEntries([g.home, g.away].map((n) => [n, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined]))
+  const teamPath = Object.fromEntries([g.home, g.away].flatMap((n) => [n, danishCountry(n)].map((k) => [k, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined])))
   const report = matchReport({ match, now, h2h })
   const players = g.source.archive ? eventPlayers(g.source.archive) : []
   const title = `${g.home} – ${g.away}`
@@ -75,7 +87,7 @@ function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
           { name: title, path: paths.match(g.slug) },
         ])}
       />
-      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} />
+      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
       </div>
