@@ -666,7 +666,8 @@ export function OwnPostForm({
   const { busy, msg, run } = useAction()
   const tplAction = useAction()
   const [tpl, setTpl] = useState('')
-  const [league, setLeague] = useState('')
+  // Up to three leagues for the template (empty: the day's picked matches)
+  const [leagueList, setLeagueList] = useState<string[]>([])
   const [storyImage, setStoryImage] = useState<string>()
   // The template's ten texts, to step through with "Ny tekst"
   const [captions, setCaptions] = useState<string[]>([])
@@ -704,7 +705,7 @@ export function OwnPostForm({
   const applyTemplate = async () => {
     if (!tpl) return
     const [kind, topic] = tpl.split(':')
-    const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league, date: at.slice(0, 10) })
+    const r = await tplAction.run({ action: 'ownTemplate', kind, topic, league: leagueList.join(','), date: at.slice(0, 10) })
     const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
     if (r.error || !d) return
     const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
@@ -736,17 +737,28 @@ export function OwnPostForm({
             ))}
           </select>
         </label>
-        <label>
-          <span>Liga</span>
-          <select value={league} onChange={(e) => setLeague(e.target.value)} disabled={!tpl}>
-            <option value="">Dagens udvalgte</option>
-            {leagues.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {(leagueList.length < 3 ? [...leagueList, ''] : leagueList).map((id, i) => (
+          <label key={`${i}-${id}`}>
+            <span>{i === 0 ? 'Liga' : `Liga ${i + 1}`}</span>
+            <select
+              value={id}
+              disabled={!tpl}
+              onChange={(e) => {
+                const v = e.target.value
+                setLeagueList((x) => (v ? (i < x.length ? x.map((y, j) => (j === i ? v : y)) : [...x, v]) : x.filter((_, j) => j !== i)))
+              }}
+            >
+              <option value="">{i === 0 ? 'Dagens udvalgte' : i < leagueList.length ? '– fjern –' : '+ tilføj liga'}</option>
+              {leagues
+                .filter((l) => l.id === id || !leagueList.includes(l.id))
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ))}
         <button type="button" className="pill" disabled={!tpl || tplAction.busy} onClick={() => void applyTemplate()}>
           {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
         </button>

@@ -479,7 +479,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-upcoming li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
 .own-upcoming li strong { flex: 1 1 200px; }
 .own-post__tpl { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding: 12px; border-radius: var(--radius-sm); background: var(--surface-2); }
-.own-post__tpl label { flex: 0 1 240px; }
+.own-post__tpl label { flex: 0 1 200px; }
 .own-post__tpl select { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .own-post__tpl-note { flex-basis: 100%; }
 .art-card__links { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; }
