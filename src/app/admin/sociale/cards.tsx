@@ -1037,6 +1037,68 @@ function h2hSentence(home: string, away: string, h: { w: number; d: number; l: n
   return `Helt lige: ${h.w}–${h.l} i de seneste ${h.n} opgør.`
 }
 
+/** A focus match's result: the score large between the two logos, and the goals */
+export function FocusResultCards({ p, logos }: { p: Pick; logos: Logos }) {
+  const f = p.fixture
+  const goals = goalsOf(f)
+  let h = 0
+  let a = 0
+  return (
+    <div className={s.rail}>
+      <StoryCard caption="Slutresultat" club={winnerOf(f) ?? f.home} natural center label={p.women ? 'Slut' : `${p.league} · slut`} headline="Slutresultat" size={8.5} crests={[]} foot="" logos={logos}>
+        {logos[p.league] && (
+          <div className={s.leagueLine}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the league's logo */}
+            <img src={logos[p.league]} alt={p.league} />
+          </div>
+        )}
+        <div className={s.h2hBig}>
+          <div>
+            <Crest club={f.home} logos={logos} large plate />
+            <span>{f.home.name}</span>
+          </div>
+          <div className={s.h2hBigScore}>
+            <b>{score(f)}</b>
+            <small>Fuldtid</small>
+          </div>
+          <div>
+            <Crest club={f.away} logos={logos} large plate />
+            <span>{f.away.name}</span>
+          </div>
+        </div>
+        {goals.length > 0 && (
+          <div className={s.h2hRows}>
+            <div className={s.h2hRowsTitle}>Målene</div>
+            <table className={cx(s.tb, s.oneLine)} style={{ fontSize: '3.4cqw' }}>
+              <tbody>
+                {goals.slice(0, 5).map((i, n) => {
+                  const side = scoringSide(i)
+                  if (side === 'home') h++
+                  else a++
+                  return (
+                    <tr key={n}>
+                      <td className={s.k}>{i.minute}&apos;</td>
+                      <td>
+                        <span className={s.team}>
+                          <Crest club={side === 'home' ? f.home : f.away} logos={logos} plate /> {i.player ?? 'Mål'}
+                          {i.kind === 'penalty' ? ' (str.)' : i.kind === 'own-goal' ? ' (selvmål)' : ''}
+                        </span>
+                      </td>
+                      <td className={s.r}>
+                        {h}–{a}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </StoryCard>
+    </div>
+  )
+}
+
 export function BigMatchCards({ p, logos, focus }: { p: Pick; logos: Logos; focus?: boolean }) {
   const f = p.fixture
   const pos = [p.home.pos && `${f.home.name} er nr. ${p.home.pos}`, p.away.pos && `${f.away.name} nr. ${p.away.pos}`].filter(Boolean).join(', ')
@@ -1268,6 +1330,8 @@ function PostCardsOf(c: Content, logos: Logos) {
         </div>
       )
     case 'results':
+      // A focus match's result: its own card; else the day's results
+      if (c.focus && c.overview[0]) return <FocusResultCards p={c.overview[0]} logos={logos} />
       return <Results date={c.date} overview={c.overview} picks={c.detailed} logos={logos} />
     case 'topic':
       switch (c.topic) {

@@ -524,3 +524,5 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__focus-list button:hover { background: var(--surface-2); }
 .own-post__focus-list button.is-active { background: var(--ink); color: #fff; }
 .own-post__focus-list span { padding: 8px 10px; }
+.own-post__result { display: grid; gap: 6px; }
+.own-post__result input:not([type='checkbox']) { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-width: 420px; }

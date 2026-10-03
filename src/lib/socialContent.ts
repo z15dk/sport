@@ -47,7 +47,7 @@ export interface PostSpec {
 export type Content =
   | { kind: 'programme'; date: string; picks: Pick[]; women?: boolean }
   | { kind: 'story'; date: string; slot: string; picks: Pick[]; women?: boolean }
-  | { kind: 'results'; date: string; overview: Pick[]; detailed: Pick[]; women?: boolean }
+  | { kind: 'results'; date: string; overview: Pick[]; detailed: Pick[]; women?: boolean; focus?: boolean }
   | { kind: 'topic'; topic: 'week'; date: string; week: WeekNumbers }
   | { kind: 'topic'; topic: 'scorers'; date: string; division: Division; rows: ScorerRow[] }
   | { kind: 'topic'; topic: 'form'; date: string; division: Division; rows: FormRow[] }
@@ -74,8 +74,11 @@ export function contentFor(spec: PostSpec, now: number): Content | undefined {
       return picks.length ? { kind: 'story', date, slot: spec.slot!, picks, women } : undefined
     }
     case 'results': {
-      const overview = picksFor(date, now, matchIds, isFinishedMatch)
-      return overview.length ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)), women } : undefined
+      // A focus match's result: that one match, looked for over the week from the date (it may have been played a day later)
+      const overview = spec.focus ? [focusPick(date, now, spec.focus)].filter((p): p is Pick => !!p && p.finished) : picksFor(date, now, matchIds, isFinishedMatch)
+      return overview.length
+        ? { kind: 'results', date, overview, detailed: overview.filter((p) => hasNamedScorers(p.fixture)), women: women || overview.some((p) => p.women), focus: !!spec.focus }
+        : undefined
     }
     case 'topic': {
       // A topic about one league: the first chosen
@@ -203,7 +206,18 @@ export function captionVariants(c: Content): string[] {
     case 'results': {
       const body = c.overview.map((p) => `${p.fixture.home.name} ${score(p)} ${p.fixture.away.name}`)
       return out(
-        [
+        c.focus ? [
+          'Slutfløjt! 🏁',
+          'Sådan endte det ⚽',
+          'Kampen er slut – her er resultatet 👇',
+          'Det blev til en afgørelse 🔥',
+          'Fuldtid! ⏱️',
+          'Point fordelt – sådan gik det:',
+          'Hvad siger du til det resultat? 👀',
+          'Slut på dagens fokuskamp ⚽',
+          'Resultatet er i hus ✅',
+          'Dommeren har fløjtet af 📣',
+        ] : [
           'Slutfløjt! 🏁 Her er dagens resultater:',
           `Sådan endte det ${dayLower} ⚽`,
           'Point blev vundet, point blev tabt – resultaterne er her 👇',

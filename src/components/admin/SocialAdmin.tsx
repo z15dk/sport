@@ -683,7 +683,11 @@ export function OwnPostForm({
   const [at, setAt] = useState(nextHour)
   // The focus match (its id) and the matches to pick it from, for the day under "Udgiv" and the next three
   const [focus, setFocus] = useState('')
-  const [focusList, setFocusList] = useState<{ id: string; label: string }[]>([])
+  const [focusList, setFocusList] = useState<{ id: string; label: string; kickoff?: string }[]>([])
+  const [focusKickoff, setFocusKickoff] = useState<string>()
+  // The focus match's result posted by itself 2½ hours after kick-off, with this text over the score
+  const [autoResult, setAutoResult] = useState(true)
+  const [resultText, setResultText] = useState('Slutfløjt! 🏁')
   const [focusQ, setFocusQ] = useState('')
   const focusDate = at.slice(0, 10)
   // Searched on the server (there can be thousands of matches): the 30 best that have every word typed
@@ -692,7 +696,7 @@ export function OwnPostForm({
     const t = setTimeout(() => {
       void fetch('/api/admin/social', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'focusMatches', date: focusDate, q: focusQ }) })
         .then((r) => r.json())
-        .then((d: { data?: { id: string; label: string }[] }) => setFocusList(d.data ?? []))
+        .then((d: { data?: { id: string; label: string; kickoff?: string }[] }) => setFocusList(d.data ?? []))
         .catch(() => undefined)
     }, 250)
     return () => clearTimeout(t)
@@ -719,6 +723,13 @@ export function OwnPostForm({
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
     const template = later && tpl ? { ...tplParams(), appendList } : undefined
     const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now, template })
+    // The focus match's result as its own post, 2½ hours after kick-off (the score and goals as they are then)
+    if (!r.error && tpl === 'focus' && focus && autoResult && focusKickoff) {
+      const d = new Date(Date.parse(focusKickoff) + 150 * 60_000)
+      const p2 = (n: number) => String(n).padStart(2, '0')
+      const when = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`
+      await run({ action: 'own', text: resultText.trim() || 'Slutfløjt! 🏁', link: '', images: [], platforms: chosen, story: false, at: when, template: { kind: 'results', focus, appendList: true } })
+    }
     if (!r.error) {
       setText('')
       setLink('')
@@ -771,7 +782,10 @@ export function OwnPostForm({
             </label>
             <div className="own-post__focus-list" role="listbox" aria-label="Kampe">
               {focusList.map((m) => (
-                <button key={m.id} type="button" role="option" aria-selected={m.id === focus} className={m.id === focus ? 'is-active' : undefined} onClick={() => setFocus(m.id)}>
+                <button key={m.id} type="button" role="option" aria-selected={m.id === focus} className={m.id === focus ? 'is-active' : undefined} onClick={() => {
+                  setFocus(m.id)
+                  setFocusKickoff(m.kickoff)
+                }}>
                   {m.label}
                 </button>
               ))}
@@ -809,6 +823,20 @@ export function OwnPostForm({
           <button type="button" className="pill" disabled={!tpl || (tpl === 'focus' && !focus) || tplAction.busy} onClick={() => void applyTemplate()}>
             {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
           </button>
+        )}
+        {tpl === 'focus' && (
+          <div className="own-post__later own-post__result">
+            <label className="social-check">
+              <input type="checkbox" checked={autoResult} onChange={(e) => setAutoResult(e.target.checked)} /> Post også resultatet automatisk 2½ time efter kampstart
+              {focusKickoff && autoResult && (
+                <span className="muted small">
+                  {' '}
+                  (kl. {new Date(Date.parse(focusKickoff) + 150 * 60_000).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })})
+                </span>
+              )}
+            </label>
+            {autoResult && <input value={resultText} onChange={(e) => setResultText(e.target.value)} placeholder="Tekst over resultatet" aria-label="Tekst til resultatopslaget" />}
+          </div>
         )}
         {tpl && (
           <label className="social-check own-post__later">

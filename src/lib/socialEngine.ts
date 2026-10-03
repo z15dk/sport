@@ -632,6 +632,8 @@ function templateFile(ref: string): string | undefined {
 /** A template's spec for an own post: a league (or more), a focus match, or women's football */
 function templateSpec(t: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; date: string }, now: number): PostSpec {
   const women = !!t.women
+  // A focus match's result (posted after the match): the results template for that one match
+  if (t.focus && t.kind === 'results') return { kind: 'results', date: t.date, matchIds: [t.focus], focus: t.focus, women: women || undefined }
   return {
     kind: t.focus ? 'topic' : t.kind,
     topic: t.focus ? 'bigmatch' : t.kind === 'topic' ? t.topic : undefined,

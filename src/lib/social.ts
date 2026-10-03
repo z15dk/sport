@@ -565,21 +565,21 @@ export function focusPick(date: string, now: number, matchId: string): Pick | un
   return undefined
 }
 
-let focusCache: { key: string; list: { id: string; label: string }[] } | undefined
+let focusCache: { key: string; list: { id: string; label: string; kickoff: string }[] } | undefined
 /** The matches to pick a focus match from: from `date` and the next few days, best first per day; with `q` only those whose label has every word, at most 30 */
-export function focusCandidates(date: string, now: number, q = '', days = 4): { id: string; label: string }[] {
+export function focusCandidates(date: string, now: number, q = '', days = 4): { id: string; label: string; kickoff: string }[] {
   const key = `${date}|${Math.floor(now / 300_000)}`
   const all = focusCache?.key === key ? focusCache.list : (focusCache = { key, list: focusAll(date, now, days) }).list
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   return (words.length ? all.filter((m) => words.every((w) => m.label.toLowerCase().includes(w))) : all).slice(0, 30)
 }
 
-function focusAll(date: string, now: number, days: number): { id: string; label: string }[] {
-  const out: { id: string; label: string }[] = []
+function focusAll(date: string, now: number, days: number): { id: string; label: string; kickoff: string }[] {
+  const out: { id: string; label: string; kickoff: string }[] = []
   for (let i = 0; i < days; i++)
     for (const c of candidates(addDays(date, i), now)) {
       const k = c.fixture.kickoff
-      out.push({ id: c.fixture.id, label: `${k.getDate()}/${k.getMonth() + 1} ${String(k.getHours()).padStart(2, '0')}.${String(k.getMinutes()).padStart(2, '0')} · ${c.fixture.home.name} – ${c.fixture.away.name} (${c.league})` })
+      out.push({ id: c.fixture.id, label: `${k.getDate()}/${k.getMonth() + 1} ${String(k.getHours()).padStart(2, '0')}.${String(k.getMinutes()).padStart(2, '0')} · ${c.fixture.home.name} – ${c.fixture.away.name} (${c.league})`, kickoff: k.toISOString() })
     }
   return out
 }
