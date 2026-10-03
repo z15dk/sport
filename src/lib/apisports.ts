@@ -1563,7 +1563,7 @@ function keepEvents(before: ExternalGame[], after: ExternalGame[]): ExternalGame
 /** What a game's goals and cards were fetched for: they are fetched again when this changes (live: also every 5 minutes, for the cards) */
 // A live game in our leagues and cups again every 5 minutes (cards, line-up changes); any other game when its score changes
 const eventsKey = (g: ExternalGame) =>
-  `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : ''}`
+  `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : g.state === 'upcoming' ? `|${Math.floor(Date.now() / 900_000)}` : ''}`
 
 /**
  * Football games whose goals, cards and line-ups are missing or out of date (a finished game once, a
@@ -1586,20 +1586,23 @@ function eventsDue(s: ApiState): string[] {
   if (!isPaid(s) || remaining <= PAID_RESERVE) return []
   const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
   const due = new Set<string>()
-  // Every football game's goals, line-ups and statistics (20 a request): live games first, then our leagues
-  // and cups, the games someone opened, and the rest of the last two days' finished games, newest first
-  const recent = isoDate(Date.now() - 2 * 86_400_000)
+  // Every football game the partner has data for (20 a request): live games first, then games about to start
+  // (their line-ups, out about an hour before), our leagues and cups, the games someone opened, and every other
+  // finished game in the days we keep, newest first. Older seasons only for our leagues and opened games.
+  const current = new Set(Object.values(s.days).flatMap((d) => d.games.map((g) => g.id)))
   const ours = (g: ExternalGame) => !!(divisionOfGame(g) || wholeSeason(g))
-  const rank = (g: ExternalGame) => (g.state === 'live' ? 0 : ours(g) ? 1 : viewedGames.has(g.id) ? 2 : 3)
+  const soon = (g: ExternalGame) => g.state === 'upcoming' && Date.parse(g.kickoff) - Date.now() < 75 * 60_000 && Date.parse(g.kickoff) > Date.now() - 15 * 60_000
+  const lineupsIn = (g: ExternalGame) => !!extrasStore().entries[`football|lineups|${g.id}`]
+  const rank = (g: ExternalGame) => (g.state === 'live' ? 0 : soon(g) ? 1 : ours(g) ? 2 : viewedGames.has(g.id) ? 3 : 4)
+  const spare = remaining > backgroundReserve(s)
   const wanted = games
-    .filter(
-      (g) =>
-        g.id.startsWith('football-') &&
-        g.eventsFor !== eventsKey(g) &&
-        // Our live games always; everything else only while the budget kept for live scores is not touched
-        ((g.state === 'live' && (ours(g) || remaining > backgroundReserve(s))) ||
-          (g.state === 'finished' && remaining > backgroundReserve(s) && (ours(g) || viewedGames.has(g.id) || g.kickoff.slice(0, 10) >= recent))),
-    )
+    .filter((g) => {
+      if (!g.id.startsWith('football-') || g.eventsFor === eventsKey(g)) return false
+      // Our live games always; everything else only while the budget kept for live scores is not touched
+      if (g.state === 'live') return ours(g) || spare
+      if (soon(g)) return spare && !lineupsIn(g)
+      return g.state === 'finished' && spare && (ours(g) || viewedGames.has(g.id) || current.has(g.id))
+    })
     .sort((a, b) => rank(a) - rank(b) || b.kickoff.localeCompare(a.kickoff))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)
