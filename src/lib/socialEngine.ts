@@ -535,7 +535,7 @@ export async function createOwnPost(input: {
   at: number
   now?: boolean
   /** Make the pictures from this template at the post's time (fresh results) */
-  template?: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; appendList: boolean }
+  template?: { kind: PostSpec['kind']; topic?: PostSpec['topic']; league?: string; focus?: string; women?: boolean; appendList: boolean; date?: string }
 }) {
   const text = input.text.trim()
   if (!text) throw new Error('Skriv en tekst')
@@ -573,8 +573,8 @@ export async function createOwnPost(input: {
     own: {
       platforms: input.platforms,
       story: input.story,
-      // The template's day is the post's day: the results of that evening
-      ...(input.template && { template: { ...input.template, date: isoDate(at) } }),
+      // The template's day: the one chosen (up to a week ahead), else the post's day (the results of that evening)
+      ...(input.template && { template: { ...input.template, date: input.template.date ?? isoDate(at) } }),
     },
     matchIds: [],
     title: text.split('\n')[0].slice(0, 70),

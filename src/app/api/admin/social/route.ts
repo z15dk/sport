@@ -211,7 +211,7 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
       const t = (b.template ?? undefined) as Record<string, unknown> | undefined
       const tKind = t && KINDS.find((k) => k === t.kind && k !== 'story')
       const template = tKind
-        ? { kind: tKind, topic: isTopic(t!.topic) ? t!.topic : undefined, league: str(t!.league, 100) || undefined, focus: str(t!.focus, 100) || undefined, women: t!.women === true, appendList: t!.appendList === true }
+        ? { kind: tKind, topic: isTopic(t!.topic) ? t!.topic : undefined, league: str(t!.league, 100) || undefined, focus: str(t!.focus, 100) || undefined, women: t!.women === true, appendList: t!.appendList === true, date: isValidIsoDate(str(t!.date, 10)) ? str(t!.date, 10) : undefined }
         : undefined
       const post = await createOwnPost({ text: str(b.text, 5000), link: str(b.link, 500), images, storyImage: str(b.storyImage, 200), platforms, story: b.story === true, at, now: b.now === true, template })
       return { message: b.now ? (post ? STATUS_NAMES[post.status] : 'Udgivet') : 'Opslaget er planlagt', data: { id: post?.id } }

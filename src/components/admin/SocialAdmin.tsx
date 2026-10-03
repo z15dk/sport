@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 
 // The social media admin (/admin/sociale): buttons, the text editor, the
@@ -689,7 +689,19 @@ export function OwnPostForm({
   const [autoResult, setAutoResult] = useState(true)
   const [resultText, setResultText] = useState('Slutfløjt! 🏁')
   const [focusQ, setFocusQ] = useState('')
-  const focusDate = at.slice(0, 10)
+  // The day the template is made for: today and up to seven days ahead ('' is the post's own day)
+  const [matchDay, setMatchDay] = useState('')
+  const days = useMemo(() => {
+    const p2 = (n: number) => String(n).padStart(2, '0')
+    return Array.from({ length: 8 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() + i)
+      const iso = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+      const name = i === 0 ? 'I dag' : i === 1 ? 'I morgen' : d.toLocaleDateString('da-DK', { weekday: 'long' })
+      return { iso, label: `${name.charAt(0).toUpperCase() + name.slice(1)} ${d.getDate()}/${d.getMonth() + 1}` }
+    })
+  }, [])
+  const focusDate = matchDay || at.slice(0, 10)
   // Searched on the server (there can be thousands of matches): the 30 best that have every word typed
   useEffect(() => {
     if (tpl !== 'focus') return
@@ -721,7 +733,7 @@ export function OwnPostForm({
   }
   const submit = async (now: boolean) => {
     if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
-    const template = later && tpl ? { ...tplParams(), appendList } : undefined
+    const template = later && tpl ? { ...tplParams(), appendList, ...(matchDay && { date: matchDay }) } : undefined
     const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now, template })
     // The focus match's result as its own post, 2½ hours after kick-off (the score and goals as they are then)
     if (!r.error && tpl === 'focus' && focus && autoResult && focusKickoff) {
@@ -742,7 +754,7 @@ export function OwnPostForm({
   // A template's cards (made on the server for the chosen day) and its text as the start of the post
   const applyTemplate = async () => {
     if (!tpl) return
-    const r = await tplAction.run({ action: 'ownTemplate', ...tplParams(), date: at.slice(0, 10) })
+    const r = await tplAction.run({ action: 'ownTemplate', ...tplParams(), date: focusDate })
     const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
     if (r.error || !d) return
     const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
@@ -774,6 +786,19 @@ export function OwnPostForm({
             ))}
           </select>
         </label>
+        {tpl && (
+          <label>
+            <span>Kampdag</span>
+            <select value={matchDay} onChange={(e) => setMatchDay(e.target.value)}>
+              <option value="">Samme dag som opslaget</option>
+              {days.map((d) => (
+                <option key={d.iso} value={d.iso}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {tpl === 'focus' && (
           <div className="own-post__focus">
             <label>
