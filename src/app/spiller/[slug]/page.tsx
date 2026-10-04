@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { forVisitor } from '../../../lib/visitorBudget'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { apiPlayer } from '../../../lib/apisports'
@@ -57,7 +58,7 @@ const sum = (rows: PlayerSeasonRow[], k: keyof PlayerSeasonRow) => rows.reduce((
 const seasonLabel = (y: number) => `${y}/${String(y + 1).slice(2)}`
 const pct = (a?: number, b?: number) => (a !== undefined && b ? `${Math.round((a / b) * 100)} %` : '–')
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+async function generateMetadataInner({ params }: { params: Params }): Promise<Metadata> {
   const id = idOf((await params).slug)
   const p = id ? await apiPlayer(id) : undefined
   if (!p) return { title: 'Spiller' }
@@ -72,7 +73,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   }
 }
 
-export default async function PlayerPage({ params }: { params: Params }) {
+async function PlayerPageInner({ params }: { params: Params }) {
   const slug = (await params).slug
   const id = idOf(slug)
   if (!id) notFound()
@@ -540,4 +541,14 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
       </table>
     </div>
   )
+}
+
+/** generateMetadata with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return forVisitor(() => generateMetadataInner(props))
+}
+
+/** PlayerPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export default async function PlayerPage(props: { params: Params }) {
+  return forVisitor(() => PlayerPageInner(props))
 }

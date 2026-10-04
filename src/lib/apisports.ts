@@ -1,4 +1,5 @@
 import 'server-only'
+import { spendingBlocked } from './visitorBudget'
 import { runsJobs } from './role'
 import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
@@ -1333,6 +1334,8 @@ const EXTRAS_KEEP_REMAINING = 20
  * on a paid plan extras stop at the same reserve as the background work.
  */
 function spendExtra(api: Api, cost = 1, kind?: 'players'): boolean {
+  // A crawler's page (not Google's or Bing's) uses what is saved (src/lib/visitorBudget.ts)
+  if (spendingBlocked()) return false
   load()
   const s = mem.store[api]
   const store = extrasStore()

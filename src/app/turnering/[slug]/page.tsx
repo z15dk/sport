@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
@@ -243,7 +244,7 @@ async function externalLeaguePage(slug: string) {
   )
 }
 
-export default async function LeaguePage({ params }: { params: Params }) {
+async function LeaguePageInner({ params }: { params: Params }) {
   const slug = (await params).slug
   if (slug.startsWith('x-')) return externalLeaguePage(slug)
   const division = divisionBySlug(slug)
@@ -399,4 +400,9 @@ export default async function LeaguePage({ params }: { params: Params }) {
       </div>
     </div>
   )
+}
+
+/** LeaguePage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export default async function LeaguePage(props: { params: Params }) {
+  return forVisitor(() => LeaguePageInner(props))
 }

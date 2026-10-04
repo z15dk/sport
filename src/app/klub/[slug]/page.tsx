@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { forVisitor } from '../../../lib/visitorBudget'
 import Link from 'next/link'
 import { MasonryFlow } from '../../../components/MasonryFlow'
 import { notFound } from 'next/navigation'
@@ -89,7 +90,7 @@ export default async function ClubPage({ params }: { params: Params }) {
 }
 
 /** Full page for clubs in the leagues we cover, which have season and table data */
-async function LeagueClub({ club, division }: { club: Club; division: Division }) {
+async function LeagueClubInner({ club, division }: { club: Club; division: Division }) {
   const now = Date.now()
   const stats = clubStats(club.name, now)!
   const r = stats.row
@@ -305,7 +306,7 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
 }
 
 /** Page for any other team: built from its matches, the games we have saved and its league's table */
-async function TeamPage({ team }: { team: TeamEntry }) {
+async function TeamPageInner({ team }: { team: TeamEntry }) {
   const now = Date.now()
   const names = team.names ?? [team.name]
   const keys = new Set(names.map(normalize))
@@ -591,4 +592,14 @@ async function TeamPage({ team }: { team: TeamEntry }) {
       </div>
     </div>
   )
+}
+
+/** LeagueClub with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function LeagueClub(props: { club: Club; division: Division }) {
+  return forVisitor(() => LeagueClubInner(props))
+}
+
+/** TeamPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function TeamPage(props: { team: TeamEntry }) {
+  return forVisitor(() => TeamPageInner(props))
 }

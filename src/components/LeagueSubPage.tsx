@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { forVisitor } from '../lib/visitorBudget'
 import type { Metadata } from 'next'
 import { seasonOf, sportOf, type Division } from '../data/leagues'
 import { allFixtures, clubInDivision, isFinished, toMatch, type Fixture } from '../data/season'
@@ -162,7 +163,7 @@ function MatchGroups({ list, now }: { list: Fixture[]; now: number }) {
   )
 }
 
-export async function LeagueSubPageView({ division, page }: { division: Division; page: LeagueSubPage }) {
+async function LeagueSubPageViewInner({ division, page }: { division: Division; page: LeagueSubPage }) {
   const now = Date.now()
   const name = division.name
   const season = seasonOf(division)
@@ -234,4 +235,9 @@ export async function LeagueSubPageView({ division, page }: { division: Division
       </div>
     </div>
   )
+}
+
+/** LeagueSubPageView with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export async function LeagueSubPageView(props: { division: Division; page: LeagueSubPage }) {
+  return forVisitor(() => LeagueSubPageViewInner(props))
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ROBOT_UA, forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { danishCountry } from '../../../data/countries'
@@ -62,7 +63,7 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   }
 }
 
-async function PastMatchPage({ game: g, match: original }: { game: PastGame; match: Match }) {
+async function PastMatchPageInner({ game: g, match: original }: { game: PastGame; match: Match }) {
   const now = Date.now()
   // National teams by their Danish names ("Denmark" is Danmark)
   const match: Match = { ...original, home: { ...original.home, name: danishCountry(original.home.name) }, away: { ...original.away, name: danishCountry(original.away.name) } }
@@ -124,7 +125,7 @@ function within<T>(p: Promise<T>, ms = 1500): Promise<T | undefined> {
   return Promise.race([p.catch(() => undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))])
 }
 
-export default async function MatchPage({ params }: { params: Params }) {
+async function MatchPageInner({ params }: { params: Params }) {
   const { slug } = await params
   const found = load(slug)
   if (!found) {
@@ -264,4 +265,12 @@ export default async function MatchPage({ params }: { params: Params }) {
   )
 }
 
-const ROBOT_UA = /bot|crawl|spider|slurp|preview|headless|lighthouse|pagespeed|facebookexternalhit|embedly|whatsapp|telegram|curl|wget|python|axios|node-fetch|playwright|puppeteer/i
+/** PastMatchPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function PastMatchPage(props: { game: PastGame; match: Match }) {
+  return forVisitor(() => PastMatchPageInner(props))
+}
+
+/** MatchPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export default async function MatchPage(props: { params: Params }) {
+  return forVisitor(() => MatchPageInner(props))
+}
