@@ -15,6 +15,8 @@ export interface TrackingConfig {
   metaPixel?: string
   /** Meta's domain verification code (the content of <meta name="facebook-domain-verification">) */
   metaVerify?: string
+  /** Bing Webmaster Tools' verification code (the content of <meta name="msvalidate.01">) */
+  bingVerify?: string
   /** Who is responsible for the data (GDPR art. 13), shown on /privatliv */
   owner?: Owner
 }
@@ -58,6 +60,13 @@ const verifyCode = (v: unknown) => {
   return (/content=["']([^"']+)["']/.exec(t)?.[1] ?? t).trim().toLowerCase()
 }
 
+/** Bing's code keeps its capitals */
+const BING = /^[A-Za-z0-9]{16,64}$/
+const bingCode = (v: unknown) => {
+  const t = String(v ?? '').trim()
+  return (/content=["']([^"']+)["']/.exec(t)?.[1] ?? t).trim()
+}
+
 const text = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n)
 
 function cleanOwner(v: unknown): Owner | undefined {
@@ -72,21 +81,30 @@ function clean(v: Record<string, unknown>): TrackingConfig {
   const pixel = String(v.metaPixel ?? '').trim()
   const owner = cleanOwner(v.owner)
   const verify = verifyCode(v.metaVerify)
-  return { ...(GA.test(ga) && { ga }), ...(PIXEL.test(pixel) && { metaPixel: pixel }), ...(VERIFY.test(verify) && { metaVerify: verify }), ...(owner && { owner }) }
+  const bing = bingCode(v.bingVerify)
+  return {
+    ...(GA.test(ga) && { ga }),
+    ...(PIXEL.test(pixel) && { metaPixel: pixel }),
+    ...(VERIFY.test(verify) && { metaVerify: verify }),
+    ...(BING.test(bing) && { bingVerify: bing }),
+    ...(owner && { owner }),
+  }
 }
 
 /** Saves the ids; an empty field turns that service off */
-export function saveTracking(v: { ga?: unknown; metaPixel?: unknown; metaVerify?: unknown; owner?: unknown }): { error?: string } {
+export function saveTracking(v: { ga?: unknown; metaPixel?: unknown; metaVerify?: unknown; bingVerify?: unknown; owner?: unknown }): { error?: string } {
   const ga = String(v.ga ?? '').trim().toUpperCase()
   const pixel = String(v.metaPixel ?? '').trim()
   if (ga && !GA.test(ga)) return { error: 'Google Analytics-id ser sådan ud: G-ABC123XYZ' }
   if (pixel && !PIXEL.test(pixel)) return { error: 'Meta Pixel-id er kun tal (fx 123456789012345)' }
   const verify = verifyCode(v.metaVerify)
   if (verify && !VERIFY.test(verify)) return { error: 'Metas bekræftelseskode ser forkert ud – indsæt koden eller hele meta-tagget fra Meta' }
+  const bing = bingCode(v.bingVerify)
+  if (bing && !BING.test(bing)) return { error: 'Bings bekræftelseskode ser forkert ud – indsæt koden eller hele meta-tagget fra Bing Webmaster Tools' }
   const email = text((v.owner as Record<string, unknown> | undefined)?.email, 120)
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Kontakt-mailen ser forkert ud' }
   mkdirSync(path.dirname(file()), { recursive: true })
-  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel, metaVerify: verify, owner: v.owner }), null, 2))
+  writeFileSync(`${file()}.tmp`, JSON.stringify(clean({ ga, metaPixel: pixel, metaVerify: verify, bingVerify: bing, owner: v.owner }), null, 2))
   renameSync(`${file()}.tmp`, file())
   cache = { mtime: -1, config: {} }
   return {}

@@ -46,8 +46,11 @@ export function generateMetadata(): Metadata {
       apple: '/apple-touch-icon.png',
     },
     appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
-    // Meta's domain verification for the pixel (set on /admin/indstillinger → Sporing og cookies)
-    ...(trackingConfig().metaVerify && { other: { 'facebook-domain-verification': trackingConfig().metaVerify! } }),
+    // Meta's domain verification for the pixel and Bing Webmaster Tools' (set on /admin/indstillinger → Sporing og cookies)
+    other: {
+      ...(trackingConfig().metaVerify && { 'facebook-domain-verification': trackingConfig().metaVerify! }),
+      ...(trackingConfig().bingVerify && { 'msvalidate.01': trackingConfig().bingVerify! }),
+    },
   }
 }
 
