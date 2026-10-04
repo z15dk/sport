@@ -112,7 +112,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
       document.getElementById('kampe')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
-  const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
+  // Turnering (by league, Danish first) is the default; a new key, so the old stored 'time' doesn't win for everyone
+  const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder2', 'league')
   // The site's search (top bar) finds clubs and tournaments; the day's matches are not filtered by text
   const query = ''
   const now = useNow(REFRESH_MS, initialNow)

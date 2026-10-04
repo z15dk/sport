@@ -12,6 +12,7 @@ import { OddsBy } from './MatchExtras'
 import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { oddsEnabled } from '../data/odds'
 import { TeamBadge } from './TeamBadge'
+import { danishCountry } from '../data/countries'
 
 interface Props {
   group: LeagueGroup
@@ -32,7 +33,7 @@ export function LeagueSection({ group, pinned, onTogglePin, ads }: Props) {
         <div className="league__toggle">
           <TeamBadge name={group.league} src={group.leagueBadge} size={28} label={competitionLabel(group.league)} />
           <span className="league__titles">
-            {group.country && <span className="league__country">{group.country}</span>}
+            {group.country && <span className="league__country">{danishCountry(group.country)}</span>}
             {group.leagueSlug ? (
               <Link className="league__name" href={paths.league(group.leagueSlug)}>
                 {group.league}
