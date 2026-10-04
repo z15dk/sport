@@ -28,9 +28,15 @@ export async function makeVsGraphic(input: { home: string; away: string; top?: s
     const res = await page.goto(`${selfUrl()}/admin/grafik/vs?${q}`, { waitUntil: 'networkidle', timeout: 60_000 })
     if (!res?.ok()) throw new Error(`Grafiksiden svarede ${res?.status() ?? 'intet'}`)
     await page.addStyleTag({ content: '.consent, .adminbar, [role="dialog"] { display: none !important; }' })
+    // Only the graphic's own pictures, and at most a quarter of a minute (the page's footer has flags that never load by themselves)
     await page.evaluate(async () => {
       await document.fonts.ready
-      await Promise.all([...document.images].map((img) => (img.complete ? undefined : new Promise((r) => ((img.onload = r), (img.onerror = r))))))
+      const pictures = Array.from(document.querySelectorAll<HTMLImageElement>('[data-card] img'))
+      for (const img of pictures) img.loading = 'eager'
+      await Promise.race([
+        Promise.all(pictures.map((img) => (img.complete ? undefined : new Promise((r) => ((img.onload = r), (img.onerror = r)))))),
+        new Promise((r) => setTimeout(r, 15_000)),
+      ])
     })
     await page.waitForTimeout(300)
     png = await page.locator('[data-card]').screenshot({ type: 'png' })
