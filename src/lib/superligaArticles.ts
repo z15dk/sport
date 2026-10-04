@@ -1017,5 +1017,6 @@ export function superligaFacts(): { text?: string; error?: string } {
   line()
   line('## Krav til artiklen')
   line('Nyhedsartikel: fængende rubrik med sæson og runde, fed indledning med det vigtigste først, korte mellemrubrikker uden numre, faktaboks, spørgsmål og svar til sidst. Menneskeligt sportssprog, ingen gentagelser, kun tallene herover, tal til og med tolv med bogstaver, tabeller med højst 5 kolonner, links til klub- og kampsider, næste kamp med tid og TV. Beregninger mærkes som beregning.')
+  line('Søg gerne efter seneste nyt om klubberne (skader, karantæner, trænerskifter, transfers, udtalelser), hvis det er relevant for artiklen – kun nyheder fra troværdige medier, der kan bekræftes, og aldrig i stedet for tallene herover.')
   return { text: out.join('\n') }
 }
