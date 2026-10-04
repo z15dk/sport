@@ -1,5 +1,6 @@
 import 'server-only'
 import { cleanHtml, publishedArticles, plainText, type Article } from './articles'
+import { expandWidgets, markNumberColumns } from './articleEmbeds'
 import { SITE_NAME, SITE_URL, paths } from './site'
 
 // The articles as RSS (/artikler/feed.xml) and as a Google News sitemap
@@ -38,7 +39,7 @@ export function rssXml(now = new Date()): string {
       ...a.tags.map((t) => `<category>${escape(t)}</category>`),
       `<description>${escape(description(a))}</description>`,
       ...(image ? [`<enclosure url="${escape(image)}" type="${image.endsWith('.webp') ? 'image/webp' : 'image/jpeg'}" length="0"/>`, `<media:content url="${escape(image)}" medium="image"/>`] : []),
-      `<content:encoded><![CDATA[${absoluteHtml(cleanHtml(a.content)).replace(/\]\]>/g, ']]]]><![CDATA[>')}]]></content:encoded>`,
+      `<content:encoded><![CDATA[${absoluteHtml(expandWidgets(markNumberColumns(cleanHtml(a.content))).html).replace(/\]\]>/g, ']]]]><![CDATA[>')}]]></content:encoded>`,
       '</item>',
     ].join('')
   })

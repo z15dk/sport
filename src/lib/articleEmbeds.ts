@@ -7,8 +7,15 @@
 // class "num", column by column (not the first, which names the row), so they stand centred while
 // names and text stay to the left, and each table sits in a box that scrolls sideways on a phone.
 
-const SHORTCODE = /<p>\s*\[tabel\s+([^\]]*)\]\s*<\/p>/g
+// Also when the editor has turned the quotes into typographic ones („…“, “…”) or put a space or a style round it
+const SHORTCODE = /<p[^>]*>(?:\s|&nbsp;|<\/?(?:span|strong|em)[^>]*>)*\[tabel\s+([^\]]*)\](?:\s|&nbsp;|<\/?(?:span|strong|em)[^>]*>)*<\/p>/g
 const ATTR = /(\w+)="([^"]*)"/g
+/** Straight quotes and plain spaces, whatever the editor made of them */
+const plainAttrs = (s: string) =>
+  s
+    .replace(/&quot;|&#34;|&#x22;|&ldquo;|&rdquo;|&bdquo;|&#8220;|&#8221;|&#8222;|[“”„‟″«»]/g, '"')
+    .replace(/&nbsp;|\u00a0/g, ' ')
+    .replace(/<[^>]+>/g, '')
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
 const slugLike = (s: string) => s.toLowerCase().replace(/[^a-z0-9,-]/g, '')
 
@@ -17,7 +24,7 @@ export function expandWidgets(html: string): { html: string; used: boolean } {
   let used = false
   const out = html.replace(SHORTCODE, (whole, attrs: string) => {
     const a: Record<string, string> = {}
-    for (const m of attrs.replaceAll('&quot;', '"').matchAll(ATTR)) a[m[1]] = m[2]
+    for (const m of plainAttrs(attrs).matchAll(ATTR)) a[m[1]] = m[2]
     const liga = slugLike(a.liga ?? '')
     if (!liga) return whole
     used = true

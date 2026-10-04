@@ -1,9 +1,12 @@
 import 'server-only'
-import { DIVISIONS, type Club, type Division } from '../data/leagues'
-import { allFixtures, isFinished, standings, type Fixture, type StandingRow } from '../data/season'
+import { DIVISIONS, SEASON, type Club, type Division } from '../data/leagues'
+import { channelsFor } from '../data/channels'
+import { hashString, seeded } from '../data/fixtures'
+import { allFixtures, isFinished, standings, toMatch, type Fixture, type StandingRow } from '../data/season'
 import { INTERVALS, leagueStats } from '../data/stats'
 import { addCategory, allArticles, saveArticle } from './articles'
 import { paths } from './site'
+import { formatTime } from './time'
 
 // Three long articles about the Superliga, written from this season's real matches (results,
 // half-time scores, goal minutes, scorers, cards, attendance): "the season in numbers", "the form
@@ -221,7 +224,7 @@ function numbers(s: Season): SuperligaArticle | undefined {
   return {
     kind: 'tal',
     slug: 'superligaen-i-tal',
-    title: `Superligaen i tal: ${n} ting statistikken afslører ${after}`,
+    title: `Superligaen ${SEASON} i tal: ${n} ting statistikken afslører ${after}`,
     excerpt: `Mål pr. kamp, hjemmebanefordel, sene mål, topscorere, forsvar og tilskuere – Superligaen ${after} forklaret med tal fra alle sæsonens kampe.`,
     content: parts.join(''),
     tags: ['Superliga', 'Statistik'],
@@ -333,7 +336,7 @@ function form(s: Season): SuperligaArticle | undefined {
   return {
     kind: 'form',
     slug: 'superligaen-formtabel',
-    title: `Formtabellen: Superligaens varmeste og koldeste hold lige nu`,
+    title: `Formtabellen: Superligaens varmeste og koldeste hold efter ${s.rounds} runder`,
     excerpt: `Tabellen over de seneste ${N} kampe viser, hvem der er på vej op og ned i Superligaen – ${hot.r.club.name} i topform, ${cold.r.club.name} i krise.`,
     content: parts.join(''),
     tags: ['Superliga', 'Statistik', hot.r.club.name, cold.r.club.name],
@@ -345,90 +348,251 @@ function form(s: Season): SuperligaArticle | undefined {
 
 // ---------------------------------------------------------------- 3. the race for the top six
 
+const WORDS = ['nul', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'otte', 'ni', 'ti', 'elleve', 'tolv']
+/** "seks" for 6 – numbers up to twelve in words, as in running text */
+const word = (n: number) => WORDS[n] ?? num(n)
+const kickoffText = (f: Fixture) => {
+  const tv = channelsFor(toMatch(f, Date.now())).map((c) => c.name)
+  return `${dkDate(f.kickoff)} kl. ${formatTime(f.kickoff)}${tv.length ? ` (${esc(tv.join(', '))})` : ''}`
+}
+const fixtureLink = (f: Fixture) => `<a href="${paths.match(f.slug)}">${esc(f.home.name)} – ${esc(f.away.name)}</a>`
+const letters = (s: Season, c: Club, n = 5) => playedBy(s, c).slice(-n).map((f) => ['T', 'U', '', 'V'][pointsOf(f, c)]).join('')
+
+/**
+ * The rest of the regular season played many times over (seeded, so the same data gives the same
+ * numbers): each side's goals drawn from a Poisson distribution built from its goals for and against
+ * so far, pulled towards the league average while few matches are played, with the home side's edge.
+ */
+function simulate(s: Season, remaining: Fixture[], runs = 10_000) {
+  const games = s.finished.length
+  const goals = s.finished.reduce((a, f) => a + f.score[0] + f.score[1], 0)
+  const homeGoals = s.finished.reduce((a, f) => a + f.score[0], 0)
+  const avg = goals / Math.max(1, 2 * games)
+  const edge = Math.sqrt(Math.max(0.5, Math.min(2, homeGoals / Math.max(1, goals - homeGoals))))
+  const K = 4
+  const strength = new Map(
+    s.table.map((r) => [r.club.id, { att: (r.goalsFor + K * avg) / (r.played + K) / avg, def: (r.goalsAgainst + K * avg) / (r.played + K) / avg }]),
+  )
+  const rand = seeded(hashString(`${s.finished.length}|${remaining.map((f) => f.id).join(',')}`))
+  const poisson = (l: number) => {
+    const L = Math.exp(-l)
+    let k = 0
+    let q = 1
+    do {
+      k++
+      q *= rand()
+    } while (q > L)
+    return k - 1
+  }
+  const ids = s.table.map((r) => r.club.id)
+  const top = new Map(ids.map((id) => [id, 0]))
+  const first = new Map(ids.map((id) => [id, 0]))
+  const last2 = new Map(ids.map((id) => [id, 0]))
+  const cut = s.div.zones?.top ?? 6
+  const linePoints: number[] = []
+  for (let run = 0; run < runs; run++) {
+    const pts = new Map(s.table.map((r) => [r.club.id, { p: r.points, gd: gd(r), gf: r.goalsFor, tie: rand() }]))
+    for (const f of remaining) {
+      const h = strength.get(f.home.id)
+      const a = strength.get(f.away.id)
+      const ph = pts.get(f.home.id)
+      const pa = pts.get(f.away.id)
+      if (!h || !a || !ph || !pa) continue
+      const hg = poisson(avg * edge * h.att * a.def)
+      const ag = poisson((avg / edge) * a.att * h.def)
+      ph.gd += hg - ag
+      pa.gd += ag - hg
+      ph.gf += hg
+      pa.gf += ag
+      if (hg > ag) ph.p += 3
+      else if (hg < ag) pa.p += 3
+      else {
+        ph.p++
+        pa.p++
+      }
+    }
+    const order = [...pts.entries()].sort((x, y) => y[1].p - x[1].p || y[1].gd - x[1].gd || y[1].gf - x[1].gf || y[1].tie - x[1].tie)
+    order.slice(0, cut).forEach(([id]) => top.set(id, top.get(id)! + 1))
+    order.slice(-2).forEach(([id]) => last2.set(id, last2.get(id)! + 1))
+    first.set(order[0][0], first.get(order[0][0])! + 1)
+    linePoints.push(order[cut - 1][1].p)
+  }
+  linePoints.sort((x, y) => x - y)
+  const share = (m: Map<string, number>, id: string) => (m.get(id)! / runs) * 100
+  return {
+    top: (id: string) => share(top, id),
+    first: (id: string) => share(first, id),
+    last2: (id: string) => share(last2, id),
+    line: { median: linePoints[Math.floor(runs / 2)], low: linePoints[Math.floor(runs * 0.25)], high: linePoints[Math.floor(runs * 0.75)] },
+  }
+}
+/** "99 %", "<1 %", ">99 %" – a chance as a reader takes it */
+/** 100 % and 0 % only when it is settled by the points, not just in every run */
+const chance = (x: number, settled?: 'in' | 'out') => (settled === 'in' ? '100 %' : settled === 'out' ? '0 %' : x >= 99.5 ? '>99 %' : x < 0.5 ? '<1 %' : `${Math.round(x)} %`)
+
 function top6(s: Season): SuperligaArticle | undefined {
   const cut = s.div.zones?.top ?? 6
   const left = s.regular - s.rounds
   if (left < 1) return undefined
+  // The rest of the regular season: each club's next matches until it has played them all
+  const need = new Map(s.table.map((r) => [r.club.id, Math.max(0, s.regular - r.played)]))
+  const remaining = s.upcoming.filter((f) => {
+    if (!(need.get(f.home.id)! > 0 && need.get(f.away.id)! > 0)) return false
+    need.set(f.home.id, need.get(f.home.id)! - 1)
+    need.set(f.away.id, need.get(f.away.id)! - 1)
+    return true
+  })
+  const missing = [...need.values()].reduce((a, n) => a + n, 0) / 2
+  const sim = simulate(s, remaining)
+  const ppg = (c: Club) => {
+    const r = s.table.find((x) => x.club.id === c.id)!
+    return r.played ? r.points / r.played : 0
+  }
   const sixth = s.table[cut - 1]
   const seventh = s.table[cut]
-  const before = s.upcoming.filter((f) => f.round > 0 && f.round <= s.regular)
   const rows = s.table.map((r, i) => {
-    const games = before.filter((f) => f.home.id === r.club.id || f.away.id === r.club.id)
+    const games = remaining.filter((f) => f.home.id === r.club.id || f.away.id === r.club.id)
     const opp = games.map((f) => (f.home.id === r.club.id ? f.away : f.home))
-    const avgOpp = opp.length ? opp.reduce((a, c) => a + position(s, c), 0) / opp.length : 0
-    const homeGames = games.filter((f) => f.home.id === r.club.id).length
-    const pace = r.played ? (r.points / r.played) * s.regular : 0
-    const max = r.points + 3 * Math.max(0, s.regular - r.played)
-    return { r, pos: i + 1, games, avgOpp, homeGames, pace, max }
+    return {
+      r,
+      pos: i + 1,
+      games,
+      oppPpg: opp.length ? opp.reduce((a, c) => a + ppg(c), 0) / opp.length : 0,
+      vsTop: games.filter((f) => position(s, f.home.id === r.club.id ? f.away : f.home) <= cut).length,
+      away: games.filter((f) => f.away.id === r.club.id).length,
+      pace: r.played ? (r.points / r.played) * s.regular : 0,
+      max: r.points + 3 * Math.max(0, s.regular - r.played),
+      top: sim.top(r.club.id),
+      first: sim.first(r.club.id),
+      last2: sim.last2(r.club.id),
+    }
   })
+  const contenders = rows.filter((x) => x.games.length >= 2)
+  const byDifficulty = [...contenders].sort((a, b) => b.oppPpg - a.oppPpg)
+  const hardest = byDifficulty[0]
+  const easiest = byDifficulty[byDifficulty.length - 1]
   const safe = rows.filter((x) => x.pos <= cut && x.r.points > Math.max(...rows.filter((y) => y.pos > cut).map((y) => y.max)))
   const out = rows.filter((x) => x.pos > cut && x.max < sixth.points)
-  // Only clubs with at least two matches left in the programme are compared
-  const hardest = [...rows].filter((x) => x.games.length >= 2).sort((a, b) => a.avgOpp - b.avgOpp)[0]
-  const easiest = [...rows].filter((x) => x.games.length >= 2).sort((a, b) => b.avgOpp - a.avgOpp)[0]
+  const settled = (x: { r: StandingRow }): 'in' | 'out' | undefined => (safe.some((y) => y.r === x.r) ? 'in' : out.some((y) => y.r === x.r) ? 'out' : undefined)
+  const topChance = (x: (typeof rows)[number]) => chance(x.top, settled(x))
+  // The runs only mean something when (nearly) the whole rest of the regular season is in the programme
+  const simOk = missing <= 2
+  const splitDate = remaining.length ? remaining[remaining.length - 1].kickoff : undefined
+  const near = (x: { pos: number }) => x.pos >= cut - 2 && x.pos <= cut + 3
+  const duels = remaining.filter((f) => near({ pos: position(s, f.home) }) && near({ pos: position(s, f.away) }))
+  const bottomCut = s.table.length - 2
+  const lowDuels = remaining.filter((f) => position(s, f.home) > bottomCut - 2 && position(s, f.away) > bottomCut - 2)
+  const leader = rows[0]
   const parts: string[] = []
+
   parts.push(
     p(
-      `Efter ${s.regular} runder deles Superligaen i to: de ${cut} bedste spiller om mesterskabet og Europa, resten om at blive i ligaen. ` +
-        `Der er ${plural(left, 'runde', 'runder')} tilbage af grundspillet, og stregen går lige nu mellem ${club(sixth.club)} på ${plural(sixth.points, 'point', 'point')} og ${club(seventh.club)} på ${plural(seventh.points, 'point', 'point')}. ` +
-        `Vi har regnet på, hvem der har det letteste og det sværeste program frem mod delingen.`,
+      `Efter ${s.regular} runder deles Superligaen i to: de ${word(cut)} bedste spiller om mesterskabet og Europa, resten om at blive i ligaen. ` +
+        `Der er ${plural(left, 'runde', 'runder')} tilbage af grundspillet${splitDate ? `, der efter kampprogrammet slutter ${dkDate(splitDate)}` : ''}, og stregen går lige nu mellem ${club(sixth.club)} på ${plural(sixth.points, 'point', 'point')} og ${club(seventh.club)} på ${plural(seventh.points, 'point', 'point')}. ` +
+        (simOk ? `Vi har spillet resten af grundspillet 10.000 gange igennem ud fra holdenes mål for og imod indtil nu – og regnet på, hvem der har det sværeste program.` : 'Vi har regnet på, hvem der har det sværeste program frem mod delingen.'),
     ),
   )
-  parts.push(h2('Stillingen ved stregen'))
-  parts.push(`<p>[tabel liga="${s.div.slug}"]</p>`)
+  parts.push(h2(simOk ? `Chancen for top ${cut}` : 'Stillingen og programmet'))
   parts.push(
     table(
-      ['#', 'Klub', 'P', 'Kampe i programmet', 'Heraf hjemme', 'Modstandernes snitplacering', 'Pointsnit × ' + s.regular],
-      rows.map((x) => [x.pos, club(x.r.club), x.r.points, x.games.length, x.homeGames, x.games.length ? num(x.avgOpp, 1) : '–', num(x.pace, 0)]),
+      simOk ? ['#', 'Klub', 'P', `Top ${cut}`, 'Program'] : ['#', 'Klub', 'P', 'Kampe', 'Program'],
+      rows.map((x) => [x.pos, club(x.r.club), x.r.points, simOk ? topChance(x) : x.games.length, x.games.length ? num(x.oppPpg, 2) : '–']),
     ),
   )
-  parts.push(p(`"Modstandernes snitplacering" er den gennemsnitlige placering i tabellen nu for de hold, klubben møder i resten af grundspillet – jo lavere tal, jo sværere program. "Pointsnit × ${s.regular}" er klubbens pointsnit indtil nu ganget op til ${s.regular} kampe – en fremskrivning, ikke en forudsigelse.`))
+  parts.push(
+    p(
+      (simOk ? `"Top ${cut}" er andelen af de 10.000 gennemspilninger, hvor klubben sluttede grundspillet blandt de ${word(cut)} bedste. ` : '') +
+        `"Program" er modstandernes pointsnit pr. kamp i resten af grundspillet – jo højere tal, jo sværere program. ` +
+        (simOk ? `Beregningen bygger kun på sæsonens resultater indtil nu og ved intet om skader, transfers eller form på dagen. Det er en beregning, ikke en forudsigelse.` : '') +
+        (missing >= 1 ? ` ${plural(Math.round(missing), 'kamp', 'kampe')} i grundspillet står endnu ikke i kampprogrammet og er ikke med.` : ''),
+    ),
+  )
+  const sure = rows.filter((x) => x.top >= 90)
+  const coin = rows.filter((x) => x.top >= 25 && x.top < 90)
+  if (simOk) parts.push(
+    p(
+      (sure.length ? `${sure.map((x) => club(x.r.club)).join(', ')} er næsten sikre (mindst 90 %). ` : '') +
+        (coin.length ? `Om de sidste pladser kæmper ${coin.map((x) => `${club(x.r.club)} (${topChance(x)})`).join(', ')}. ` : '') +
+        `I halvdelen af gennemspilningerne endte nr. ${cut} med mellem ${sim.line.low} og ${sim.line.high} point – typisk ${plural(sim.line.median, 'point', 'point')}.`,
+    ),
+  )
+  parts.push(`<p>[tabel liga="${s.div.slug}"]</p>`)
+
+  if (simOk && leader.first >= 1) {
+    parts.push(h2('Hvem vinder grundspillet?'))
+    const firsts = [...rows].sort((a, b) => b.first - a.first).filter((x) => x.first >= 1).slice(0, 3)
+    parts.push(p(`${club(leader.r.club)} fører med ${plural(leader.r.points, 'point', 'point')} og et pointsnit, der over ${s.regular} kampe giver ${plural(Math.round(leader.pace), 'point', 'point')}. ${firsts.map((x) => `${club(x.r.club)} vandt grundspillet i ${chance(x.first)} af gennemspilningerne`).join(', ')}.`))
+  }
+
+  if (duels.length) {
+    parts.push(h2('De afgørende kampe ved stregen'))
+    parts.push(p(`Når holdene omkring ${cut}.-pladsen møder hinanden, er det kampe om seks point: vinderen tager tre, og konkurrenten får ingen.`))
+    parts.push(list(duels.slice(0, 8).map((f) => `${fixtureLink(f)} (nr. ${position(s, f.home)} mod nr. ${position(s, f.away)}) – ${kickoffText(f)}`)))
+  }
+
   if (hardest && easiest && hardest !== easiest) {
     parts.push(h2('Det sværeste og det letteste program'))
     parts.push(
       p(
-        `${club(hardest.r.club)} har det sværeste program: ${plural(hardest.games.length, 'kamp', 'kampe')} mod hold, der i snit ligger nr. ${num(hardest.avgOpp, 1)}. ` +
-          `${club(easiest.r.club)} har det letteste med modstandere, der i snit ligger nr. ${num(easiest.avgOpp, 1)}.`,
+        `${club(hardest.r.club)} har det sværeste program: modstanderne har i snit ${num(hardest.oppPpg, 2)} point pr. kamp, ${plural(hardest.vsTop, 'kamp er', 'kampe er')} mod de nuværende top ${cut}, og ${plural(hardest.away, 'kamp', 'kampe')} spilles ude. ` +
+          `${club(easiest.r.club)} har det letteste med modstandere på ${num(easiest.oppPpg, 2)} point pr. kamp og ${plural(easiest.vsTop, 'kamp', 'kampe')} mod top ${cut}.`,
       ),
     )
   }
-  parts.push(h2(`Kampen om ${cut}.-pladsen`))
-  const around = rows.filter((x) => x.pos >= cut - 2 && x.pos <= cut + 2)
+
+  parts.push(h2(`Holdene omkring ${cut}.-pladsen`))
   parts.push(
     list(
-      around.map((x) => {
+      rows.filter(near).map((x) => {
         const next = x.games[0]
+        const target = simOk ? Math.max(0, sim.line.median - x.r.points) : 0
         return (
-          `${club(x.r.club)} (nr. ${x.pos}, ${plural(x.r.points, 'point', 'point')}): ${plural(x.games.length, 'kamp', 'kampe')} tilbage, ${plural(x.homeGames, 'hjemme', 'hjemme')}` +
-          (next ? `. Næste kamp: <a href="${paths.match(next.slug)}">${esc(next.home.name)} – ${esc(next.away.name)}</a> ${dkDate(next.kickoff)}` : '') +
-          '.'
+          `<strong>${club(x.r.club)}</strong> (nr. ${x.pos}, ${plural(x.r.points, 'point', 'point')}, form ${letters(s, x.r.club) || '–'})${simOk ? `: ${topChance(x)} for top ${word(cut)}` : ''}. ` +
+          `${plural(x.games.length, 'kamp', 'kampe')} tilbage, ${plural(x.vsTop, 'mod top ' + cut, 'mod top ' + cut)}. ` +
+          (target ? `Skal hente ca. ${plural(target, 'point', 'point')} for at nå det typiske niveau for ${cut}.-pladsen. ` : '') +
+          (next ? `Næste kamp: ${fixtureLink(next)}, ${kickoffText(next)}.` : '')
         )
       }),
     ),
   )
-  if (safe.length) parts.push(p(`Allerede sikre af top ${cut}: ${safe.map((x) => club(x.r.club)).join(', ')} – ingen under stregen kan nå dem.`))
-  if (out.length) parts.push(p(`Kan ikke længere nå top ${cut}: ${out.map((x) => club(x.r.club)).join(', ')}.`))
-  const bottom = s.table.slice(-2)
+  if (safe.length) parts.push(p(`Allerede sikre af top ${word(cut)}: ${safe.map((x) => club(x.r.club)).join(', ')} – ingen under stregen kan nå dem.`))
+  if (out.length) parts.push(p(`Kan ikke længere nå top ${word(cut)}: ${out.map((x) => club(x.r.club)).join(', ')}.`))
+
+  const bottom = rows.slice(-2)
+  const above = rows[bottomCut - 1]
   parts.push(h2('I bunden'))
-  parts.push(p(`${s.div.movement ?? ''} Lige nu ligger ${bottom.map((r) => `${club(r.club)} (${plural(r.points, 'point', 'point')})`).join(' og ')} sidst. Pointene tages med ind i slutspillet, så hvert point i grundspillet tæller.`))
+  parts.push(
+    p(
+      `${s.div.movement ?? ''} Lige nu ligger ${bottom.map((x) => `${club(x.r.club)} (${plural(x.r.points, 'point', 'point')}, form ${letters(s, x.r.club) || '–'})`).join(' og ')} sidst` +
+        (above ? `, ${plural(above.r.points - bottom[0].r.points, 'point', 'point')} efter ${club(above.r.club)} på ${bottomCut}.-pladsen` : '') +
+        `. Pointene tages med ind i slutspillet, så hvert point i grundspillet tæller. ` +
+        (simOk ? `I gennemspilningerne sluttede ${bottom.map((x) => `${esc(x.r.club.name)} blandt de to sidste i ${chance(x.last2)}`).join(' og ')} af tilfældene.` : ''),
+    ),
+  )
+  if (lowDuels.length) parts.push(list(lowDuels.slice(0, 5).map((f) => `${fixtureLink(f)} (nr. ${position(s, f.home)} mod nr. ${position(s, f.away)}) – ${kickoffText(f)}`)))
+
   parts.push(
     faq([
-      [`Hvor mange runder er der i Superligaens grundspil?`, `Grundspillet har ${s.regular} runder. Derefter deles ligaen i et mesterskabsspil for de ${cut} bedste og et nedrykningsspil for resten.`],
+      [`Hvornår deles Superligaen?`, `Superligaen deles efter ${s.regular} runder${splitDate ? `. Efter kampprogrammet spilles sidste runde af grundspillet ${dkDate(splitDate)}` : ''}. Derefter spiller de ${word(cut)} bedste mesterskabsspil og resten nedrykningsspil.`],
       [`Hvem ligger nr. ${cut} i Superligaen?`, `${esc(sixth.club.name)} ligger nr. ${cut} med ${plural(sixth.points, 'point', 'point')}, ${plural(sixth.points - seventh.points, 'point', 'point')} foran ${esc(seventh.club.name)} på ${cut + 1}.-pladsen.`],
-      ...(hardest ? ([[`Hvem har det sværeste program i Superligaen?`, `${esc(hardest.r.club.name)} møder i resten af grundspillet hold, der i snit ligger nr. ${num(hardest.avgOpp, 1)} i tabellen.`]] as [string, string][]) : []),
+      ...(simOk ? ([[`Hvor mange point skal der til top ${cut} i Superligaen?`, `I vores 10.000 gennemspilninger af resten af grundspillet endte nr. ${cut} typisk på ${plural(sim.line.median, 'point', 'point')}, i halvdelen af tilfældene mellem ${sim.line.low} og ${sim.line.high}.`]] as [string, string][]) : []),
+      ...(hardest ? ([[`Hvem har det sværeste program i Superligaen?`, `${esc(hardest.r.club.name)}: modstanderne i resten af grundspillet har i snit ${num(hardest.oppPpg, 2)} point pr. kamp.`]] as [string, string][]) : []),
     ]),
   )
-  parts.push(p(`Kampprogrammet med tider og TV-kanaler står på <a href="${paths.league(s.div.slug)}/kampprogram">Superligaens kampprogram</a>.`))
+  parts.push(p(`Kampprogrammet med tider og TV-kanaler står på <a href="${paths.league(s.div.slug)}/kampprogram">Superligaens kampprogram</a>, og stillingen opdateres live på <a href="${paths.league(s.div.slug)}">Superligaens side</a>.`))
+  const hope = rows.find((x) => x.pos === cut + 1)
   return {
     kind: 'top6',
     slug: 'superligaen-kampen-om-top-6',
-    title: `Kampen om top ${cut}: Sådan ser vejen til Superligaens mesterskabsspil ud`,
-    excerpt: `${plural(left, 'runde', 'runder')} tilbage af grundspillet. Vi har regnet på programmet for alle 12 klubber – hvem har det sværeste, og hvem er allerede sikre?`,
+    title: `Superligaen ${SEASON}: Kampen om top ${word(cut)} efter ${s.rounds} runder`,
+    excerpt: simOk
+      ? `${plural(left, 'runde', 'runder')} tilbage af grundspillet. Vi har spillet resten 10.000 gange: ${sixth.club.name} har ${topChance(rows[cut - 1])} for top ${word(cut)}${hope ? `, ${hope.r.club.name} ${topChance(hope)}` : ''}.`
+      : `${plural(left, 'runde', 'runder')} tilbage af grundspillet. Programmet, de afgørende kampe og bunden – alle 12 klubber gennemgået.`,
     content: parts.join(''),
     tags: ['Superliga', sixth.club.name, seventh.club.name],
     focusKeyword: 'superligaen top 6',
-    seoTitle: `Superligaen top ${cut}: program og stilling før mesterskabsspillet`,
-    metaDescription: `Hvem når Superligaens top ${cut}? ${plural(left, 'runde', 'runder')} tilbage: ${sixth.club.name} har ${sixth.points} point på ${cut}.-pladsen. Alle klubbers program frem mod delingen.`.slice(0, 158),
+    seoTitle: `Superligaen top ${cut}: chancer og program efter ${s.rounds} runder`,
+    metaDescription: `Hvem når Superligaens top ${cut}? ${plural(left, 'runde', 'runder')} tilbage. Chancen for hver klub, de afgørende kampe, programmet og hvor mange point der skal til.`.slice(0, 158),
   }
 }
 
