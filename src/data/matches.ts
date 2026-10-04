@@ -334,12 +334,19 @@ export function countryRank(country?: string): number {
   return i >= 0 ? i : INTERNATIONAL.has(key) ? COUNTRY_FOCUS.length : COUNTRY_FOCUS.length + 1
 }
 
+/** The competitions shown first on the front page, before every country: UEFA Nations League, then the Champions League (API-Sports' league ids) */
+const TOP_LEAGUES = ['ext-football-5', 'ext-football-2']
+/** A league's place among the top competitions (-1: not one of them) */
+export const topLeague = (leagueId: string) => TOP_LEAGUES.indexOf(leagueId)
+
 /**
- * A match's place in the front page's lists: the country first, then our own leagues in their order
+ * A match's place in the front page's lists: the top competitions first (topLeague), then the country, then our own leagues in their order
  * (Superliga before 1. division) and the cup after them, then the source's other leagues of the
  * country with the lowest league number first (the top flight usually has the lowest)
  */
 export function leaguePriority(m: Pick<Match, 'country' | 'leagueOrder' | 'leagueId'>): number {
+  const top = topLeague(m.leagueId)
+  if (top >= 0) return -1_000_000 + top
   const sourceLeague = Number(/^ext-[a-z]+-(\d+)$/.exec(m.leagueId)?.[1] ?? 0)
   return countryRank(m.country) * 1_000_000 + (m.leagueOrder ?? 99) * 10_000 + Math.min(sourceLeague, 9_999)
 }

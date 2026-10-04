@@ -18,7 +18,7 @@ import { AdSlot } from './AdSlot'
 import { chunksWithAds, feedAdPlan, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { externalMatch, getMatches, isWomenGame, isWomenMatch, leaguePriority, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { externalMatch, getMatches, isWomenGame, isWomenMatch, leaguePriority, nearestMatchDay, topLeague, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
 import { ListMore } from './ListMore'
@@ -56,11 +56,12 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
   const groups = [...map.values()]
   for (const g of groups) g.matches.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 
-  // Favourites first, then leagues being played right now, then by country (Danish first, then England,
+  // Favourites first, then the top competitions and leagues being played right now, then by country (Danish first, then England,
   // Spain, Germany, France, Sweden – leaguePriority) and the league's own order, then alphabetically
   const rank = (g: LeagueGroup) =>
     (pinned.has(g.leagueId) ? 0 : 2e12) +
-    (g.matches.some((m) => m.state === 'live') ? 0 : 1e12) +
+    // The top competitions (Nations League, Champions League) stay first, live or not
+    (g.matches.some((m) => m.state === 'live') || topLeague(g.leagueId) >= 0 ? 0 : 1e12) +
     leaguePriority(g.matches[0]) * 10 +
     Math.min(...g.matches.map((m) => STATE_ORDER[m.state]))
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
