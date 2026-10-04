@@ -8,7 +8,7 @@ import { findExternalGame } from '../data/matches'
 import { alike, clubNames } from '../data/aliases'
 import { pastSeasons } from './history'
 import { addCategory, allArticles, saveArticle } from './articles'
-import { paths } from './site'
+import { SITE_URL, paths } from './site'
 import { formatTime } from './time'
 
 // Three long articles about the Superliga, written from this season's real matches (results,
@@ -866,4 +866,156 @@ export function saveSuperligaDraft(kind: SuperligaKind): { id?: number; slug?: s
     status: 'draft',
   })
   return r.error ? { error: r.error } : { id: r.article?.id, slug: r.article?.slug }
+}
+
+// ---------------------------------------------------------------- the fact sheet
+
+/**
+ * Every number an article needs, as plain text to paste into a chat with a writer (Claude): the table
+ * with home/away and form, the last two rounds with scorers, half-time and attendance, the top
+ * scorers, the coming rounds with time and TV, earlier seasons at the same point and the calculation
+ * of the rest of the regular season. Links are absolute, so the writer can put them in the text.
+ */
+export function superligaFacts(): { text?: string; error?: string } {
+  const s = season()
+  if (!s) return { error: 'For få spillede kampe i Superligaen endnu (mindst 18).' }
+  const url = (path: string) => `${SITE_URL}${path}`
+  const games = richGames(s)
+  const st = gameStats(games)
+  const cut = s.div.zones?.top ?? 6
+  const out: string[] = []
+  const line = (t = '') => out.push(t)
+  const head = (t: string) => {
+    line()
+    line(`## ${t}`)
+  }
+  const goalsText = (f: StatGame) =>
+    (f.incidents ?? [])
+      .filter((i) => i.kind === 'goal' || i.kind === 'penalty' || i.kind === 'own-goal')
+      .sort((a, b) => a.minute - b.minute)
+      .map((i) => `${i.approx ? 'ca. ' : ''}${i.minute}' ${i.player ?? '(ukendt)'}${i.kind === 'penalty' ? ' (str.)' : i.kind === 'own-goal' ? ' (selvmål)' : ''} [${i.side === 'home' ? f.home.name : f.away.name}]`)
+      .join(', ')
+  const reds = (f: StatGame) =>
+    (f.incidents ?? [])
+      .filter((i) => i.kind === 'red')
+      .map((i) => `${i.minute}' ${i.player ?? ''} [${i.side === 'home' ? f.home.name : f.away.name}]`)
+      .join(', ')
+
+  line(`# Faktaark: Superligaen ${SEASON} efter ${s.rounds} runder`)
+  line(`Lavet ${dkDate(new Date())} kl. ${formatTime(new Date())}. Kun rigtige data fra sæsonens kampe. Ligaside: ${url(paths.league(s.div.slug))}`)
+  line(`Levende tabel i artiklen: [tabel liga="${s.div.slug}"]`)
+  line(`Grundspillet: ${s.regular} runder, derefter deles ligaen (top ${cut} om mesterskabet).`)
+
+  head('Stillingen')
+  line('Nr. Klub – K V-U-T, mål, MF, point | hjemme V-U-T | ude V-U-T | form (seneste 5, nyeste sidst) | klubside')
+  const vt = (home: boolean, c: Club) => {
+    const pts = s.finished.filter((f) => (home ? f.home.id : f.away.id) === c.id).map((f) => pointsOf(f, c))
+    return `${pts.filter((p) => p === 3).length}-${pts.filter((p) => p === 1).length}-${pts.filter((p) => p === 0).length}`
+  }
+  s.table.forEach((r, i) =>
+    line(`${i + 1}. ${r.club.name} – ${r.played} ${r.won}-${r.drawn}-${r.lost}, ${r.goalsFor}-${r.goalsAgainst}, ${signed(gd(r))}, ${r.points} p | hjemme ${vt(true, r.club)} | ude ${vt(false, r.club)} | ${r.form.slice(-5).join('')} | ${url(paths.club(r.club.slug))}`),
+  )
+
+  if (st) {
+    head('Sæsonen i tal')
+    line(`Kampe: ${st.played}, mål: ${st.goals} (${num(st.goalsPerMatch, 2)} pr. kamp)`)
+    line(`Hjemmesejre ${Math.round(st.homeWinPct)} %, uafgjort ${Math.round(st.drawPct)} %, udesejre ${Math.round(st.awayWinPct)} %`)
+    line(`Over 2,5 mål ${Math.round(st.over25Pct)} %, begge hold scorer ${Math.round(st.bttsPct)} %${st.firstHalfPct !== undefined ? `, mål i 1. halvleg ${Math.round(st.firstHalfPct)} %` : ''}`)
+    if (st.byInterval) line(`Mål pr. kvarter (${st.byInterval.matches} kampe med målminutter): ${st.byInterval.goals.map((g, i) => `${['0-15', '16-30', '31-45', '46-60', '61-75', '76-90'][i]}: ${g}`).join(', ')}`)
+    if (st.biggestWin) line(`Største sejr: ${st.biggestWin.home.name} – ${st.biggestWin.away.name} ${st.biggestWin.score[0]}-${st.biggestWin.score[1]}`)
+    if (st.mostGoals) line(`Flest mål i én kamp: ${st.mostGoals.home.name} – ${st.mostGoals.away.name} ${st.mostGoals.score[0]}-${st.mostGoals.score[1]}`)
+    if (st.scorers.length) {
+      head('Topscorere')
+      st.scorers.slice(0, 12).forEach((r, i) => line(`${i + 1}. ${r.player} (${r.club.name}) ${r.goals} mål${r.penalties ? `, heraf ${r.penalties} straffe` : ''}`))
+    }
+    if (st.cards.length) {
+      head('Kort pr. klub')
+      st.cards.forEach((r) => line(`${r.club.name}: ${r.yellow} gule, ${r.red} røde`))
+    }
+    if (st.attendance.length) {
+      head('Tilskuere (snit på hjemmebane)')
+      st.attendance.forEach((r) => line(`${r.club.name}: ${num(Math.round(r.average))} (${r.matches} kampe)`))
+    }
+  }
+
+  // Comebacks: won or drew from behind at half-time
+  const comebacks = games.filter((f) => f.ht && ((f.ht[0] < f.ht[1] && f.score[0] >= f.score[1]) || (f.ht[0] > f.ht[1] && f.score[0] <= f.score[1])))
+  if (comebacks.length) {
+    head('Vendte kampe (bagud ved pausen, ikke tabt)')
+    comebacks.forEach((f) => line(`${dkDate(f.kickoff)}: ${f.home.name} – ${f.away.name} ${f.score[0]}-${f.score[1]} (pause ${f.ht![0]}-${f.ht![1]})`))
+  }
+
+  const rounds = [...new Set(games.map((f) => (f as Fixture).round))].sort((a, b) => b - a).slice(0, 2)
+  for (const round of rounds.reverse()) {
+    head(`Runde ${round}: resultater`)
+    for (const f of games.filter((g) => (g as Fixture).round === round)) {
+      const fx = f as Fixture
+      line(
+        `${dkDate(fx.kickoff)}: ${fx.home.name} – ${fx.away.name} ${fx.score[0]}-${fx.score[1]}${fx.ht ? ` (pause ${fx.ht[0]}-${fx.ht[1]})` : ''}${fx.spectators ? `, ${num(fx.spectators)} tilskuere` : ''} | ${url(paths.match(fx.slug))}`,
+      )
+      const g = goalsText(f)
+      if (g) line(`   Mål: ${g}`)
+      const r = reds(f)
+      if (r) line(`   Røde kort: ${r}`)
+    }
+  }
+
+  head('Alle sæsonens resultater')
+  s.finished.forEach((f) => line(`R${f.round} ${dkDate(f.kickoff)}: ${f.home.name} – ${f.away.name} ${f.score[0]}-${f.score[1]}`))
+
+  const nextRounds = [...new Set(s.upcoming.map((f) => f.round))].slice(0, 2)
+  for (const round of nextRounds) {
+    head(`Runde ${round}: kommende kampe`)
+    s.upcoming
+      .filter((f) => f.round === round)
+      .forEach((f) => line(`${kickoffText(f)}: ${f.home.name} (nr. ${position(s, f.home)}) – ${f.away.name} (nr. ${position(s, f.away)}) | ${url(paths.match(f.slug))}`))
+  }
+
+  const before = sameTimeBefore(s)
+  if (before.length) {
+    head(`Tidligere sæsoner efter ${s.rounds} runder`)
+    for (const b of before) {
+      const clubs = s.table
+        .map((r) => [r.club.name, pointsThen(b, r.club)] as const)
+        .filter(([, p]) => p !== undefined)
+        .map(([n, p]) => `${n} ${p}`)
+        .join(', ')
+      line(`${b.label}: ${num(b.goalsPerMatch, 2)} mål pr. kamp, fører ${b.leader.name} med ${b.leader.points} point. Point dengang: ${clubs || '–'}`)
+    }
+  }
+
+  // The rest of the regular season, as in the top-six article
+  const left = s.regular - s.rounds
+  if (left >= 1) {
+    const need = new Map(s.table.map((r) => [r.club.id, Math.max(0, s.regular - r.played)]))
+    const remaining = s.upcoming.filter((f) => {
+      if (!(need.get(f.home.id)! > 0 && need.get(f.away.id)! > 0)) return false
+      need.set(f.home.id, need.get(f.home.id)! - 1)
+      need.set(f.away.id, need.get(f.away.id)! - 1)
+      return true
+    })
+    const missing = [...need.values()].reduce((a, n) => a + n, 0) / 2
+    head(`Resten af grundspillet (${left} runder${remaining.length ? `, sidste kamp ${dkDate(remaining[remaining.length - 1].kickoff)}` : ''})`)
+    const ppg = (c: Club) => {
+      const r = s.table.find((x) => x.club.id === c.id)!
+      return r.played ? r.points / r.played : 0
+    }
+    if (missing <= 2) {
+      const sim = simulate(s, remaining)
+      line(`BEREGNING (ikke forudsigelse): resten spillet 10.000 gange ud fra holdenes mål for/imod indtil nu og hjemmebanefordelen.`)
+      line(`Nr. ${cut} endte typisk på ${sim.line.median} point (halvdelen af gangene ${sim.line.low}-${sim.line.high}).`)
+      s.table.forEach((r, i) => {
+        const opp = remaining.filter((f) => f.home.id === r.club.id || f.away.id === r.club.id).map((f) => (f.home.id === r.club.id ? f.away : f.home))
+        const max = r.points + 3 * Math.max(0, s.regular - r.played)
+        line(
+          `${i + 1}. ${r.club.name}: top ${cut} ${chance(sim.top(r.club.id))}, vinder grundspillet ${chance(sim.first(r.club.id))}, to sidste ${chance(sim.last2(r.club.id))} | kan max nå ${max} p | modstandernes pointsnit ${opp.length ? num(opp.reduce((a, c) => a + ppg(c), 0) / opp.length, 2) : '–'} | resten: ${opp.map((c) => c.name).join(', ')}`,
+        )
+      })
+    } else line(`${Math.round(missing)} kampe i grundspillet står endnu ikke i kampprogrammet, så der er ingen beregning.`)
+  }
+
+  line()
+  line('## Krav til artiklen')
+  line('Nyhedsartikel: fængende rubrik med sæson og runde, fed indledning med det vigtigste først, korte mellemrubrikker uden numre, faktaboks, spørgsmål og svar til sidst. Menneskeligt sportssprog, ingen gentagelser, kun tallene herover, tal til og med tolv med bogstaver, tabeller med højst 5 kolonner, links til klub- og kampsider, næste kamp med tid og TV. Beregninger mærkes som beregning.')
+  return { text: out.join('\n') }
 }

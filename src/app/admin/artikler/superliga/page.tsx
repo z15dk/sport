@@ -5,7 +5,8 @@ import { AdminNav } from '../../../../components/admin/AdminNav'
 import { SuperligaArticleButton } from '../../../../components/admin/SuperligaArticleButton'
 import { isAdmin } from '../../../../lib/admin'
 import { allArticles } from '../../../../lib/articles'
-import { SUPERLIGA_KINDS, superligaArticle } from '../../../../lib/superligaArticles'
+import { FactSheet } from '../../../../components/admin/FactSheet'
+import { SUPERLIGA_KINDS, superligaArticle, superligaFacts } from '../../../../lib/superligaArticles'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Superliga-artikler · Artikler · Admin', robots: { index: false, follow: false } }
@@ -18,6 +19,7 @@ export default async function AdminSuperligaArticles() {
     const { article, error } = superligaArticle(k.kind)
     return { ...k, article, error, draft: saved.find((a) => a.slug === k.slug) }
   })
+  const facts = superligaFacts()
   return (
     <div className="page">
       <div className="clubs admin">
@@ -32,6 +34,13 @@ export default async function AdminSuperligaArticles() {
             Artiklerne gemmes som <strong>kladder</strong>: læs dem, giv dem et udvalgt billede og udgiv dem i artikel-editoren. Tryk igen efter en ny runde for at opdatere tallene; en udgivet artikel røres ikke.
           </p>
           <SuperligaArticleButton label="Lav alle tre kladder" primary />
+        </div>
+        <div className="panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          <h2 className="panel__title" style={{ margin: 0 }}>Faktaark til artikler</h2>
+          <p style={{ margin: 0 }}>
+            Alle sæsonens tal samlet som tekst: stillingen med hjemme/ude og form, de seneste to runder med målscorere, pauseresultater og tilskuere, topscorere, kort, vendte kampe, de næste runder med tid og TV, tidligere sæsoner på samme tidspunkt og beregningen af resten af grundspillet – med links til klub- og kampsider. Kopiér det og indsæt det i chatten med Claude, så skrives artiklen ud fra de rigtige tal.
+          </p>
+          {facts.text ? <FactSheet text={facts.text} /> : <p className="muted">{facts.error}</p>}
         </div>
         <ul className="admin-list">
           {rows.map((r) => (
