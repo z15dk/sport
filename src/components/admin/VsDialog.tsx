@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArchivePicker } from './ArticlePhotos'
 
 // The VS graphic maker in the article editor: two clubs, a line on top and a photo behind them
@@ -16,18 +16,6 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const [archive, setArchive] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  // The preview's scale: the 1200 px graphic fitted to the dialog's width
-  const box = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(0.5)
-  useEffect(() => {
-    const el = box.current
-    if (!el) return
-    const fit = () => setScale(el.clientWidth / 1200)
-    fit()
-    const o = new ResizeObserver(fit)
-    o.observe(el)
-    return () => o.disconnect()
-  }, [])
 
   useEffect(() => {
     void fetch('/api/admin/vs', { cache: 'no-store' })
@@ -54,16 +42,35 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
     setBusy(true)
     setError(undefined)
     const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ home, away, top, bg }) })
-      .then((x) => x.json())
-      .catch(() => ({ error: 'Ingen forbindelse' }))
+      .then(async (x) => {
+        const text = await x.text()
+        try {
+          return JSON.parse(text) as { url?: string; error?: string }
+        } catch {
+          // Not our answer (a proxy's error page, a timeout)
+          return { error: `Serveren svarede ${x.status} uden et billede – prøv igen` }
+        }
+      })
+      .catch((): { url?: string; error?: string } => ({ error: 'Ingen forbindelse til serveren' }))
     setBusy(false)
     if (r.url) onDone(r.url, `${home} mod ${away}`)
     else setError(r.error ?? 'Grafikken kunne ikke laves')
   }
 
-  // The live preview: the render page itself, scaled down
+  // The live preview: the finished picture itself, drawn by the server (a moment after the last keystroke)
   const ready = clubs.includes(home) && clubs.includes(away)
-  const preview = ready ? `/admin/grafik/vs?${new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) })}` : undefined
+  const query = ready ? new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString() : undefined
+  const [preview, setPreview] = useState<string>()
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (!query) {
+      setPreview(undefined)
+      return
+    }
+    setLoading(true)
+    const t = setTimeout(() => setPreview(`/api/admin/vs/billede?${query}`), 400)
+    return () => clearTimeout(t)
+  }, [query])
 
   return (
     <div className="vsd" role="dialog" aria-modal="true" aria-label="Lav VS-grafik">
@@ -111,9 +118,20 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
           </div>
           <small className="muted">Billedet gøres mørkere bag logoerne, så de står tydeligt.</small>
         </div>
-        <div className="vsd__preview" ref={box}>
+        <div className={`vsd__preview${loading ? ' is-loading' : ''}`}>
           {preview ? (
-            <iframe src={preview} title="Forhåndsvisning af VS-grafikken" scrolling="no" style={{ transform: `scale(${scale})` }} />
+            // eslint-disable-next-line @next/next/no-img-element -- the server's own picture, shown as it is
+            <img
+              src={preview}
+              alt="Forhåndsvisning af VS-grafikken"
+              width={1200}
+              height={630}
+              onLoad={() => setLoading(false)}
+              onError={() => {
+                setLoading(false)
+                setError('Forhåndsvisningen kunne ikke tegnes')
+              }}
+            />
           ) : (
             <p className="muted small">Vælg to klubber fra listen for at se grafikken.</p>
           )}

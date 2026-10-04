@@ -17,6 +17,10 @@ const CARD = '#1a1c1b'
 const ACCENT = '#ff4a1f'
 
 let fonts: { name: string; data: Buffer; weight: 700 | 800; style: 'normal' | 'italic' }[] | undefined
+/** The brand's type for the picture renderer (Barlow Condensed 700/800, upright and slanted) */
+export function ogFonts() {
+  return loadFonts()
+}
 function loadFonts() {
   if (fonts) return fonts
   const file = (w: number, set: string, style = 'normal') =>
@@ -37,9 +41,11 @@ function loadFonts() {
  * Matchly's M as a neon lime outline, big behind the picture (as on the social
  * media cards). Drawn as a path: the picture renderer has no text outline.
  */
-const M_OUTLINE = `data:image/svg+xml;base64,${Buffer.from(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -4 150 108"><g transform="skewX(-12) translate(22 0)"><polygon points="0,100 0,0 26,0 50,46 74,0 100,0 100,100 76,100 76,42 57,78 43,78 24,42 24,100" fill="none" stroke="#c6f135" stroke-width="1.6" stroke-linejoin="round"/></g></svg>`,
-).toString('base64')}`
+export const mOutline = (stroke = '#c6f135', width = 1.6) =>
+  `data:image/svg+xml;base64,${Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -4 150 108"><g transform="skewX(-12) translate(22 0)"><polygon points="0,100 0,0 26,0 50,46 74,0 100,0 100,100 76,100 76,42 57,78 43,78 24,42 24,100" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linejoin="round"/></g></svg>`,
+  ).toString('base64')}`
+const M_OUTLINE = mOutline()
 
 /** A logo as a PNG data address (our own server serves it; nothing is fetched from the sources) */
 export async function logoData(src?: string): Promise<string | undefined> {
