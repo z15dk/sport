@@ -3,7 +3,10 @@ import { DIVISIONS, SEASON, type Club, type Division } from '../data/leagues'
 import { channelsFor } from '../data/channels'
 import { hashString, seeded } from '../data/fixtures'
 import { allFixtures, isFinished, standings, toMatch, type Fixture, type StandingRow } from '../data/season'
-import { INTERVALS, leagueStats } from '../data/stats'
+import { gameStats, type StatGame } from '../data/stats'
+import { findExternalGame } from '../data/matches'
+import { alike, clubNames } from '../data/aliases'
+import { pastSeasons } from './history'
 import { addCategory, allArticles, saveArticle } from './articles'
 import { paths } from './site'
 import { formatTime } from './time'
@@ -82,155 +85,292 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 // ---------------------------------------------------------------- 1. the season in numbers
 
+/** The quarter-hours (INTERVALS) as they are said */
+const QUARTERS = ['i de første 15 minutter', 'mellem minut 16 og 30', 'fra minut 31 til pausen', 'i de første 15 minutter efter pausen', 'mellem minut 61 og 75', 'i de sidste 15 minutter']
+
+/** One of a sentence's wordings, fixed per article and place (the same data reads the same) */
+const pick = (key: string, ...options: string[]) => options[hashString(key) % options.length]
+
+/**
+ * This season's finished matches as the statistics need them, with the scorers, cards and half-time
+ * scores from the source that has them (the match pages' events) where our fixture lacks them
+ */
+function richGames(s: Season): StatGame[] {
+  const now = Date.now()
+  return s.finished.map((f) => {
+    if (f.incidents?.length && f.ht) return f
+    const g = findExternalGame(toMatch(f, now))
+    return { ...f, incidents: f.incidents?.length ? f.incidents : g?.incidents, ht: f.ht ?? g?.ht }
+  })
+}
+
+/** The same point of earlier seasons (the first N matches of each club), from the seasons with a page of their own */
+function sameTimeBefore(s: Season) {
+  const out: { label: string; goalsPerMatch: number; leader: { name: string; points: number }; points: Map<string, number> }[] = []
+  for (const ps of pastSeasons(s.div.id)) {
+    const games = [...ps.games].sort((x, y) => x.date.getTime() - y.date.getTime())
+    const count = new Map<string, number>()
+    const points = new Map<string, number>()
+    let goals = 0
+    let matches = 0
+    for (const g of games) {
+      const h = count.get(g.home) ?? 0
+      const a = count.get(g.away) ?? 0
+      if (h >= s.rounds || a >= s.rounds) continue
+      count.set(g.home, h + 1)
+      count.set(g.away, a + 1)
+      goals += g.homeScore + g.awayScore
+      matches++
+      const [ph, pa] = g.homeScore > g.awayScore ? [3, 0] : g.homeScore < g.awayScore ? [0, 3] : [1, 1]
+      points.set(g.home, (points.get(g.home) ?? 0) + ph)
+      points.set(g.away, (points.get(g.away) ?? 0) + pa)
+    }
+    if (matches < s.finished.length * 0.8) continue
+    const [name, pts] = [...points.entries()].sort((x, y) => y[1] - x[1])[0] ?? ['', 0]
+    out.push({ label: ps.label, goalsPerMatch: goals / matches, leader: { name, points: pts }, points })
+  }
+  return out
+}
+const pointsThen = (season: { points: Map<string, number> }, c: Club) => {
+  const names = clubNames(c)
+  for (const [n, p] of season.points) if (alike(names, n)) return p
+  return undefined
+}
+
 function numbers(s: Season): SuperligaArticle | undefined {
-  const st = leagueStats(s.div)
+  const games = richGames(s)
+  const st = gameStats(games)
   if (!st) return undefined
+  const key = `${s.rounds}`
   const after = `efter ${s.rounds} runder`
-  const parts: string[] = []
-  // The sections are numbered as they come (one without its numbers is left out)
-  let n = 0
-  const sec = (title: string) => `<h2>${++n}. ${title}</h2>`
   const leader = s.table[0]
+  const second = s.table[1]
+  const gap = leader.points - second.points
+  const before = sameTimeBefore(s)
+  const lastYear = before[0]
+  const goalRank = before.filter((b) => b.goalsPerMatch >= st.goalsPerMatch).length
+  const leaderRank = before.filter((b) => b.leader.points >= leader.points).length
+  const homeT = venueTable(s, true)
+  const awayT = venueTable(s, false)
+  const leaderHome = homeT.find((x) => x.club.id === leader.club.id)
+  const leaderAway = awayT.find((x) => x.club.id === leader.club.id)
+  const tight = [...s.table].sort((a, b) => a.goalsAgainst / Math.max(1, a.played) - b.goalsAgainst / Math.max(1, b.played))[0]
+  const attack = [...s.table].sort((a, b) => b.goalsFor / Math.max(1, b.played) - a.goalsFor / Math.max(1, a.played))[0]
+  const leaderIsBest = [tight, attack].every((x) => x.club.id === leader.club.id)
+  // The best of the rest, when the leader tops every list
+  const restBest = (rows: StandingRow[], by: (r: StandingRow) => number) => [...rows].filter((r) => r.club.id !== leader.club.id).sort((a, b) => by(a) - by(b))[0]
+  const parts: string[] = []
+
+  // The lead: the story first
+  const dominance = leaderIsBest && gap >= 3
   parts.push(
     p(
-      `Superligaen har spillet ${plural(st.played, 'kamp', 'kampe')} ${after}, og der er scoret ${plural(st.goals, 'mål', 'mål')} – ${num(st.goalsPerMatch, 2)} pr. kamp. ` +
-        `${club(leader.club)} fører med ${plural(leader.points, 'point', 'point')}. Her er, hvad tallene fortæller om sæsonen indtil nu – hentet fra alle sæsonens kampe, ikke fra fornemmelser.`,
+      `<strong>` +
+        (dominance
+          ? pick(key + 'lead', `${esc(leader.club.name)} er ved at løbe fra resten af Superligaen.`, `Der er ét hold, der skiller sig ud i Superligaen lige nu: ${esc(leader.club.name)}.`)
+          : gap === 0
+            ? pick(key + 'lead', `Der er hård kamp om førstepladsen i Superligaen.`, `Toppen af Superligaen kunne ikke være tættere.`)
+            : pick(key + 'lead', `${esc(leader.club.name)} sidder på førstepladsen – men forspringet er lille.`, `Superligaen har fået en ny frontløber.`)) +
+        `</strong> ` +
+        `${club(leader.club)} topper ${after} med ${plural(leader.points, 'point', 'point')}` +
+        (gap > 0 ? `, ${plural(gap, 'point', 'point')} foran ${club(second.club)}` : `, lige så mange som ${club(second.club)}`) +
+        (leaderRank === 0 && before.length >= 3 ? ` – flere point end nogen førende hold på samme tidspunkt i de ${word(before.length)} seneste sæsoner, vi har tal for` : '') +
+        `. Og der bliver scoret: ${plural(st.goals, 'mål', 'mål')} på ${plural(st.played, 'kamp', 'kampe')}, ${num(st.goalsPerMatch, 2)} i snit` +
+        (before.length >= 3 && goalRank === 0 ? `, det højeste på dette tidspunkt i de seneste ${word(before.length)} sæsoner` : lastYear ? ` mod ${num(lastYear.goalsPerMatch, 2)} på samme tid i ${lastYear.label}` : '') +
+        `.`,
     ),
   )
 
-  // 1. Goals
-  parts.push(sec(`${num(st.goalsPerMatch, 2)} mål pr. kamp`))
+  // The leader
+  parts.push(h2(dominance ? `${leader.club.name}: et hold i sin egen liga` : `${leader.club.name} fører an`))
+  parts.push(
+    p(
+      `${club(leader.club)} har vundet ${plural(leader.won, 'kamp', 'kampe')}, spillet ${plural(leader.drawn, 'uafgjort', 'uafgjort')} og tabt ${plural(leader.lost, 'gang', 'gange')}. ` +
+        (leaderHome && leaderAway ? `Holdet har hentet ${plural(leaderHome.points, 'point', 'point')} på ${plural(leaderHome.played, 'hjemmekamp', 'hjemmekampe')} og ${plural(leaderAway.points, 'point', 'point')} på ${plural(leaderAway.played, 'udekamp', 'udekampe')} – ` + (leaderAway.points / leaderAway.played >= leaderHome.points / leaderHome.played ? 'det er lige meget, hvor der spilles. ' : 'og er svære at slå på egen bane. ') : '') +
+        (leaderIsBest
+          ? `Det er ligaens bedste angreb med ${plural(leader.goalsFor, 'mål', 'mål')} og samtidig det bedste forsvar med kun ${plural(leader.goalsAgainst, 'mål', 'mål')} imod. `
+          : attack.club.id === leader.club.id
+            ? `Ingen har scoret flere mål (${num(leader.goalsFor)}). `
+            : tight.club.id === leader.club.id
+              ? `Ingen har lukket færre mål ind (${num(leader.goalsAgainst)}). `
+              : '') +
+        (lastYear && pointsThen(lastYear, leader.club) !== undefined ? `På samme tid sidste sæson havde holdet ${plural(pointsThen(lastYear, leader.club)!, 'point', 'point')}.` : ''),
+    ),
+  )
+  if (leaderIsBest) {
+    const a2 = restBest(s.table, (r) => -r.goalsFor / Math.max(1, r.played))
+    const d2 = restBest(s.table, (r) => r.goalsAgainst / Math.max(1, r.played))
+    parts.push(p(`Bag ${esc(leader.club.name)} er ${club(a2.club)} det mest målfarlige hold med ${plural(a2.goalsFor, 'mål', 'mål')}, mens ${club(d2.club)} har det næstbedste forsvar med ${plural(d2.goalsAgainst, 'mål', 'mål')} imod.`))
+  }
+
+  // Goals
+  parts.push(
+    h2(
+      st.goalsPerMatch >= 2.9
+        ? pick(key + 'goals', 'Målene fosser ind', 'Der bliver scoret på stribe', 'Ingen grund til at gå tidligt hjem')
+        : st.goalsPerMatch >= 2.5
+          ? pick(key + 'goals', 'Målene', 'Hvor kommer målene fra?')
+          : 'Få mål og tætte kampe',
+    ),
+  )
   parts.push(
     p(
       `${st.over25Pct} % af kampene har haft mindst tre mål, og i ${st.bttsPct} % har begge hold scoret. ` +
-        (st.mostGoals ? `Sæsonens største målfest indtil nu er ${game(st.mostGoals as Fixture)} med ${st.mostGoals.score[0] + st.mostGoals.score[1]} mål. ` : '') +
-        (st.biggestWin ? `Den største sejr er ${game(st.biggestWin as Fixture)}.` : ''),
+        (st.mostGoals ? `Den vildeste kamp indtil nu er ${game(st.mostGoals as Fixture)} – ${plural(st.mostGoals.score[0] + st.mostGoals.score[1], 'mål', 'mål')} på 90 minutter. ` : '') +
+        (st.biggestWin ? `Den største sejr står ${game(st.biggestWin as Fixture)} for.` : ''),
     ),
   )
-
-  // 2. Home advantage
-  const homeTable = venueTable(s, true)
-  const awayTable = venueTable(s, false)
-  parts.push(sec(`Hjemmebanen er ${st.homeWinPct >= st.awayWinPct ? 'stadig en fordel' : 'ikke nogen fordel i år'}`))
-  parts.push(
-    p(
-      `Hjemmeholdet har vundet ${st.homeWinPct} % af kampene, ${st.drawPct} % er endt uafgjort, og udeholdet har vundet ${st.awayWinPct} %. ` +
-        (homeTable[0] ? `Bedst hjemme er ${club(homeTable[0].club)} med ${plural(homeTable[0].points, 'point', 'point')} på ${plural(homeTable[0].played, 'hjemmekamp', 'hjemmekampe')}. ` : '') +
-        (awayTable[0] ? `Bedst ude er ${club(awayTable[0].club)} med ${plural(awayTable[0].points, 'point', 'point')} på ${plural(awayTable[0].played, 'udekamp', 'udekampe')}.` : ''),
-    ),
-  )
-
-  // 3. When the goals come
   if (st.byInterval) {
     const g = st.byInterval.goals
-    const total = g.reduce((a, b) => a + b, 0)
-    const late = g[5]
+    const total = g.reduce((x, y) => x + y, 0)
     const top = g.indexOf(Math.max(...g))
-    parts.push(sec(`${pct(late, total)} % af målene falder i de sidste 15 minutter`))
     parts.push(
       p(
-        `I de ${plural(st.byInterval.matches, 'kamp', 'kampe')}, hvor vi kender alle målenes minut, er ${plural(late, 'mål', 'mål')} af ${num(total)} scoret fra det 76. minut og frem. ` +
-          `Det mest målrige kvarter er ${INTERVALS[top]} med ${plural(g[top], 'mål', 'mål')}. ` +
-          (st.firstHalfPct !== undefined ? `Samlet falder ${st.firstHalfPct} % af målene i første halvleg og ${100 - st.firstHalfPct} % efter pausen.` : ''),
-      ),
-    )
-    parts.push(table(['Minut', 'Mål', 'Andel'], INTERVALS.map((label, i) => [label, num(g[i]), `${pct(g[i], total)} %`])))
-  }
-
-  // 4. Comebacks
-  const comebacks = s.finished.filter((f) => f.ht && Math.sign(f.ht[0] - f.ht[1]) !== 0 && Math.sign(f.score[0] - f.score[1]) !== Math.sign(f.ht[0] - f.ht[1]))
-  const withHt = s.finished.filter((f) => f.ht).length
-  if (withHt >= 10) {
-    parts.push(sec(`${plural(comebacks.length, 'gang', 'gange')} har det førende hold ved pausen ikke vundet`))
-    parts.push(
-      p(
-        `Af ${plural(withHt, 'kamp', 'kampe')} med kendt pauseresultat er ${plural(comebacks.length, 'kamp', 'kampe')} endt uden sejr til holdet, der førte ved pausen. ` +
-          (comebacks.length ? `Senest skete det i ${game(comebacks[comebacks.length - 1])}.` : 'En føring ved pausen har indtil nu været nok hver gang.'),
+        `Flest mål falder ${QUARTERS[top]} (${plural(g[top], 'mål', 'mål')}), og ${pct(g[5], total)} % af alle mål kommer i de sidste 15 minutter` +
+          (st.firstHalfPct !== undefined ? `. ${100 - st.firstHalfPct} % af målene falder efter pausen.` : '.'),
       ),
     )
   }
-
-  // 5. Scorers
-  if (st.scorers.length) {
-    const s1 = st.scorers[0]
-    const pens = st.scorers.reduce((a, r) => a + r.penalties, 0)
-    parts.push(sec(`${esc(s1.player)} fører topscorerlisten`))
-    parts.push(
-      p(
-        `${esc(s1.player)} fra ${esc(s1.club.name)} har scoret ${plural(s1.goals, 'mål', 'mål')}` +
-          (s1.penalties ? `, heraf ${plural(s1.penalties, 'straffespark', 'straffespark')}` : '') +
-          `. De ti øverste har tilsammen ${plural(
-            st.scorers.reduce((a, r) => a + r.goals, 0),
-            'mål',
-            'mål',
-          )}, ${pens ? `og ${plural(pens, 'af dem', 'af dem')} er kommet på straffespark` : 'og ingen af dem er scoret på straffespark'}. Hele listen står på <a href="${paths.league(s.div.slug)}/topscorere">Superligaens topscorerliste</a>.`,
-      ),
-    )
-    parts.push(table(['#', 'Spiller', 'Klub', 'Mål', 'Heraf straffe'], st.scorers.slice(0, 8).map((r, i) => [i + 1, esc(r.player), esc(r.club.name), r.goals, r.penalties])))
+  const comebacks = games.filter((f) => f.ht && f.ht[0] !== f.ht[1] && Math.sign(f.score[0] - f.score[1]) !== Math.sign(f.ht[0] - f.ht[1]))
+  if (games.filter((f) => f.ht).length >= 10 && comebacks.length) {
+    const last = comebacks[comebacks.length - 1] as Fixture
+    parts.push(p(`${plural(comebacks.length, 'gang', 'gange')} har holdet, der førte ved pausen, ikke vundet. Senest i ${game(last)}.`))
   }
 
-  // 6. Defence
-  const clean = s.table.map((r) => ({ r, n: playedBy(s, r.club).filter((f) => (f.home.id === r.club.id ? f.score[1] : f.score[0]) === 0).length })).sort((a, b) => b.n - a.n || a.r.goalsAgainst - b.r.goalsAgainst)
-  const tight = [...s.table].sort((a, b) => a.goalsAgainst / Math.max(1, a.played) - b.goalsAgainst / Math.max(1, b.played))[0]
-  parts.push(sec(`${esc(tight.club.name)} har ligaens bedste forsvar`))
+  // Home and away
+  parts.push(h2(st.homeWinPct >= st.awayWinPct + 10 ? 'Hjemmebanen tæller' : st.awayWinPct >= st.homeWinPct ? 'Udeholdene tager for sig' : 'Hjemmebanen er ingen garanti'))
+  const h2nd = homeT.find((x) => x.club.id !== leader.club.id)
+  const a2nd = awayT.find((x) => x.club.id !== leader.club.id)
   parts.push(
     p(
-      `${club(tight.club)} har kun lukket ${plural(tight.goalsAgainst, 'mål', 'mål')} ind på ${plural(tight.played, 'kamp', 'kampe')} – ${num(tight.goalsAgainst / Math.max(1, tight.played), 2)} pr. kamp. ` +
-        (clean[0]?.n ? `Flest kampe uden mål imod har ${club(clean[0].r.club)} med ${plural(clean[0].n, 'clean sheet', 'clean sheets')}.` : ''),
+      `Hjemmeholdet har vundet ${st.homeWinPct} % af kampene, udeholdet ${st.awayWinPct} %, og ${st.drawPct} % er endt uafgjort. ` +
+        (h2nd ? `${homeT[0].club.id === leader.club.id ? `Efter ${esc(leader.club.name)} er ` : ''}${club(h2nd.club)} ${homeT[0].club.id === leader.club.id ? 'stærkest hjemme' : 'er stærkest hjemme'} med ${plural(h2nd.points, 'point', 'point')} på ${plural(h2nd.played, 'kamp', 'kampe')}` : '') +
+        (a2nd ? `, og ${club(a2nd.club)} henter flest point ude blandt resten (${plural(a2nd.points, 'point', 'point')} på ${plural(a2nd.played, 'kamp', 'kampe')}).` : '.'),
     ),
   )
 
-  // 7. Attack
-  const attack = [...s.table].sort((a, b) => b.goalsFor / Math.max(1, b.played) - a.goalsFor / Math.max(1, a.played))[0]
-  parts.push(sec(`${esc(attack.club.name)} scorer flest`))
-  parts.push(p(`${club(attack.club)} har scoret ${plural(attack.goalsFor, 'mål', 'mål')} – ${num(attack.goalsFor / Math.max(1, attack.played), 2)} pr. kamp og en målforskel på ${signed(gd(attack))}.`))
-
-  // 8. Draws
-  const draws = [...s.table].sort((a, b) => b.drawn - a.drawn)[0]
-  if (draws.drawn >= 2) {
-    parts.push(sec(`${esc(draws.club.name)} er uafgjort-kongerne`))
-    parts.push(p(`${club(draws.club)} har spillet ${plural(draws.drawn, 'uafgjort kamp', 'uafgjorte kampe')} af ${num(draws.played)}. Uafgjort er endt i ${st.drawPct} % af ligaens kampe.`))
-  }
-
-  // 9. Attendance
-  if (st.attendance.length >= 3) {
-    const top = st.attendance[0]
-    const low = st.attendance[st.attendance.length - 1]
-    parts.push(sec(`${num(top.average)} tilskuere i snit hos ${esc(top.club.name)}`))
+  // Scorers
+  if (st.scorers.length) {
+    const s1 = st.scorers[0]
+    parts.push(h2(`${s1.player} sætter tempoet`))
     parts.push(
       p(
-        `${esc(top.club.name)} trækker flest tilskuere med ${num(top.average)} i snit på ${plural(top.matches, 'hjemmekamp', 'hjemmekampe')}. ` +
-          `Færrest har ${esc(low.club.name)} med ${num(low.average)}.`,
+        `${esc(s1.player)} fra ${esc(s1.club.name)} topper skytteligaen med ${plural(s1.goals, 'mål', 'mål')}` +
+          (s1.penalties ? `, heraf ${plural(s1.penalties, 'straffespark', 'straffespark')}` : '') +
+          (st.scorers[1] ? `. Nærmest er ${esc(st.scorers[1].player)} (${esc(st.scorers[1].club.name)}) med ${plural(st.scorers[1].goals, 'mål', 'mål')}.` : '.') +
+          ` Hele listen står på <a href="${paths.league(s.div.slug)}/topscorere">Superligaens topscorerliste</a>.`,
       ),
     )
-    parts.push(table(['Klub', 'Tilskuere i snit', 'Hjemmekampe'], st.attendance.map((a) => [esc(a.club.name), num(a.average), a.matches])))
+    parts.push(table(['#', 'Spiller', 'Klub', 'Mål'], st.scorers.slice(0, 5).map((r, i) => [i + 1, esc(r.player), esc(r.club.name), r.goals])))
   }
 
-  // 10. Cards
-  if (st.cards.length) {
-    const c = st.cards[0]
-    parts.push(sec(`${esc(c.club.name)} har fået flest kort`))
-    parts.push(p(`${esc(c.club.name)} har fået ${plural(c.yellow, 'gult kort', 'gule kort')} og ${plural(c.red, 'rødt kort', 'røde kort')}.`))
+  // The surprise: the biggest win by a team in the bottom half over one in the top
+  const half = Math.ceil(s.table.length / 2)
+  const upsets = s.finished
+    .map((f) => {
+      const [w, l] = f.score[0] > f.score[1] ? [f.home, f.away] : f.score[0] < f.score[1] ? [f.away, f.home] : [undefined, undefined]
+      return w && l ? { f, w, l, gapPos: position(s, w) - position(s, l) } : undefined
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x && position(s, x.w) > half && position(s, x.l) <= 3)
+    .sort((a, b) => b.gapPos - a.gapPos)
+  if (upsets[0]) {
+    const u = upsets[0]
+    parts.push(h2('Sæsonens overraskelse'))
+    parts.push(p(`${club(u.w)} ligger nr. ${position(s, u.w)}, men har slået ${club(u.l)}, der ligger nr. ${position(s, u.l)}: ${game(u.f)}. Det viser, at alle kan slå alle i denne liga.`))
   }
+
+  // Up and down since last season
+  if (lastYear) {
+    const moves = s.table
+      .map((r) => ({ r, then: pointsThen(lastYear, r.club) }))
+      .filter((x): x is { r: StandingRow; then: number } => x.then !== undefined)
+      .map((x) => ({ ...x, diff: x.r.points - x.then }))
+      .sort((a, b) => b.diff - a.diff)
+    if (moves.length >= 4) {
+      const up = moves[0]
+      const down = moves[moves.length - 1]
+      parts.push(h2('Op og ned siden sidste sæson'))
+      parts.push(
+        p(
+          `Sammenlignet med samme tidspunkt i ${lastYear.label} er ${club(up.r.club)} den store fremgang: ${plural(up.r.points, 'point', 'point')} nu mod ${plural(up.then, 'point', 'point')} dengang. ` +
+            (down.diff < 0 ? `Den modsatte vej er det gået for ${club(down.r.club)}, der har ${plural(-down.diff, 'point', 'point')} færre end sidste år.` : ''),
+        ),
+      )
+    }
+  }
+
+  // The middle
+  if (s.table.length >= 10) {
+    const third = s.table[2]
+    const tenth = s.table[9]
+    parts.push(h2(third.points - tenth.points <= 6 ? 'Et tæt midterfelt' : 'Et langt felt'))
+    parts.push(p(`Der er ${plural(third.points - tenth.points, 'point', 'point')} mellem ${club(third.club)} på tredjepladsen og ${club(tenth.club)} på tiendepladsen. ${third.points - tenth.points <= 6 ? 'En god weekend kan flytte et hold fire-fem pladser.' : 'Feltet er ved at trække sig fra hinanden.'}`))
+  }
+
+  // Draws
+  const draws = [...s.table].sort((x, y) => y.drawn - x.drawn)[0]
+  if (draws.drawn >= 3) {
+    parts.push(h2(`${draws.club.name} deler point`))
+    parts.push(p(`${club(draws.club)} har spillet ${plural(draws.drawn, 'uafgjort kamp', 'uafgjorte kampe')} af ${num(draws.played)} – flest i ligaen. Uafgjort er endt i ${st.drawPct} % af alle kampe.`))
+  }
+
+  // Bottom
+  const last = s.table[s.table.length - 1]
+  const prev = s.table[s.table.length - 2]
+  parts.push(h2('Bunden'))
+  parts.push(
+    p(
+      `I bunden ligger ${club(last.club)} med ${plural(last.points, 'point', 'point')} og ${club(prev.club)} med ${plural(prev.points, 'point', 'point')}. ` +
+        `${club(last.club)} har ${last.won ? `kun vundet ${plural(last.won, 'kamp', 'kampe')}` : 'endnu ikke vundet en kamp'} og har lukket ${plural(last.goalsAgainst, 'mål', 'mål')} ind.`,
+    ),
+  )
+
+  // Attendance and cards when there are numbers
+  if (st.attendance.length >= 3) {
+    const top = st.attendance[0]
+    parts.push(h2('Tilskuerne'))
+    parts.push(p(`Flest kommer der hos ${esc(top.club.name)}: ${num(top.average)} i snit på ${plural(top.matches, 'hjemmekamp', 'hjemmekampe')}. Færrest har ${esc(st.attendance[st.attendance.length - 1].club.name)} med ${num(st.attendance[st.attendance.length - 1].average)}.`))
+  }
+
+  // Fact box
+  parts.push(h2(`Superligaen ${after} – fakta`))
+  parts.push(
+    list([
+      `Kampe spillet: ${num(st.played)}`,
+      `Mål: ${num(st.goals)} (${num(st.goalsPerMatch, 2)} pr. kamp)`,
+      `Hjemmesejre / uafgjort / udesejre: ${st.homeWinPct} / ${st.drawPct} / ${st.awayWinPct} %`,
+      `Fører: ${club(leader.club)}, ${plural(leader.points, 'point', 'point')}`,
+      ...(st.scorers[0] ? [`Topscorer: ${esc(st.scorers[0].player)}, ${plural(st.scorers[0].goals, 'mål', 'mål')}`] : []),
+      `Bedste angreb: ${club(attack.club)} (${num(attack.goalsFor)} mål)`,
+      `Bedste forsvar: ${club(tight.club)} (${num(tight.goalsAgainst)} mål imod)`,
+    ]),
+  )
 
   parts.push(
     faq([
-      [`Hvor mange mål bliver der scoret i Superligaen?`, `Der er scoret ${plural(st.goals, 'mål', 'mål')} i sæsonens første ${plural(st.played, 'kamp', 'kampe')}, ${num(st.goalsPerMatch, 2)} mål pr. kamp.`],
       [`Hvem fører Superligaen?`, `${esc(leader.club.name)} fører ${after} med ${plural(leader.points, 'point', 'point')} og en målforskel på ${signed(gd(leader))}.`],
+      [`Hvor mange mål bliver der scoret i Superligaen?`, `Der er scoret ${plural(st.goals, 'mål', 'mål')} i sæsonens første ${plural(st.played, 'kamp', 'kampe')}, ${num(st.goalsPerMatch, 2)} mål pr. kamp.`],
       ...(st.scorers[0] ? ([[`Hvem er topscorer i Superligaen?`, `${esc(st.scorers[0].player)} (${esc(st.scorers[0].club.name)}) fører med ${plural(st.scorers[0].goals, 'mål', 'mål')}.`]] as [string, string][]) : []),
     ]),
   )
   parts.push(p(`Følg stillingen, kampene og topscorerne live på <a href="${paths.league(s.div.slug)}">Superligaens side på Matchly</a>.`))
+
+  const goalsBit = st.goalsPerMatch >= 2.9 ? 'og målene fosser ind' : st.goalsPerMatch < 2.5 ? 'og forsvarene har styr på det' : `${num(st.goalsPerMatch, 2)} mål pr. kamp`
+  const title = dominance
+    ? `${leader.club.name} løber fra Superligaen ${after} – ${goalsBit}`
+    : gap === 0
+      ? `Point-lige i toppen af Superligaen ${after} – ${goalsBit}`
+      : `${leader.club.name} fører Superligaen ${after} med ${plural(gap, 'point', 'point')} – ${goalsBit}`
   return {
     kind: 'tal',
     slug: 'superligaen-i-tal',
-    title: `Superligaen ${SEASON} i tal: ${n} ting statistikken afslører ${after}`,
-    excerpt: `Mål pr. kamp, hjemmebanefordel, sene mål, topscorere, forsvar og tilskuere – Superligaen ${after} forklaret med tal fra alle sæsonens kampe.`,
+    title,
+    excerpt: `${leader.club.name} fører med ${leader.points} point ${after}, og der er scoret ${num(st.goalsPerMatch, 2)} mål pr. kamp. Vi har gennemgået alle sæsonens kampe: målene, overraskelserne, hjemmebanen og bunden.`,
     content: parts.join(''),
-    tags: ['Superliga', 'Statistik'],
+    tags: ['Superliga', 'Statistik', leader.club.name],
     focusKeyword: 'superligaen statistik',
-    seoTitle: `Superligaen i tal ${after} – statistik og topscorere`,
-    metaDescription: `Superligaen ${after}: ${num(st.goalsPerMatch, 2)} mål pr. kamp, ${st.homeWinPct} % hjemmesejre og ${leader.club.name} i front. ${n} ting statistikken afslører.`.slice(0, 158),
+    seoTitle: `Superligaen ${SEASON} ${after}: statistik, topscorere og stilling`,
+    metaDescription: `${leader.club.name} fører Superligaen ${after} med ${leader.points} point. ${num(st.goalsPerMatch, 2)} mål pr. kamp, ${st.homeWinPct} % hjemmesejre – alle tallene bag sæsonen.`.slice(0, 158),
   }
 }
 
