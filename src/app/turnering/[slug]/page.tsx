@@ -46,7 +46,7 @@ import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
 import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
-import { danishRound, externalLeagueKey } from '../../../data/external'
+import { danishLeagueName, danishRound, externalLeagueKey } from '../../../data/external'
 import { shownTeam } from '../../../data/countries'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     if (!league) return { title: 'Turneringen findes ikke' }
     const names = loadRealData()?.leagueNames
     const cup = cupOfGame({ sport: league.sport, league })
-    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? league.name
+    const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? danishLeagueName(league.name, league.country) ?? league.name
     return {
       title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} – stilling, resultater og kampprogram`,
       description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
@@ -109,7 +109,7 @@ async function externalLeaguePage(slug: string) {
   const keys = sameLeagueKeys(slug)
   const league = {
     ...found,
-    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? found.title ?? cupOfGame({ sport: found.sport, league: found })?.name ?? found.name,
+    name: keys.map((k) => real?.leagueNames?.[k]).find(Boolean) ?? found.title ?? cupOfGame({ sport: found.sport, league: found })?.name ?? danishLeagueName(found.name, found.country) ?? found.name,
     logo: keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean) ?? found.logo,
   }
   const cup = cupOfGame({ sport: found.sport, league: found })

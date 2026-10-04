@@ -74,4 +74,5 @@ export interface LeagueGroup {
   matches: Match[]
 }
 
-export type StateFilter = 'all' | 'live' | 'finished' | 'upcoming'
+/** 'popular': the short list the front page opens on (src/data/popular.ts) */
+export type StateFilter = 'popular' | 'all' | 'live' | 'finished' | 'upcoming'
