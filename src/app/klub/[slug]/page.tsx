@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import { forVisitor } from '../../../lib/visitorBudget'
 import Link from 'next/link'
 import { MasonryFlow } from '../../../components/MasonryFlow'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
-import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
+import { allTeams, movedTeamSlug, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
@@ -87,8 +87,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function ClubPage({ params }: { params: Params }) {
-  const team = teamBySlug((await params).slug)
-  if (!team) notFound()
+  const slug = (await params).slug
+  const team = teamBySlug(slug)
+  if (!team) {
+    // An address the team had by mistake for a few hours: on to its real one
+    const moved = movedTeamSlug(slug)
+    if (moved) permanentRedirect(paths.club(moved))
+    notFound()
+  }
   return team.season ? <LeagueClub {...team.season} /> : <TeamPage team={team} />
 }
 

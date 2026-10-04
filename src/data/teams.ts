@@ -48,6 +48,11 @@ function resemblesOurClub(name: string) {
   return words.length > 0 && words.every((w) => ourWords!.has(w))
 }
 
+/** Addresses made from a league's Danish name by mistake (see `add` below) -> the team's real address */
+const movedSlugs = new Map<string, string>()
+/** Where a team's page is, when the address asked for is one it had by mistake */
+export const movedTeamSlug = (slug: string): string | undefined => (teams(), movedSlugs.get(slug))
+
 /** API-Sports' teams in their other leagues, and the teams of the starting tables (src/data/baselines.ts) */
 function externalTeams(taken: Set<string>): TeamEntry[] {
   const out = new Map<string, TeamEntry>()
@@ -62,6 +67,8 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     // Shown under its Danish name (national teams, "(K)" for women's teams); found under the source's too
     const shown = shownTeam(name, e.country)
     const team: TeamEntry = { slug, name: shown, ...e, names: shown === name ? [name] : [name, shown] }
+    // The address it had for some hours on 4 October 2026, made from our Danish name for the league: sent on to the real one
+    if (e.slugLeague && e.slugLeague !== e.league && slug.endsWith(`-${slugify(e.slugLeague)}`)) movedSlugs.set(`${slugify(name)}-${slugify(e.league)}`, slug)
     out.set(key, team)
     if (e.leagueSlug) (inLeagueSlug.get(e.leagueSlug) ?? inLeagueSlug.set(e.leagueSlug, []).get(e.leagueSlug)!).push(team)
   }

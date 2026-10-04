@@ -13,6 +13,7 @@ import { isoDate } from '../lib/time'
 import { matchSlug } from '../lib/slug'
 import { sameLeagueKeys } from './baselines'
 import { countryKey } from './channels'
+import { isPopular } from './popular'
 
 /** An API-Sports game as a match, placed in our league when it is one of ours (and with our clubs' names in a cup) */
 export function externalMatch(g: ExternalGame): Match {
@@ -299,7 +300,8 @@ export function upcomingMatches(sport: SportFilter, today: string, now: number, 
     .slice(0, limit)
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 }
-const focusOf = (m: Match) => (countryRank(m.country) <= COUNTRY_FOCUS.length ? 0 : 1)
+// The popular matches first (src/data/popular.ts), then the countries in focus, then the rest
+const focusOf = (m: Match) => (isPopular(m) ? 0 : countryRank(m.country) <= COUNTRY_FOCUS.length ? 1 : 2)
 
 /** The nearest day after (or before) `date` with matches, looking up to 60 days away */
 export function nearestMatchDay(date: string, sport: SportFilter, direction: 1 | -1, now: number): string | undefined {

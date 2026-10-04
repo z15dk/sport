@@ -51,6 +51,9 @@ const game = (leagueId: string, league: string, country: string, home = 'A', awa
 
 test('Denmark first in focus, then the Superliga, our leagues, the other popular matches, the rest', () => {
   assert.equal(focusRank(game('ext-football-5', 'UEFA Nations League', 'World', 'Wales', 'Danmark')), 0)
+  assert.equal(focusRank(game('ext-football-666', 'Venskabskampe, kvinder', 'World', 'Danmark (K)', 'Sverige (K)')), 0)
+  // A youth national team's match is popular, not the evening's main match
+  assert.equal(focusRank(game('ext-football-10', 'Venskabskampe', 'World', 'Danmark U18', 'Saudi-Arabien U18')), 3)
   assert.equal(focusRank(game('dk-superliga', 'Superliga', 'Danmark')), 1)
   assert.equal(focusRank(game('en-premierleague', 'Premier League', 'England')), 2)
   assert.equal(focusRank(game('ext-football-5', 'UEFA Nations League', 'World', 'Montenegro', 'Armenien')), 3)

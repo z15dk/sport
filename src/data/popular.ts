@@ -69,7 +69,8 @@ export function isPopular(m: Game): boolean {
  */
 export function focusRank(m: Game): number {
   const country = m.country?.trim() ?? ''
-  if (INTERNATIONAL.test(country) && (DANISH_TEAM.test(m.home.name) || DANISH_TEAM.test(m.away.name))) return 0
+  // The senior national teams (men's and women's); a youth team's match is popular, not the evening's main match
+  if (INTERNATIONAL.test(country) && (DANISH_TEAM.test(m.home.name) || DANISH_TEAM.test(m.away.name))) return YOUTH.test(m.home.name) || YOUTH.test(m.away.name) ? 3 : 0
   if (m.leagueId === 'dk-superliga' || (m.leagueId.startsWith('cup-') && DENMARK.test(country))) return 1
   if (!m.leagueId.startsWith('ext-')) return 2
   return isPopular(m) ? 3 : 4
