@@ -1,3 +1,4 @@
+import { genitive } from './words'
 import { sizedImage } from './imageSize'
 import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
@@ -59,7 +60,7 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     // Where it is played: the stadium, or else the home team's ground
     location: {
       '@type': 'Place',
-      name: match.venue ?? `${match.home.name}s hjemmebane`,
+      name: match.venue ?? `${genitive(match.home.name)} hjemmebane`,
       address: { '@type': 'PostalAddress', ...(match.venue && { streetAddress: match.venue }), ...(match.country && { addressCountry: match.country }) },
     },
     // The league or tournament runs the match (not us)

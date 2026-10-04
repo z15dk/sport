@@ -14,6 +14,7 @@ import { oddsEnabled } from '../data/odds'
 import { TeamBadge } from './TeamBadge'
 import { danishCountry } from '../data/countries'
 import { sportById } from '../sports'
+import { counted } from '../lib/words'
 
 interface Props {
   group: LeagueGroup
@@ -48,7 +49,7 @@ export function LeagueSection({ group, pinned, onTogglePin, ads, showSport }: Pr
             )}
           </span>
           {liveCount > 0 && <span className="league__live">{liveCount} live</span>}
-          {hasOdds ? <OddsBy /> : <span className="league__count">{group.matches.length} kampe</span>}
+          {hasOdds ? <OddsBy /> : <span className="league__count">{counted(group.matches.length, 'kamp', 'kampe')}</span>}
         </div>
         <button
           className={`chevron-btn${open ? ' is-open' : ''}`}

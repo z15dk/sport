@@ -1,3 +1,4 @@
+import { genitive } from './words'
 import type { Match } from '../types'
 import { danishTier, seasonOf, type Club, type Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
@@ -13,12 +14,7 @@ export interface FaqItem {
   a: string
 }
 
-/** Danish genitive: "AGF's", "Boston Celtics'", "FC Københavns" */
-export function genitive(name: string) {
-  if (/[sxz]$/i.test(name)) return `${name}'`
-  if (/[A-ZÆØÅ]$/.test(name)) return `${name}'s`
-  return `${name}s`
-}
+export { genitive }
 
 const when = (d: Date) => `${formatLong(d)} kl. ${formatTime(d)}`
 
@@ -44,11 +40,20 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
       a: `Stillingen er ${h.score ?? 0}-${a.score ?? 0} (${match.statusLabel}).`,
     })
   }
+  // In the past tense once the match is over
+  const over = match.state === 'finished'
   items.push({
-    q: `Hvornår spilles ${h.name} – ${a.name}?`,
-    a: `Kampen ${match.state === 'upcoming' ? 'spilles' : match.sport === 'soccer' ? 'blev sparket i gang' : 'startede'} ${when(match.kickoff)} i ${match.league}.`,
+    q: over ? `Hvornår blev ${h.name} – ${a.name} spillet?` : `Hvornår spilles ${h.name} – ${a.name}?`,
+    a: over
+      ? `Kampen blev spillet ${when(match.kickoff)} i ${match.league}.`
+      : `Kampen ${match.state === 'upcoming' ? 'spilles' : match.sport === 'soccer' ? 'blev sparket i gang' : 'startede'} ${when(match.kickoff)} i ${match.league}.`,
   })
-  if (match.venue) items.push({ q: 'Hvor spilles kampen?', a: `Kampen spilles i ${match.venue} med ${h.name} på hjemmebane.` })
+  if (match.venue)
+    items.push(
+      over
+        ? { q: 'Hvor blev kampen spillet?', a: `Kampen blev spillet i ${match.venue} med ${h.name} på hjemmebane.` }
+        : { q: 'Hvor spilles kampen?', a: `Kampen spilles i ${match.venue} med ${h.name} på hjemmebane.` },
+    )
 
   if (h2h.length) {
     let hw = 0

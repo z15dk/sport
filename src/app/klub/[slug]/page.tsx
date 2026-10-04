@@ -16,6 +16,7 @@ import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry, shownTeam } from '../../../data/countries'
+import { counted } from '../../../lib/words'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
@@ -139,8 +140,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         </header>
 
         <p className="lead">
-          {club.name} ligger nr. {stats.position} i {division.name} med {r.points} point efter {r.played} kampe ({r.won}{' '}
-          sejre{sport === 'soccer' ? `, ${r.drawn} uafgjorte` : ''} og {r.lost} nederlag
+          {club.name} ligger nr. {stats.position} i {division.name} med {r.points} point efter {counted(r.played, 'kamp', 'kampe')} ({counted(r.won, 'sejr', 'sejre')}
+          {sport === 'soccer' ? `, ${counted(r.drawn, 'uafgjort', 'uafgjorte')}` : ''} og {r.lost} nederlag
           {sport === 'ice_hockey' && r.otWon + r.otLost > 0 ? `, heraf ${r.otWon + r.otLost} afgjort i forlænget spil` : ''}) og en
           {sport === 'basketball' ? ' samlet score' : ' målscore'} på {r.goalsFor}-{r.goalsAgainst}.
         </p>
@@ -431,7 +432,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
         <p className="lead">
           {team.name} spiller i {team.league}
           {row
-            ? ` og ligger nr. ${row.rank}${row.points !== undefined ? ` med ${row.points} point` : ''} efter ${row.played} kampe (${row.won} sejre${row.drawn !== undefined ? `, ${row.drawn} uafgjorte` : ''}, ${row.lost} nederlag${row.for !== undefined ? `, ${goalWord.toLowerCase()} ${row.for}-${row.against ?? 0}` : ''})`
+            ? ` og ligger nr. ${row.rank}${row.points !== undefined ? ` med ${row.points} point` : ''} efter ${counted(row.played, 'kamp', 'kampe')} (${counted(row.won, 'sejr', 'sejre')}${row.drawn !== undefined ? `, ${counted(row.drawn, 'uafgjort', 'uafgjorte')}` : ''}, ${row.lost} nederlag${row.for !== undefined ? `, ${goalWord.toLowerCase()} ${row.for}-${row.against ?? 0}` : ''})`
             : ''}
           .{last && ` Seneste kamp: ${last.f}-${last.a} mod ${last.opponent}.`}
           {live[0] && ` Spiller lige nu mod ${own(live[0].home.name) ? live[0].away.name : live[0].home.name}.`}

@@ -69,7 +69,7 @@ export function MatchRow({ match, showDate, showLeague, showSport }: { match: Ma
           const other = i === 0 ? away : home
           return (
             <div key={i} className={`team${finished && lost(team, other) ? ' team--lost' : ''}`}>
-              <TeamBadge name={team.name} src={team.badge} colors={team.colors} />
+              <TeamBadge name={team.name} src={team.badge} colors={team.colors} league={match.leagueSlug} />
               <span className="team__name">{team.name}</span>
               {showScore && <TeamEvents incidents={match.incidents} side={i === 0 ? 'home' : 'away'} />}
             </div>

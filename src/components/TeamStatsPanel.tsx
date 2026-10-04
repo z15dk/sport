@@ -1,4 +1,5 @@
 import { biggestOf, type Periods, type TeamStats } from '../data/teamStats'
+import { genitive } from '../lib/words'
 
 // A club's season statistics from our data source: key numbers, goals and
 // cards per quarter hour, and the formations used.
@@ -96,7 +97,7 @@ export function TeamStatsPanel({ stats, name }: { stats: TeamStats; name: string
           </ul>
         </div>
       )}
-      <p className="muted small pad">{name}s sæson i tal.</p>
+      <p className="muted small pad">{genitive(name)} sæson i tal.</p>
     </section>
   )
 }

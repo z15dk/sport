@@ -957,6 +957,8 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
   const shownTable = noDraws ? table.map(({ drawn: _drawn, points: _points, ...r }) => r) : table
 
   const h2h = all
+    // In the game's own sport: a handball team can share its name with the football club
+    .filter((a) => a.id.startsWith(`${api}-`))
     .filter((a) => (same(a.homeName, game.home.name) && same(a.awayName, game.away.name)) || (same(a.homeName, game.away.name) && same(a.awayName, game.home.name)))
     .slice(0, 5)
     .map((a) => ({ date: a.date, competition: a.tournament, home: a.homeName, away: a.awayName, homeScore: a.homeScore, awayScore: a.awayScore }))

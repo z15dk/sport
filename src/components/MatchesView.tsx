@@ -19,7 +19,7 @@ import { chunksWithAds, feedAdPlan, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { useFavoriteTeams } from '../hooks/useFavoriteTeams'
-import { isPopular } from '../data/popular'
+import { focusRank, isPopular } from '../data/popular'
 import { teamByName } from '../data/teams'
 import { externalMatch, getMatches, isWomenGame, isWomenMatch, leaguePriority, nearestMatchDay, topLeague, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
@@ -242,13 +242,21 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     const candidates = upcomingMatches(sport, isoDate(start), start, 2, 10_000)
       .filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
       .filter((m) => !women || isWomenMatch(m))
-    // A popular match when there is one (not a youth friendly while the national team plays)
-    const known = women ? [] : candidates.filter(isPopular)
-    return known.length ? known : candidates
-  }, [sport, hour, dataVersion, women]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (women) return candidates
+    // A Danish national team playing today (on now, or still to come) is the match in focus
+    const denmark = matches.filter((m) => m.state !== 'finished' && m.state !== 'postponed' && focusRank(m) === 0)
+    if (denmark.length) return denmark
+    // Else the matches most in focus among those coming up: the Superliga before the big leagues abroad, those before the rest
+    // (not a match between two other countries while there is a Danish one, and never a youth friendly while there is anything else)
+    const best = Math.min(4, ...candidates.map(focusRank))
+    return candidates.filter((m) => focusRank(m) === best)
+  }, [sport, hour, dataVersion, women, matches]) // eslint-disable-line react-hooks/exhaustive-deps
   // The day's matches the box falls back on: the popular ones when there are any
   const featuredDay = useMemo(() => {
-    const known = women ? [] : matches.filter(isPopular)
+    if (women) return matches
+    const open = matches.filter((m) => m.state !== 'finished' && m.state !== 'postponed')
+    const best = Math.min(4, ...open.map(focusRank))
+    const known = best < 4 ? open.filter((m) => focusRank(m) === best) : []
     return known.length ? known : matches
   }, [matches, women])
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)

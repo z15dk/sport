@@ -193,10 +193,18 @@ export function findMatch(slug: string, date: string, now: number): Match | unde
 
 /** A league club's games outside its league (cup, Champions League), as the source has them */
 export function clubExternalGames(clubName: string): ExternalGame[] {
-  return (getRealData()?.external ?? []).filter((g) => !divisionOfGame(g)).filter((g) => {
-    const m = externalMatch(g)
-    return m.home.name === clubName || m.away.name === clubName
-  })
+  const club = seasonClub(clubName)
+  if (!club) return []
+  return (getRealData()?.external ?? []).filter((g) => !divisionOfGame(g) && isClubsGame(g, club))
+}
+
+/**
+ * Whether a game outside our leagues is this club's: in the club's own sport, and one of the teams is the
+ * club itself – not another team of the same name (AGF's handball team and AGF's women play as "AGF" too)
+ */
+function isClubsGame(g: ExternalGame, club: NonNullable<ReturnType<typeof seasonClub>>): boolean {
+  if (g.sport !== sportOf(club.division)) return false
+  return ourClubInGame(g, g.home.name)?.club.id === club.club.id || ourClubInGame(g, g.away.name)?.club.id === club.club.id
 }
 
 /** Every match of a league club this season, in date order */
@@ -205,10 +213,7 @@ export function clubMatches(clubName: string, now: number): Match[] {
   if (!club) return []
   const league = clubFixtures(club.club.id).map((f) => toMatch(f, now))
   // Its cup, Champions League and other tournaments' games
-  const cup = (getRealData()?.external ?? [])
-    .filter((g) => !divisionOfGame(g))
-    .map(externalMatch)
-    .filter((m) => m.home.name === club.club.name || m.away.name === club.club.name)
+  const cup = (getRealData()?.external ?? []).filter((g) => !divisionOfGame(g) && isClubsGame(g, club)).map(externalMatch)
   return cup.length ? [...league, ...cup].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime()) : league
 }
 

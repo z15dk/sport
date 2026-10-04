@@ -19,10 +19,12 @@ interface Props {
   link?: boolean
   /** Text for the fallback badge instead of initials from the name */
   label?: string
+  /** The league the name is from (a match's leagueSlug): its team there is linked, not another team of the same name */
+  league?: string
 }
 
-export function TeamBadge({ link = true, ...props }: Props) {
-  const team = link ? teamByName(props.name) : undefined
+export function TeamBadge({ link = true, league, ...props }: Props) {
+  const team = link ? teamByName(props.name, league) : undefined
   if (!team) return <Badge {...props} />
   return (
     <Link className="badge-link" href={paths.club(team.slug)} title={team.name} prefetch={false}>

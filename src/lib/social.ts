@@ -1,3 +1,4 @@
+import { genitive } from './words'
 import 'server-only'
 import type { Incident, Match, SportId } from '../types'
 import type { Club, Division } from '../data/leagues'
@@ -114,7 +115,7 @@ export interface Pick {
 }
 
 /** Danish genitive: "Randers FCs"; names ending in s, x or z get an apostrophe */
-export const gen = (name: string) => (/[sxz]$/i.test(name) ? `${name}'` : `${name}s`)
+export const gen = genitive
 
 const isHomeIn = (club: Club, name: string) => name === club.name || alike([club.name, club.originalName ?? club.name], name)
 

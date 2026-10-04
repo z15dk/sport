@@ -1,3 +1,4 @@
+import { genitive } from '../lib/words'
 import Link from 'next/link'
 import { shownDivisions, type Club, type Division } from '../data/leagues'
 import { hasRealData } from '../data/real'
@@ -116,7 +117,7 @@ export function ArticleSide({ subject, now }: { subject?: Subject; now: number }
       )}
       {next.length > 0 && (
         <section className="panel">
-          <h2 className="panel__title">{club ? `${club.name}s næste kampe` : `Kommende kampe i ${division.name}`}</h2>
+          <h2 className="panel__title">{club ? `${genitive(club.name)} næste kampe` : `Kommende kampe i ${division.name}`}</h2>
           <ul className="league__matches">
             {next.map((m) => (
               <MatchRow key={m.id} match={m} showDate showLeague={!!club} />
@@ -129,14 +130,14 @@ export function ArticleSide({ subject, now }: { subject?: Subject; now: number }
       )}
       {results.length > 0 && (
         <section className="panel">
-          <h2 className="panel__title">{club ? `${club.name}s seneste kampe` : `Seneste resultater i ${division.name}`}</h2>
+          <h2 className="panel__title">{club ? `${genitive(club.name)} seneste kampe` : `Seneste resultater i ${division.name}`}</h2>
           <ul className="league__matches">
             {results.map((m) => (
               <MatchRow key={m.id} match={m} showDate showLeague={!!club} />
             ))}
           </ul>
           <Link className="article-side__more" href={club ? paths.club(club.slug) : paths.league(division.slug)}>
-            {club ? `Alle ${club.name}s kampe →` : `Alle resultater →`}
+            {club ? `Alle ${genitive(club.name)} kampe →` : `Alle resultater →`}
           </Link>
         </section>
       )}

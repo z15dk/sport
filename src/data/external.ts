@@ -2,7 +2,8 @@ import type { Incident, Match, MatchState, PeriodScore, SportId } from '../types
 import { matchSlug, slugify } from '../lib/slug'
 import { isoDate } from '../lib/time'
 import { normalize } from './aliases'
-import { shownTeam } from './countries'
+import { danishSpelling, shownTeam } from './countries'
+import { danishLeagueName as translatedLeagueName } from './danishLeagues'
 
 // Games from API-Sports (football, basketball, NBA, ice hockey, handball,
 // volleyball, NFL). The server job (src/lib/apisports.ts) fetches them day by
@@ -12,7 +13,17 @@ export interface ExternalGame {
   /** "<api>-<id>", e.g. "football-1035037" */
   id: string
   sport: SportId
-  league: { id: string; name: string; country?: string; logo?: string; season?: string; /** Before a rename in the admin pages */ originalName?: string }
+  league: {
+    id: string
+    name: string
+    country?: string
+    logo?: string
+    season?: string
+    /** Before a rename in the admin pages */
+    originalName?: string
+    /** The name team addresses are made from (/klub/<team>-<league>), when it isn't `name`: as it was before the Danish tournament names, so the addresses stay */
+    slugName?: string
+  }
   home: { name: string; logo?: string; id?: number }
   away: { name: string; logo?: string; id?: number }
   /** ISO timestamp */
@@ -92,7 +103,15 @@ export function danishRound(round?: string | number): string | undefined {
  * (/turnering/<key>), its logo and its name in the admin pages. From the
  * original name, so a rename keeps the key.
  */
-export { danishLeagueName } from './danishLeagues'
+/**
+ * A tournament's Danish name (src/data/danishLeagues.ts), and in Denmark with the Danish letters the source leaves out
+ * ("Herre Handbold Ligaen" -> "Herre Håndbold Ligaen"); nothing when the name stays as it is
+ */
+export function danishLeagueName(name: string, country?: string): string | undefined {
+  const translated = translatedLeagueName(name, country) ?? name.trim()
+  const out = /^(denmark|danmark)$/i.test(country ?? '') ? danishSpelling(translated) : translated
+  return out !== name.trim() ? out : undefined
+}
 
 export const externalLeagueKey = (league: { name: string; country?: string; originalName?: string }) =>
   `x-${slugify(`${league.country ?? ''} ${league.originalName ?? league.name}`)}`

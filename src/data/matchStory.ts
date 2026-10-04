@@ -1,3 +1,4 @@
+import { genitive, singulars } from '../lib/words'
 import type { Incident, Match } from '../types'
 import type { FormGame, Lineup, MatchStats, TableRow } from './matchExtra'
 import type { PastMatch } from './matchInsights'
@@ -33,7 +34,7 @@ function pick<P>(pool: Pool<P>, match: Match, kind: string, p: P): string {
   return pool[hashString(`${match.id}|${kind}`) % pool.length](p)
 }
 
-const gen = (name: string) => (/[sxz]$/i.test(name) ? `${name}'` : `${name}s`)
+const gen = genitive
 const minute = (m: number) => `${m}. minut`
 const isGoal = (i: Incident) => i.kind === 'goal' || i.kind === 'penalty' || i.kind === 'own-goal'
 const scoringSide = (i: Incident): 'home' | 'away' => (i.kind === 'own-goal' ? (i.side === 'home' ? 'away' : 'home') : i.side)
@@ -746,7 +747,7 @@ export function matchReport(input: StoryInput): string[] | undefined {
     const opp = next.home.name === team ? next.away.name : next.home.name
     out.push(pick(NEXT, m, 'next', { team, opp, when: when(next.kickoff, input.now), tv: '' }))
   }
-  return out
+  return out.map(singulars)
 }
 
 /** A preview before kick-off, paragraph by paragraph; undefined when there is too little to tell */
@@ -822,5 +823,5 @@ export function matchPreview(input: StoryInput): string[] | undefined {
   }
 
   // At least two things to tell besides the kick-off
-  return facts >= 2 ? out.filter(Boolean) : undefined
+  return facts >= 2 ? out.filter(Boolean).map(singulars) : undefined
 }

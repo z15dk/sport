@@ -231,9 +231,16 @@ function apply() {
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
       const keys = [...sameLeagueKeys(key), ...(cupOfGame(g) ? [externalLeagueKey({ ...g.league, originalName: undefined })] : [])]
-      const name = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name ?? danishLeagueName(g.league.name, g.league.country)
+      const set = keys.map((k) => leagueNames.names[k]).find(Boolean) ?? cupOfGame(g)?.name
+      const danish = danishLeagueName(g.league.name, g.league.country)
+      const name = set ?? danish
+      // Team addresses (/klub/<team>-<league>) keep the league name they were made from before the Danish names:
+      // the admin's or the cup's, "Venskabskampe" for friendlies (as always), else the source's own
+      const slugName = set ?? (/^friendlies\b/i.test(g.league.name) ? danish : undefined) ?? g.league.name
       const logo = keys.map((k) => customLogoUrl(`liga-${k}`)).find(Boolean)
-      return name || logo ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined) } } : g
+      return name || logo
+        ? { ...g, league: { ...g.league, name: name ?? g.league.name, logo: logo ?? g.league.logo, originalName: g.league.originalName ?? (name ? g.league.name : undefined), ...(name && slugName !== name && { slugName }) } }
+        : g
     })),
     tableTeams: tables,
     leagueNames: leagueNames.names,

@@ -3,12 +3,12 @@ import { DIVISIONS, sportOf, type Club, type Division } from './leagues'
 import { seasonClubs } from './season'
 import { getRealData } from './real'
 import { divisionOfGame } from './ourLeagues'
-import { externalLeagueKey, type ExternalGame } from './external'
+import { danishLeagueName, externalLeagueKey, type ExternalGame } from './external'
 import { ourClubByName, ourClubInGame } from './cups'
 import { BASELINES, sameLeagueKeys } from './baselines'
 import { alike, nameWords, normalize } from './aliases'
 import { slugify } from '../lib/slug'
-import { SHOWN_WOMEN, shownTeam } from './countries'
+import { SHOWN_WOMEN, isInternational, shownTeam } from './countries'
 
 // One register of every team playing in the leagues we show (from the real
 // season). Every team automatically gets a page at /klub/<slug>, links from
@@ -28,6 +28,8 @@ export interface TeamEntry {
   season?: { club: Club; division: Division }
   /** API-Sports' teams: every name the team goes by in the match data */
   names?: string[]
+  /** The league name its address was made from, when it isn't `league` (the source's own, before our Danish name for it) */
+  slugLeague?: string
   logo?: string
 }
 
@@ -54,7 +56,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     if (out.has(key)) return
     // Its own address: the plain name when free, else with the league (the women's "Brøndby IF" is not the men's)
     let slug = slugify(name)
-    if (taken.has(slug) || resemblesOurClub(name)) slug = `${slug}-${slugify(e.league)}`
+    if (taken.has(slug) || resemblesOurClub(name)) slug = `${slug}-${slugify(e.slugLeague ?? e.league)}`
     if (taken.has(slug)) slug = `${slug}-${slugify(e.country ?? '')}`
     taken.add(slug)
     // Shown under its Danish name (national teams, "(K)" for women's teams); found under the source's too
@@ -85,7 +87,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   // A team from API-Sports (a game or a table): our club, a team we have in that league, or a new one
   // A team plays many games: each team (league and name) is placed once
   const placed = new Set<string>()
-  const place = (name: string, logo: string | undefined, e: { sport: SportId; league: string; leagueSlug: string; country?: string }, g?: ExternalGame) => {
+  const place = (name: string, logo: string | undefined, e: { sport: SportId; league: string; leagueSlug: string; country?: string; slugLeague?: string }, g?: ExternalGame) => {
     const seen = `${e.leagueSlug}|${name}`
     if (placed.has(seen)) {
       // Only a logo the first game lacked
@@ -100,11 +102,15 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     // The same name first ("FC Copenhagen W" is the table's "F.C. København", also known as "FC Copenhagen"), then a looser likeness
     const inLeague = byLeague(e.leagueSlug)
     const part = normalize(clubPart(name))
-    const tiers = [
-      inLeague.filter((t) => known(t).some((n) => n === name || normalize(clubPart(n)) === part)),
-      inLeague.filter((t) => alike(known(t).map(clubPart), clubPart(name))),
-      inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name))),
-    ]
+    // National teams only by their exact name: "Guyana" is not "French Guyana", "Dominica" not the "Dominican Republic",
+    // the "US Virgin Islands" not the "British Virgin Islands", and "South Africa" not "South Africa U23"
+    const tiers = isInternational(e.country)
+      ? [inLeague.filter((t) => known(t).includes(name))]
+      : [
+          inLeague.filter((t) => known(t).some((n) => n === name || normalize(clubPart(n)) === part)),
+          inLeague.filter((t) => alike(known(t).map(clubPart), clubPart(name))),
+          inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name))),
+        ]
     const same = tiers.find((t) => t.length === 1)
     if (same) {
       const t = same[0]
@@ -119,13 +125,14 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   for (const g of getRealData()?.external ?? []) {
     games++
     if (divisionOfGame(g)) continue
-    const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country }
+    const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country, slugLeague: g.league.slugName }
     for (const side of [g.home, g.away]) place(side.name, side.logo, e, g)
   }
   // The rest of the leagues' tables: teams without a game in the fetched days
   const t2 = Date.now()
   for (const [leagueSlug, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
-    for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: l.league, leagueSlug, country: l.country })
+    // The league by our Danish name for it; the address from the source's own, as before
+    for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: danishLeagueName(l.league, l.country) ?? l.league, leagueSlug, country: l.country, slugLeague: l.league })
   }
   const t3 = Date.now()
   // Where the time goes when the register is slow (server log, see realdata.ts warm())
@@ -173,7 +180,7 @@ function teamSignature(external: ExternalGame[] | undefined): number {
 }
 
 // Rebuilt when the season changes, or the teams in the real data do (not for every new score)
-let cache: { clubs: ReturnType<typeof seasonClubs>; signature: number; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry> } | undefined
+let cache: { clubs: ReturnType<typeof seasonClubs>; signature: number; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry>; byLeagueName: Map<string, TeamEntry> } | undefined
 function teams() {
   const clubs = seasonClubs()
   const external = getRealData()?.external
@@ -183,8 +190,14 @@ function teams() {
     const list = build()
     // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
     const byName = new Map<string, TeamEntry>()
-    for (const t of list) for (const n of t.names ?? [t.name]) if (!byName.has(n)) byName.set(n, t)
-    cache = { clubs, signature, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName }
+    // And by league and name: the same name is another team in another league or sport (AGF's handball team is not AGF's footballers)
+    const byLeagueName = new Map<string, TeamEntry>()
+    for (const t of list)
+      for (const n of t.names ?? [t.name]) {
+        if (!byName.has(n)) byName.set(n, t)
+        if (t.leagueSlug && !byLeagueName.has(`${t.leagueSlug}|${n}`)) byLeagueName.set(`${t.leagueSlug}|${n}`, t)
+      }
+    cache = { clubs, signature, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName, byLeagueName }
   } else if (cache.external !== external) {
     cache.external = external
   }
@@ -205,15 +218,19 @@ const fromIndex = (name: string, value: string | undefined) => {
   return (bar < 0 ? { slug: value === 'w' ? sourceSlug(name) : value || slugify(name), name } : { slug: value.slice(0, bar), name: value.slice(bar + 1) }) as TeamEntry
 }
 
-export const teamByName = (name: string): TeamEntry | undefined => {
+/** A team by its name; with the league the name is from, the team of that league first (the same name can be another team elsewhere) */
+export const teamByName = (name: string, leagueSlug?: string): TeamEntry | undefined => {
   const index = browserIndex()
   if (index) {
+    const own = leagueSlug ? index[`${leagueSlug}|${name}`] : undefined
+    if (own !== undefined) return fromIndex(name, own)
     if (name in index) return fromIndex(name, index[name])
     // The index has a team under the name we show: the source's own name ("Scotland", "Paris FC W") finds it too
     const shown = shownTeam(name, 'World')
     return fromIndex(shown, index[shown])
   }
-  return teams().byName.get(name)
+  const t = teams()
+  return (leagueSlug ? t.byLeagueName.get(`${leagueSlug}|${name}`) : undefined) ?? t.byName.get(name)
 }
 
 /** Every team name's slug, '' when it is the name's own slug, and the team's name when it is shown under another (sent to the browser as RealData.teamIndex) */
@@ -228,6 +245,11 @@ export function teamNameIndex(): Record<string, string> {
     const shown = shownTeam(name, 'World')
     if (shown !== name && byName.get(shown) === t) continue
     index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug === sourceSlug(name) ? 'w' : t.slug
+  }
+  // A name that is another team in another league: that team under "<league>|<name>" (few, so the list stays short)
+  for (const [key, t] of teams().byLeagueName) {
+    const name = key.slice(key.indexOf('|') + 1)
+    if (byName.get(name) !== t) index[key] = t.name !== name ? `${t.slug}|${t.name}` : t.slug
   }
   nameIndex = { for: byName, index }
   return index
@@ -258,6 +280,8 @@ export function teamInLeague(leagueSlug: string, name: string, sport?: SportId):
     inLeague.find((t) => (t.names ?? [t.name]).includes(name)) ??
     (ours ? teamBySlug(ours.club.slug) : undefined) ??
     (() => {
+      // Not for national teams (see externalTeams): only their exact names
+      if (isInternational(inLeague[0]?.country)) return undefined
       const loose = inLeague.filter((t) => alike([clubPart(t.name)], clubPart(name)))
       return loose.length === 1 ? loose[0] : undefined
     })()

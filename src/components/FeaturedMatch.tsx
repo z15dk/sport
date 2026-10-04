@@ -96,14 +96,14 @@ export function FeaturedMatch({ candidates, matches, pinned, now, seed }: Props)
       </header>
       <div className="featured__teams" key={match.id}>
         <div className="featured__team">
-          <TeamBadge name={match.home.name} src={match.home.badge} colors={match.home.colors} size={56} />
+          <TeamBadge name={match.home.name} src={match.home.badge} colors={match.home.colors} size={56} league={match.leagueSlug} />
           <span>{match.home.name}</span>
         </div>
         <span className="featured__vs">
           {isLive ? `${match.home.score ?? 0}–${match.away.score ?? 0}` : 'VS'}
         </span>
         <div className="featured__team">
-          <TeamBadge name={match.away.name} src={match.away.badge} colors={match.away.colors} size={56} />
+          <TeamBadge name={match.away.name} src={match.away.badge} colors={match.away.colors} size={56} league={match.leagueSlug} />
           <span>{match.away.name}</span>
         </div>
       </div>

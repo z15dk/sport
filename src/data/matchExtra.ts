@@ -31,7 +31,16 @@ export interface MatchExtra {
   /** Round, stadium, referee, half-time score and the like, ready to show */
   facts: { label: string; value: string }[]
   form?: { home: FormGame[]; away: FormGame[] }
-  table?: { name?: string; rows: TableRow[]; homeId?: number; awayId?: number; /** Where the table comes from */ source?: 'api-sports' | 'scoreline' }
+  table?: {
+    name?: string
+    rows: TableRow[]
+    homeId?: number
+    awayId?: number
+    /** Where the table comes from */
+    source?: 'api-sports' | 'scoreline'
+    /** Fetched before this (finished) match was counted: shown with a note, and the report says nothing of the table */
+    behind?: boolean
+  }
 }
 
 /** A football match's statistics from API-Sports, with expected goals (theirs, or our estimate from the shots) */
@@ -78,6 +87,26 @@ export interface Lineup {
   /** "row:column" on the pitch, from the goal (1:1 is the goalkeeper) */
   startXI: LineupPlayer[]
   substitutes: LineupPlayer[]
+}
+
+const plainWord = (w: string) =>
+  w.toLowerCase().replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+
+/**
+ * Players' names in goals, cards and substitutions as the line-ups spell them: the source's events leave out
+ * Danish and other letters ("Rasmus Hojlund", "Kasper Hogh") that its line-ups have ("R. Højlund", "K. Høgh").
+ * Word by word, and only a plain word that is the line-up's word without its letters.
+ */
+export function lineupSpelling(lineups: Lineup[] | undefined): (name: string) => string {
+  const words = new Map<string, string>()
+  for (const l of lineups ?? [])
+    for (const p of [...l.startXI, ...l.substitutes]) for (const w of p.name.split(/\s+/)) if (/[^\x00-\x7f]/.test(w)) words.set(plainWord(w), w)
+  if (!words.size) return (name) => name
+  return (name) =>
+    name
+      .split(' ')
+      .map((w) => (/^[\x00-\x7f]+$/.test(w) ? (words.get(plainWord(w)) ?? w) : w))
+      .join(' ')
 }
 
 /** A league's best players this season (API-Sports) */

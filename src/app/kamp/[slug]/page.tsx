@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { ROBOT_UA, forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { genitive } from '../../../lib/words'
 import { shownTeam } from '../../../data/countries'
 import type { ExternalGame } from '../../../data/external'
 import { MatchView } from '../../../components/MatchView'
@@ -137,7 +138,7 @@ async function MatchPageInner({ params }: { params: Params }) {
   const { match, date, now } = found
   // Found under an older address (the source's own team names): to the match's own
   if (match.slug !== slug) permanentRedirect(paths.match(match.slug))
-  const clubSlug = (name: string) => teamByName(name)?.slug
+  const clubSlug = (name: string) => teamByName(name, match.leagueSlug)?.slug
   const homeStats = clubStats(match.home.name, now)
   const awayStats = clubStats(match.away.name, now)
   const homeClub = findClub(match.home.name)?.club
@@ -217,9 +218,15 @@ async function MatchPageInner({ params }: { params: Params }) {
       }
     }
   }
-  if (!realH2h?.length && saved?.h2h.length) {
-    realH2h = saved.h2h
-    h2hSource = 'database'
+  // The meetings our statistics bank has saved as well: a meeting last week is there before a cached lookup has it
+  // (the page once called a match from 2021 the latest meeting, a week after the two had played each other)
+  if (saved?.h2h.length) {
+    const days = new Set((realH2h ?? []).map((m) => isoDate(m.date)))
+    const more = saved.h2h.filter((m) => !days.has(isoDate(m.date)))
+    if (more.length) {
+      realH2h = [...(realH2h ?? []), ...more].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5)
+      h2hSource ??= 'database'
+    }
   }
   // The meetings link to their own match pages; the round's other matches too (at the foot)
   // National teams in Danish and women's teams marked "(K)", as the match itself
@@ -257,7 +264,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}
-            text={`Vis ${match.home.name}s eller ${match.away.name}s næste kampe – eller hele rundens kampe – på jeres egen side. Gratis, med TV-kanal og live-stilling.`}
+            text={`Vis ${genitive(match.home.name)} eller ${genitive(match.away.name)} næste kampe – eller hele rundens kampe – på jeres egen side. Gratis, med TV-kanal og live-stilling.`}
             href="/widget?type=kampe#lav"
             cta="Lav dit kampprogram →"
           />

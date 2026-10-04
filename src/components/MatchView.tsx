@@ -28,7 +28,7 @@ import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
 import { MatchTimeline } from './MatchTimeline'
-import type { FormGame, Lineup, MatchExtra, MatchStats, Substitution, TableRow } from '../data/matchExtra'
+import { lineupSpelling, type FormGame, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
 import { InjuryList } from './InjuryList'
 import type { Injury } from '../data/teamStats'
@@ -79,9 +79,13 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
     return () => wantPageRefresh(false)
   }, [live])
   if (!match) return null
+  // The goals and cards the page shows, with the players spelt as in the line-ups ("Hojlund" in the events is "Højlund" there)
+  const withEvents = !events?.length || (match.incidents?.length && (match.incidents.some((e) => e.player) || !events.some((e) => e.player))) ? match : { ...match, incidents: events }
+  const spell = lineupSpelling(lineups)
+  const shown = lineups?.length && withEvents.incidents?.length ? { ...withEvents, incidents: withEvents.incidents.map((e) => (e.player ? { ...e, player: spell(e.player) } : e)) } : withEvents
   return (
     <>
-      <MatchBody match={!events?.length || (match.incidents?.length && (match.incidents.some((e) => e.player) || !events.some((e) => e.player))) ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
+      <MatchBody match={shown} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={lineups?.length ? subs?.map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) })) : subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -220,7 +224,8 @@ function MatchBody({
   const storyInput = {
     match,
     now,
-    table: table?.rows,
+    // A table from before the match was counted says nothing of the result
+    table: table?.behind ? undefined : table?.rows,
     form,
     h2h,
     stats,
@@ -319,7 +324,7 @@ function MatchBody({
 
       <header className="duel">
         <div className="duel__team">
-          <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={72} />
+          <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={72} league={match.leagueSlug} />
           <strong>
             <ClubName name={home.name} />
           </strong>
@@ -341,7 +346,7 @@ function MatchBody({
           )}
         </div>
         <div className="duel__team">
-          <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={72} />
+          <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={72} league={match.leagueSlug} />
           <strong>
             <ClubName name={away.name} />
           </strong>
@@ -533,6 +538,7 @@ function MatchBody({
                 </table>
               </div>
               {table.source !== 'api-sports' && <p className="muted small">Stillingen er beregnet af Matchly ud fra sæsonens kampe.</p>}
+              {table.behind && <p className="muted small">Stillingen er fra før denne kamp og opdateres inden for en time.</p>}
             </section>
           )}
           {absent && absent.home.length + absent.away.length > 0 && (

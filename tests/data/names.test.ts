@@ -31,7 +31,9 @@ test('names that are the same in Danish, and clubs, are kept', () => {
 test("women's teams are marked (K) where the source writes W", () => {
   assert.equal(shownTeam('Paris FC W', 'France'), 'Paris FC (K)')
   assert.equal(shownTeam('Arsenal Women', 'England'), 'Arsenal (K)')
-  assert.equal(shownTeam('Brondby U19 W', 'Denmark'), 'Brondby U19 (K)')
+  // In a Danish league with the Danish letters the source leaves out
+  assert.equal(shownTeam('Brondby U19 W', 'Denmark'), 'Brøndby U19 (K)')
+  assert.equal(shownTeam('Brondby U19 W', 'Sweden'), 'Brondby U19 (K)')
   assert.equal(shownTeam('Denmark W', 'World'), 'Danmark (K)')
   // Already shown: unchanged
   assert.equal(shownTeam('Paris FC (K)', 'France'), 'Paris FC (K)')

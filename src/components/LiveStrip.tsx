@@ -1,12 +1,18 @@
 import type { Match } from '../types'
 import { ScoreCard } from './ScoreCard'
+import { focusRank } from '../data/popular'
+import { leaguePriority } from '../data/matches'
 
 /** Live matches and latest results of the chosen day, and the next matches over the coming days */
 export function LiveStrip({ matches, upcoming, now }: { matches: Match[]; upcoming: Match[]; now: number }) {
-  const live = matches.filter((m) => m.state === 'live')
+  // The matches most in focus first (Denmark's national teams, the Superliga, Danish sport, then the big tournaments –
+  // src/data/popular.ts), so the strip never opens on a match between two far-away countries while Denmark plays
+  const live = matches
+    .filter((m) => m.state === 'live')
+    .sort((a, b) => focusRank(a) - focusRank(b) || leaguePriority(a) - leaguePriority(b) || a.kickoff.getTime() - b.kickoff.getTime())
   const finished = matches
     .filter((m) => m.state === 'finished')
-    .sort((a, b) => b.kickoff.getTime() - a.kickoff.getTime())
+    .sort((a, b) => Math.min(3, focusRank(a)) - Math.min(3, focusRank(b)) || b.kickoff.getTime() - a.kickoff.getTime())
     .slice(0, 8)
   const sections = [
     { key: 'live', title: 'Live', items: live, dot: true },

@@ -9,7 +9,7 @@ import { danishLeagueName, danishRound, externalLeagueKey, isWomenGame, type Ext
 import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
-import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
+import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -723,7 +723,7 @@ function tableTeamsNow(): TableTeam[] {
   const store = extrasStore()
   return externalLeagues().flatMap((l) =>
     (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>
-      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: danishLeagueName(l.name, l.country) ?? l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
+      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
     ),
   )
 }
@@ -1393,6 +1393,9 @@ const finishedBefore = (games: ExternalGame[] | undefined, kickoff: string, coun
     .sort((x, y) => y.kickoff.localeCompare(x.kickoff))
     .slice(0, count)
 
+/** How long a match takes from kick-off to the end, breaks and stoppages included */
+const MATCH_LENGTH_MS: Partial<Record<SportId, number>> = { soccer: 2 * 3_600_000, handball: 1.75 * 3_600_000, basketball: 2.5 * 3_600_000, ice_hockey: 2.75 * 3_600_000, volleyball: 2.5 * 3_600_000, american_football: 3.5 * 3_600_000 }
+
 /** The last meetings of the two teams in an API-Sports game, before its kickoff (cached for three days) */
 export async function apiHeadToHead(game: ExternalGame, count = 5): Promise<ExternalGame[] | undefined> {
   const api = apiOf(game)
@@ -1400,7 +1403,8 @@ export async function apiHeadToHead(game: ExternalGame, count = 5): Promise<Exte
   const a = game.home.id
   const b = game.away.id
   if (!def || !a || !b) return undefined
-  const games = await cached(api, `${api}|${Math.min(a, b)}-${Math.max(a, b)}`, 3 * 86_400_000, def.h2h(a, b), 'games', toGames(api))
+  // Half a day on a paid plan (a meeting last week must be there), three days otherwise
+  const games = await cached(api, `${api}|${Math.min(a, b)}-${Math.max(a, b)}`, isPaid(mem.store[api]) ? 12 * 3_600_000 : 3 * 86_400_000, def.h2h(a, b), 'games', toGames(api))
   return games ? finishedBefore(games, game.kickoff, count) : undefined
 }
 
@@ -1456,15 +1460,21 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
     team
       ? cached(api, `${api}|team|${team}|${game.league.season ?? ''}`, 12 * 3_600_000, def.teamGames?.(team, game.league.season), 'games', toGames(api))
       : undefined
+  // A table fetched before the match was over says nothing of its result (it once stood six hours with "3 points" under a
+  // report of the win): after the final whistle it is fetched again every quarter of an hour, until one is from an hour
+  // after the match – the source needs that long to count it – and until then it is marked as behind
+  const tableKey = `${api}|table|${game.league.id}|${game.league.season ?? ''}`
+  const counted = Date.parse(game.kickoff) + (MATCH_LENGTH_MS[game.sport] ?? 2 * 3_600_000) + 3_600_000
+  const tableAt = () => extrasStore().entries[tableKey]?.fetchedAt ?? 0
+  const justPlayed = game.state === 'finished' && tableAt() < counted && Date.now() < counted + 12 * 3_600_000
   const [homeGames, awayGames, table] = await Promise.all([
     form(game.home.id).catch(() => undefined),
     form(game.away.id).catch(() => undefined),
     game.league.id
-      ? cached(api, `${api}|table|${game.league.id}|${game.league.season ?? ''}`, 6 * 3_600_000, def.standings?.(game.league.id, game.league.season), 'table', readTable).catch(
-          () => undefined,
-        )
+      ? cached(api, tableKey, justPlayed ? 15 * 60_000 : 6 * 3_600_000, def.standings?.(game.league.id, game.league.season), 'table', readTable).catch(() => undefined)
       : undefined,
   ])
+  const behind = game.state === 'finished' && tableAt() < counted
   const toForm = (games: ExternalGame[] | undefined, team?: number): FormGame[] =>
     finishedBefore(games, game.kickoff, 5).map((g) => {
       const home = g.home.id === team
@@ -1489,7 +1499,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const group = own && marked.size > 1 ? list!.filter((r) => r.group === own) : list
   const groupName = own && /group|gruppe/i.test(own) ? danishGroup(own) : undefined
   if (group && group.length > 1)
-    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, name: shownTeam(r.name, game.league.country), logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
+    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, name: shownTeam(r.name, game.league.country), logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports', ...(behind && { behind }) }
   return extra
 }
 
@@ -1520,9 +1530,11 @@ export async function apiMatchEvents(game: ExternalGame, opts: { spend?: boolean
   const id = game.id.split('-').pop()
   const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
   if (error) return entry?.incidents
-  const incidents = toIncidents(response ?? [], game)
+  const known = store.entries[`${api}|lineups|${game.id}`]?.lineups ?? []
+  const spell = lineupSpelling(known)
+  const incidents = toIncidents(response ?? [], game).map((x) => (x.player ? { ...x, player: spell(x.player) } : x))
   store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
-  const subs = toSubs(response ?? [], game, store.entries[`${api}|lineups|${game.id}`]?.lineups ?? [])
+  const subs = toSubs(response ?? [], game, known).map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) }))
   if (subs.length) store.entries[`${api}|subs|${game.id}`] = { fetchedAt: Date.now(), subs, final: game.state === 'finished' }
   extrasStore().flush()
   return incidents
@@ -1724,12 +1736,13 @@ async function fetchEvents(api: Api, ids: string[]) {
       for (let i = 0; i < list.length; i++) {
         const g = list[i]
         if (g.id !== id) continue
-        list[i] = { ...g, incidents: toIncidents(r.events ?? [], g), eventsFor: eventsKey(g) }
-        // The line-ups come with them: saved for the match page
+        // The line-ups come with them: saved for the match page, and the players in the goals and cards spelt as there
         const lineups = toLineups(r.lineups ?? [])
+        const spell = lineupSpelling(lineups)
+        list[i] = { ...g, incidents: toIncidents(r.events ?? [], g).map((x) => (x.player ? { ...x, player: spell(x.player) } : x)), eventsFor: eventsKey(g) }
         if (lineups.length === 2) store.entries[`${api}|lineups|${id}`] = { fetchedAt: Date.now(), lineups, final: true }
         // The substitutions come with the events: saved for the match page
-        const subs = toSubs(r.events ?? [], g, lineups)
+        const subs = toSubs(r.events ?? [], g, lineups).map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) }))
         if (subs.length) store.entries[`${api}|subs|${id}`] = { fetchedAt: Date.now(), subs, final: g.state === 'finished' }
         if (lineups.length === 2) statsChanged = true
         // The match statistics come with them: saved for the match page

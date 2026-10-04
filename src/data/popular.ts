@@ -60,3 +60,17 @@ export function isPopular(m: Game): boolean {
   if (FOREIGN_IDS.has(m.leagueId)) return true
   return FOREIGN.some((f) => f.sport === m.sport && (!f.country || f.country.test(country)) && f.name.test(m.league.trim()))
 }
+
+/**
+ * How much a match is in focus on the front page, lowest first: 0 a Danish national team, 1 the Superliga and
+ * the Danish cup, 2 the other leagues we cover in full, 3 the other popular matches (the rest of Danish sport,
+ * the big international tournaments, the big leagues abroad), 4 everything else. For "Kamp i fokus" and the
+ * order of the live strip – the evening Denmark plays, that match comes first, not a match between two other countries.
+ */
+export function focusRank(m: Game): number {
+  const country = m.country?.trim() ?? ''
+  if (INTERNATIONAL.test(country) && (DANISH_TEAM.test(m.home.name) || DANISH_TEAM.test(m.away.name))) return 0
+  if (m.leagueId === 'dk-superliga' || (m.leagueId.startsWith('cup-') && DENMARK.test(country))) return 1
+  if (!m.leagueId.startsWith('ext-')) return 2
+  return isPopular(m) ? 3 : 4
+}

@@ -233,6 +233,29 @@ export const danishCountry = (country?: string) => {
 const INTERNATIONAL = /^(world|international|europe|asia|africa|oceania|(south|north|central)[- ]america|north[- ](and|&)[- ]central[- ]america)$/i
 export const isInternational = (leagueCountry?: string) => !!leagueCountry && INTERNATIONAL.test(leagueCountry.trim())
 
+/**
+ * Danish place and club names as the sources write them without Danish letters, in the other sports' Danish leagues
+ * ("Sonderjyske", "Koge", "Ajax Kobenhavn", "Herre Handbold Ligaen"). Whole words only, and only for Danish leagues.
+ */
+const DANISH_SPELLING: Record<string, string> = {
+  Sonderjyske: 'SønderjyskE', Koge: 'Køge', Kobenhavn: 'København', Grondal: 'Grøndal', Handbold: 'Håndbold', Brondby: 'Brøndby',
+  Hjorring: 'Hjørring', Nordsjaelland: 'Nordsjælland', Naestved: 'Næstved', Helsingor: 'Helsingør', Hillerod: 'Hillerød',
+  Sonderborg: 'Sønderborg', Ringkobing: 'Ringkøbing', Holbaek: 'Holbæk', Soborg: 'Søborg', Bronshoj: 'Brønshøj', Vanlose: 'Vanløse',
+  Horsholm: 'Hørsholm', Nykobing: 'Nykøbing', Rodovre: 'Rødovre', Vaerlose: 'Værløse', Tonder: 'Tønder', Hojbjerg: 'Højbjerg',
+  Stovring: 'Støvring', Norresundby: 'Nørresundby', Thyboron: 'Thyborøn', Ostjylland: 'Østjylland', Osterbro: 'Østerbro',
+  Norrebro: 'Nørrebro', Fureso: 'Furesø', Tarnby: 'Tårnby', Dragor: 'Dragør', Solrod: 'Solrød', Ishoj: 'Ishøj',
+  Vallensbaek: 'Vallensbæk', Allerod: 'Allerød', Birkerod: 'Birkerød', Sollerod: 'Søllerød', Vedbaek: 'Vedbæk', Naerum: 'Nærum',
+  Morso: 'Morsø', Bronderslev: 'Brønderslev', Saeby: 'Sæby', Skaelskor: 'Skælskør', Lokken: 'Løkken', Gorlev: 'Gørlev',
+  Fano: 'Fanø', Aero: 'Ærø', Samso: 'Samsø', Laeso: 'Læsø', Jaegersborg: 'Jægersborg', 
+  Abyhoj: 'Åbyhøj', Hojslev: 'Højslev', Orum: 'Ørum', Olstykke: 'Ølstykke', 
+  Skaerbaek: 'Skærbæk', Graested: 'Græsted', Hoje: 'Høje', Rodby: 'Rødby', Praesto: 'Præstø',
+  Ronne: 'Rønne', Nexo: 'Nexø', Soro: 'Sorø', Kvindehandbold: 'Kvindehåndbold',
+}
+const DANISH_WORD = new RegExp(`(?<![\\p{L}\\d])(${Object.keys(DANISH_SPELLING).join('|')})(?![\\p{L}\\d])`, 'gu')
+/** A Danish name with its Danish letters back ("HB Koge" -> "HB Køge") */
+export const danishSpelling = (name: string) => name.replace(DANISH_WORD, (w) => DANISH_SPELLING[w] ?? w)
+const DENMARK = /^(denmark|danmark)$/i
+
 /** What follows a team's name in the sources: youth ("U21"), women ("W"), Olympic and B teams */
 const KINDS = /\s+(u-?\s?\d{2}|w|women|olympics?|b)$/i
 const WOMEN_KIND = /^w(omen)?$/i
@@ -245,6 +268,8 @@ const WOMEN_KIND = /^w(omen)?$/i
  * lookups use the source's own name.
  */
 export function shownTeam(name: string, leagueCountry?: string): string {
+  // In a Danish league: the Danish letters the source leaves out
+  if (leagueCountry && DENMARK.test(leagueCountry.trim())) name = danishSpelling(name)
   let base = name.trim()
   const kinds: string[] = []
   for (let m = KINDS.exec(base); m; m = KINDS.exec(base)) {
