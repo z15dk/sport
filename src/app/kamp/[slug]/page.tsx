@@ -28,7 +28,7 @@ import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { WidgetPromo } from '../../../components/WidgetPromo'
-import { dbuLineups } from '../../../lib/dbuLineups'
+import { dbuGoals, dbuLineups } from '../../../lib/dbuLineups'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
@@ -171,7 +171,9 @@ async function MatchPageInner({ params }: { params: Params }) {
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved
   const saved = game ? archiveGameExtras(game) : undefined
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
-  const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // 1.–3. division: the goals and scorers from DBU's match page (read every five minutes while it is played)
+  const dbu = !fromEvents?.some((e) => e.player) && !match.incidents?.some((e) => e.player) ? dbuGoals(match) : undefined
+  const events = dbu?.length ? dbu : fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent

@@ -81,7 +81,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   if (!match) return null
   return (
     <>
-      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
+      <MatchBody match={!events?.length || (match.incidents?.length && (match.incidents.some((e) => e.player) || !events.some((e) => e.player))) ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -245,7 +245,7 @@ function MatchBody({
                       {e.side === 'home' ? (
                         <>
                           <span>
-                            {e.player ?? label}
+                            {e.player ?? `${label} · ${match.home.name}`}
                             {e.player && <em> · {label}</em>}
                           </span>
                           {icon}
@@ -254,7 +254,7 @@ function MatchBody({
                         <>
                           {icon}
                           <span>
-                            {e.player ?? label}
+                            {e.player ?? `${label} · ${match.away.name}`}
                             {e.player && <em> · {label}</em>}
                           </span>
                         </>
@@ -264,12 +264,16 @@ function MatchBody({
                   return (
                     <li key={n} className="timeline__row">
                       {e.side === 'home' ? body : <span />}
-                      <span className="timeline__minute">{e.minute}&apos;</span>
+                      <span className="timeline__minute">
+                        {e.approx ? 'ca. ' : ''}
+                        {e.minute}&apos;
+                      </span>
                       {e.side === 'away' ? body : <span />}
                     </li>
                   )
                 })}
               </ol>
+              {match.incidents.some((e) => e.approx) && <p className="muted small">"ca.": målet er set ud fra, at stillingen ændrede sig. Målscoreren kommer på, så snart vi har den.</p>}
             </section>
           ) : null
   // The match statistics: at the top, right under the score, while the match is live (on computers in the
