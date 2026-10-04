@@ -56,7 +56,8 @@ export function FeaturedMatch({ candidates, matches, pinned, now, seed }: Props)
   const favourites = candidates.filter((m) => pinned.has(m.leagueId))
   const upcoming = matches
     .filter((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
-    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    // Matches kicking off together in a fixed order, so server and browser pick the same one
+    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || a.id.localeCompare(b.id))
   // Up to 8 picks: the 12-24 hour window, topped up with the next kickoffs when it has few
   const picked = shuffled(favourites.length ? favourites : candidates, seed)
   const pool = (picked.length >= 3 ? picked : [...picked, ...upcoming.filter((m) => !picked.some((p) => p.id === m.id))]).slice(0, 8)

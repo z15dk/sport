@@ -219,6 +219,7 @@ table.visually-hidden { display: block; }
 /* Leagues */
 /* The end of the match list: the next rows come when it scrolls near (ListMore) */
 .more-rows { display: flex; justify-content: center; padding: 14px 0 4px; }
+.more-rows--all { flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .league-list { display: flex; flex-direction: column; gap: 14px; transition: opacity 0.2s; }
 .league-list.is-loading { opacity: 0.55; }
 .league { background: var(--surface); border-radius: var(--radius); overflow: hidden; scroll-margin-top: 16px; }
