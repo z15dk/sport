@@ -17,13 +17,14 @@ const DANISH_TEAM = /^(danmark|denmark)(\s|$)/i
 
 /** The international tournaments people follow, by sport */
 const MAJOR: Partial<Record<SportId, RegExp>> = {
-  soccer: /^(uefa\b|fifa\b|world cup\b|euro championship\b|olympics?\b)/i,
+  // Also by our Danish names for them (danishLeagueName in external.ts: "VM-kvalifikation (Europa)")
+  soccer: /^(uefa\b|fifa\b|world cup\b|euro championship\b|olympics?\b|vm\b|em\b)/i,
   handball: /champions league|european league|world championship|european championship|ehf euro|olympic/i,
   ice_hockey: /world championship|olympic|champions hockey league/i,
   basketball: /euroleague|eurobasket|world cup|olympic/i,
 }
 /** World Cup qualifying on other continents is not what a Danish visitor looks for */
-const FAR_QUALIFYING = /qualification.*(africa|asia|south america|concacaf|oceania|intercontinental)/i
+const FAR_QUALIFYING = /(qualification|kvalifikation).*(africa|afrika|asia|asien|south america|sydamerika|concacaf|oceania|oceanien|intercontinental|interkontinental)/i
 
 /** Other countries' leagues followed in Denmark, beside the ones we cover in full: sport, country (any when left out) and name */
 const FOREIGN: { sport: SportId; country?: RegExp; name: RegExp }[] = [
@@ -53,7 +54,8 @@ export function isPopular(m: Game): boolean {
   if (INTERNATIONAL.test(country)) {
     if (DANISH_TEAM.test(m.home.name) || DANISH_TEAM.test(m.away.name)) return true
     if (YOUTH.test(m.league) || YOUTH.test(m.home.name) || YOUTH.test(m.away.name)) return false
-    return !!MAJOR[m.sport]?.test(m.league) && !FAR_QUALIFYING.test(m.league)
+    // "VM" and "EM" are our Danish names for every sport's World Cup and European Championship
+    return (!!MAJOR[m.sport]?.test(m.league) || /^(vm|em)(\b|-)/i.test(m.league)) && !FAR_QUALIFYING.test(m.league)
   }
   if (FOREIGN_IDS.has(m.leagueId)) return true
   return FOREIGN.some((f) => f.sport === m.sport && (!f.country || f.country.test(country)) && f.name.test(m.league.trim()))

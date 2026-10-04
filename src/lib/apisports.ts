@@ -723,7 +723,7 @@ function tableTeamsNow(): TableTeam[] {
   const store = extrasStore()
   return externalLeagues().flatMap((l) =>
     (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>
-      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
+      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: danishLeagueName(l.name, l.country) ?? l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
     ),
   )
 }
@@ -1474,7 +1474,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
         home,
         for: (home ? g.homeScore : g.awayScore) ?? 0,
         against: (home ? g.awayScore : g.homeScore) ?? 0,
-        competition: danishLeagueName(g.league.name) ?? g.league.name,
+        competition: danishLeagueName(g.league.name, g.league.country) ?? g.league.name,
       }
     })
   const extra: MatchExtra = { facts }

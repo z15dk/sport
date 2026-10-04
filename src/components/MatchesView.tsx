@@ -377,6 +377,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                     pinned={pinned.has(g.leagueId)}
                     onTogglePin={() => togglePin(g.leagueId)}
                     ads={groupPlan[i]}
+                    showSport={sport === 'all'}
                   />
                   {groupPlan[i].after && <AdSlot placement="feed" index={groupPlan[i].after} />}
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}

@@ -1,5 +1,5 @@
 import type { Match, SportId } from '../types'
-import { gameKey } from './external'
+import { danishLeagueName, gameKey } from './external'
 import { getRealData } from './real'
 import type { Partner } from './partners'
 
@@ -57,7 +57,8 @@ export function ruleMatches(r: ChannelRule, match: Pick<Match, 'sport' | 'countr
   return (
     (!r.sport || r.sport === match.sport) &&
     (!r.country || countryKey(r.country) === countryKey(match.country)) &&
-    (!r.league || r.league.trim().toLowerCase() === match.league.trim().toLowerCase())
+    // A rule written with the source's name for the league still holds when we show the league by its Danish name
+    (!r.league || [r.league, danishLeagueName(r.league, r.country) ?? r.league].some((n) => n.trim().toLowerCase() === match.league.trim().toLowerCase()))
   )
 }
 

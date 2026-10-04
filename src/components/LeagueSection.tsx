@@ -13,6 +13,7 @@ import { RESPONSIBLE_GAMBLING } from '../data/partners'
 import { oddsEnabled } from '../data/odds'
 import { TeamBadge } from './TeamBadge'
 import { danishCountry } from '../data/countries'
+import { sportById } from '../sports'
 
 interface Props {
   group: LeagueGroup
@@ -20,9 +21,13 @@ interface Props {
   onTogglePin: () => void
   /** Ads inside a long league's list (the front page's plan, src/data/ads.ts) */
   ads?: FeedAdPlan
+  /** The list holds every sport: the sport is named beside the country */
+  showSport?: boolean
 }
 
-export function LeagueSection({ group, pinned, onTogglePin, ads }: Props) {
+export function LeagueSection({ group, pinned, onTogglePin, ads, showSport }: Props) {
+  // Among every sport: which one, when it isn't football ("1. Division" in Denmark is handball as well as volleyball)
+  const sport = showSport && group.matches[0] && group.matches[0].sport !== 'soccer' ? sportById(group.matches[0].sport).label : undefined
   const [open, setOpen] = useState(true)
   const liveCount = group.matches.filter((m) => m.state === 'live').length
   const hasOdds = oddsEnabled() && group.matches.some((m) => m.state === 'upcoming')
@@ -33,7 +38,7 @@ export function LeagueSection({ group, pinned, onTogglePin, ads }: Props) {
         <div className="league__toggle">
           <TeamBadge name={group.league} src={group.leagueBadge} size={28} label={competitionLabel(group.league)} />
           <span className="league__titles">
-            {group.country && <span className="league__country">{danishCountry(group.country)}</span>}
+            {(group.country || sport) && <span className="league__country">{[group.country && danishCountry(group.country), sport].filter(Boolean).join(' · ')}</span>}
             {group.leagueSlug ? (
               <Link className="league__name" href={paths.league(group.leagueSlug)}>
                 {group.league}

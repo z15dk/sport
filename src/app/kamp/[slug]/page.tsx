@@ -197,7 +197,7 @@ async function MatchPageInner({ params }: { params: Params }) {
       const fromApi = games.map(
         (g): PastMatch => ({
           date: new Date(g.kickoff),
-          competition: danishLeagueName(g.league.name) ?? g.league.name,
+          competition: danishLeagueName(g.league.name, g.league.country) ?? g.league.name,
           home: nameOf(g.home.id, g.home.name),
           away: nameOf(g.away.id, g.away.name),
           homeScore: g.homeScore ?? 0,
