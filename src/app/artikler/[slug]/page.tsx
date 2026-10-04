@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { photoCredits, withPhotoCredits } from '../../../lib/photos/server'
 import { articleBySlug, articleBySlugAny, categoryName, cleanHtml, plainText, publishedArticles, readingMinutes } from '../../../lib/articles'
 import { slugify } from '../../../lib/slug'
-import { JsonLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
+import { JsonLd, articleFaqLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
 import { SITE_NAME, SITE_URL, paths } from '../../../lib/site'
 import { feedPath } from '../../../lib/articleFeed'
 import { formatLong, formatTime } from '../../../lib/time'
@@ -110,6 +110,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           { name: a.title, path: paths.article(a.slug) },
         ])}
       />
+      {articleFaqLd(html) && <JsonLd data={articleFaqLd(html)!} />}
       <header className="article-hero">
         <span className="article-hero__m" aria-hidden="true">
           M

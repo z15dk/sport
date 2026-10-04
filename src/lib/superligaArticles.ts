@@ -1015,6 +1015,18 @@ export function superligaFacts(): { text?: string; error?: string } {
   }
 
   line()
+  line('## Målet: Google og AI-svar')
+  line('Artiklen skal få os højt på Google og gøre os til den kilde, Googles AI (og andre svarmaskiner) citerer. Derfor:')
+  line('- Vælg ét fokus-søgeord, folk faktisk søger på (fx "superliga top 6", "hvornår deles superligaen", "superliga topscorer 2026", "fck brøndby"), og brug det i rubrik, første afsnit, en mellemrubrik og metabeskrivelsen.')
+  line('- Svar først: første afsnit giver det direkte svar i én-to selvstændige sætninger med navne, tal og dato, så de kan citeres alene.')
+  line('- Mellemrubrikker som de spørgsmål, folk stiller ("Hvem rykker ned?", "Hvornår spilles derbyet?"), med svaret i første sætning under.')
+  line('- "Spørgsmål og svar" til sidst med h3-spørgsmål (bliver til FAQ-data for Google automatisk).')
+  line('- Skriv dato og sæson ("efter 11. runde, 4. oktober 2026"), så teksten er tydeligt frisk – og opdatér artiklen, når tallene ændrer sig.')
+  line('- Links til klubsider, kampsider og ligasiden (adresserne står herover), og forslag til SEO-titel (under 60 tegn) og metabeskrivelse (under 155 tegn).')
+  line()
+  line('## Det behøver ikke være statistik')
+  line('Tallene er grundlaget, men artiklen kan lige så godt være: optakt til rundens store kamp, efterskrift/kampreferat med analyse, "hvad betyder resultatet", portræt af en spiller i form, trænerskifte eller transfernyt sat i perspektiv, guide ("Sådan fungerer Superligaens slutspil", "Hvor kan man se Superligaen i TV"), derby-historik, kommentar/analyse ("Derfor er X i krise"). Vælg den vinkel, der svarer på det, folk søger på lige nu.')
+  line()
   line('## Krav til artiklen')
   line('Nyhedsartikel: fængende rubrik med sæson og runde, fed indledning med det vigtigste først, korte mellemrubrikker uden numre, faktaboks, spørgsmål og svar til sidst. Menneskeligt sportssprog, ingen gentagelser, kun tallene herover, tal til og med tolv med bogstaver, tabeller med højst 5 kolonner, links til klub- og kampsider, næste kamp med tid og TV. Beregninger mærkes som beregning.')
   line('Søg gerne efter seneste nyt om klubberne (skader, karantæner, trænerskifter, transfers, udtalelser), hvis det er relevant for artiklen – kun nyheder fra troværdige medier, der kan bekræftes, og aldrig i stedet for tallene herover.')
