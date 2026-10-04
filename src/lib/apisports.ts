@@ -1830,6 +1830,36 @@ export function teamLogos(): Map<string, string> {
   return map
 }
 
+/**
+ * A football club's logo from the games of its own league (by the source's league id): for a club our logo source has
+ * nothing for (Bodø/Glimt had its logo in the Champions League table, but initials on its own page). By one of the club's
+ * names, else the one team of the league that is alike.
+ */
+export function apiClubLogo(leagueId: string, names: string[]): string | undefined {
+  load()
+  const holder = mem as typeof mem & { leagueLogos?: { version: string; byLeague: Map<string, Map<string, string>> } }
+  const version = `${mem.mtime}|${logoCheckVersion()}`
+  if (holder.leagueLogos?.version !== version) {
+    const byLeague = new Map<string, Map<string, string>>()
+    const s = mem.store.football
+    for (const g of s ? [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()] : []) {
+      const id = String(g.league.id)
+      const teams = byLeague.get(id) ?? byLeague.set(id, new Map()).get(id)!
+      for (const t of [g.home, g.away]) {
+        if (teams.has(t.name)) continue
+        const logo = realLogo(t.logo)
+        if (logo) teams.set(t.name, logo)
+      }
+    }
+    holder.leagueLogos = { version, byLeague }
+  }
+  const teams = holder.leagueLogos.byLeague.get(String(leagueId))
+  if (!teams) return undefined
+  for (const n of names) if (teams.has(n)) return teams.get(n)
+  const found = [...teams.entries()].filter(([name]) => alike(names, name))
+  return found.length === 1 ? found[0][1] : undefined
+}
+
 /** Every logo address API-Sports has given, today's games first (for the placeholder check) */
 export function apiSportsLogoUrls(): string[] {
   load()

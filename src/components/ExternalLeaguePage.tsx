@@ -52,6 +52,12 @@ interface Props {
 }
 
 /** A page for one of API-Sports' leagues: table, latest results and coming matches */
+/** A single table longer than this shows only its first rows, the rest behind "Vis alle … hold" */
+const FOLD_OVER = 20
+const FOLD_ROWS = 12
+/** UEFA's tournaments with a league phase of 36 teams (the source's ids): Champions League, Europa League, Conference League */
+const UEFA_LEAGUE_PHASE = new Set(['2', '3', '848'])
+
 export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, bracket, leaders, stats, news }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
@@ -67,9 +73,15 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
               <h2 className="panel__title">Stilling</h2>
             </header>
             {rows.length > 1 ? (
-              groups.map((group, gi) => (
-                <div key={gi} className="table-wrap">
+              groups.map((group, gi) => {
+                // A long table (the Champions League's league phase is one table of 36) shows its top, the rest behind a button
+                const fold = groups.length === 1 && group.length > FOLD_OVER
+                // UEFA's league phase: 1–8 straight to the round of 16, 9–24 to the play-off, the rest out
+                const phase = league.api === 'football' && UEFA_LEAGUE_PHASE.has(String(league.id)) && group.length === 36
+                return (
+                <div key={gi} className={fold ? 'table-wrap table-fold' : 'table-wrap'}>
                   {groups.length > 1 && group[0]?.group && <h3 className="table-group">{group[0].group}</h3>}
+                  {fold && <input type="checkbox" id={`table-fold-${gi}`} className="table-fold__toggle" aria-label={`Vis alle ${group.length} hold`} />}
                   <table className="table table--compact">
                     <thead>
                       <tr>
@@ -84,17 +96,22 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                       </tr>
                     </thead>
                     <tbody>
-                      {group.map((r) => (
-                        <tr key={`${r.rank}-${r.name}`} className={baseline?.splitAfter === r.rank ? 'is-split' : undefined}>
+                      {group.map((r, ri) => (
+                        <tr
+                          key={`${r.rank}-${r.name}`}
+                          className={[baseline?.splitAfter === r.rank || (phase && (ri === 7 || ri === 23)) ? 'is-split' : '', fold && ri >= FOLD_ROWS ? 'is-folded' : ''].filter(Boolean).join(' ') || undefined}
+                        >
                           <td className="num pos">{r.rank}</td>
                           <td>
                             {(() => {
                               // Linked to the team's own page in this league (not a men's club of the same name)
                               const team = teamInLeague(league.key, r.name, league.sport)
+                              // One of our own clubs under our name for it ("Bodø/Glimt", not the source's "Bodo/Glimt")
+                              const name = team?.season ? team.name : r.name
                               return (
                                 <span className="table__club">
-                                  <TeamBadge link={false} name={r.name} src={r.logo ?? team?.logo} size={20} />
-                                  {team ? <Link href={paths.club(team.slug)}>{r.name}</Link> : r.name}
+                                  <TeamBadge link={false} name={name} src={r.logo ?? team?.logo} size={20} />
+                                  {team ? <Link href={paths.club(team.slug)}>{name}</Link> : name}
                                 </span>
                               )
                             })()}
@@ -113,8 +130,16 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
                       ))}
                     </tbody>
                   </table>
+                  {phase && <p className="muted small table-fold__note">Nr. 1–8 går direkte i ottendedelsfinalerne, nr. 9–24 spiller playoff om de sidste pladser, og nr. 25–36 er ude.</p>}
+                  {fold && (
+                    <label htmlFor={`table-fold-${gi}`} className="pill table-fold__more">
+                      <span className="table-fold__open">Vis alle {group.length} hold</span>
+                      <span className="table-fold__close">Vis færre</span>
+                    </label>
+                  )}
                 </div>
-              ))
+                )
+              })
             ) : (
               <p className="muted pad">Vi har endnu ikke nok spillede kampe til en stilling. Den bygges op for hver spillerunde.</p>
             )}

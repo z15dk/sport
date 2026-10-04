@@ -3,13 +3,14 @@ import { runsJobs } from './role'
 import { proxyImage } from './imageProxy'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { DIVISIONS, allClubs } from '../data/leagues'
+import { DIVISIONS, allClubs, sportOf } from '../data/leagues'
 import { slugify } from './slug'
 import { API_KEY, cacheDir, requestCount, tsdb } from './tsdb'
 import { customLogoUrl } from './customLogos'
 import { seasonClubs } from '../data/season'
 import { channelData } from './channels'
-import { SEARCH_NAMES, normalize } from '../data/aliases'
+import { SEARCH_NAMES, clubNames, normalize } from '../data/aliases'
+import { apiClubLogo, apiLeagueIdOf } from './apisports'
 
 // Club and league logos.
 //
@@ -319,6 +320,13 @@ export async function getBadges(): Promise<Record<string, string>> {
   // Clubs renamed in the admin pages keep the logo found under their original name
   for (const { club } of everyClub()) {
     if (club.originalName && club.originalName !== club.name && !all[club.name] && all[club.originalName]) all[club.name] = all[club.originalName]
+  }
+  // A football club none of them has a logo for: the logo from the match data of its own league
+  for (const { club, division } of everyClub()) {
+    if (all[club.name] || sportOf(division) !== 'soccer') continue
+    const league = apiLeagueIdOf(division.id)
+    const logo = league ? apiClubLogo(league, clubNames(club)) : undefined
+    if (logo) all[club.name] = logo
   }
   // TheSportsDB's pictures through our own domain (the source can't be seen in the page)
   for (const [k, v] of Object.entries(all)) all[k] = proxyImage(v)
