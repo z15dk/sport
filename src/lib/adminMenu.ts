@@ -37,6 +37,7 @@ const SOCIAL = [
 const ARTICLES = [
   { href: '/admin/artikler', label: 'Alle artikler' },
   { href: '/admin/artikler/optakter', label: 'Optakter' },
+  { href: '/admin/artikler/superliga', label: 'Superliga-artikler' },
 ]
 export const ADMIN_MENU: AdminMenuItem[] = [
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
