@@ -97,6 +97,32 @@ export function adTurnCss(): string {
   return rules.join('')
 }
 
+/**
+ * A banner's number on the page, for "{nr}" in its code: 0 for the top banner, 1, 2, 3 … for the
+ * banners down the match list (their own running number), and numbers from the other end for the
+ * rest (side -1, content -2, the full-screen one -3; a second one of the same kind three further on),
+ * so a banner keeps its number when more of the list is drawn and none of them meet early.
+ */
+export function bannerNumber(placement: string, index = 0, nthOfKind = 0): number {
+  if (placement === 'top') return 0
+  if (placement === 'feed') return Math.max(1, index)
+  return (placement === 'side' ? -1 : placement === 'content' ? -2 : -3) - 3 * Math.max(0, nthOfKind)
+}
+
+/**
+ * An ad's code with the banner's number written in (bannerNumber): "{nr:6}" counts 0–5 and starts
+ * over (the numbers from the other end become 5, 4, 3); a plain "{nr}" is the number itself (101,
+ * 102 … for those from the other end). For an advertiser whose address takes a number for which
+ * product to show (".../728x90.png?p={nr:6}" and the same in the link), so the banners on a page
+ * show different products instead of the same one everywhere.
+ */
+export function numberedCode(code: string, n: number): string {
+  return code.replace(/\{nr(?::(\d+))?\}/g, (_, wrap?: string) => {
+    const w = Number(wrap ?? 0)
+    return String(w > 0 ? ((n % w) + w) % w : n >= 0 ? n : 100 - n)
+  })
+}
+
 export interface AdsConfig {
   slots: Partial<Record<AdPlacementId, AdSlotConfig>>
   /** Code loaded once on every page (e.g. an ad network's main script) */
