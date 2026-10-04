@@ -17,13 +17,15 @@ import { loadRealData } from './realdata'
 import { pastGameIndexable, pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
 import { tvLeagues } from './tv'
+import { newsSitemapXml } from './articleFeed'
 import { divisionOfGame } from '../data/ourLeagues'
 import { SPORTS } from '../sports'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
 // tournaments, clubs, articles) and /sitemaps/kampe-<n>.xml (every match with a
 // page: the whole season in our leagues, cups, Champions League, every other
-// stored game and the older matches of the match database and statistics bank), at most 40,000 addresses per file (Google's limit is 50,000).
+// stored game and the older matches of the match database and statistics bank), at most 40,000 addresses per file (Google's limit is 50,000),
+// plus /sitemaps/nyheder.xml (Google News sitemap: the articles of the last two days, made on request, src/lib/articleFeed.ts).
 
 export interface SitemapEntry {
   path: string
@@ -74,6 +76,7 @@ export function pageEntries(): SitemapEntry[] {
 
 const dir = () => process.env.SITEMAP_DIR ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'sitemaps')
 const INDEX = 'sitemap.xml'
+const NEWS = 'nyheder.xml'
 let files = new Map<string, string>()
 let building: Promise<void> | undefined
 
@@ -134,7 +137,7 @@ export function buildSitemaps(): Promise<void> {
       out.set('sider.xml', urlsetXml(pages))
       const count = Math.max(1, Math.ceil(matches.length / PER_FILE))
       for (let i = 0; i < count; i++) out.set(`kampe-${i + 1}.xml`, urlsetXml(matches.slice(i * PER_FILE, (i + 1) * PER_FILE)))
-      out.set(INDEX, indexXml([...out.keys()]))
+      out.set(INDEX, indexXml([...out.keys(), NEWS]))
       files = out
       try {
         mkdirSync(dir(), { recursive: true })
@@ -154,8 +157,10 @@ export function buildSitemaps(): Promise<void> {
   return building
 }
 
-/** A file of the sitemap ("sitemap.xml", "sider.xml", "kampe-1.xml"): as made last, from memory or disk, else made now */
+/** A file of the sitemap ("sitemap.xml", "sider.xml", "kampe-1.xml", "nyheder.xml"): as made last, from memory or disk, else made now */
 export async function sitemapFile(name: string): Promise<string | undefined> {
+  // The news sitemap must be fresh (an article is news for two days), and it is one cheap query
+  if (name === NEWS) return newsSitemapXml()
   if (!/^(sitemap|sider|kampe-\d+)\.xml$/.test(name)) return undefined
   const kept = files.get(name)
   if (kept) return kept

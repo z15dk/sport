@@ -24,7 +24,7 @@
 .adv-format__draw .is-sponsor { left: 10%; right: 10%; top: 28px; height: 36px; background: var(--ink); color: var(--lime); }
 .adv-format__draw em { position: absolute; left: 10%; right: 10%; height: 6px; border-radius: 3px; background: rgba(15, 17, 12, 0.08); }
 
-.adv-two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 12px; align-items: start; }
+.adv-two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 12px; align-items: stretch; }
 .adv-panel { padding: 22px; }
 .adv-panel h2 { margin: 0 0 10px; }
 .adv-panel p, .adv-panel li { line-height: 1.55; color: var(--ink-2); }

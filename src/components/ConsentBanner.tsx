@@ -13,9 +13,7 @@ import { usePathname } from 'next/navigation'
 // the trackers' cookies and reloads the page. Logged-in admins (the bar's flag cookie) are
 // neither asked nor counted.
 
-const KEY = 'matchly_consent'
-const VERSION = 1
-const MAX_AGE = 365 * 86_400_000
+import { CONSENT_KEY as KEY, CONSENT_MAX_AGE as MAX_AGE, CONSENT_VERSION as VERSION } from '../lib/consentScript'
 export const OPEN_CONSENT = 'matchly:consent'
 
 interface Choice {
@@ -108,7 +106,8 @@ function clearTrackerCookies() {
 
 export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: string }) {
   const path = usePathname()
-  const [open, setOpen] = useState(false)
+  // Open from the server when there are trackers to ask about: hidden by CONSENT_DONE_SCRIPT, and closed here, once a choice is made
+  const [open, setOpen] = useState(!!(ga || metaPixel))
   const [details, setDetails] = useState(false)
   const [stats, setStats] = useState(false)
   const [marketing, setMarketing] = useState(false)
@@ -126,12 +125,19 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
   )
 
   useEffect(() => {
-    if (!any || isAdminBrowser()) return
+    if (!any || isAdminBrowser()) {
+      setOpen(false)
+      return
+    }
     const c = readChoice()
     choice.current = c
-    if (c) apply(c)
-    else setOpen(true)
+    if (c) {
+      setOpen(false)
+      apply(c)
+    } else setOpen(true)
     const reopen = () => {
+      // The class from the head script would hide the banner opened again
+      document.documentElement.classList.remove('consent-done')
       const now = readChoice()
       setStats(!!now?.stats)
       setMarketing(!!now?.marketing)
@@ -177,9 +183,10 @@ export function ConsentBanner({ ga, metaPixel }: { ga?: string; metaPixel?: stri
   return (
     <div className="consent" role="dialog" aria-modal="false" aria-labelledby="consent-title">
       <div className="consent__box">
-        <span className="consent__m" aria-hidden>
-          M
-        </span>
+        {/* Matchly's M drawn as a shape, not text: a decoration must not count as the page's largest content (LCP), nor wait for the font */}
+        <svg className="consent__m" aria-hidden viewBox="0 0 240 230">
+          <path d="M2 226 V6 H66 L110 104 L154 6 H218 V226 H164 V100 L124 186 H96 L56 100 V226 Z" transform="skewX(-11) translate(40 0)" />
+        </svg>
         <h2 id="consent-title">
           Må vi bruge <em>cookies?</em>
         </h2>

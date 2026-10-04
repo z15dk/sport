@@ -181,6 +181,12 @@ export function articleBySlug(slug: string): Article | undefined {
   return article && isLive(article) ? article : undefined
 }
 
+/** Any article by its address, also drafts and scheduled ones (the admin's preview) */
+export function articleBySlugAny(slug: string): Article | undefined {
+  const a = open((db) => db.prepare('SELECT * FROM articles WHERE slug = ?').get(slug), undefined as Row | undefined)
+  return a && toArticle(a)
+}
+
 /** Any article by id (admin) */
 export function articleById(id: number): Article | undefined {
   const r = open((db) => db.prepare('SELECT * FROM articles WHERE id = ?').get(id), undefined as Row | undefined)

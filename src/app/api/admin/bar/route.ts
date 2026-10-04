@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { BAR_COOKIE, isAdmin } from '../../../../lib/admin'
-import { visitStats } from '../../../../lib/visits'
+import { liveVisitors, visitStats } from '../../../../lib/visits'
 import { articleBySlug } from '../../../../lib/articles'
 import { clubBySlug } from '../../../../data/leagues'
 
@@ -57,7 +57,10 @@ export async function GET(request: Request) {
     ;(await cookies()).delete(BAR_COOKIE)
     return Response.json({ admin: false }, { status: 401, headers: { 'cache-control': 'no-store' } })
   }
-  const path = new URL(request.url).searchParams.get('sti') ?? '/'
+  const url = new URL(request.url)
+  // The list behind "N nu": who is on which page right now
+  if (url.searchParams.get('live') === '1') return Response.json({ admin: true, ...liveVisitors(5) }, { headers: { 'cache-control': 'no-store' } })
+  const path = url.searchParams.get('sti') ?? '/'
   const v = visitors()
   return Response.json({ admin: true, now: v.now, today: v.today, edit: editLinks(path) }, { headers: { 'cache-control': 'no-store' } })
 }

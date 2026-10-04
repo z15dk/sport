@@ -1,3 +1,5 @@
+import { englishNation, foldCountry } from './countries'
+
 // English country names (as our sources write them, folded: lower case, no accents,
 // "&" as "and") to flag codes at flagcdn.com. A fixed list (not the browser's own
 // country names), so server and browser find the same flag. From the ISO region
@@ -104,7 +106,7 @@ export const FLAG_CODES: Record<string, string> = {
   "gabon": 'ga',
   "gambia": 'gm',
   "georgia": 'ge',
-  "germany": 'dd',
+  "germany": 'de',
   "ghana": 'gh',
   "gibraltar": 'gi',
   "greece": 'gr',
@@ -182,7 +184,7 @@ export const FLAG_CODES: Record<string, string> = {
   "morocco": 'ma',
   "mozambique": 'mz',
   "myanmar": 'mm',
-  "myanmar (burma)": 'bu',
+  "myanmar (burma)": 'mm',
   "namibia": 'na',
   "nauru": 'nr',
   "nepal": 'np',
@@ -231,7 +233,7 @@ export const FLAG_CODES: Record<string, string> = {
   "saudi arabia": 'sa',
   "scotland": 'gb-sct',
   "senegal": 'sn',
-  "serbia": 'cs',
+  "serbia": 'rs',
   "seychelles": 'sc',
   "sierra leone": 'sl',
   "singapore": 'sg',
@@ -291,23 +293,22 @@ export const FLAG_CODES: Record<string, string> = {
   "us virgin islands": 'vi',
   "usa": 'us',
   "uzbekistan": 'uz',
-  "vanuatu": 'nh',
+  "vanuatu": 'vu',
   "vatican city": 'va',
   "venezuela": 've',
   "vietnam": 'vn',
   "wales": 'gb-wls',
   "wallis and futuna": 'wf',
   "western sahara": 'eh',
-  "yemen": 'yd',
+  "yemen": 'ye',
   "zambia": 'zm',
-  "zimbabwe": 'rh',
+  "zimbabwe": 'zw',
 }
 
-export const foldCountry = (s: string) =>
-  s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'").replace(/&/g, 'and').replace(/\s+/g, ' ').trim()
+export { foldCountry }
 
-/** "France U21" -> "france", with the kind of team it is */
-const TEAM = /^(.*?)(?:\s+(?:u-?\d{2}|w|women|olympic|olympics|b))?$/i
+/** "France U21" -> "france", with the kind of team it is (also as we show it: "Frankrig U21 (K)", "Brasilien OL") */
+const TEAM = /^(.*?)((?:\s+(?:u-?\d{2}|w|women|olympic|olympics|ol|b|\(k\)))*)$/i
 
 /**
  * The flag code for a national team's name, or nothing. With `national` the
@@ -319,7 +320,9 @@ export function flagCode(name: string, national = false): string | undefined {
   if (!m) return undefined
   const suffixed = m[1].length < name.trim().length
   if (!suffixed && !national) return undefined
-  const country = foldCountry(m[1])
+  // Also by the Danish name we show ("Skotland U21", "Danmark (K)")
+  const folded = foldCountry(m[1])
+  const country = folded in FLAG_CODES ? folded : (englishNation(folded) ?? folded)
   // "Saint Lucia" and "St. Lucia" are the same country
   return FLAG_CODES[country] ?? FLAG_CODES[country.replace(/^saint /, 'st. ')] ?? FLAG_CODES[country.replace(/^st\.? /, 'saint ')]
 }

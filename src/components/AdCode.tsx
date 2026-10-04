@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { bannerNumber, numberedCode } from '../data/ads'
 
 // An ad network's code from /admin/reklamer, run in the browser: the HTML is laid
 // into the box and every <script> in it is made anew, so the browser runs it
@@ -21,6 +22,15 @@ function run(target: HTMLElement, code: string) {
   return nodes
 }
 
+/** The number "{nr}" in the code stands for: the banner's own on the page (bannerNumber in src/data/ads.ts), so each can ask its advertiser for another product */
+function numberOf(el: HTMLElement): number {
+  const box = el.closest<HTMLElement>('[data-ad-placement]')
+  const placement = box?.dataset.adPlacement ?? 'scroll'
+  const index = Number(/-(\d+)$/.exec(box?.id ?? '')?.[1] ?? 0)
+  const nth = box ? Array.from(document.querySelectorAll(`[data-ad-placement="${placement}"]`)).indexOf(box) : 0
+  return bannerNumber(placement, index, nth)
+}
+
 /**
  * A placement's code. On a placement shared by several advertisers (`turn` = its place in the
  * rotation) it runs only when it is the visit's banner – the others stay hidden and never load.
@@ -32,7 +42,7 @@ export function AdCode({ code, turn }: { code: string; turn?: number }) {
     if (!el) return
     if (turn !== undefined && getComputedStyle(el).display === 'none') return
     el.replaceChildren()
-    run(el, code)
+    run(el, code.includes('{nr') ? numberedCode(code, numberOf(el)) : code)
     return () => el.replaceChildren()
   }, [code, turn])
   return <div ref={ref} className="ad__code" data-ad-i={turn} />

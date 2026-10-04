@@ -32,7 +32,7 @@ export const SETTINGS = [
     group: 'Søgemaskiner',
     label: 'Synlig for Google og andre søgemaskiner',
     description:
-      'Fra: alle sider er mærket "noindex", og robots.txt lukker søgemaskinerne ude. Til: siderne må indekseres, sitemap.xml meldes i robots.txt, og Bing (og dermed ChatGPT og Copilot) får automatisk besked via IndexNow, når kampe slutter. Slås også til med SITE_INDEXABLE=true på serveren.',
+      'Fra: alle sider er mærket "noindex", og robots.txt lukker søgemaskinerne ude. Til: siderne må indekseres, sitemap.xml meldes i robots.txt, og Bing (og dermed ChatGPT og Copilot) får automatisk besked via IndexNow, når kampe slutter, og når artikler udgives eller rettes. Slås også til med SITE_INDEXABLE=true på serveren.',
     default: false,
   },
   {

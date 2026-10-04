@@ -27,7 +27,7 @@ function TeamEvents({ incidents, side }: { incidents?: Incident[]; side: Inciden
       )}
       {reds.length > 0 && (
         <span className="team__red" title={reds.map((r) => `${r.minute}' ${r.player ?? ''}`.trim()).join(', ')}>
-          <span className="red-card" aria-label="Rødt kort" /> {reds.map((r) => `${r.minute}'`).join(' ')}
+          <span className="red-card" role="img" aria-label="Rødt kort" /> {reds.map((r) => `${r.minute}'`).join(' ')}
         </span>
       )}
     </span>

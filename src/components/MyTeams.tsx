@@ -8,7 +8,7 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { teamBySlug } from '../data/teams'
 import { clubMatches, externalMatch } from '../data/matches'
 import { clubStats } from '../data/matchInsights'
-import { seasonClubs } from '../data/season'
+import { seasonClub, seasonClubs } from '../data/season'
 import { getRealData } from '../data/real'
 import { outcomeFor } from '../lib/result'
 import { paths } from '../lib/site'
@@ -35,8 +35,12 @@ function matchesOf(slug: string, now: number, followed: Followed): { name: strin
   const team = teamBySlug(slug)
   if (!team) return undefined
   if (team.season) {
-    const stats = clubStats(team.name, now)
-    return { name: team.name, matches: clubMatches(team.name, now), place: stats ? `${stats.position}. plads i ${stats.division.name}` : undefined }
+    // The place from the server (the browser has only part of the season), else worked out here
+    const given = getRealData()?.positions?.[team.name]
+    const division = seasonClub(team.name)?.division
+    const stats = given || !division ? undefined : clubStats(team.name, now)
+    const place = given && division ? `${given}. plads i ${division.name}` : stats ? `${stats.position}. plads i ${stats.division.name}` : undefined
+    return { name: team.name, matches: clubMatches(team.name, now), place }
   }
   const fromServer = followed[slug]
   if (fromServer) return { name: team.name, matches: fromServer.matches, place: team.league, logo: fromServer.logo ?? team.logo }
@@ -138,6 +142,8 @@ export function MyTeams({ now }: { now: number }) {
     if (hintHidden) return null
     const suggestions = seasonClubs()
       .filter(({ division }) => division.id === 'superliga')
+      // By name: the same on the server and in the browser (which has only part of the season)
+      .sort((a, b) => a.club.name.localeCompare(b.club.name, 'da'))
       .slice(0, 12)
     if (!suggestions.length) return null
     return (

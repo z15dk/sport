@@ -56,7 +56,7 @@ export function isKnockout(rounds: (string | undefined)[]): boolean {
 
 const key = (name: string) => normalize(name) || name.toLowerCase()
 /** A women's team without the " W" every team in a women's tournament has */
-const shown = (name: string) => name.replace(/\s+(w|women)$/i, '').trim() || name
+const shown = (name: string) => name.replace(/\s+(w|women|\(k\))$/i, '').trim() || name
 
 export function buildBracket(games: BracketGame[]): BracketRound[] {
   // By round, rounds in the order they were played

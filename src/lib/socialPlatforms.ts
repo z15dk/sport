@@ -3,7 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SITE_URL } from './site'
-import { imageDir, saveSecrets, socialHandles, socialSecrets, type Metrics, type Platform, type SocialSecrets, type Surface } from './socialStore'
+import { STORY_PLATFORMS, imageDir, saveSecrets, socialHandles, socialSecrets, type Metrics, type Platform, type SocialSecrets, type Surface } from './socialStore'
 
 // Posting to Facebook (a Page), Instagram (a Business/Creator account linked to
 // the Page), Threads and X through their official APIs, with the keys typed in
@@ -106,9 +106,44 @@ function cut(text: string, max: number) {
   return `${out}…`
 }
 
+// ---------------------------------------------------------------- Facebook through Make
+
+/** Facebook goes through Make.com when its webhook is set and the Page isn't connected directly */
+export const viaMake = (s: SocialSecrets) => !(s.meta.pageId && s.meta.pageToken) && !!s.make.url
+
+/** Whether a platform takes stories (not Facebook through Make: its Facebook module posts to the feed only) */
+export const storyOk = (platform: Platform, s = socialSecrets()) => STORY_PLATFORMS.includes(platform) && !(platform === 'facebook' && viaMake(s))
+
+/**
+ * Sends the post to the Make scenario, which posts it on the Page with Make's own Facebook connection.
+ * `photos` is the pictures as Make's Facebook "Create a Post with Photos" module maps them ({ type: 'url', url } – "Image input type" set to a link); `image` the
+ * first one for "Upload a Photo". A "Webhook response" module may answer { "id", "url" }.
+ */
+async function makeHook(s: SocialSecrets, payload: Record<string, unknown>) {
+  const res = await fetch(s.make.url!, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(30_000) })
+  const text = await res.text()
+  if (!res.ok) throw new ApiError(`Make svarede ${res.status}: ${text.slice(0, 200)}`)
+  try {
+    const j = JSON.parse(text) as { id?: unknown; url?: unknown }
+    return { id: typeof j.id === 'string' ? j.id : `make-${Date.now()}`, url: typeof j.url === 'string' ? j.url : undefined }
+  } catch {
+    // Make's plain "Accepted": the scenario has it
+    return { id: `make-${Date.now()}` }
+  }
+}
+
+const makePayload = (type: 'post' | 'test', caption: string, files: string[]) => {
+  const images = files.map((f) => imageUrl(f))
+  return { type, platform: 'facebook', text: caption, image: images[0], imageCount: images.length, images, photos: images.map((url) => ({ type: 'url', url })) }
+}
+
 // ---------------------------------------------------------------- Facebook
 
 async function facebook(s: SocialSecrets, surface: Surface, files: string[], caption: string) {
+  if (viaMake(s)) {
+    if (surface === 'story') throw new ApiError('Stories kan ikke postes gennem Make')
+    return makeHook(s, makePayload('post', caption, files))
+  }
   const { pageId, pageToken } = s.meta
   if (!pageId || !pageToken) throw new ApiError('Facebook-siden er ikke forbundet')
   const photo = (file: string, published: boolean, message?: string) =>
@@ -307,6 +342,8 @@ async function metricsOf(url: string, metrics: string[], token: string) {
 /** The post's numbers so far (what the platform gives; X only on a paid API plan) */
 export async function fetchMetrics(platform: Platform, surface: Surface, id: string): Promise<Metrics | undefined> {
   const s = socialSecrets()
+  // Posts sent through Make give us no id at Facebook, so no numbers
+  if (platform === 'facebook' && viaMake(s)) return undefined
   switch (platform) {
     case 'facebook': {
       const token = s.meta.pageToken
@@ -426,6 +463,12 @@ export async function testPlatform(platform: Platform): Promise<string> {
   const s = socialSecrets()
   switch (platform) {
     case 'facebook': {
+      if (viaMake(s)) {
+        // A sample post marked "test", for Make to learn the data's structure (the scenario's filter keeps it from being posted);
+        // two pictures, so Make sees photos as a list and the whole list is mapped – not just the first
+        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg']))
+        return 'Eksemplet er sendt til Make'
+      }
       if (!s.meta.pageToken) throw new ApiError('Ikke forbundet')
       const r = await get<{ name: string }>(`${GRAPH}/${s.meta.pageId}`, { fields: 'name', access_token: s.meta.pageToken })
       return `Forbundet til siden ${r.name}`
@@ -452,7 +495,7 @@ export async function testPlatform(platform: Platform): Promise<string> {
 export function connected(platform: Platform, s = socialSecrets()): boolean {
   switch (platform) {
     case 'facebook':
-      return !!(s.meta.pageId && s.meta.pageToken)
+      return !!(s.meta.pageId && s.meta.pageToken) || !!s.make.url
     case 'instagram':
       return !!(s.meta.igUserId && s.meta.pageToken)
     case 'threads':

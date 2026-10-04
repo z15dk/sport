@@ -154,7 +154,7 @@ export function badgeInitials(name: string) {
 
 /** The country a national team's name stands for, when we have its flag ("Netherlands W" -> "Holland") */
 function nationOf(name: string): string | undefined {
-  const plain = name.replace(/\s+(w|women|u\s?\d{2})$/i, '').trim()
+  const plain = name.replace(/(\s+(w|women|u\s?\d{2}|ol|\(k\)))+$/i, '').trim()
   const country = danishCountry(plain)
   return hasFlag(country) ? country : hasFlag(plain) ? plain : undefined
 }

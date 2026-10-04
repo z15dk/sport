@@ -5,6 +5,7 @@ import { allTags, categories, publishedArticles } from '../../../../lib/articles
 import { ArticleCards, Pager } from '../../../../components/ArticleList'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../../../lib/jsonld'
 import { paths } from '../../../../lib/site'
+import { feedPath } from '../../../../lib/articleFeed'
 
 export const dynamic = 'force-dynamic'
 const PER_PAGE = 12
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: KIND === 'kategori' ? `${name} – artikler` : `Artikler om ${name}`,
     description: `Alle Matchlys artikler ${KIND === 'kategori' ? 'i kategorien' : 'om'} ${name}.`,
-    alternates: { canonical: pathOf(slug) },
+    alternates: { canonical: pathOf(slug), types: { 'application/rss+xml': feedPath() } },
   }
 }
 

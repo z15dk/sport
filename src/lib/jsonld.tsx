@@ -3,7 +3,7 @@ import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
 import type { TeamEntry } from '../data/teams'
 import { sportById } from '../sports'
-import { SITE_NAME, SITE_URL, paths } from './site'
+import { SITE_NAME, SITE_URL, paths, SOCIAL_PROFILES } from './site'
 
 // schema.org structured data, read by search engines and AI assistants.
 
@@ -162,6 +162,7 @@ export function organizationLd() {
     description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
     areaServed: ['DK', 'DE', 'GB', 'ES', 'PT', 'SE', 'NO'],
     knowsLanguage: 'da',
+    sameAs: Object.values(SOCIAL_PROFILES),
   }
 }
 
@@ -190,5 +191,38 @@ export function matchListLd(name: string, matches: Match[]) {
       url: `${SITE_URL}${paths.match(m.slug)}`,
       name: `${m.home.name} – ${m.away.name}`,
     })),
+  }
+}
+
+const textOf = (html: string) =>
+  html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+/**
+ * The article's questions and answers (FAQPage) for search engines and AI answers: the section under an
+ * h2 called "Spørgsmål og svar" / "FAQ" / "Ofte stillede spørgsmål", each h3 a question and the text
+ * after it (until the next h3 or h2) the answer. Nothing without at least one pair.
+ */
+export function articleFaqLd(html: string) {
+  const start = /<h2[^>]*>[^<]*(spørgsmål|faq|ofte stillede)[^<]*<\/h2>/i.exec(html)
+  if (!start) return undefined
+  const rest = html.slice(start.index + start[0].length)
+  const section = rest.split(/<h2[\s>]/i)[0]
+  const items = [...section.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3[\s>]|$)/gi)]
+    .map((m) => ({ q: textOf(m[1]), a: textOf(m[2]) }))
+    .filter((x) => x.q && x.a)
+  if (!items.length) return undefined
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((x) => ({ '@type': 'Question', name: x.q, acceptedAnswer: { '@type': 'Answer', text: x.a } })),
   }
 }

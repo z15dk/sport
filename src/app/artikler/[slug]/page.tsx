@@ -2,16 +2,20 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { photoCredits, withPhotoCredits } from '../../../lib/photos/server'
-import { articleBySlug, categoryName, cleanHtml, plainText, publishedArticles, readingMinutes } from '../../../lib/articles'
+import { articleBySlug, articleBySlugAny, categoryName, cleanHtml, plainText, publishedArticles, readingMinutes } from '../../../lib/articles'
 import { slugify } from '../../../lib/slug'
-import { JsonLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
+import { JsonLd, articleFaqLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
 import { SITE_NAME, SITE_URL, paths } from '../../../lib/site'
+import { feedPath } from '../../../lib/articleFeed'
 import { formatLong, formatTime } from '../../../lib/time'
 import { ArticleCards } from '../../../components/ArticleList'
 import { AdSlot } from '../../../components/AdSlot'
 import { ArticleSide, articleSubject } from '../../../components/ArticleSide'
 import { ShareRow } from '../../../components/ShareRow'
 import { loadRealData } from '../../../lib/realdata'
+import { isAdmin } from '../../../lib/admin'
+import { expandWidgets, markNumberColumns } from '../../../lib/articleEmbeds'
+import Script from 'next/script'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,14 +29,25 @@ const shareImage = (featured?: string) => {
   return m ? `/delingsbillede/${m[1]}.jpg` : featured && /^https?:\/\//.test(featured) ? featured : '/opengraph-image'
 }
 
+/** The live article, or for a logged-in admin also a draft or a scheduled one (a preview, never indexed) */
+async function load(slug: string): Promise<{ a: ReturnType<typeof articleBySlugAny> & {}; preview: boolean } | undefined> {
+  const live = articleBySlug(slug)
+  if (live) return { a: live, preview: false }
+  if (!(await isAdmin())) return undefined
+  const any = articleBySlugAny(slug)
+  return any && { a: any, preview: true }
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const a = articleBySlug((await params).slug)
-  if (!a) return { title: 'Artikel' }
+  const found = await load((await params).slug)
+  if (!found) return { title: 'Artikel' }
+  const { a } = found
+  if (found.preview) return { title: `Forhåndsvisning: ${a.seoTitle || a.title}`, robots: { index: false, follow: false } }
   const description = describe(a)
   return {
     title: a.seoTitle || a.title,
     description,
-    alternates: { canonical: paths.article(a.slug) },
+    alternates: { canonical: paths.article(a.slug), types: { 'application/rss+xml': feedPath() } },
     keywords: [a.focusKeyword, ...a.tags].filter((x): x is string => !!x),
     openGraph: {
       type: 'article',
@@ -50,13 +65,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function ArticlePage({ params }: { params: Params }) {
-  const a = articleBySlug((await params).slug)
-  if (!a) notFound()
+  const found = await load((await params).slug)
+  if (!found) notFound()
+  const { a, preview } = found
   loadRealData()
   const now = Date.now()
   const category = categoryName(a.category)
   // The photographer stands in the bottom right corner of every picture from the photo archive
-  const html = withPhotoCredits(cleanHtml(a.content))
+  // Our league table widget where the text has a [tabel …] code, and number columns centred
+  const { html, used: hasWidget } = expandWidgets(markNumberColumns(withPhotoCredits(cleanHtml(a.content))))
   const heroCredit = photoCredits([a.featuredImage]).get(a.featuredImage ?? '')
   const more = publishedArticles({ limit: 4 }).articles.filter((x) => x.id !== a.id).slice(0, 3)
   const published = a.publishedAt ? new Date(a.publishedAt) : undefined
@@ -67,6 +84,12 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const url = `${SITE_URL}${paths.article(a.slug)}`
   return (
     <div className="page article-page">
+      {preview && (
+        <p className="article-preview" role="status">
+          <strong>Forhåndsvisning</strong> · {a.status === 'published' ? `planlagt til ${formatLong(new Date(a.publishedAt!))} kl. ${formatTime(new Date(a.publishedAt!))}` : 'kladde'} – kun synlig for dig, mens du er logget ind.{' '}
+          <Link href={`/admin/artikler/${a.id}`}>Redigér</Link>
+        </p>
+      )}
       <JsonLd
         data={articleLd({
           title: a.seoTitle || a.title,
@@ -87,6 +110,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           { name: a.title, path: paths.article(a.slug) },
         ])}
       />
+      {articleFaqLd(html) && <JsonLd data={articleFaqLd(html)!} />}
       <header className="article-hero">
         <span className="article-hero__m" aria-hidden="true">
           M
@@ -134,6 +158,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
       <div className="article-layout">
         <article className="article">
           <div className="article-body" dangerouslySetInnerHTML={{ __html: html }} />
+          {hasWidget && <Script src="/widget.js" strategy="afterInteractive" />}
           <ShareRow url={url} title={a.title} />
           {a.tags.length > 0 && (
             <ul className="article-tags" aria-label="Emner">

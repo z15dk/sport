@@ -3,8 +3,9 @@ import { allFixtures, toMatch, type Fixture } from '../data/season'
 import { formatDayMonth, isoDate } from '../lib/time'
 import { MatchRow } from './MatchRow'
 
-// A league's matches by round: the latest round that has begun and the one
-// before it, older rounds folded away. A match played well after the rest of
+// A league's matches by round: the coming round on top when no round is being
+// played (e.g. in an international break), then the latest round that has begun
+// and the one before it, older rounds folded away. A match played well after the rest of
 // its round (postponed) stays under its own round, marked as played later.
 
 const DAY = 86_400_000
@@ -15,24 +16,37 @@ interface Round {
   n: number
   main: Fixture[]
   later: Fixture[]
+  /** Not begun yet: the next round, shown on top */
+  next?: boolean
 }
 
-/** The rounds that have begun, newest first; undefined when the league's matches have no round numbers */
+/**
+ * The rounds that have begun, newest first, with the coming round in front when every match of the
+ * latest round has kicked off; undefined when the league's matches have no round numbers
+ */
 export function roundsOf(division: Division, now: number): Round[] | undefined {
   const fixtures = allFixtures().filter((f) => f.division?.id === division.id)
   if (!fixtures.length || fixtures.some((f) => !f.round)) return undefined
   const byRound = new Map<number, Fixture[]>()
   for (const f of fixtures) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f])
   const rounds: Round[] = []
+  let next: Round | undefined
   for (const [n, list] of byRound) {
-    if (!list.some((f) => f.kickoff.getTime() <= now)) continue
     const sorted = [...list].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+    if (!list.some((f) => f.kickoff.getTime() <= now)) {
+      if (!next || n < next.n) next = { n, main: sorted, later: [], next: true }
+      continue
+    }
     // The round's own weekend: the middle match; matches far from it were moved
     const middle = sorted[Math.floor(sorted.length / 2)].kickoff.getTime()
     const main = sorted.filter((f) => Math.abs(f.kickoff.getTime() - middle) <= POSTPONED_AFTER)
     rounds.push({ n, main, later: sorted.filter((f) => !main.includes(f)) })
   }
-  return rounds.sort((a, b) => b.n - a.n)
+  rounds.sort((a, b) => b.n - a.n)
+  // The latest round still has matches to come: that round is the current one, and stays on top
+  const current = rounds[0]
+  if (next && (!current || current.main.every((f) => f.kickoff.getTime() <= now))) rounds.unshift(next)
+  return rounds
 }
 
 /** "25.–27. sep." for the days a round's matches are played */
@@ -53,7 +67,12 @@ function RoundSection({ round, now }: { round: Round; now: number }) {
       <header className="league__header">
         <div className="league__toggle">
           <span className="league__titles">
-            {round.main.length > 0 && <span className="league__country">{days(round.main)}</span>}
+            {round.main.length > 0 && (
+              <span className="league__country">
+                {round.next && 'Næste runde · '}
+                {days(round.main)}
+              </span>
+            )}
             <h2 className="league__name">{round.n}. runde</h2>
           </span>
         </div>
@@ -71,9 +90,10 @@ function RoundSection({ round, now }: { round: Round; now: number }) {
   )
 }
 
-/** The latest two rounds open, the rest behind "Vis tidligere runder" */
+/** The coming round (if shown) and the latest two rounds open, the rest behind "Vis tidligere runder" */
 export function RoundResults({ rounds, now }: { rounds: Round[]; now: number }) {
-  const [open, older] = [rounds.slice(0, 2), rounds.slice(2)]
+  const shown = rounds[0]?.next ? 3 : 2
+  const [open, older] = [rounds.slice(0, shown), rounds.slice(shown)]
   return (
     <>
       {open.map((r) => (

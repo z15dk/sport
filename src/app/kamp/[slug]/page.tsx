@@ -1,17 +1,21 @@
 import type { Metadata } from 'next'
+import { ROBOT_UA, forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { shownTeam } from '../../../data/countries'
+import type { ExternalGame } from '../../../data/external'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
 import { clubExternalGames, findExternalGame, isFriendly, leagueGamesOn, namesOf, relatedMatches } from '../../../data/matches'
 import { rivalryPath } from '../../../lib/rivalry'
 import { matchTicketUrl, ticketClickPath } from '../../../lib/tickets'
 import { RealDataExtra } from '../../../components/RealDataExtra'
-import { realExtras } from '../../../lib/clientData'
+import { clubLeagues, realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
-import { danishRound } from '../../../data/external'
+import { danishLeagueName, danishRound } from '../../../data/external'
 import { lineupPhotos } from '../../../lib/playerPhotos'
-import { apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
+import { savedSubs, apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
@@ -24,7 +28,7 @@ import { teamByName } from '../../../data/teams'
 import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { WidgetPromo } from '../../../components/WidgetPromo'
-import { dbuLineups } from '../../../lib/dbuLineups'
+import { dbuGoals, dbuLineups } from '../../../lib/dbuLineups'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
@@ -42,7 +46,9 @@ const loadPast = loadPastMatch
 async function pastMetadata(slug: string): Promise<Metadata> {
   const past = loadPast(slug)
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
-  const { game: g, match } = past
+  const { game: raw, match } = past
+  // National teams by their Danish names in the title too
+  const g = { ...raw, home: shownTeam(raw.home, 'World'), away: shownTeam(raw.away, 'World') }
   // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
   const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
@@ -57,10 +63,20 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   }
 }
 
-function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
+async function PastMatchPageInner({ game: g, match: original }: { game: PastGame; match: Match }) {
   const now = Date.now()
-  const h2h = withMatchLinks(pastMeetings(g))
-  const teamPath = Object.fromEntries([g.home, g.away].map((n) => [n, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined]))
+  // National teams by their Danish names ("Denmark" is Danmark)
+  const match: Match = { ...original, home: { ...original.home, name: shownTeam(original.home.name, 'World') }, away: { ...original.away, name: shownTeam(original.away.name, 'World') } }
+  // The line-ups and statistics saved when the game was fetched (read, not fetched again for a finished game)
+  const partnerId = g.source.archive && /^football-\d+$/.test(g.source.archive) ? g.source.archive : undefined
+  const asGame = partnerId
+    ? ({ id: partnerId, sport: 'soccer', league: { id: '', name: g.tournament }, home: { name: g.home }, away: { name: g.away }, kickoff: g.date.toISOString(), state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore } as ExternalGame)
+    : undefined
+  const [saved, stats] = asGame ? await Promise.all([within(apiMatchLineups(asGame)), within(apiMatchStats(asGame, match.incidents))]) : [undefined, undefined]
+  // The players' photos (their pictures cost no calls) and the national teams' Danish names on the pitch
+  const lineups = lineupPhotos(saved)?.map((l) => ({ ...l, team: shownTeam(l.team, 'World') }))
+  const h2h = withMatchLinks(pastMeetings(g)).map((m) => ({ ...m, home: shownTeam(m.home, 'World'), away: shownTeam(m.away, 'World') }))
+  const teamPath = Object.fromEntries([g.home, g.away].flatMap((n) => [n, shownTeam(n, 'World')].map((k) => [k, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined])))
   const report = matchReport({ match, now, h2h })
   const players = g.source.archive ? eventPlayers(g.source.archive) : []
   const title = `${g.home} – ${g.away}`
@@ -74,7 +90,7 @@ function PastMatchPage({ game: g, match }: { game: PastGame; match: Match }) {
           { name: title, path: paths.match(g.slug) },
         ])}
       />
-      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} />
+      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} subs={partnerId ? savedSubs(partnerId) : undefined} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
       </div>
@@ -109,7 +125,7 @@ function within<T>(p: Promise<T>, ms = 1500): Promise<T | undefined> {
   return Promise.race([p.catch(() => undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))])
 }
 
-export default async function MatchPage({ params }: { params: Params }) {
+async function MatchPageInner({ params }: { params: Params }) {
   const { slug } = await params
   const found = load(slug)
   if (!found) {
@@ -137,10 +153,12 @@ export default async function MatchPage({ params }: { params: Params }) {
   // Also older matches: API-Sports' whole season as the job has kept it
   const external = findExternalGame(match) ?? apiGameFor(match, { home: namesOf(match.home.name), away: namesOf(match.away.name) })
   const game = external && !external.id.startsWith('db-') ? external : undefined
+  // Robots (search engines, link previews) read what is there: they never spend the partner's budget on goals of a game
+  const robot = ROBOT_UA.test((await headers()).get('user-agent') ?? '')
   // API-Sports' lookups at once, and never more than a moment's wait: what isn't ready is cached for the next visit
   const [fromApi, fromEventsApi, lineups, h2hGames, injuries] = await Promise.all([
     game ? within(apiMatchExtra(game)) : undefined,
-    game && !match.incidents?.length ? within(apiMatchEvents(game)) : undefined,
+    game && !match.incidents?.length ? within(apiMatchEvents(game, { spend: !robot })) : undefined,
     game ? within(apiMatchLineups(game)) : undefined,
     game && (dbH2h?.length ?? 0) < 5 ? within(apiHeadToHead(game)) : undefined,
     game?.sport === 'soccer' && game.id.startsWith('football-') ? within(apiInjuries(String(game.league.id))) : undefined,
@@ -153,12 +171,14 @@ export default async function MatchPage({ params }: { params: Params }) {
   // What API-Sports can't give (the free plan), from the games our statistics bank has saved
   const saved = game ? archiveGameExtras(game) : undefined
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
-  const events = fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // 1.–3. division: the goals and scorers from DBU's match page (read every five minutes while it is played)
+  const dbu = !fromEvents?.some((e) => e.player) && !match.incidents?.some((e) => e.player) ? dbuGoals(match) : undefined
+  const events = dbu?.length ? dbu : fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent
   const logos = teamLogos()
-  const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
+  const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, name: shownTeam(r.name, match.country), logo: r.logo ?? logos.get(r.name) })) }
   // A cup has rounds, not a table
   const cup = !!(external && cupOfGame(external))
   // Our match database's cup games: at least the round (API-Sports' games bring more facts)
@@ -172,12 +192,14 @@ export default async function MatchPage({ params }: { params: Params }) {
   if ((dbH2h?.length ?? 0) < 5) {
     const games = h2hGames
     if (game && games?.length) {
+      // Under the source's own names here (the meetings' pages are found by them); shown in Danish below
+      const source = (shown: string, own: string) => (shownTeam(own, game.league.country) === shown ? own : shown)
       const nameOf = (id?: number, fallback = '') =>
-        id === game.home.id ? match.home.name : id === game.away.id ? match.away.name : fallback
+        id === game.home.id ? source(match.home.name, game.home.name) : id === game.away.id ? source(match.away.name, game.away.name) : fallback
       const fromApi = games.map(
         (g): PastMatch => ({
           date: new Date(g.kickoff),
-          competition: g.league.name,
+          competition: danishLeagueName(g.league.name, g.league.country) ?? g.league.name,
           home: nameOf(g.home.id, g.home.name),
           away: nameOf(g.away.id, g.away.name),
           homeScore: g.homeScore ?? 0,
@@ -200,7 +222,8 @@ export default async function MatchPage({ params }: { params: Params }) {
     h2hSource = 'database'
   }
   // The meetings link to their own match pages; the round's other matches too (at the foot)
-  if (realH2h) realH2h = withMatchLinks(realH2h)
+  // National teams in Danish and women's teams marked "(K)", as the match itself
+  if (realH2h) realH2h = withMatchLinks(realH2h).map((m) => ({ ...m, home: shownTeam(m.home, match.country), away: shownTeam(m.away, match.country) }))
   const related = isFriendly(match.league) ? [] : relatedMatches(match, now)
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
@@ -227,8 +250,10 @@ export default async function MatchPage({ params }: { params: Params }) {
           ].map((g) => [g.id, g])).values()],
           extra?.table && match.leagueSlug ? [{ leagueSlug: match.leagueSlug, names: extra.table.rows.map((r) => r.name), sport: match.sport }] : [],
         )}
+        // Both clubs' leagues in full: the table, the form and the clubs' other matches
+        leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}
@@ -243,4 +268,14 @@ export default async function MatchPage({ params }: { params: Params }) {
       </div>
     </div>
   )
+}
+
+/** PastMatchPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function PastMatchPage(props: { game: PastGame; match: Match }) {
+  return forVisitor(() => PastMatchPageInner(props))
+}
+
+/** MatchPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export default async function MatchPage(props: { params: Params }) {
+  return forVisitor(() => MatchPageInner(props))
 }

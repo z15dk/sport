@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../../components/admin/AdminNav'
 import { isAdmin } from '../../../../lib/admin'
-import { pickMatches, todayIso } from '../../../../lib/social'
+import { LEAGUE_MATCHES, leagueName, leagueOnly, otherLeagues, pickMatches, todayIso } from '../../../../lib/social'
 import { captionFor, contentFor, logosFor, type PostSpec } from '../../../../lib/socialContent'
 import { readPosts, socialConfig, TOPICS } from '../../../../lib/socialStore'
 import { addDays, formatLong, isValidIsoDate } from '../../../../lib/time'
@@ -14,22 +14,26 @@ import { shownDivisions } from '../../../../data/leagues'
 import { paths } from '../../../../lib/site'
 import { CaptionBox, Day, PostCards, slotsOf } from '../cards'
 import { FitRows } from '../FitRows'
+import { LeaguePicker, type LeagueOption } from '../LeaguePicker'
+import { sportById } from '../../../../sports'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Skabeloner · Sociale medier', robots: { index: false, follow: false } }
 
-type SearchParams = Promise<{ dato?: string }>
+type SearchParams = Promise<{ dato?: string; liga?: string; [param: string]: string | undefined }>
 
 // Every post a day can get, and every topic, from the real data: the same
 // cards the engine makes into pictures. Nothing is posted from here; each card
 // can be saved as a picture by hand.
 
-/** One kind of post: its cards and text, or why it is left out */
-async function Section({ spec, now, time, label, title, where, empty }: { spec: PostSpec; now: number; time: string; label: string; title: string; where: string; empty: string }) {
+/** One kind of post: its cards and text, or why it is left out; `pick` lets the admin choose the league it is made from */
+async function Section({ spec, now, time, label, title, where, empty, pick }: { spec: PostSpec; now: number; time: string; label: string; title: string; where: string; empty: string; pick?: { param: string; value?: string; options: LeagueOption[] } }) {
   const content = contentFor(spec, now)
-  const rail = `${spec.date}-${spec.kind}${spec.topic ? `-${spec.topic}` : ''}${spec.slot ? `-${spec.slot.replace(/\D/g, '')}` : ''}`
+  const leagues = (spec.league ?? '').split(',').filter(Boolean).map((id) => ({ slug: id.replace(/[^a-z0-9]+/gi, '-'), name: leagueName(id) }))
+  const rail = `${spec.date}-${spec.kind}${spec.topic ? `-${spec.topic}` : ''}${spec.slot ? `-${spec.slot.replace(/\D/g, '')}` : ''}${leagues.map((l) => `-${l.slug}`).join('')}`
+  const tools = pick && <LeaguePicker param={pick.param} value={pick.value} options={pick.options} auto="Automatisk (motorens valg)" />
   return (
-    <Day rail={rail} time={time} label={label} title={title} where={where}>
+    <Day rail={rail} time={time} label={label} title={leagues.length ? `${title} · ${leagues.map((l) => l.name).join(', ')}` : title} where={where} tools={tools}>
       {content ? (
         <>
           <PostCards content={content} logos={await logosFor(content)} />
@@ -83,8 +87,22 @@ function ShareImages({ date, now }: { date: string; now: number }) {
 export default async function TemplatesPage({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdmin())) redirect('/admin')
   const now = Date.now()
-  const { dato } = await searchParams
+  const params = await searchParams
+  const { dato } = params
   const date = isValidIsoDate(dato) ? dato : todayIso(now)
+  // The league each template is made from: ?liga-<section>=<id> for one, ?liga=<id> for all; else the engine's own choice
+  const options: LeagueOption[] = [
+    ...shownDivisions().map((d) => ({ id: d.id, name: d.name, sport: sportById(d.sport ?? 'soccer').label })),
+    ...otherLeagues(now).map((l) => ({ ...l, sport: 'Pokaler og andre turneringer' })),
+  ]
+  // Up to three leagues, separated by commas in the address
+  const valid = (value?: string) => {
+    const ids = [...new Set((value ?? '').split(',').filter((id) => options.some((o) => o.id === id)))].slice(0, 3)
+    return ids.length ? ids.join(',') : undefined
+  }
+  const all = valid(params.liga)
+  const leagueFor = (section: string) => valid(params[`liga-${section}`]) ?? all
+  const pickFor = (section: string) => ({ param: `liga-${section}`, value: valid(params[`liga-${section}`]), options })
   const cfg = socialConfig()
   // The day's matches as the engine picked them, else as it would pick them now
   const ids = readPosts().days[date]?.matchIds ?? (cfg.manual[date]?.length ? cfg.manual[date] : pickMatches(date, now).map((p) => p.fixture.id))
@@ -92,6 +110,9 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Se
   const slots = slotsOf(picks)
   const weekdayTopic = cfg.topics[String(new Date(`${date}T12:00:00Z`).getUTCDay())]
   const base = { date, matchIds: ids }
+  // Stories: one per kick-off time of the chosen league's matches, else of the picked ones
+  const storyLeague = leagueFor('story')
+  const storySlots = storyLeague ? slotsOf(pickMatches(date, now, leagueOnly(storyLeague), LEAGUE_MATCHES * storyLeague.split(',').length)) : slots
   // Women's football: its own pick of the day's women's games
   const womenPicks = pickMatches(date, now, () => true, cfg.matches, true)
   const womenBase = { date, matchIds: womenPicks.map((p) => p.fixture.id), women: true }
@@ -114,31 +135,46 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Se
             {formatLong(addDays(date, 1))} →
           </Link>
         </p>
+        <p className="filter-bar">
+          <LeaguePicker param="liga" value={all} options={options} auto="Automatisk (motorens valg)" label="Liga for alle skabeloner" />
+          <span className="muted small">Hver skabelon kan vælge sin egen liga ved kortene. Valget gælder kun denne visning; motoren vælger selv, når den poster.</span>
+        </p>
 
-        <Section spec={{ ...base, kind: 'programme' }} now={now} time={cfg.times.programme} label="Morgen" title="Dagens kampe" where={`Feed og story · ${picks.length} udvalgte kampe`} empty="Ingen udvalgte kampe denne dag." />
+        <Section
+          spec={{ ...base, kind: 'programme', league: leagueFor('programme') }}
+          now={now}
+          time={cfg.times.programme}
+          label="Morgen"
+          title="Dagens kampe"
+          where={leagueFor('programme') ? 'Feed og story · ligaens kampe denne dag' : `Feed og story · ${picks.length} udvalgte kampe`}
+          empty="Ingen udvalgte kampe denne dag."
+          pick={pickFor('programme')}
+        />
         {[...TOPICS].sort((a, b) => Number(b.id === weekdayTopic) - Number(a.id === weekdayTopic)).map((t) => (
           <Section
             key={t.id}
-            spec={{ ...base, kind: 'topic', topic: t.id }}
+            spec={{ ...base, kind: 'topic', topic: t.id, league: leagueFor(t.id) }}
             now={now}
             time={cfg.times.topic}
             label={t.id === weekdayTopic ? 'Dagens emne' : 'Emne'}
             title={t.name}
             where={`Karrusel i feed · ${t.description}`}
             empty="Ingen data, der er gode nok til emnet i dag. Så springes det over."
+            pick={pickFor(t.id)}
           />
         ))}
-        {slots.map(([slot]) => (
-          <Section key={slot} spec={{ ...base, kind: 'story', slot }} now={now} time={`–${cfg.times.storyBefore} m`} label="Før kamp" title={`Story før kampstart kl. ${slot}`} where="Story på Facebook og Instagram" empty="" />
+        {storySlots.map(([slot]) => (
+          <Section key={slot} spec={{ ...base, kind: 'story', slot, league: leagueFor('story') }} now={now} time={`–${cfg.times.storyBefore} m`} label="Før kamp" title={`Story før kampstart kl. ${slot}`} where="Story på Facebook og Instagram" empty="" pick={pickFor('story')} />
         ))}
         <Section
-          spec={{ ...base, kind: 'results' }}
+          spec={{ ...base, kind: 'results', league: leagueFor('results') }}
           now={now}
           time={`+${cfg.times.resultsAfter} m`}
           label="Efter kampene"
           title="Resultater"
           where="Karrusel i feed · forsiden viser de udvalgte kampes resultater; eget kort kun til kampe, hvor alle mål har en målscorer med navn"
           empty="Ingen færdige kampe endnu."
+          pick={pickFor('results')}
         />
         <h2 className="feed__title" style={{ marginTop: 32 }}>Kvindefodbold</h2>
         <p className="muted">Dagens kvindekampe med samme kort, i kvindefodboldens farver og med mærket øverst.</p>

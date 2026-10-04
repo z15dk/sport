@@ -58,6 +58,8 @@ export interface RealData {
    * so the browser links teams without building the whole team register
    */
   teamIndex?: Record<string, string>
+  /** Browser only: each club's place in its league table, by name (the browser has only part of the season) */
+  positions?: Record<string, number>
   /** Browser only: team slugs by "league slug|name", for league tables */
   leagueTeamIndex?: Record<string, string>
 }
@@ -108,19 +110,31 @@ export function setRealData(data: RealData | undefined) {
  * gets (a club's cup games, an older match) and their teams' links. Does
  * nothing on the server, where every game is already there.
  */
-export function addRealExtras(extra: { games?: ExternalGame[]; teamIndex?: Record<string, string>; leagueTeamIndex?: Record<string, string> }) {
+export function addRealExtras(extra: { games?: ExternalGame[]; leagues?: Record<string, RealEvent[]>; teamIndex?: Record<string, string>; leagueTeamIndex?: Record<string, string> }) {
   if (typeof window === 'undefined') return
   const cur = holder.__scorelineReal
   if (!cur) return
+  // A page's games replace the same games from an earlier page (a day list has them without the match page's details)
+  const given = new Map((extra.games ?? []).map((g) => [g.id, g]))
+  const replaced = (cur.external ?? []).some((g) => given.has(g.id) && given.get(g.id) !== g && JSON.stringify(given.get(g.id)) !== JSON.stringify(g))
   const have = new Set((cur.external ?? []).map((g) => g.id))
   const games = (extra.games ?? []).filter((g) => !have.has(g.id))
   const newNames = Object.keys(extra.teamIndex ?? {}).some((k) => !(k in (cur.teamIndex ?? {})))
   const newPairs = Object.keys(extra.leagueTeamIndex ?? {}).some((k) => !(k in (cur.leagueTeamIndex ?? {})))
+  // Our leagues' games the page shows beyond the browser's days (a whole season on a club's page)
+  let leagues: Record<string, RealEvent[]> | undefined
+  for (const [id, events] of Object.entries(extra.leagues ?? {})) {
+    const had = leagues?.[id] ?? cur.leagues[id] ?? []
+    const ids = new Set(had.map((e) => e.id))
+    const add = events.filter((e) => !ids.has(e.id))
+    if (add.length) leagues = { ...(leagues ?? cur.leagues), [id]: [...had, ...add] }
+  }
   // Nothing new: keep the same objects, so what is worked out from them stays cached
-  if (!games.length && !newNames && !newPairs) return
+  if (!games.length && !replaced && !newNames && !newPairs && !leagues) return
   holder.__scorelineReal = {
     ...cur,
-    external: games.length ? [...(cur.external ?? []), ...games] : cur.external,
+    external: games.length || replaced ? [...(cur.external ?? []).map((g) => given.get(g.id) ?? g), ...games] : cur.external,
+    leagues: leagues ?? cur.leagues,
     teamIndex: newNames ? { ...cur.teamIndex, ...extra.teamIndex } : cur.teamIndex,
     leagueTeamIndex: newPairs ? { ...cur.leagueTeamIndex, ...extra.leagueTeamIndex } : cur.leagueTeamIndex,
   }

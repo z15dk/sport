@@ -5,11 +5,11 @@ import { parseProgram, parseResult, parseSheet, type DbuFixture, type DbuGoal } 
 import type { LineupPlayer as SheetPlayer } from './photos/names.ts'
 import { cacheDir } from './tsdb'
 import { runsJobs } from './role'
-import { isoDate } from './time'
+import { danishTime, isoDate } from './time'
 import { alike, clubNames } from '../data/aliases'
 import { seasonClub } from '../data/season'
 import type { Lineup } from '../data/matchExtra'
-import type { Match } from '../types'
+import type { Incident, Match } from '../types'
 
 // Team sheets for 1., 2. and 3. division from the governing body's public match pages,
 // which our other sources don't have for these leagues: on match day each match page is
@@ -80,6 +80,12 @@ async function get(p: string) {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const keyOf = (f: DbuFixture) => f.key
+/** Kick-off (Danish time) passed and less than 2 hours 15 minutes ago */
+const isLive = (f: DbuFixture, now: number) => {
+  if (!f.time) return false
+  const start = danishTime(f.date, f.time).getTime()
+  return now >= start && now - start < 135 * 60_000
+}
 
 /** One run: programmes when old, then today's match pages without a sheet (or due a re-check) */
 async function run() {
@@ -136,9 +142,14 @@ async function run() {
     .filter((f) => f.date === today)
     .filter((f) => {
       const s = store.sheets[keyOf(f)]
+      // While the match is played: every run (five minutes), for the goals and their scorers
+      if (s && isLive(f, now)) return now - s.at > 4 * 60_000
       return !s || now - s.at > (s.sheet ? 60 : 15) * 60_000
     })
-    .slice(0, 6)
+    // The matches being played first
+    .sort((a, b) => Number(isLive(b, now)) - Number(isLive(a, now)))
+    // Up to twelve pages a run (3 seconds apart): a full round of 2. and 3. division at once
+    .slice(0, 12)
   for (const f of due) {
     try {
       const html = await get(f.url)
@@ -184,6 +195,14 @@ const toLineup = (team: string, players: SheetPlayer[]): Lineup => ({
 
 /** A 1., 2. or 3. division match's team sheets, home first, when they have been read */
 export function dbuLineups(match: Match): Lineup[] | undefined {
+  const f = fixtureOf(match)
+  const sheet = f && load().sheets[keyOf(f)]?.sheet
+  if (!sheet || (!sheet.home.length && !sheet.away.length)) return undefined
+  return [toLineup(match.home.name, sheet.home), toLineup(match.away.name, sheet.away)]
+}
+
+/** The DBU fixture for one of our 1.–3. division matches (same day, both teams), when the programme has it */
+function fixtureOf(match: Match): DbuFixture | undefined {
   if (match.sport !== 'soccer' || !POOLS.some((p) => p.league === match.leagueSlug)) return undefined
   const store = load()
   const day = isoDate(match.kickoff)
@@ -193,13 +212,32 @@ export function dbuLineups(match: Match): Lineup[] | undefined {
   }
   const home = names(match.home.name)
   const away = names(match.away.name)
-  const pools = POOLS.filter((p) => p.league === match.leagueSlug)
-  const f = pools
+  return POOLS.filter((p) => p.league === match.leagueSlug)
     .flatMap(({ pool }) => store.programs[pool]?.fixtures ?? [])
     .find((x) => x.date === day && alike(home, x.home) && alike(away, x.away))
-  const sheet = f && store.sheets[keyOf(f)]?.sheet
-  if (!sheet || (!sheet.home.length && !sheet.away.length)) return undefined
-  return [toLineup(match.home.name, sheet.home), toLineup(match.away.name, sheet.away)]
+}
+
+/**
+ * A 1., 2. or 3. division match's goals with their scorers from DBU's match page (read every five
+ * minutes while it is played, once afterwards) – only when they add up to the score we show, so a
+ * page read before the latest goal never hides it
+ */
+export function dbuGoals(match: Match): Incident[] | undefined {
+  const f = fixtureOf(match)
+  const r = f && load().results?.[keyOf(f)]
+  if (!r?.goals?.length) return undefined
+  const total = (match.home.score ?? 0) + (match.away.score ?? 0)
+  if (r.goals.length !== total) return undefined
+  return r.goals
+    .filter((g) => g.minute !== null)
+    .map((g): Incident => {
+      const own = /selvm[åa]l/i.test(g.name)
+      const pen = /straffe/i.test(g.name)
+      const player = g.name.replace(/\s*\((?:selvm[åa]l|straffe(?:spark)?)\)\s*/gi, '').trim()
+      // DBU puts an own goal with the side it counts for; ours sits with the side that scored it
+      return { minute: g.minute!, side: own ? (g.side === 'home' ? 'away' : 'home') : g.side, kind: own ? 'own-goal' : pen ? 'penalty' : 'goal', player: player || undefined }
+    })
+    .sort((a, b) => a.minute - b.minute)
 }
 
 export interface TopScorer {

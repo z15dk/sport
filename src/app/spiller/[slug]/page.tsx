@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { forVisitor } from '../../../lib/visitorBudget'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { apiPlayer } from '../../../lib/apisports'
+import { realLogo } from '../../../lib/logoCheck'
 import { playerPath, type PlayerData, type PlayerSeasonRow } from '../../../data/player'
 import { ourClubByName } from '../../../data/cups'
 import { teamByName } from '../../../data/teams'
@@ -13,7 +15,9 @@ import { MoreRows } from '../../../components/MoreRows'
 import { clubNames, normalize } from '../../../data/aliases'
 import { seasonClubs } from '../../../data/season'
 import { sportOf } from '../../../data/leagues'
-import { danishCountry } from '../../../data/countries'
+import { danishCountry, isNationalTeam } from '../../../data/countries'
+import { DIVISIONS } from '../../../data/leagues'
+import { apiLeagueIdOf, externalLeagues } from '../../../lib/apisports'
 import { JsonLd, absoluteImage, breadcrumbLd, webPageLd } from '../../../lib/jsonld'
 import { sizedImage } from '../../../lib/imageSize'
 import { SITE_URL, paths } from '../../../lib/site'
@@ -45,22 +49,89 @@ function clubOf(team: string) {
   return t ? { name: t.name, slug: t.slug, colors: t.colors } : undefined
 }
 
-/** The season's rows (the newest season the player has) and the club he plays for now: the league with most games */
+/** The season's rows (the newest season the player has), the club he plays for now (the club with most games,
+ * never the national team) and his national team */
 function current(p: PlayerData) {
   const newest = Math.max(0, ...p.seasons.map((s) => s.season))
   const rows = p.seasons.filter((s) => s.season === newest)
-  const main = [...rows].sort((a, b) => b.games - a.games || (b.minutes ?? 0) - (a.minutes ?? 0))[0]
-  return { season: newest, rows, main }
+  const most = (list: PlayerSeasonRow[]) => [...list].sort((a, b) => b.games - a.games || (b.minutes ?? 0) - (a.minutes ?? 0))[0]
+  const nationRow = (r: PlayerSeasonRow) => isNationalTeam(r.team)
+  // The club: this season, else the season before (a national team's matches can come first)
+  const club = most(rows.filter((r) => !nationRow(r))) ?? most(p.seasons.filter((r) => !nationRow(r)))
+  const nation = most(p.seasons.filter(nationRow))
+  return { season: newest, rows, main: club ?? most(rows), nation }
+}
+
+/** The page of a competition in the player's table: one of our leagues, else a league we follow */
+function leagueHref(r: PlayerSeasonRow): string | undefined {
+  if (!r.leagueId) return undefined
+  const id = String(r.leagueId)
+  const ours = DIVISIONS.find((d) => d.sport === 'soccer' && apiLeagueIdOf(d.id) === id)
+  if (ours) return paths.league(ours.slug)
+  const other = externalLeagues().find((l) => l.api === 'football' && String(l.id) === id)
+  return other ? paths.league(other.key) : undefined
+}
+
+const GAME_POSITIONS: Record<string, string> = { G: 'Goalkeeper', D: 'Defender', M: 'Midfielder', F: 'Attacker' }
+/** The season a match belongs to: from July it is the new season (2026 = 2026/27) */
+const seasonOfDate = (d: Date) => (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFullYear() - 1)
+const nameFromSlug = (slug: string) =>
+  slug
+    .replace(/^\d+-?/, '')
+    .split('-')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
+
+/**
+ * The player from our own numbers when the profile is not saved and may not be fetched now (no calls left,
+ * a crawler, the source has no profile): his matches in the statistics bank grouped per season, competition
+ * and club. Without any matches only the name in the address and his photo (thin: noindex).
+ */
+function playerFromGames(id: number, slug: string): { player: PlayerData; thin: boolean } {
+  const games = playerGames(id)
+  const name = games.find((g) => g.name)?.name || nameFromSlug(slug) || 'Spiller'
+  const rows = new Map<string, PlayerSeasonRow & { rated: number }>()
+  for (const g of games) {
+    const season = seasonOfDate(g.date)
+    const key = `${season}|${g.tournament}|${g.team}`
+    const r = rows.get(key) ?? { team: g.team, teamId: g.teamId, league: g.tournament, season, games: 0, minutes: 0, goals: 0, assists: 0, yellow: 0, red: 0, rated: 0, rating: 0 }
+    r.games++
+    r.minutes = (r.minutes ?? 0) + (g.minutes ?? 0)
+    r.goals += g.goals
+    r.assists += g.assists
+    r.yellow += g.yellow
+    r.red += g.red
+    for (const k of ['shots', 'shotsOn', 'passes', 'keyPasses', 'saves', 'conceded'] as const) if (g[k] !== undefined) r[k] = (r[k] ?? 0) + g[k]!
+    if (g.rating) {
+      r.rating = ((r.rating ?? 0) * r.rated + g.rating) / (r.rated + 1)
+      r.rated++
+    }
+    if (!r.position && g.position) r.position = GAME_POSITIONS[g.position] ?? g.position
+    rows.set(key, r)
+  }
+  const seasons = [...rows.values()].map(({ rated, ...r }) => ({ ...r, rating: rated ? r.rating : undefined }))
+  return {
+    player: { id, name, photo: realLogo(`https://media.api-sports.io/football/players/${id}.png`), seasons, transfers: [], trophies: [] },
+    thin: !games.length,
+  }
+}
+
+/** The saved or fetched profile, else our own numbers */
+async function playerOf(id: number, slug: string) {
+  const p = await apiPlayer(id)
+  return p ? { player: p, thin: false, own: false } : { ...playerFromGames(id, slug), own: true }
 }
 
 const sum = (rows: PlayerSeasonRow[], k: keyof PlayerSeasonRow) => rows.reduce((n, r) => n + (Number(r[k]) || 0), 0)
 const seasonLabel = (y: number) => `${y}/${String(y + 1).slice(2)}`
 const pct = (a?: number, b?: number) => (a !== undefined && b ? `${Math.round((a / b) * 100)} %` : '–')
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const id = idOf((await params).slug)
-  const p = id ? await apiPlayer(id) : undefined
-  if (!p) return { title: 'Spiller' }
+async function generateMetadataInner({ params }: { params: Params }): Promise<Metadata> {
+  const slug = (await params).slug
+  const id = idOf(slug)
+  if (!id) return { title: 'Spiller' }
+  const { player: p, thin } = await playerOf(id, slug)
   const { main, rows } = current(p)
   const club = main ? (clubOf(main.team)?.name ?? main.team) : undefined
   return {
@@ -68,23 +139,24 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     description: `${p.name}${club ? ` spiller i ${club}` : ''}: ${sum(rows, 'goals')} mål og ${sum(rows, 'assists')} assists i ${sum(rows, 'games')} kampe denne sæson. Kampe, minutter, skud, afleveringer, kort, klubskifter og trofæer.`,
     alternates: { canonical: playerPath(p.id, p.name) },
     // Nothing this season ("0 mål i 0 kampe"): not worth a place in the search results
-    ...(sum(rows, 'games') === 0 && { robots: { index: false, follow: true } }),
+    ...((thin || sum(rows, 'games') === 0) && { robots: { index: false, follow: true } }),
   }
 }
 
-export default async function PlayerPage({ params }: { params: Params }) {
+async function PlayerPageInner({ params }: { params: Params }) {
   const slug = (await params).slug
   const id = idOf(slug)
   if (!id) notFound()
-  const p = await apiPlayer(id)
-  if (!p) notFound()
+  const { player: p, thin, own } = await playerOf(id, slug)
   const path = playerPath(p.id, p.name)
-  if (`/spiller/${slug}` !== path) permanentRedirect(path)
+  // Only redirect to a name we know (a thin page has the address' own name)
+  if (!thin && `/spiller/${slug}` !== path) permanentRedirect(path)
 
   const now = Date.now()
-  const { season, rows, main } = current(p)
+  const { season, rows, main, nation } = current(p)
   const earlier = p.seasons.filter((s) => s.season < season)
   const club = main ? clubOf(main.team) : undefined
+  const nationClub = nation && nation.team !== main?.team ? clubOf(nation.team) : undefined
   const colors = club?.colors ?? ['#0f110c', '#c6f135']
   const position = main?.position ? (POSITIONS[main.position] ?? main.position) : undefined
   const keeper = main?.position === 'Goalkeeper'
@@ -137,7 +209,7 @@ export default async function PlayerPage({ params }: { params: Params }) {
   }
   // His club's match right now
   const live = main
-    ? getMatches(isoDate(now), 'soccer', now).find((m) => m.state === 'live' && [m.home.name, m.away.name].some((n) => alike([main.team, club?.name ?? main.team], n)))
+    ? getMatches(isoDate(now), 'soccer', now).find((m) => m.state === 'live' && [m.home.name, m.away.name].some((n) => alike([main.team, club?.name ?? main.team, ...(nation ? [nation.team] : [])], n)))
     : undefined
 
   const detail: { label: string; value: string }[] = keeper
@@ -206,16 +278,27 @@ export default async function PlayerPage({ params }: { params: Params }) {
                 .filter(Boolean)
                 .join(' · ')}
             </span>
+            {nation && nation.team !== main?.team && (
+              <span className="player-hero__facts">
+                Landshold:{' '}
+                {nationClub ? <Link href={paths.club(nationClub.slug)}>{nationClub.name}</Link> : danishCountry(nation.team)}
+              </span>
+            )}
           </div>
-          {main?.teamLogo && <img className="player-hero__club" src={sizedImage(main.teamLogo, 56)} alt="" width={56} height={56} />}
+          {main?.teamLogo && <img className="player-hero__club" src={sizedImage(main.teamLogo, 112)} alt="" width={112} height={112} />}
         </header>
 
-        <p className="lead">
+        {rows.length > 0 && <p className="lead">
           {p.name} har spillet {games} {games === 1 ? 'kamp' : 'kampe'} i sæsonen {seasonLabel(season)}
           {club ? ` for ${club.name}` : main ? ` for ${main.team}` : ''} og {keeper ? `lavet ${sum(rows, 'saves')} redninger` : `scoret ${goals} ${goals === 1 ? 'mål' : 'mål'} og lavet ${assists} ${assists === 1 ? 'assist' : 'assists'}`}
           {minutes ? ` på ${minutes.toLocaleString('da-DK')} minutter` : ''}.
-        </p>
+        </p>}
         <Updated at={now} />
+        {own && (
+          <p className="muted small">
+            {thin ? 'Vi har endnu ikke tal for denne spiller. Profilen og statistikken kommer, så snart vores datapartnere har dem.' : 'Tallene er fra de kampe, vi har spillerens tal fra. Den fulde profil med klubskifter og trofæer kommer senere.'}
+          </p>
+        )}
 
         <section className="tiles tiles--club" aria-label={`Sæsonen ${seasonLabel(season)} i tal`}>
           <div className="tile tile--lime">
@@ -363,12 +446,14 @@ export default async function PlayerPage({ params }: { params: Params }) {
                 <p className="muted small pad">Gennemsnitlig kampkarakter (1–10) i hver af de seneste 12 måneder.</p>
               </section>
             )}
-            <section className="panel table-panel">
-              <header className="table-panel__head">
-                <h2 className="panel__title">Sæsonen {seasonLabel(season)}</h2>
-              </header>
-              <SeasonTable rows={rows} keeper={keeper} />
-            </section>
+            {rows.length > 0 && (
+              <section className="panel table-panel">
+                <header className="table-panel__head">
+                  <h2 className="panel__title">Sæsonen {seasonLabel(season)}</h2>
+                </header>
+                <SeasonTable rows={rows} keeper={keeper} />
+              </section>
+            )}
             {earlier.length > 0 && (
               <section className="panel table-panel">
                 <header className="table-panel__head">
@@ -499,6 +584,16 @@ function TeamName({ name, logo }: { name: string; logo?: string }) {
   )
 }
 
+function LinkOr({ href, children }: { href?: string; children: React.ReactNode }) {
+  return href ? (
+    <Link className="player-table__link" href={href}>
+      {children}
+    </Link>
+  ) : (
+    <>{children}</>
+  )
+}
+
 function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolean }) {
   return (
     <div className="table-wrap table-wrap--flush">
@@ -522,8 +617,10 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
                 <span className="table__club">
                   {r.leagueLogo ? <img src={sizedImage(r.leagueLogo, 20)} alt="" width={20} height={20} loading="lazy" /> : null}
                   <span>
-                    {r.league}
-                    <span className="player-table__team">{clubOf(r.team)?.name ?? r.team}</span>
+                    <LinkOr href={leagueHref(r)}>{r.league}</LinkOr>
+                    <span className="player-table__team">
+                      <LinkOr href={clubOf(r.team) && paths.club(clubOf(r.team)!.slug)}>{clubOf(r.team)?.name ?? r.team}</LinkOr>
+                    </span>
                   </span>
                 </span>
               </td>
@@ -540,4 +637,14 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
       </table>
     </div>
   )
+}
+
+/** generateMetadata with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return forVisitor(() => generateMetadataInner(props))
+}
+
+/** PlayerPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+export default async function PlayerPage(props: { params: Params }) {
+  return forVisitor(() => PlayerPageInner(props))
 }

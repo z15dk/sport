@@ -13,9 +13,11 @@ import { liveCursor } from '../lib/liveFeed'
 import { VisitBeacon } from '../components/VisitBeacon'
 import { AdminBar } from '../components/AdminBar'
 import { ConsentBanner } from '../components/ConsentBanner'
+import { CONSENT_DONE_SCRIPT } from '../lib/consentScript'
 import { trackingConfig } from '../lib/tracking'
 import { SITE_NAME, SITE_URL } from '../lib/site'
 import { indexable } from '../lib/settings'
+import { feedPath } from '../lib/articleFeed'
 import { AD_TURN_SCRIPT, adTurnCss } from '../data/ads'
 // The site's fonts, served from our own domain (src/app/fonts.ts: preloaded body font, fallback with matching metrics)
 import { body, display } from './fonts'
@@ -27,8 +29,11 @@ export function generateMetadata(): Metadata {
     title: { default: `${SITE_NAME} – live resultater og dagens kampe`, template: `%s | ${SITE_NAME}` },
     description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
     applicationName: SITE_NAME,
-    // Hidden from search engines until indexing is switched on (/admin/indstillinger or SITE_INDEXABLE)
-    robots: indexable() ? { index: true, follow: true } : { index: false, follow: false, nocache: true },
+    // Hidden from search engines until indexing is switched on (/admin/indstillinger or SITE_INDEXABLE).
+    // Large image previews are what Google Discover shows; without the directive it only shows thumbnails
+    robots: indexable() ? { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } : { index: false, follow: false, nocache: true },
+    // The RSS feed of the articles (pages that set their own alternates name it themselves)
+    alternates: { types: { 'application/rss+xml': feedPath() } },
     openGraph: { siteName: SITE_NAME, locale: 'da_DK', type: 'website' },
     twitter: { card: 'summary_large_image' },
     // Matchly's M on lime (favicon.ico for browsers and Google; 96 px, a multiple of 48, for Google's search results)
@@ -41,8 +46,11 @@ export function generateMetadata(): Metadata {
       apple: '/apple-touch-icon.png',
     },
     appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
-    // Meta's domain verification for the pixel (set on /admin/indstillinger → Sporing og cookies)
-    ...(trackingConfig().metaVerify && { other: { 'facebook-domain-verification': trackingConfig().metaVerify! } }),
+    // Meta's domain verification for the pixel and Bing Webmaster Tools' (set on /admin/indstillinger → Sporing og cookies)
+    other: {
+      ...(trackingConfig().metaVerify && { 'facebook-domain-verification': trackingConfig().metaVerify! }),
+      ...(trackingConfig().bingVerify && { 'msvalidate.01': trackingConfig().bingVerify! }),
+    },
   }
 }
 
@@ -67,6 +75,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: "try{if(localStorage.getItem('myTeamsHintHidden')==='true')document.documentElement.setAttribute('data-teams-hint','hidden')}catch(e){}",
           }}
         />
+        {/* The cookie banner comes with the page (drawn at once for a new visitor); a choice already made, or an admin, hides it before the page is drawn */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_DONE_SCRIPT }} />
         {/* Placements shared by several advertisers show one banner per visit, chosen here before the page is drawn (src/data/ads.ts) */}
         <script dangerouslySetInnerHTML={{ __html: AD_TURN_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: adTurnCss() }} />

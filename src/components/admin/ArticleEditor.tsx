@@ -9,6 +9,8 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { slugify } from '../../lib/slug'
 import { seoChecks, type SeoCheck } from '../../lib/seoChecks'
 import { ArchivePicker, PhotoMetaDialog } from './ArticlePhotos'
+import { ActionButton } from './SocialAdmin'
+import { VsDialog } from './VsDialog'
 
 // The article editor in /admin/artikler, laid out like WordPress: title,
 // permalink and text in the middle, and boxes on the side for publishing, the
@@ -151,6 +153,7 @@ export function ArticleEditor({
 }) {
   const router = useRouter()
   const [a, setA] = useState<EditorArticle>(initial)
+  const [vsOpen, setVsOpen] = useState(false)
   const [slugTouched, setSlugTouched] = useState(!!initial.id)
   const [categories, setCategories] = useState(initialCategories)
   const [newCategory, setNewCategory] = useState('')
@@ -305,10 +308,14 @@ export function ArticleEditor({
               {published ? 'Opdater' : future ? 'Planlæg' : 'Udgiv'}
             </button>
           </div>
-          {published && !future && a.slug && (
+          {/* A draft or a scheduled article opens as a preview (the saved version, seen only while logged in) */}
+          {a.id && a.slug && (
             <a className="text-btn" href={`/artikler/${a.slug}`} target="_blank" rel="noopener">
-              Se artiklen ↗
+              {published && !future ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
             </a>
+          )}
+          {a.id && published && !future && (
+            <ActionButton body={{ action: 'shareArticle', id: a.id }} label="Del på sociale medier" busyLabel="Deler …" confirm="Del artiklen på sociale medier nu?" />
           )}
           {a.id && (
             <button type="button" className="text-btn ed-delete" onClick={remove}>
@@ -337,6 +344,9 @@ export function ArticleEditor({
                 <button type="button" className="text-btn" onClick={() => setPhotoFlow({ kind: 'archive', target: 'featured' })}>
                   Fra billedarkivet
                 </button>
+                <button type="button" className="text-btn" onClick={() => setVsOpen(true)}>
+                  Lav VS-grafik
+                </button>
                 <button type="button" className="text-btn" onClick={() => set('featuredImage', undefined)}>
                   Fjern
                 </button>
@@ -350,6 +360,9 @@ export function ArticleEditor({
               </button>
               <button type="button" className="text-btn" onClick={() => setPhotoFlow({ kind: 'archive', target: 'featured' })}>
                 Vælg fra billedarkivet
+              </button>
+              <button type="button" className="text-btn" onClick={() => setVsOpen(true)}>
+                Lav VS-grafik (to klubbers logoer)
               </button>
             </>
           )}
@@ -468,6 +481,15 @@ export function ArticleEditor({
           onDone={(alt) => {
             placePicture(photoFlow.target, photoFlow.url, alt)
             setPhotoFlow(undefined)
+          }}
+        />
+      )}
+      {vsOpen && (
+        <VsDialog
+          onClose={() => setVsOpen(false)}
+          onDone={(url, alt) => {
+            placePicture('featured', url, alt)
+            setVsOpen(false)
           }}
         />
       )}

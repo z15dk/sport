@@ -18,7 +18,9 @@ export const STORY_PLATFORMS: Platform[] = ['facebook', 'instagram']
 
 export const KINDS = ['programme', 'topic', 'story', 'results'] as const
 export type PostKind = (typeof KINDS)[number]
-export const KIND_NAMES: Record<PostKind, string> = { programme: 'Dagens kampe', topic: 'Dagens emne', story: 'Story før kampstart', results: 'Resultater' }
+/** The engine's kinds, and "own": a post the admin writes and schedules by hand (text, own pictures, chosen platforms) */
+export type AnyKind = PostKind | 'own'
+export const KIND_NAMES: Record<AnyKind, string> = { programme: 'Dagens kampe', topic: 'Dagens emne', story: 'Story før kampstart', results: 'Resultater', own: 'Eget opslag' }
 
 export type Surface = 'feed' | 'story'
 
@@ -68,6 +70,8 @@ export interface SocialConfig {
   /** The league the topics about one league use (a division id) */
   topicLeague: string
   hashtags: string
+  /** New articles shared by themselves when they go live; only those published after `since` (when it was switched on) */
+  articles: { enabled: boolean; since?: number }
   /** The day's matches picked by hand, by date */
   manual: Record<string, string[]>
 }
@@ -91,6 +95,7 @@ export const DEFAULT_CONFIG: SocialConfig = {
   topics: { '1': 'week', '2': 'scorers', '3': 'form', '4': 'bigmatch', '5': 'weekend', '6': 'facts', '0': 'table' },
   topicLeague: 'superliga',
   hashtags: '#superliga #fodbold #matchly',
+  articles: { enabled: false },
   manual: {},
 }
 
@@ -99,6 +104,8 @@ export interface SocialSecrets {
   threads: { userId?: string; username?: string; token?: string; refreshedAt?: number }
   x: { apiKey?: string; apiSecret?: string; accessToken?: string; accessSecret?: string; username?: string }
   smtp: { pass?: string }
+  /** Facebook through a Make.com scenario (its webhook's address) when the Page isn't connected directly */
+  make: { url?: string }
   /** Signs the approval links in the mails */
   approvalKey: string
 }
@@ -142,7 +149,16 @@ export interface SocialPost {
   /** date-kind(-slot), so a day never gets the same post twice */
   id: string
   date: string
-  kind: PostKind
+  kind: AnyKind
+  /** A shared article (its id): an own post the engine made when the article went live */
+  article?: number
+  /** An own post: the platforms it goes to, and whether its first picture is also a story */
+  own?: {
+    platforms: Platform[]
+    story: boolean
+    /** A template whose pictures are made at the post's time (fresh results), and whether its list goes under the admin's text */
+    template?: { kind: PostKind; topic?: TopicId; league?: string; focus?: string; women?: boolean; date: string; appendList: boolean }
+  }
   topic?: TopicId
   /** Stories: the kick-off time "HH:MM" */
   slot?: string
@@ -244,6 +260,7 @@ export function socialConfig(): SocialConfig {
         platforms: { ...d.platforms, ...saved.platforms },
         kinds: Object.fromEntries(KINDS.map((k) => [k, { ...d.kinds[k], ...saved.kinds?.[k] }])) as SocialConfig['kinds'],
         times: { ...d.times, ...saved.times },
+        articles: { ...d.articles, ...saved.articles },
         weights: { ...saved.weights },
         topics: { ...d.topics, ...saved.topics },
         manual: { ...saved.manual },
@@ -272,6 +289,7 @@ export function socialSecrets(): SocialSecrets {
     threads: { ...saved?.threads },
     x: { ...saved?.x },
     smtp: { ...saved?.smtp },
+    make: { ...saved?.make },
     approvalKey: saved?.approvalKey ?? '',
   }
   if (!secrets.approvalKey) {
