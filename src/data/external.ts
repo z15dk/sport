@@ -2,6 +2,7 @@ import type { Incident, Match, MatchState, PeriodScore, SportId } from '../types
 import { matchSlug, slugify } from '../lib/slug'
 import { isoDate } from '../lib/time'
 import { normalize } from './aliases'
+import { shownTeam } from './countries'
 
 // Games from API-Sports (football, basketball, NBA, ice hockey, handball,
 // volleyball, NFL). The server job (src/lib/apisports.ts) fetches them day by
@@ -39,7 +40,7 @@ export interface ExternalGame {
 /** A women's tournament by its name: Kvindeliga, A-Liga, "Women", Frauen, Damallsvenskan, WSL, Liga F … */
 export const WOMEN_LEAGUE = /women|kvinde|frauen|femin|femmin|damallsvenskan|toppserien|a-liga|\bwsl\b|\bnwsl\b|\bwnba\b|\bsdhl\b|\bpwhl\b|\bliga f\b|première ligue|arkema|damer|\bdame\b|dameliga|damehånd|damehand|\bladies\b/i
 /** A women's team by its name: "Brondby W", "HB Køge Women" */
-export const WOMEN_TEAM = /\b(w|women|kvinder|damer|dames|frauen|femenino|feminino|féminines)\b\.?$/i
+export const WOMEN_TEAM = /(\b(w|women|kvinder|damer|dames|frauen|femenino|feminino|féminines)\b\.?|\(k\))$/i
 
 /** A women's game (every sport): the tournament's name, or both teams named as women's teams */
 export function isWomenGame(g: ExternalGame): boolean {
@@ -91,17 +92,7 @@ export function danishRound(round?: string | number): string | undefined {
  * (/turnering/<key>), its logo and its name in the admin pages. From the
  * original name, so a rename keeps the key.
  */
-/**
- * Danish names for the source's English ones, when the admin pages haven't named the league:
- * "Friendlies" is "Venskabskampe", "Friendlies Clubs" "Venskabskampe, klubhold". The address keeps the original name.
- */
-export function danishLeagueName(name: string): string | undefined {
-  const m = /^Friendlies\b\s*(.*)$/i.exec(name.trim())
-  if (!m) return undefined
-  const rest = m[1].trim()
-  const kinds: Record<string, string> = { clubs: 'klubhold', women: 'kvinder', 'u23': 'U23', 'u21': 'U21', 'u20': 'U20', 'u19': 'U19', 'u17': 'U17' }
-  return rest ? `Venskabskampe, ${kinds[rest.toLowerCase()] ?? rest}` : 'Venskabskampe'
-}
+export { danishLeagueName } from './danishLeagues'
 
 export const externalLeagueKey = (league: { name: string; country?: string; originalName?: string }) =>
   `x-${slugify(`${league.country ?? ''} ${league.originalName ?? league.name}`)}`
@@ -138,7 +129,8 @@ export function externalToMatch(g: ExternalGame): Match {
           : g.homeScore! < g.awayScore!
             ? 'away'
             : 'draw',
-    home: { name: g.home.name, badge: g.home.logo, score: hasScore ? g.homeScore : undefined },
-    away: { name: g.away.name, badge: g.away.logo, score: hasScore ? g.awayScore : undefined },
+    // The names as we show them (national teams in Danish, women's teams marked "(K)"); the address keeps the source's
+    home: { name: shownTeam(g.home.name, g.league.country), badge: g.home.logo, score: hasScore ? g.homeScore : undefined },
+    away: { name: shownTeam(g.away.name, g.league.country), badge: g.away.logo, score: hasScore ? g.awayScore : undefined },
   }
 }

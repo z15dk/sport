@@ -317,6 +317,10 @@ function BannerEditor({ p, n, numbered, banner, run, onDone }: { p: AdPlacement;
             <input type="checkbox" checked={gambling} onChange={(e) => setGambling(e.target.checked)} /> Spilreklame (viser &quot;18+ · Spil ansvarligt · StopSpillet.dk&quot; under)
           </label>
           <p className="muted small">Koden får pladsen {size('desktop')} px (mobil {size('mobile')}) og køres kun hos de besøgende, der får denne annonce. Netværkets hovedscript sættes ind nederst under &quot;Kode på alle sider&quot;.</p>
+          <p className="muted small">
+            Forskellige varer i hvert banner: skriv <code>{'{nr}'}</code> i koden, hvor annoncøren tager et nummer for, hvilken vare der vises. Hvert banner på siden får sit eget nummer (topbanneret 0, bannerne ned gennem kamplisten 1, 2, 3 …); <code>{'{nr:6}'}</code> holder numrene
+            mellem 0 og 5 og begynder forfra efter seks. Eksempel: <code>…/728x90.png?p={'{nr:6}'}</code> og det samme nummer i linket (<code>…/klik?p={'{nr:6}'}</code>).
+          </p>
           <div>
             <button type="button" className="pill is-active" disabled={busy} onClick={save}>
               Gem

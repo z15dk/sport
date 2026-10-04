@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Bars } from './DashBars'
 import { DashFlow } from './DashFlow'
-import { visitStats } from '../../lib/visits'
+import { liveVisitors, visitStats } from '../../lib/visits'
 import { formatDayMonth } from '../../lib/time'
 
 // Our own visitor statistics without cookies (src/lib/visits.ts): the top of the
@@ -69,6 +69,42 @@ export function VisitorsDash({ periode, href, children }: { periode?: string; hr
       </div>
 
       <DashFlow>
+        {(() => {
+          // Who is on which page right now (the last 5 minutes), as behind "N nu" in the admin bar
+          const live = liveVisitors(5)
+          return (
+            <section className="panel dash-card">
+              <h2 className="panel__title">Lige nu ({live.visitors.length})</h2>
+              {!live.visitors.length ? (
+                <p className="muted small">Ingen besøgende de sidste 5 minutter.</p>
+              ) : (
+                <table className="dash-table dash-pages">
+                  <thead>
+                    <tr>
+                      <th>Side</th>
+                      <th>Hvornår</th>
+                      <th>Fra</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {live.visitors.slice(0, 15).map((v, i) => (
+                      <tr key={i}>
+                        <td>
+                          <a href={v.path} target="_blank" rel="noreferrer">
+                            {v.path === '/' ? 'Forsiden' : decodeURIComponent(v.path)}
+                          </a>
+                          <span className="muted"> · {v.device === 'mobil' ? 'mobil' : v.device === 'tablet' ? 'tablet' : 'computer'}{v.views > 1 ? ` · ${v.views} sider` : ''}</span>
+                        </td>
+                        <td>{v.minutes < 1 ? 'lige nu' : `${v.minutes} min.`}</td>
+                        <td>{v.ref || '–'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          )
+        })()}
         <section className="panel dash-card">
           <h2 className="panel__title">Besøgende pr. dag</h2>
           <Bars values={s.days.map((d) => d.visitors)} labels={s.days.map((d) => formatDayMonth(d.day))} unit="besøgende" />

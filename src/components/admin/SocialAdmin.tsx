@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 
 // The social media admin (/admin/sociale): buttons, the text editor, the
@@ -49,11 +49,12 @@ export function ActionButton({ body, label, busyLabel, confirm: ask, pill }: { b
 /** The settings a switch changes: the engine, dry run or one platform ("platform:facebook") */
 function switchConfig(setting: string, on: boolean): Record<string, unknown> {
   if (setting.startsWith('platform:')) return { platforms: { [setting.slice(9)]: on } }
+  if (setting === 'articles') return { articles: { enabled: on } }
   return { [setting]: on }
 }
 
 /** A switch for one yes/no setting */
-export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | `platform:${string}`; value: boolean; label: string }) {
+export function ConfigSwitch({ setting, value, label }: { setting: 'enabled' | 'dryRun' | 'articles' | `platform:${string}`; value: boolean; label: string }) {
   const { busy, msg, run } = useAction()
   return (
     <span className="social-switch">
@@ -615,5 +616,412 @@ export function TagsAdmin({ rows, platforms }: { rows: TagRow[]; platforms: Reco
         </div>
       </section>
     </>
+  )
+}
+
+/** A picture made smaller in the browser before it is sent (at most 2048 px, JPEG), so a phone photo isn't megabytes */
+function shrink(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, 2048 / Math.max(img.naturalWidth, img.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.naturalWidth * scale)
+      canvas.height = Math.round(img.naturalHeight * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Billedet kan ikke læses'))
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(img.src)
+      resolve(canvas.toDataURL('image/jpeg', 0.9))
+    }
+    img.onerror = () => reject(new Error(`${file.name} kan ikke læses`))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+/** The next whole hour as "YYYY-MM-DDTHH:MM" in the browser's own (Danish) time */
+function nextHour() {
+  const d = new Date(Date.now() + 3_600_000)
+  d.setMinutes(0, 0, 0)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/**
+ * Write a post by hand: text, an optional link, 1–10 pictures, the platforms and a time – or
+ * out at once. It goes in the same queue as the engine's posts and is posted at its time.
+ */
+export function OwnPostForm({
+  platforms,
+  templates,
+  leagues,
+}: {
+  platforms: { id: string; name: string; connected: boolean; story: boolean }[]
+  /** The engine's templates: "programme", "results" or "topic:<id>" */
+  templates: { value: string; label: string }[]
+  leagues: { id: string; name: string; group?: string }[]
+}) {
+  const { busy, msg, run } = useAction()
+  const tplAction = useAction()
+  const [tpl, setTpl] = useState('')
+  // Up to three leagues for the template (empty: the day's picked matches)
+  const [leagueList, setLeagueList] = useState<string[]>([])
+  // Make the template's pictures at the post's time (results not played yet), and put its list under the text
+  const [later, setLater] = useState(false)
+  const [appendList, setAppendList] = useState(true)
+  const [storyImage, setStoryImage] = useState<string>()
+  // The template's ten texts, to step through with "Ny tekst"
+  const [captions, setCaptions] = useState<string[]>([])
+  const [captionNo, setCaptionNo] = useState(0)
+  const [text, setText] = useState('')
+  const [link, setLink] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [chosen, setChosen] = useState<string[]>(() => platforms.filter((p) => p.connected).slice(0, 1).map((p) => p.id))
+  const [story, setStory] = useState(false)
+  const [at, setAt] = useState(nextHour)
+  // The focus match (its id) and the matches to pick it from, for the day under "Udgiv" and the next three
+  const [focus, setFocus] = useState('')
+  const [focusList, setFocusList] = useState<{ id: string; label: string; kickoff?: string }[]>([])
+  const [focusKickoff, setFocusKickoff] = useState<string>()
+  // The focus match's result posted by itself 2½ hours after kick-off, with this text over the score
+  const [autoResult, setAutoResult] = useState(true)
+  const [resultText, setResultText] = useState('Slutfløjt! 🏁')
+  // A programme's results posted by themselves 2½ hours after the day's last kick-off
+  const [autoResults, setAutoResults] = useState(true)
+  const [resultsText, setResultsText] = useState('Dagens resultater ⚽')
+  const programme = tpl === 'programme' || tpl === 'women:programme'
+  const [focusQ, setFocusQ] = useState('')
+  // The day the template is made for: today and up to seven days ahead ('' is the post's own day)
+  const [matchDay, setMatchDay] = useState('')
+  const days = useMemo(() => {
+    const p2 = (n: number) => String(n).padStart(2, '0')
+    return Array.from({ length: 8 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() + i)
+      const iso = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+      const name = i === 0 ? 'I dag' : i === 1 ? 'I morgen' : d.toLocaleDateString('da-DK', { weekday: 'long' })
+      return { iso, label: `${name.charAt(0).toUpperCase() + name.slice(1)} ${d.getDate()}/${d.getMonth() + 1}` }
+    })
+  }, [])
+  const focusDate = matchDay || at.slice(0, 10)
+  // Searched on the server (there can be thousands of matches): the 30 best that have every word typed
+  useEffect(() => {
+    if (tpl !== 'focus') return
+    const t = setTimeout(() => {
+      void fetch('/api/admin/social', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'focusMatches', date: focusDate, q: focusQ }) })
+        .then((r) => r.json())
+        .then((d: { data?: { id: string; label: string; kickoff?: string }[] }) => setFocusList(d.data ?? []))
+        .catch(() => undefined)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [tpl, focusDate, focusQ])
+  /** The chosen template as the server takes it: "focus", "women:<kind>", "topic:<id>" or a kind */
+  const tplParams = () => {
+    if (tpl === 'focus') return { kind: 'topic', topic: 'bigmatch', focus }
+    if (tpl.startsWith('women:')) return { kind: tpl.slice(6), women: true }
+    const [kind, topic] = tpl.split(':')
+    return { kind, topic, league: leagueList.join(',') }
+  }
+  const [reading, setReading] = useState(false)
+  const add = async (files: FileList | null) => {
+    if (!files?.length) return
+    setReading(true)
+    try {
+      const list = await Promise.all([...files].slice(0, 10 - images.length).map(shrink))
+      setImages((x) => [...x, ...list].slice(0, 10))
+    } finally {
+      setReading(false)
+    }
+  }
+  const submit = async (now: boolean) => {
+    if (now && !window.confirm('Udgiv opslaget nu på de valgte platforme?')) return
+    const template = later && tpl ? { ...tplParams(), appendList, ...(matchDay && { date: matchDay }) } : undefined
+    const r = await run({ action: 'own', text, link, images, storyImage, platforms: chosen, story, at, now, template })
+    // The focus match's result as its own post, 2½ hours after kick-off (the score and goals as they are then)
+    if (!r.error && tpl === 'focus' && focus && autoResult && focusKickoff) {
+      const d = new Date(Date.parse(focusKickoff) + 150 * 60_000)
+      const p2 = (n: number) => String(n).padStart(2, '0')
+      const when = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`
+      await run({ action: 'own', text: resultText.trim() || 'Slutfløjt! 🏁', link: '', images: [], platforms: chosen, story: false, at: when, template: { kind: 'results', focus, appendList: true } })
+    }
+    if (!r.error && programme && autoResults) {
+      const p = tplParams()
+      await run({ action: 'ownResults', league: 'league' in p ? p.league : undefined, women: 'women' in p && p.women, date: focusDate, text: resultsText, platforms: chosen })
+    }
+    if (!r.error) {
+      setText('')
+      setLink('')
+      setImages([])
+      setStory(false)
+      setStoryImage(undefined)
+      setAt(nextHour())
+    }
+  }
+  // A template's cards (made on the server for the chosen day) and its text as the start of the post
+  const applyTemplate = async () => {
+    if (!tpl) return
+    const r = await tplAction.run({ action: 'ownTemplate', ...tplParams(), date: focusDate })
+    const d = r.data as { images: { file: string; surface: string }[]; caption: string; captions?: string[]; link: string } | undefined
+    if (r.error || !d) return
+    const feed = d.images.filter((i) => i.surface === 'feed').map((i) => `file:${i.file}`)
+    const st = d.images.find((i) => i.surface === 'story')
+    setImages((x) => [...feed, ...x.filter((y) => !y.startsWith('file:'))].slice(0, 10))
+    setStoryImage(st ? `file:${st.file}` : undefined)
+    if (st) setStory(true)
+    setCaptions(d.captions ?? [d.caption])
+    setCaptionNo(Math.max(0, (d.captions ?? []).indexOf(d.caption)))
+    if (!text.trim() || window.confirm('Erstat teksten med skabelonens tekst?')) setText(d.caption)
+    if (!link.trim()) setLink(d.link)
+  }
+  const thumb = (ref: string) => (ref.startsWith('file:') ? `/sociale-billeder/${ref.slice(5)}` : ref)
+  // The picture shown large (index in the list, or -1 for the story card)
+  const [big, setBig] = useState<number>()
+  const shown = big === undefined ? undefined : big === -1 ? storyImage : images[big]
+  const canStory = chosen.some((id) => platforms.find((p) => p.id === id)?.story)
+  return (
+    <div className="own-post">
+      <div className="own-post__tpl">
+        <label>
+          <span>Skabelon (valgfri)</span>
+          <select value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <option value="">Ingen – mine egne billeder</option>
+            {templates.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {tpl && (
+          <label>
+            <span>Kampdag</span>
+            <select value={matchDay} onChange={(e) => setMatchDay(e.target.value)}>
+              <option value="">Samme dag som opslaget</option>
+              {days.map((d) => (
+                <option key={d.iso} value={d.iso}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {tpl === 'focus' && (
+          <div className="own-post__focus">
+            <label>
+              <span>Søg kamp</span>
+              <input value={focusQ} onChange={(e) => setFocusQ(e.target.value)} placeholder="Hold eller liga, fx Brøndby" />
+            </label>
+            <div className="own-post__focus-list" role="listbox" aria-label="Kampe">
+              {focusList.map((m) => (
+                <button key={m.id} type="button" role="option" aria-selected={m.id === focus} className={m.id === focus ? 'is-active' : undefined} onClick={() => {
+                  setFocus(m.id)
+                  setFocusKickoff(m.kickoff)
+                }}>
+                  {m.label}
+                </button>
+              ))}
+              {!focusList.length && <span className="muted small">Ingen kampe fundet</span>}
+            </div>
+          </div>
+        )}
+        {tpl !== 'focus' && !tpl.startsWith('women:') && (leagueList.length < 3 ? [...leagueList, ''] : leagueList).map((id, i) => (
+          <label key={`${i}-${id}`}>
+            <span>{i === 0 ? 'Liga' : `Liga ${i + 1}`}</span>
+            <select
+              value={id}
+              disabled={!tpl}
+              onChange={(e) => {
+                const v = e.target.value
+                setLeagueList((x) => (v ? (i < x.length ? x.map((y, j) => (j === i ? v : y)) : [...x, v]) : x.filter((_, j) => j !== i)))
+              }}
+            >
+              <option value="">{i === 0 ? 'Dagens udvalgte' : i < leagueList.length ? '– fjern –' : '+ tilføj liga'}</option>
+              {[...new Set(leagues.map((l) => l.group ?? ''))].map((g) => (
+                <optgroup key={g} label={g || 'Ligaer'}>
+                  {leagues
+                    .filter((l) => (l.group ?? '') === g && (l.id === id || !leagueList.includes(l.id)))
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        ))}
+        {!later && (
+          <button type="button" className="pill" disabled={!tpl || (tpl === 'focus' && !focus) || tplAction.busy} onClick={() => void applyTemplate()}>
+            {tplAction.busy ? 'Laver billeder …' : 'Brug skabelon'}
+          </button>
+        )}
+        {tpl === 'focus' && (
+          <div className="own-post__later own-post__result">
+            <label className="social-check">
+              <input type="checkbox" checked={autoResult} onChange={(e) => setAutoResult(e.target.checked)} /> Post også resultatet automatisk 2½ time efter kampstart
+              {focusKickoff && autoResult && (
+                <span className="muted small">
+                  {' '}
+                  (kl. {new Date(Date.parse(focusKickoff) + 150 * 60_000).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })})
+                </span>
+              )}
+            </label>
+            {autoResult && <input value={resultText} onChange={(e) => setResultText(e.target.value)} placeholder="Tekst over resultatet" aria-label="Tekst til resultatopslaget" />}
+          </div>
+        )}
+        {programme && (
+          <div className="own-post__later own-post__result">
+            <label className="social-check">
+              <input type="checkbox" checked={autoResults} onChange={(e) => setAutoResults(e.target.checked)} /> Post også resultaterne automatisk 2½ time efter dagens sidste kampstart
+            </label>
+            {autoResults && <input value={resultsText} onChange={(e) => setResultsText(e.target.value)} placeholder="Tekst over resultaterne" aria-label="Tekst til resultatopslaget" />}
+          </div>
+        )}
+        {tpl && (
+          <label className="social-check own-post__later">
+            <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /> Lav billederne først, når opslaget skal ud (fx resultater af kampe, der ikke er spillet endnu)
+          </label>
+        )}
+        {tpl && later && (
+          <label className="social-check own-post__later">
+            <input type="checkbox" checked={appendList} onChange={(e) => setAppendList(e.target.checked)} /> Sæt listen (kampe/resultater) ind under min tekst
+          </label>
+        )}
+        <Msg msg={tplAction.msg} />
+        <small className="muted own-post__tpl-note">Billederne laves til dagen under &quot;Udgiv&quot;. Du kan rette teksten og tilføje egne billeder bagefter.</small>
+      </div>
+      <label className="own-post__text">
+        <span>Tekst</span>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Skriv opslaget …" maxLength={5000} />
+        <small className="muted">
+          {text.length} tegn{text.length > 280 ? ' · X viser kun de første 280' : ''}
+          {captions.length > 1 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => {
+                  const n = (captionNo + 1) % captions.length
+                  setCaptionNo(n)
+                  setText(captions[n])
+                }}
+              >
+                Ny tekst ↻ ({captionNo + 1}/{captions.length})
+              </button>
+            </>
+          )}
+        </small>
+      </label>
+      <label>
+        <span>Link (valgfrit)</span>
+        <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://matchly.dk/…" />
+      </label>
+      <div className="own-post__images">
+        <span>Billeder ({images.length}/10)</span>
+        <div className="own-post__thumbs">
+          {images.map((src, i) => (
+            <figure key={i}>
+              <button type="button" className="own-post__open" onClick={() => setBig(i)} aria-label={`Vis billede ${i + 1} stort`}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen picture */}
+                <img src={thumb(src)} alt="" />
+              </button>
+              <button type="button" className="own-post__remove" onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label="Fjern billedet">
+                ×
+              </button>
+            </figure>
+          ))}
+          {images.length < 10 && (
+            <label className="own-post__add">
+              {reading ? 'Læser …' : '+ Tilføj billeder'}
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => void add(e.target.files)} />
+            </label>
+          )}
+        </div>
+        {/* A template's story card when stories can't be posted from here: to download and post by hand */}
+        {!canStory && storyImage && (
+          <p className="small">
+            <a className="pill" href={thumb(storyImage)} download="matchly-story.jpg">
+              ⬇ Hent story-billedet
+            </a>{' '}
+            <span className="muted">Stories lægges op i Meta Business Suite (de kan ikke sendes gennem Make).</span>
+          </p>
+        )}
+        {story && storyImage && (
+          <div className="own-post__thumbs">
+            <figure className="is-story">
+              <button type="button" className="own-post__open" onClick={() => setBig(-1)} aria-label="Vis story-billedet stort">
+                {/* eslint-disable-next-line @next/next/no-img-element -- the template's story card */}
+                <img src={thumb(storyImage)} alt="" />
+              </button>
+              <figcaption>Story</figcaption>
+            </figure>
+          </div>
+        )}
+        {images.length > 0 && <small className="muted">Klik på et billede for at se det i fuld størrelse. Flere billeder bliver en karrusel i den rækkefølge, de står.</small>}
+        {shown && (
+          <div className="own-post__big" role="dialog" aria-label="Billedet i fuld størrelse" onClick={() => setBig(undefined)}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the picture in full size */}
+            <img src={thumb(shown)} alt="" onClick={(e) => e.stopPropagation()} />
+            <div className="own-post__big-bar" onClick={(e) => e.stopPropagation()}>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) - 1 + images.length) % images.length)}>
+                  ← Forrige
+                </button>
+              )}
+              <span>{big === -1 ? 'Story' : `${(big ?? 0) + 1} af ${images.length}`}</span>
+              {big !== -1 && images.length > 1 && (
+                <button type="button" className="pill" onClick={() => setBig((b) => ((b ?? 0) + 1) % images.length)}>
+                  Næste →
+                </button>
+              )}
+              <button type="button" className="pill is-active" onClick={() => setBig(undefined)}>
+                Luk
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <fieldset className="own-post__platforms">
+        <legend>Platforme</legend>
+        {platforms.map((p) => (
+          <label key={p.id} className="social-check" title={p.connected ? undefined : 'Ikke forbundet – sættes op under Indstillinger'}>
+            <input type="checkbox" disabled={!p.connected} checked={chosen.includes(p.id)} onChange={(e) => setChosen((x) => (e.target.checked ? [...x, p.id] : x.filter((y) => y !== p.id)))} /> {p.name}
+            {!p.connected && <span className="muted small"> (ikke forbundet)</span>}
+          </label>
+        ))}
+        {canStory && (
+          <label className="social-check">
+            <input type="checkbox" checked={story} onChange={(e) => setStory(e.target.checked)} /> Også som story (første billede)
+          </label>
+        )}
+      </fieldset>
+      <div className="own-post__when">
+        <label>
+          <span>Udgiv</span>
+          <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+        </label>
+        <button type="button" className="pill is-active" disabled={busy || reading} onClick={() => void submit(false)}>
+          {busy ? 'Gemmer …' : 'Planlæg'}
+        </button>
+        <button type="button" className="pill" disabled={busy || reading} onClick={() => void submit(true)}>
+          Udgiv nu
+        </button>
+        <Msg msg={msg} />
+      </div>
+    </div>
+  )
+}
+
+/** Facebook through Make.com: the scenario's webhook address (kept on the server, shown masked) */
+export function MakeConnect({ saved }: { saved?: string }) {
+  return (
+    <ActionForm submit="Gem webhooken" build={(f) => ({ action: 'make', url: val(f, 'url') })}>
+      <Field label="Make-webhook" hint={saved ? `Gemt: ${saved}. Skriv en ny for at skifte den.` : 'Fx https://hook.eu1.make.com/abc123…'}>
+        <input name="url" type="url" autoComplete="off" placeholder="https://hook.eu1.make.com/…" />
+      </Field>
+    </ActionForm>
   )
 }

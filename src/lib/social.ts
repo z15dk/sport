@@ -2,7 +2,7 @@ import 'server-only'
 import type { Incident, Match, SportId } from '../types'
 import type { Club, Division } from '../data/leagues'
 import { DIVISIONS, sportOf } from '../data/leagues'
-import { allFixtures, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
+import { allFixtures, clubInDivision, fixturesOn, isFinished, standings, type Fixture } from '../data/season'
 import { leagueStats, type ScorerRow } from '../data/stats'
 import { alike } from '../data/aliases'
 import { getMatches, isWomenMatch } from '../data/matches'
@@ -11,6 +11,11 @@ import { ourClubByName } from '../data/cups'
 import { addDays, isoDate } from './time'
 import { realHeadToHead } from './history'
 import { EXTERNAL_PRIORITIES, socialConfig } from './socialStore'
+import { dbuTopScorers } from './dbuLineups'
+import { getRealData } from '../data/real'
+import { slugify } from './slug'
+import { apiHeadToHead } from './apisports'
+import type { ExternalGame } from '../data/external'
 
 // Test of posts for Facebook and Instagram (/admin/sociale): which matches a
 // day's posts would pick, and the numbers each card shows. Everything comes
@@ -79,6 +84,10 @@ export interface Fact {
   /** The numbers behind the fact */
   proof: { label: string; value: string }[]
   proofTitle: string
+  /** The meetings counted: home team's wins, draws, away team's wins (the head-to-head card) */
+  h2h?: { w: number; d: number; l: number; n: number }
+  /** The meetings themselves, newest first (the head-to-head card's rows) */
+  meetings?: { year: number; home: string; away: string; hs: number; as: number }[]
 }
 
 export interface Pick {
@@ -92,6 +101,10 @@ export interface Pick {
   away: { pos?: number; points?: number }
   /** One fact for the preview */
   fact?: Fact
+  /** The head-to-head of a focus match (always looked up for it, whatever the fact is) */
+  h2h?: Fact
+  /** A women's match */
+  women?: boolean
   /** Table position after the match, when it is the club's latest */
   after?: { home?: number; away?: number }
   /** Logos the source sent with the match (API-Sports' games) */
@@ -105,9 +118,9 @@ export const gen = (name: string) => (/[sxz]$/i.test(name) ? `${name}'` : `${nam
 
 const isHomeIn = (club: Club, name: string) => name === club.name || alike([club.name, club.originalName ?? club.name], name)
 
-function headToHeadFact(f: Fixture): Fact | undefined {
+function headToHeadFact(f: Fixture, least = 3): Fact | undefined {
   const h2h = realHeadToHead(f.home, f.away, f.kickoff, 6)
-  if (!h2h || h2h.length < 3) return undefined
+  if (!h2h || h2h.length < least) return undefined
   let w = 0
   let d = 0
   let l = 0
@@ -124,10 +137,14 @@ function headToHeadFact(f: Fixture): Fact | undefined {
   const n = h2h.length
   const proof = h2h.map((m) => ({ label: `${m.date.getFullYear()} · ${m.home} – ${m.away}`, value: `${m.homeScore}–${m.awayScore}` }))
   const proofTitle = `De seneste ${n} opgør`
-  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle }
-  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle }
-  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle }
-  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle }
+  const counts = { w, d, l, n }
+  // Our names for the two teams in the rows (the database writes them its own way)
+  const named = (name: string) => (isHomeIn(f.home, name) ? f.home.name : isHomeIn(f.away, name) ? f.away.name : name)
+  const meetings = h2h.map((m) => ({ year: m.date.getFullYear(), home: named(m.home), away: named(m.away), hs: m.homeScore, as: m.awayScore }))
+  if (l === 0 && n >= 4) return { text: `${f.home.name} har ikke tabt i de seneste ${n} opgør mod ${f.away.name}.`, proof, proofTitle, h2h: counts, meetings }
+  if (w === 0 && n >= 4) return { text: `${f.away.name} har ikke tabt i de seneste ${n} opgør mod ${f.home.name}.`, proof, proofTitle, h2h: counts, meetings }
+  if (high >= n - 1 && n >= 4) return { text: `Der er faldet mindst tre mål i ${high} af de seneste ${n} opgør.`, proof, proofTitle, h2h: counts, meetings }
+  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle, h2h: counts, meetings }
 }
 
 /** A club's current run before a time: wins in a row, unbeaten or without a win */
@@ -208,11 +225,19 @@ function externalFixture(m: Match): Fixture {
   const club = (name: string): Club => {
     const t = teamByName(name)
     // A women's team without colours of its own wears its club's: "Brøndby W" in Brøndby's yellow
-    const bare = name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino)\.?$/i, '').trim()
+    const bare = name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino|\(k\))\.?$/i, '').trim()
     const parent = t?.colors || t?.season ? undefined : bare !== name ? (ourClubByName(bare, 'soccer')?.club ?? teamByName(bare)) : undefined
     const parentColors = parent && ('season' in parent ? (parent.colors ?? parent.season?.club.colors) : parent.colors)
     const colors = t?.colors ?? t?.season?.club.colors ?? parentColors ?? ['#16181a', '#ffffff']
-    return { id: `x-${t?.slug ?? name}`, slug: t?.slug ?? name, name, city: '', colors }
+    // Our Danish name for one of our clubs: "FC Copenhagen W" is FC København (the women's look on the cards says it is the women's team)
+    const women = bare !== name
+    const ours = women ? ourClubByName(bare, 'soccer')?.club : undefined
+    // The name from our own club list ("FC København", not "FC Copenhagen W" or the register's "F.C. København")
+    const tBare = t?.name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino|\(k\))\.?$/i, '').trim()
+    const tries = [ours?.name, bare, tBare].filter((n): n is string => !!n)
+    const ourName = women ? DIVISIONS.flatMap((d) => d.clubs).find((c) => (ours && c.id === ours.id) || tries.some((n) => alike([c.name, c.originalName ?? c.name], n)))?.name : undefined
+    const shown = ourName ?? ours?.name ?? t?.name ?? name
+    return { id: `x-${t?.slug ?? name}`, slug: t?.slug ?? name, name: shown, city: '', colors }
   }
   const hasScore = m.home.score !== undefined && m.away.score !== undefined
   return {
@@ -254,6 +279,8 @@ type Scored = {
   h?: { pos: number; points: number; played: number }
   a?: { pos: number; points: number; played: number }
   logos?: Record<string, string>
+  /** A women's match (its cards in the women's look) */
+  women?: boolean
 }
 
 /** Every match of a day with its score: league weight (0 = never), table, goals and the admin's favourite clubs */
@@ -288,12 +315,14 @@ function scoredMatches(date: string, now: number, only: (f: Fixture) => boolean,
       if (!only(f)) return []
       let score = externalWeight(m)
       if (score <= 0) return []
+      // The logos by the source's names and by ours ("FC Copenhagen W" shown as FC København), and the league's
       const logos: Record<string, string> = {}
-      if (m.home.badge) logos[m.home.name] = m.home.badge
-      if (m.away.badge) logos[m.away.name] = m.away.badge
+      if (m.home.badge) logos[m.home.name] = logos[f.home.name] = m.home.badge
+      if (m.away.badge) logos[m.away.name] = logos[f.away.name] = m.away.badge
+      if (m.leagueBadge) logos[m.league] = m.leagueBadge
       score += isFinished(f) ? (f.score[0] + f.score[1]) * 2 : 0
       if (favorite(f)) score += 200
-      return [{ f, league: m.league, sport: m.sport, score, logos }]
+      return [{ f, league: m.league, sport: m.sport, score, logos, women: m.sport === 'soccer' && isWomenMatch(m) }]
     }),
   ]
   return scored.sort((x, y) => y.score - x.score || x.f.kickoff.getTime() - y.f.kickoff.getTime())
@@ -305,7 +334,7 @@ function decorate(chosen: Scored[], scored: Scored[], now: number): Pick[] {
   const listed = new Set<string>()
   return [...chosen]
     .sort((x, y) => x.f.kickoff.getTime() - y.f.kickoff.getTime())
-    .map(({ f, div, league, sport, h, a, logos: own }) => {
+    .map(({ f, div, league, sport, h, a, logos: own, women }) => {
       const first = isFinished(f) && !listed.has(league)
       if (first) listed.add(league)
       const others = scored
@@ -332,6 +361,7 @@ function decorate(chosen: Scored[], scored: Scored[], now: number): Pick[] {
         after,
         logos,
         sameDay: others.map((x) => x.f),
+        women,
       }
     })
 }
@@ -435,9 +465,33 @@ export const todayIso = (now: number) => isoDate(new Date(now))
 
 /** The league the one-league topics use: the admin's choice, else the Superliga */
 /** Only the matches of one of our leagues (a post made for that league alone) */
-export const leagueOnly = (id: string) => (f: Fixture) => f.division?.id === id
-/** How many of a league's matches a post for one league shows at most (a whole round) */
-export const LEAGUE_MATCHES = 12
+/**
+ * One league, or up to three separated by commas: our leagues by id ("superliga,1div"), and cups and
+ * other tournaments as "liga:<league id>" ("liga:cup-fa")
+ */
+export const leagueOnly = (id: string) => {
+  const ids = id.split(',').filter(Boolean)
+  return (f: Fixture) => (!!f.division && ids.includes(f.division.id)) || (!!f.leagueId && ids.includes(`liga:${f.leagueId}`))
+}
+
+let otherCache: { at: number; list: { id: string; name: string }[] } | undefined
+/** Cups and other tournaments with matches the next two weeks, to pick for a post ("liga:<league id>") */
+export function otherLeagues(now = Date.now()): { id: string; name: string }[] {
+  if (otherCache && now - otherCache.at < 10 * 60_000) return otherCache.list
+  const ourSlugs = new Set(DIVISIONS.map((d) => d.slug))
+  const found = new Map<string, string>()
+  for (let i = -1; i < 14; i++)
+    for (const m of getMatches(addDays(isoDate(now), i), 'all', now))
+      if (m.leagueId && !(m.leagueSlug && ourSlugs.has(m.leagueSlug)) && !found.has(m.leagueId)) found.set(m.leagueId, m.country ? `${m.league} (${m.country})` : m.league)
+  const list = [...found.entries()].map(([id, name]) => ({ id: `liga:${id}`, name })).sort((a, b) => a.name.localeCompare(b.name, 'da'))
+  otherCache = { at: now, list }
+  return list
+}
+
+/** A league's name for a title: ours by id, a cup or other tournament by "liga:<id>" */
+export const leagueName = (id: string) => DIVISIONS.find((d) => d.id === id)?.name ?? otherLeagues().find((l) => l.id === id)?.name.replace(/ \(.*\)$/, '') ?? id
+/** How many of a league's matches a post for one league shows at most: a whole round, also a cup round of 40 (6 per card, so up to 10 cards) */
+export const LEAGUE_MATCHES = 60
 
 export function topicDivision(): Division | undefined {
   const id = socialConfig().topicLeague
@@ -446,7 +500,13 @@ export function topicDivision(): Division | undefined {
 
 /** The league's top scorers (at least 5 with goals) */
 export function scorersTopic(div: Division): { division: Division; rows: ScorerRow[] } | undefined {
-  const rows = leagueStats(div)?.scorers.filter((r) => r.goals > 0).slice(0, 10) ?? []
+  // 1.–3. division: the goals from DBU's match pages (as on the league page), else the league's statistics
+  const dbu = dbuTopScorers(div.slug, (team) => clubInDivision(div, team, getRealData()?.clubNames ?? {})?.name)
+  const fromDbu: ScorerRow[] = (dbu?.scorers ?? []).map((r) => {
+    const club = clubInDivision(div, r.team, getRealData()?.clubNames ?? {})
+    return { player: r.name, club: club ? { id: club.id, name: club.name, colors: club.colors } : { id: slugify(r.team), name: r.team }, goals: r.goals, penalties: 0 }
+  })
+  const rows = (fromDbu.length ? fromDbu : (leagueStats(div)?.scorers ?? [])).filter((r) => r.goals > 0).slice(0, 10)
   return rows.length >= 5 ? { division: div, rows } : undefined
 }
 
@@ -494,6 +554,36 @@ export function bigMatchTopic(date: string, now: number, only: (f: Fixture) => b
   return best ? decorate([best.s], best.scored, now)[0] : undefined
 }
 
+/** One match picked by hand (the focus match of an own post): looked for from `date` and the next week */
+export function focusPick(date: string, now: number, matchId: string): Pick | undefined {
+  for (let i = 0; i < 8; i++) {
+    const day = addDays(date, i)
+    const pick = picksFor(day, now, [matchId])[0]
+    // The head-to-head even with one or two meetings: our match database, else the partner's (women's and foreign games)
+    if (pick) return { ...pick, h2h: headToHeadFact(pick.fixture, 1) ?? partnerHeadToHead(matchId, pick.fixture) }
+  }
+  return undefined
+}
+
+let focusCache: { key: string; list: { id: string; label: string; kickoff: string }[] } | undefined
+/** The matches to pick a focus match from: from `date` and the next few days, best first per day; with `q` only those whose label has every word, at most 30 */
+export function focusCandidates(date: string, now: number, q = '', days = 4): { id: string; label: string; kickoff: string }[] {
+  const key = `${date}|${Math.floor(now / 300_000)}`
+  const all = focusCache?.key === key ? focusCache.list : (focusCache = { key, list: focusAll(date, now, days) }).list
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  return (words.length ? all.filter((m) => words.every((w) => m.label.toLowerCase().includes(w))) : all).slice(0, 30)
+}
+
+function focusAll(date: string, now: number, days: number): { id: string; label: string; kickoff: string }[] {
+  const out: { id: string; label: string; kickoff: string }[] = []
+  for (let i = 0; i < days; i++)
+    for (const c of candidates(addDays(date, i), now)) {
+      const k = c.fixture.kickoff
+      out.push({ id: c.fixture.id, label: `${k.getDate()}/${k.getMonth() + 1} ${String(k.getHours()).padStart(2, '0')}.${String(k.getMinutes()).padStart(2, '0')} · ${c.fixture.home.name} – ${c.fixture.away.name} (${c.league})`, kickoff: k.toISOString() })
+    }
+  return out
+}
+
 /** The coming Saturday and Sunday (today and tomorrow on a Saturday) */
 export function weekendDates(date: string): [string, string] {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
@@ -511,4 +601,45 @@ export function weekendTopic(date: string, now: number, only: (f: Fixture) => bo
 export function factsTopic(date: string, now: number, ids: string[]): Pick[] | undefined {
   const picks = picksFor(date, now, ids).filter((p) => p.fact)
   return picks.length >= 2 ? picks : undefined
+}
+
+// ---------------------------------------------------------------- the partner's head-to-head (focus match)
+
+/** The partner's latest meetings of a focus match's teams, fetched before the cards are made (kept 3 days by apisports) */
+const partnerMeetings = new Map<string, { game: ExternalGame; games: ExternalGame[] }>()
+
+/** Looks up the meetings of a match from outside our leagues (the women's and foreign games); call before making its cards */
+export async function loadFocusHeadToHead(matchId: string) {
+  if (partnerMeetings.has(matchId)) return
+  const game = getRealData()?.external?.find((g) => g.id === matchId)
+  if (!game) return
+  const games = await apiHeadToHead(game, 6).catch(() => undefined)
+  if (games?.length) partnerMeetings.set(matchId, { game, games })
+}
+
+function partnerHeadToHead(matchId: string, f: Fixture): Fact | undefined {
+  const found = partnerMeetings.get(matchId)
+  if (!found) return undefined
+  const { game, games } = found
+  let w = 0
+  let d = 0
+  let l = 0
+  const proof: Fact['proof'] = []
+  const meetings: NonNullable<Fact['meetings']> = []
+  for (const g of games) {
+    if (g.homeScore === undefined || g.awayScore === undefined) continue
+    // The focus match's home team by the partner's team id
+    const home = g.home.id !== undefined && g.home.id === game.home.id
+    const gf = home ? g.homeScore : g.awayScore
+    const ga = home ? g.awayScore : g.homeScore
+    if (gf > ga) w++
+    else if (gf === ga) d++
+    else l++
+    const name = (id: number | undefined, fallback: string) => (id === game.home.id ? f.home.name : id === game.away.id ? f.away.name : fallback)
+    proof.push({ label: `${new Date(g.kickoff).getFullYear()} · ${name(g.home.id, g.home.name)} – ${name(g.away.id, g.away.name)}`, value: `${g.homeScore}–${g.awayScore}` })
+    meetings.push({ year: new Date(g.kickoff).getFullYear(), home: name(g.home.id, g.home.name), away: name(g.away.id, g.away.name), hs: g.homeScore, as: g.awayScore })
+  }
+  const n = proof.length
+  if (!n) return undefined
+  return { text: `De seneste ${n} opgør: ${w} sejre til ${f.home.name}, ${d} uafgjort og ${l} til ${f.away.name}.`, proof, proofTitle: `De seneste ${n} opgør`, h2h: { w, d, l, n }, meetings }
 }

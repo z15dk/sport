@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 // /admin/indstillinger → Sporing: the Google Analytics and Meta Pixel ids (src/lib/tracking.ts)
-export function TrackingAdmin({ ga, metaPixel, metaVerify, owner }: { ga?: string; metaPixel?: string; metaVerify?: string; owner?: { name?: string; cvr?: string; address?: string; email?: string } }) {
+export function TrackingAdmin({ ga, metaPixel, metaVerify, bingVerify, owner }: { ga?: string; metaPixel?: string; metaVerify?: string; bingVerify?: string; owner?: { name?: string; cvr?: string; address?: string; email?: string } }) {
   const router = useRouter()
   const [g, setG] = useState(ga ?? '')
   const [p, setP] = useState(metaPixel ?? '')
   const [mv, setMv] = useState(metaVerify ?? '')
+  const [bv, setBv] = useState(bingVerify ?? '')
   const [o, setO] = useState({ name: owner?.name ?? '', cvr: owner?.cvr ?? '', address: owner?.address ?? '', email: owner?.email ?? '' })
   const field = (k: keyof typeof o) => ({ value: o[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setO((x) => ({ ...x, [k]: e.target.value })) })
   const [msg, setMsg] = useState<{ text: string; error?: boolean }>()
@@ -17,7 +18,7 @@ export function TrackingAdmin({ ga, metaPixel, metaVerify, owner }: { ga?: strin
   async function save() {
     setBusy(true)
     setMsg(undefined)
-    const res = await fetch('/api/admin/tracking', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ga: g, metaPixel: p, metaVerify: mv, owner: o }) }).catch(() => undefined)
+    const res = await fetch('/api/admin/tracking', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ga: g, metaPixel: p, metaVerify: mv, bingVerify: bv, owner: o }) }).catch(() => undefined)
     const r = (await res?.json().catch(() => ({}))) as { error?: string } | undefined
     setBusy(false)
     if (res?.ok) {
@@ -45,6 +46,10 @@ export function TrackingAdmin({ ga, metaPixel, metaVerify, owner }: { ga?: strin
       <label>
         Meta domænebekræftelse (valgfri)
         <input value={mv} onChange={(e) => setMv(e.target.value)} placeholder='kode eller <meta name="facebook-domain-verification" …>' />
+      </label>
+      <label>
+        Bing Webmaster Tools bekræftelse (valgfri)
+        <input value={bv} onChange={(e) => setBv(e.target.value)} placeholder='kode eller <meta name="msvalidate.01" …>' />
       </label>
       <fieldset className="tracking-form__owner">
         <legend>Dataansvarlig (vises på /privatliv)</legend>

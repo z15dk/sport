@@ -239,3 +239,50 @@ export function visitStats(range = 1): VisitStats | undefined {
     week: { visitors: Number(week?.v ?? 0), views: Number(week?.n ?? 0) },
   }
 }
+
+export interface LiveVisitor {
+  /** The page the visitor is on now (their latest view) */
+  path: string
+  /** When they opened it */
+  at: number
+  device: string
+  /** Where they came from (their first view the last half hour) */
+  ref: string
+  /** Pages seen the last half hour */
+  views: number
+  /** Whole minutes since `at` */
+  minutes: number
+}
+
+/**
+ * Who is on the site right now: every visitor seen the last `minutes` minutes with the page they are on,
+ * newest first, and the pages with how many are on each. Views still waiting to be written count too.
+ */
+export function liveVisitors(minutes = 5): { visitors: LiveVisitor[]; pages: { path: string; visitors: number }[] } {
+  const d = db()
+  const now = Date.now()
+  type Row = { ts: number; path: string; visitor: string; ref: string; device: string }
+  const rows: Row[] = d
+    ? (d.prepare('SELECT ts, path, visitor, ref, device FROM views WHERE ts > ? ORDER BY ts').all(now - 30 * 60_000) as Row[])
+    : []
+  for (const q of state.queue) rows.push({ ts: Number(q[0]), path: String(q[2]), visitor: String(q[3]), ref: String(q[4] ?? ''), device: String(q[5] ?? '') })
+  rows.sort((a, b) => a.ts - b.ts)
+  const by = new Map<string, LiveVisitor>()
+  for (const r of rows) {
+    const v = by.get(r.visitor)
+    if (v) {
+      v.path = r.path
+      v.at = r.ts
+      v.device = r.device
+      v.views++
+    } else by.set(r.visitor, { path: r.path, at: r.ts, device: r.device, ref: r.ref, views: 1, minutes: 0 })
+  }
+  const visitors = [...by.values()]
+    .filter((v) => v.at > now - minutes * 60_000)
+    .map((v) => ({ ...v, minutes: Math.floor((now - v.at) / 60_000) }))
+    .sort((a, b) => b.at - a.at)
+  const count = new Map<string, number>()
+  for (const v of visitors) count.set(v.path, (count.get(v.path) ?? 0) + 1)
+  const pages = [...count.entries()].map(([path, n]) => ({ path, visitors: n })).sort((a, b) => b.visitors - a.visitors || a.path.localeCompare(b.path))
+  return { visitors, pages }
+}

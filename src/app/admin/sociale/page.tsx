@@ -2,15 +2,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
-import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker } from '../../../components/admin/SocialAdmin'
+import { ActionButton, CaptionEditor, ConfigSwitch, MatchPicker, OwnPostForm } from '../../../components/admin/SocialAdmin'
 import { isAdmin } from '../../../lib/admin'
-import { candidates, picksFor, todayIso } from '../../../lib/social'
+import { candidates, otherLeagues, picksFor, todayIso } from '../../../lib/social'
 import { targetsOf } from '../../../lib/socialEngine'
-import { connected, platformCaption } from '../../../lib/socialPlatforms'
+import { connected, platformCaption, storyOk } from '../../../lib/socialPlatforms'
 import { chromiumPath } from '../../../lib/socialRender'
 import { mailReady } from '../../../lib/mail'
-import { KIND_NAMES, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
+import { KIND_NAMES, TOPICS, PLATFORMS, STATUS_NAMES, PLATFORM_NAMES, readPosts, socialConfig, socialSecrets, type SocialPost } from '../../../lib/socialStore'
 import { addDays, formatLong, formatTime, isValidIsoDate } from '../../../lib/time'
+import { shownDivisions } from '../../../data/leagues'
+import { allArticles } from '../../../lib/articles'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sociale medier · Admin', robots: { index: false, follow: false } }
@@ -45,7 +47,7 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         <div>
           <h3>{p.title}</h3>
           <p className="muted small">
-            {KIND_NAMES[p.kind]} · {state}
+            {p.article ? 'Ny artikel' : KIND_NAMES[p.kind]} · {state}
             {p.approval === 'approved' && p.approvedAt ? ` · godkendt ${clock(p.approvedAt)}` : ''}
             {p.mailedAt ? ` · mail sendt ${clock(p.mailedAt)}` : ''} · udløber {clock(p.expiresAt)}
             {' · '}
@@ -111,16 +113,36 @@ function Post({ p, now }: { p: SocialPost; now: number }) {
         </ul>
       )}
       <footer>
+        {/* Stories can't go through Make: the story pictures to download and post by hand (Meta Business Suite) */}
+        {p.images
+          .filter((i) => i.surface === 'story')
+          .map((i, n, all) => (
+            <a key={i.file} className="pill" href={`/sociale-billeder/${i.file}`} download={`matchly-story-${p.date}${all.length > 1 ? `-${n + 1}` : ''}.jpg`}>
+              ⬇ Hent story{all.length > 1 ? ` ${n + 1}` : ''}
+            </a>
+          ))}
         {p.approval === 'pending' && p.status === 'waiting' && <ActionButton pill body={{ action: 'approve', ids: [p.id] }} label="Godkend" />}
         {p.status === 'waiting' && <ActionButton body={{ action: 'skip', ids: [p.id] }} label="Spring over" />}
         {p.status === 'skipped' && <ActionButton body={{ action: 'unskip', id: p.id }} label="Med igen" />}
-        {!out && p.status !== 'skipped' && <ActionButton body={{ action: 'render', id: p.id }} label={p.images.length ? 'Lav billederne igen' : 'Lav billederne'} busyLabel="Laver billeder …" />}
-        {p.images.length > 0 && (p.status === 'waiting' || p.status === 'failed' || p.status === 'partly' || p.status === 'expired') && now < p.expiresAt + 12 * 3_600_000 && (
+        {p.kind === 'own' && !out && <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />}
+        {p.kind !== 'own' && !out && p.status !== 'skipped' && <ActionButton body={{ action: 'render', id: p.id }} label={p.images.length ? 'Lav billederne igen' : 'Lav billederne'} busyLabel="Laver billeder …" />}
+        {/* Also a post that was only dry-run: it can be sent for real once the dry run is off */}
+        {p.images.length > 0 &&
+          (p.status === 'waiting' || p.status === 'failed' || p.status === 'partly' || p.status === 'expired' || (p.status === 'published' && Object.values(p.results).every((r) => r.status === 'dry'))) &&
+          now < p.expiresAt + 12 * 3_600_000 && (
           <ActionButton
             body={{ action: 'publish', id: p.id }}
             label={p.status === 'failed' || p.status === 'partly' ? 'Prøv igen' : 'Post nu'}
             busyLabel="Poster …"
             confirm="Post opslaget nu på de valgte platforme?"
+          />
+        )}
+        {p.kind === 'own' && p.images.length > 0 && (p.status === 'published' || p.status === 'partly') && Object.values(p.results).some((r) => r.status === 'ok') && (
+          <ActionButton
+            body={{ action: 'publish', id: p.id, again: true }}
+            label="Send igen"
+            busyLabel="Sender …"
+            confirm="Send opslaget igen? Kom det ud første gang, står det der nu to gange."
           />
         )}
       </footer>
@@ -153,6 +175,7 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
           <div className="social-switches">
             <ConfigSwitch value={cfg.enabled} label="Motoren kører" setting="enabled" />
             <ConfigSwitch value={cfg.dryRun} label="Tør-kørsel (intet sendes til platformene)" setting="dryRun" />
+            <ConfigSwitch value={cfg.articles.enabled} label="Del nye artikler automatisk" setting="articles" />
           </div>
           <div className="social-switches">
             {PLATFORMS.map((p) => (
@@ -178,6 +201,81 @@ export default async function SocialPlan({ searchParams }: { searchParams: Searc
             {pending.length > 1 && <ActionButton pill body={{ action: 'approve', ids: pending.map((p) => p.id) }} label={`Godkend alle ${pending.length} ventende`} />}{' '}
             <ActionButton pill body={{ action: 'tick' }} label="Kør en runde nu" busyLabel="Kører …" />
           </p>
+        </section>
+
+        {(() => {
+          // Everything that is to go out, whatever the day: posts waiting for their time (or approval), and
+          // scheduled articles that are shared by themselves when they go live
+          const waiting = data.posts.filter((p) => p.status === 'waiting' && p.expiresAt > now).sort((a, b) => a.scheduledAt - b.scheduledAt)
+          const articles = cfg.articles.enabled
+            ? allArticles()
+                .filter((a) => a.status === 'published' && a.publishedAt && Date.parse(a.publishedAt) > now && !data.posts.some((p) => p.article === a.id))
+                .sort((a, b) => Date.parse(a.publishedAt!) - Date.parse(b.publishedAt!))
+            : []
+          const when = (t: number) => `${formatLong(new Date(t))} kl. ${clock(t)}`
+          return (
+            <section className="panel">
+              <h2 className="panel__title">Kø ({waiting.length + articles.length})</h2>
+              {waiting.length + articles.length === 0 ? (
+                <p className="muted small pad">
+                  Intet venter på at blive postet.{' '}
+                  {cfg.articles.enabled ? 'Nye artikler deles automatisk, når de går live.' : 'Slå "Del nye artikler automatisk" til for at dele artiklerne af sig selv.'}
+                </p>
+              ) : (
+                <ul className="own-upcoming">
+                  {[
+                    ...waiting.map((p) => ({ at: p.scheduledAt, p, a: undefined })),
+                    ...articles.map((a) => ({ at: Date.parse(a.publishedAt!), p: undefined, a })),
+                  ]
+                    .sort((x, y) => x.at - y.at)
+                    .map(({ at, p, a }) =>
+                      p ? (
+                        <li key={p.id}>
+                          <span>{when(at)}</span>
+                          <strong>{p.title}</strong>
+                          <span className="muted small">
+                            {p.article ? 'Ny artikel' : KIND_NAMES[p.kind]} ·{' '}
+                            {p.approval === 'pending' ? 'venter på godkendelse' : p.own?.template && !p.images.length ? 'billederne laves, når det skal ud' : !p.images.length ? 'laver billeder' : 'klar'} ·{' '}
+                            {targetsOf(p)
+                              .map((t) => `${PLATFORM_NAMES[t.platform]}${t.surface === 'story' ? ' story' : ''}`)
+                              .join(', ') || 'ingen platforme slået til'}
+                          </span>
+                          <Link href={`/admin/sociale?dato=${p.date}`}>Vis</Link>
+                          {p.kind === 'own' && <ActionButton body={{ action: 'ownDelete', id: p.id }} label="Slet" confirm="Slet opslaget og dets billeder?" />}
+                        </li>
+                      ) : (
+                        <li key={`a-${a!.id}`}>
+                          <span>{when(at)}</span>
+                          <strong>{a!.title}</strong>
+                          <span className="muted small">Artikel · deles automatisk, når den går live</span>
+                          <Link href={`/admin/artikler/${a!.id}`}>Artiklen</Link>
+                        </li>
+                      ),
+                    )}
+                </ul>
+              )}
+            </section>
+          )
+        })()}
+
+        <section className="panel">
+          <h2 className="panel__title">Nyt opslag</h2>
+          <p className="muted small pad">
+            Skriv dit eget opslag med billeder og vælg, hvornår det skal ud. Det postes på sit tidspunkt – også når motoren er slået fra – og står i
+            dagens plan herunder.
+          </p>
+          <OwnPostForm
+            templates={[
+              { value: 'programme', label: 'Dagens kampe' },
+              { value: 'results', label: 'Resultater' },
+              { value: 'focus', label: 'Fokuskamp med head-to-head' },
+              { value: 'women:programme', label: 'Kvindefodbold: dagens kampe' },
+              { value: 'women:results', label: 'Kvindefodbold: resultater' },
+              ...TOPICS.map((t) => ({ value: `topic:${t.id}`, label: t.name })),
+            ]}
+            leagues={[...shownDivisions().map((d) => ({ id: d.id, name: d.name, group: 'Vores ligaer' })), ...otherLeagues(now).map((l) => ({ ...l, group: 'Pokaler og andre turneringer' }))]}
+            platforms={PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p, secrets), story: storyOk(p, secrets) }))}
+          />
         </section>
 
         <p className="filter-bar">

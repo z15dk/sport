@@ -5,6 +5,7 @@ import { isAdmin } from '../../../lib/admin'
 import { allArticles, categories } from '../../../lib/articles'
 import { articleStats } from '../../../lib/articleStats'
 import { AdminNav } from '../../../components/admin/AdminNav'
+import { ActionButton } from '../../../components/admin/SocialAdmin'
 import { formatNumeric, formatTime } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import type { ArticleStat } from '../../../lib/articleStats'
@@ -48,9 +49,15 @@ export default async function AdminArticles() {
                         <Link href={`/admin/artikler/${a.id}`}>{a.title}</Link>
                         <em>{[cats.get(a.category ?? ''), a.tags.slice(0, 4).join(', ')].filter(Boolean).join(' · ') || 'Ingen kategori'}</em>
                       </div>
-                      <a className="text-btn" href={paths.article(a.slug)} target="_blank" rel="noopener">
-                        {st === 'Udgivet' ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
-                      </a>
+                      <span className="art-card__links">
+                        <a className="text-btn" href={paths.article(a.slug)} target="_blank" rel="noopener">
+                          {st === 'Udgivet' ? 'Se artiklen ↗' : 'Forhåndsvis ↗'}
+                        </a>
+                        {/* Any published article out on the platforms now – also an old one */}
+                        {st === 'Udgivet' && (
+                          <ActionButton body={{ action: 'shareArticle', id: a.id }} label="Del på sociale medier" busyLabel="Deler …" confirm={`Del "${a.title}" på sociale medier nu?`} />
+                        )}
+                      </span>
                       <span className={`admin-article__state is-${st === 'Udgivet' ? 'live' : st === 'Planlagt' ? 'planned' : 'draft'}`}>{st}</span>
                       <span className="art-card__date">
                         {formatNumeric(new Date(a.publishedAt ?? a.updatedAt))} {formatTime(new Date(a.publishedAt ?? a.updatedAt))}

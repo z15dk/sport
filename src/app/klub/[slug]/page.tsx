@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { forVisitor } from '../../../lib/visitorBudget'
 import Link from 'next/link'
 import { MasonryFlow } from '../../../components/MasonryFlow'
 import { notFound } from 'next/navigation'
@@ -7,13 +8,14 @@ import { allTeams, teamBySlug, womenOf, type TeamEntry } from '../../../data/tea
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
+import { clubLeagues } from '../../../lib/clientData'
 import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
 import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { danishCountry } from '../../../data/countries'
+import { danishCountry, shownTeam } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
@@ -38,8 +40,10 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
+import { checkedTeamStats } from '../../../data/teamStats'
+import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
@@ -88,7 +92,7 @@ export default async function ClubPage({ params }: { params: Params }) {
 }
 
 /** Full page for clubs in the leagues we cover, which have season and table data */
-async function LeagueClub({ club, division }: { club: Club; division: Division }) {
+async function LeagueClubInner({ club, division }: { club: Club; division: Division }) {
   const now = Date.now()
   const stats = clubStats(club.name, now)!
   const r = stats.row
@@ -110,7 +114,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 
   return (
     <div className="page">
-      <RealDataExtra games={clubExternalGames(club.name)} />
+      <RealDataExtra games={clubExternalGames(club.name)} leagues={clubLeagues([club.id])} />
       <JsonLd data={clubLd(club, division)} />
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd
@@ -228,7 +232,7 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
         </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
-        {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division), apiTeamOwnGoals(apiLeague!, apiTeam!))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
@@ -268,8 +272,10 @@ async function LeagueClub({ club, division }: { club: Club; division: Division }
 }
 
 /** A team's finished games: its matches around today and those our statistics bank has saved, newest first */
-function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string): PastMatch[] {
+function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string, country?: string): PastMatch[] {
   const keys = new Set(names.map(normalize))
+  // The saved games under the names we show, as the matches around today (national teams in Danish, "(K)" for women's teams)
+  const shown = (name: string) => shownTeam(name, country)
   const logos = teamLogos()
   const fromMatches: PastMatch[] = around
     .filter((m) => m.state === 'finished')
@@ -289,12 +295,12 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
     // In its own league when it has one (a women's team can share its name with the men's club)
     .filter((a) => (divisionIds.length ? divisionIds.includes(a.divisionId) : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
     .filter((a) => keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))
-    .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(a.homeName)}`))
+    .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(shown(a.homeName))}`))
     .map((a) => ({
       date: a.date,
       competition: a.tournament,
-      home: a.homeName,
-      away: a.awayName,
+      home: shown(a.homeName),
+      away: shown(a.awayName),
       homeScore: a.homeScore,
       awayScore: a.awayScore,
       homeLogo: logos.get(a.homeName),
@@ -304,7 +310,7 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
 }
 
 /** Page for any other team: built from its matches, the games we have saved and its league's table */
-async function TeamPage({ team }: { team: TeamEntry }) {
+async function TeamPageInner({ team }: { team: TeamEntry }) {
   const now = Date.now()
   const names = team.names ?? [team.name]
   const keys = new Set(names.map(normalize))
@@ -336,7 +342,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
   const around = teamGames(team, now)
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
-  const results = teamResults(names, around, divisionIds, team.league)
+  const results = teamResults(names, around, divisionIds, team.league, team.country)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)
@@ -498,7 +504,7 @@ async function TeamPage({ team }: { team: TeamEntry }) {
                           <td>
                             <span className="table__club">
                               <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
-                              {r.name}
+                              {shownTeam(r.name, team.country)}
                             </span>
                           </td>
                           <td className="num">{r.played}</td>
@@ -590,4 +596,14 @@ async function TeamPage({ team }: { team: TeamEntry }) {
       </div>
     </div>
   )
+}
+
+/** LeagueClub with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function LeagueClub(props: { club: Club; division: Division }) {
+  return forVisitor(() => LeagueClubInner(props))
+}
+
+/** TeamPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+async function TeamPage(props: { team: TeamEntry }) {
+  return forVisitor(() => TeamPageInner(props))
 }

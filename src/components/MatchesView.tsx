@@ -18,7 +18,10 @@ import { AdSlot } from './AdSlot'
 import { chunksWithAds, feedAdPlan, SCROLL_AD_AFTER } from '../data/ads'
 import { useNow } from '../hooks/useNow'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { externalMatch, getMatches, isWomenGame, isWomenMatch, nearestMatchDay, upcomingMatches } from '../data/matches'
+import { useFavoriteTeams } from '../hooks/useFavoriteTeams'
+import { isPopular } from '../data/popular'
+import { teamByName } from '../data/teams'
+import { externalMatch, getMatches, isWomenGame, isWomenMatch, leaguePriority, nearestMatchDay, topLeague, upcomingMatches } from '../data/matches'
 import { cupOfGame } from '../data/cups'
 import { MyTeams } from './MyTeams'
 import { ListMore } from './ListMore'
@@ -56,12 +59,13 @@ function groupByLeague(matches: Match[], pinned: Set<string>): LeagueGroup[] {
   const groups = [...map.values()]
   for (const g of groups) g.matches.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 
-  // Favourites first, then leagues being played right now, then the league's own
-  // order (Superliga before 1. division), then alphabetically
+  // Favourites first, then the top competitions and leagues being played right now, then by country (Danish first, then England,
+  // Spain, Germany, France, Sweden – leaguePriority) and the league's own order, then alphabetically
   const rank = (g: LeagueGroup) =>
-    (pinned.has(g.leagueId) ? 0 : 100_000) +
-    (g.matches.some((m) => m.state === 'live') ? 0 : 10_000) +
-    (g.matches[0].leagueOrder ?? 99) * 10 +
+    (pinned.has(g.leagueId) ? 0 : 2e12) +
+    // The top competitions (Nations League, Champions League) stay first, live or not
+    (g.matches.some((m) => m.state === 'live') || topLeague(g.leagueId) >= 0 ? 0 : 1e12) +
+    leaguePriority(g.matches[0]) * 10 +
     Math.min(...g.matches.map((m) => STATE_ORDER[m.state]))
   return groups.sort((a, b) => rank(a) - rank(b) || a.league.localeCompare(b.league, 'da'))
 }
@@ -93,15 +97,24 @@ interface Props {
 }
 
 /** Matches in the page's HTML; the rest follow as the reader scrolls (fewer rows = less HTML to parse and hydrate on phones) */
-const FIRST_ROWS = 100
+const FIRST_ROWS = 40
 /** Rows added each time the end of the list comes near */
-const MORE_ROWS = 80
+const MORE_ROWS = 60
 
 export function MatchesView({ sport, date, today, initialNow, initialFilter = 'all', nearDays, upcoming: upcomingGiven, heading, women, scrollAd, top, tabs, below }: Props) {
   // The day's matches: all of the sport's, or only the women's
   const dayMatches = (d: string, n: number) => (women ? getMatches(d, sport, n).filter(isWomenMatch) : getMatches(d, sport, n))
   const [pinnedList, setPinnedList] = usePersistentState<string[]>('pinnedLeagues', [])
-  const [filter, setFilter] = useState<StateFilter>(initialFilter)
+  // The list opens on the popular matches (src/data/popular.ts); a visitor who chooses "Alle" gets all of them from then on.
+  // The women's pages and "Live" in the menu show everything.
+  const [scope, setScope] = usePersistentState<'popular' | 'all'>('listScope', 'popular')
+  const [chosen, setChosen] = useState<StateFilter | undefined>(initialFilter === 'all' ? undefined : initialFilter)
+  const wanted: StateFilter = chosen ?? (women ? 'all' : scope)
+  const setFilter = (f: StateFilter) => {
+    setChosen(f)
+    if (f === 'popular' || f === 'all') setScope(f)
+  }
+  const { teams: followed } = useFavoriteTeams()
   // Tournament picked in the sidebar; it belongs to the sport it was picked in
   const [picked, setPicked] = useState<{ sport: SportFilter; id: string }>()
   const league = picked?.sport === sport ? picked.id : undefined
@@ -112,7 +125,8 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
       document.getElementById('kampe')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
-  const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder', 'time')
+  // Turnering (by league, Danish first) is the default; a new key, so the old stored 'time' doesn't win for everyone
+  const [order, setOrder] = usePersistentState<'time' | 'league'>('listOrder2', 'league')
   // The site's search (top bar) finds clubs and tournaments; the day's matches are not filtered by text
   const query = ''
   const now = useNow(REFRESH_MS, initialNow)
@@ -143,17 +157,27 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
     )
   }, [range, query, league])
 
+  // The popular matches, with the visitor's own: starred tournaments, followed teams and a tournament picked in the sidebar
+  const popular = useMemo(() => {
+    const mine = new Set(followed)
+    const follows = (name: string) => mine.size > 0 && mine.has(teamByName(name)?.slug ?? '')
+    return searched.filter((m) => !!league || isPopular(m) || pinned.has(m.leagueId) || follows(m.home.name) || follows(m.away.name))
+  }, [searched, league, pinned, followed])
+
   const counts = useMemo(
     () => ({
+      popular: popular.length,
       all: searched.length,
       live: searched.filter((m) => m.state === 'live').length,
       upcoming: searched.filter((m) => m.state === 'upcoming').length,
       finished: searched.filter((m) => m.state === 'finished').length,
     }),
-    [searched],
+    [searched, popular],
   )
 
-  const visible = filter === 'all' ? searched : searched.filter((m) => m.state === filter)
+  // A day without popular matches shows them all
+  const filter: StateFilter = wanted === 'popular' && (women || popular.length === 0) ? 'all' : wanted
+  const visible = filter === 'all' ? searched : filter === 'popular' ? popular : searched.filter((m) => m.state === filter)
   // The page's HTML carries the first matches only (a busy day has more than a thousand, megabytes of HTML);
   // the rest are drawn when the reader scrolls down to them (ListMore), a few at a time, so a phone never
   // lays out a thousand rows nobody looks at
@@ -168,7 +192,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const days = useMemo(() => {
     const liveFirst = (m: Match) => (m.state === 'live' ? 0 : 1)
     const sorted = [...visible].sort(
-      (a, b) => liveFirst(a) - liveFirst(b) || a.kickoff.getTime() - b.kickoff.getTime() || (a.leagueOrder ?? 99) - (b.leagueOrder ?? 99),
+      (a, b) => liveFirst(a) - liveFirst(b) || a.kickoff.getTime() - b.kickoff.getTime() || leaguePriority(a) - leaguePriority(b),
     )
     const byDay = new Map<string, Match[]>()
     for (const m of sorted) {
@@ -215,10 +239,18 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   const featured = useMemo(() => {
     const from = hour * 3_600_000 + 12 * 3_600_000
     const start = hour * 3_600_000
-    return upcomingMatches(sport, isoDate(start), start, 2, 10_000)
+    const candidates = upcomingMatches(sport, isoDate(start), start, 2, 10_000)
       .filter((m) => m.kickoff.getTime() >= from && m.kickoff.getTime() <= start + 24 * 3_600_000)
       .filter((m) => !women || isWomenMatch(m))
+    // A popular match when there is one (not a youth friendly while the national team plays)
+    const known = women ? [] : candidates.filter(isPopular)
+    return known.length ? known : candidates
   }, [sport, hour, dataVersion, women]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The day's matches the box falls back on: the popular ones when there are any
+  const featuredDay = useMemo(() => {
+    const known = women ? [] : matches.filter(isPopular)
+    return known.length ? known : matches
+  }, [matches, women])
   // The next 8 matches over the coming 10 days (from TheSportsDB data when that is chosen)
   // From the server when given (it has the ten days; the browser only the days shown)
   const upcoming = useMemo(
@@ -231,6 +263,15 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
   // Next real match from the chosen day on (or from now when that is later)
   const real = realLeagues(Math.max(now, danishTime(date, '00:00').getTime())).filter((l) => sport === 'all' || (l.division.sport ?? 'soccer') === sport)
   const dayHref = (d: string) => (women ? paths.women({ sport: sportDef.slug, dato: d, today }) : paths.home({ sport: sportDef.slug, dato: d, today }))
+  // Under the popular matches: how to get the rest
+  const showAll = filter === 'popular' && searched.length > popular.length && (
+    <div className="more-rows more-rows--all">
+      <span className="muted small">Du ser de populære turneringer og dine egne hold.</span>
+      <button type="button" className="pill" onClick={() => setFilter('all')}>
+        Vis alle {searched.length.toLocaleString('da-DK')} kampe
+      </button>
+    </div>
+  )
   // The women's pages have their heading in the top above
   const Title = women ? 'h2' : 'h1'
   return (
@@ -260,7 +301,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
               {heading ?? sportDef.label}
               <span>{order === 'time' && DAYS_AHEAD > 0 ? `${formatDayMonth(date)} – ${formatDayMonth(addDays(date, DAYS_AHEAD))}` : formatLong(date)}</span>
             </Title>
-            <FilterBar value={filter} onChange={setFilter} counts={counts} />
+            <FilterBar value={filter} onChange={setFilter} counts={counts} popular={!women && popular.length > 0} />
             <div className="switch switch--order" role="group" aria-label="Sortering">
               <button className={order === 'time' ? 'is-active' : ''} aria-pressed={order === 'time'} onClick={() => setOrder('time')}>
                 Tid
@@ -325,6 +366,7 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                 </Fragment>
               ))}
               <ListMore left={visible.length - days.reduce((n, [, list]) => n + list.length, 0)} onMore={() => setCap((c) => c + MORE_ROWS)} />
+              {showAll}
             </div>
           ) : (
             <div className="league-list">
@@ -335,18 +377,20 @@ export function MatchesView({ sport, date, today, initialNow, initialFilter = 'a
                     pinned={pinned.has(g.leagueId)}
                     onTogglePin={() => togglePin(g.leagueId)}
                     ads={groupPlan[i]}
+                    showSport={sport === 'all'}
                   />
                   {groupPlan[i].after && <AdSlot placement="feed" index={groupPlan[i].after} />}
                   {scrollAd && i + 1 === SCROLL_AD_AFTER && i + 1 < groups.length && <AdSlot placement="scroll" />}
                 </Fragment>
               ))}
               <ListMore left={visible.length - groups.reduce((n, g) => n + g.matches.length, 0)} onMore={() => setCap((c) => c + MORE_ROWS)} />
+              {showAll}
             </div>
           )}
         </main>
 
         <aside className="aside">
-          <FeaturedMatch candidates={featured} matches={matches} pinned={pinned} now={now} seed={`${women ? 'women' : sport}|${hour}`} />
+          <FeaturedMatch candidates={featured} matches={featuredDay} pinned={pinned} now={now} seed={`${women ? 'women' : sport}|${hour}`} />
           <WidgetPromo />
 
           <AdSlot placement="side" />

@@ -1,12 +1,15 @@
 import 'server-only'
+import { spendingBlocked } from './visitorBudget'
 import { runsJobs } from './role'
 import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, PeriodScore, SportId } from '../types'
-import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
+import { danishLeagueName, danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
+import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
-import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type TableRow } from '../data/matchExtra'
+import { normalize } from '../data/aliases'
+import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -634,8 +637,22 @@ const PAID_RESERVE = 300
  * from the day's spare calls without eating the evening's live games.
  */
 const LIVE_BUDGET = 2_500
+/**
+ * The last stretch before the reset (00:00 UTC, 01–02 Danish time): the day's calls are lost at the
+ * reset, so the background work may use them down to a small floor – unless one of our leagues', cups'
+ * or the Champions League's games is on or about to start, then the normal reserve holds
+ */
+const LAST_CALLS_MS = 90 * 60_000
+const LAST_CALLS_FLOOR = 50
+const oursOn = (s: ApiState) => {
+  const until = Date.now() + LAST_CALLS_MS
+  return (s.days[isoDate(Date.now())]?.games ?? []).some(
+    (g) => (g.state === 'live' || (g.state === 'upcoming' && Date.parse(g.kickoff) < until)) && (!!divisionOfGame(g) || wholeSeason(g)),
+  )
+}
 function backgroundReserve(s: ApiState | undefined): number {
   if (!isPaid(s)) return 40
+  if (msUntilReset() < LAST_CALLS_MS && !oursOn(s!)) return LAST_CALLS_FLOOR
   const budget = Math.min(LIVE_BUDGET, Math.round((s!.limit ?? 100) * 0.35))
   return PAID_RESERVE + Math.round((budget * msUntilReset()) / 86_400_000)
 }
@@ -706,7 +723,7 @@ function tableTeamsNow(): TableTeam[] {
   const store = extrasStore()
   return externalLeagues().flatMap((l) =>
     (store.entries[`${l.api}|table|${l.id}|${l.season ?? ''}`]?.table ?? []).flatMap((group) =>
-      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
+      group.map((r) => ({ leagueKey: l.key, sport: l.sport, league: danishLeagueName(l.name, l.country) ?? l.name, country: l.country, name: r.name, logo: realLogo(r.logo) })),
     ),
   )
 }
@@ -724,7 +741,8 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
     const names = [...new Set(g.map((r) => r.group).filter(Boolean))] as string[]
     return names.length > 1 ? names.map((n) => g.filter((r) => r.group === n)) : [g]
   })
-  const shown = split?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, logo: realLogo(r.logo), group: r.group && /group|gruppe/i.test(r.group) ? danishGroup(r.group) : r.group })))
+  // The teams under the names we show (national teams in Danish, "(K)" for women's teams)
+  const shown = split?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: realLogo(r.logo), group: r.group && /group|gruppe/i.test(r.group) ? danishGroup(r.group) : r.group })))
   return shown?.length ? shown : undefined
 }
 
@@ -1307,7 +1325,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[] }>
+  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -1318,6 +1336,8 @@ const EXTRAS_KEEP_REMAINING = 20
  * on a paid plan extras stop at the same reserve as the background work.
  */
 function spendExtra(api: Api, cost = 1, kind?: 'players'): boolean {
+  // A crawler's page (not Google's or Bing's) uses what is saved (src/lib/visitorBudget.ts)
+  if (spendingBlocked()) return false
   load()
   const s = mem.store[api]
   const store = extrasStore()
@@ -1450,11 +1470,11 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
       const home = g.home.id === team
       return {
         date: g.kickoff,
-        opponent: home ? g.away.name : g.home.name,
+        opponent: shownTeam(home ? g.away.name : g.home.name, g.league.country),
         home,
         for: (home ? g.homeScore : g.awayScore) ?? 0,
         against: (home ? g.awayScore : g.homeScore) ?? 0,
-        competition: g.league.name,
+        competition: danishLeagueName(g.league.name, g.league.country) ?? g.league.name,
       }
     })
   const extra: MatchExtra = { facts }
@@ -1469,7 +1489,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const group = own && marked.size > 1 ? list!.filter((r) => r.group === own) : list
   const groupName = own && /group|gruppe/i.test(own) ? danishGroup(own) : undefined
   if (group && group.length > 1)
-    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
+    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, name: shownTeam(r.name, game.league.country), logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
 }
 
@@ -1481,9 +1501,11 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
  * and once more when the match is over (for late cards), so a live match
  * costs a request per goal, not per page view.
  */
-export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | undefined> {
+export async function apiMatchEvents(game: ExternalGame, opts: { spend?: boolean } = {}): Promise<Incident[] | undefined> {
   const api = apiOf(game)
   if (api !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return undefined
+  // The goals come with the next batch anyway; a request of its own only for a person (not a robot) while the budget lasts
+  wantEvents(game)
   const store = extrasStore()
   const key = `${api}|events|${game.id}`
   const entry = store.entries[key]
@@ -1491,15 +1513,51 @@ export async function apiMatchEvents(game: ExternalGame): Promise<Incident[] | u
   const counted = (entry?.incidents ?? []).filter((i) => i.kind !== 'yellow' && i.kind !== 'red').length
   const fresh = entry && counted === goals && (game.state !== 'finished' || entry.final)
   if (fresh || (entry && Date.now() - entry.fetchedAt < 60_000)) return entry.incidents
-  if (!keyFor(api)) return entry?.incidents
+  // The batch's own goals (saved on the game itself) when they are there
+  if (!entry && game.incidents?.length) return game.incidents
+  if (!keyFor(api) || opts.spend === false) return entry?.incidents
   if (!spendExtra(api)) return entry?.incidents
   const id = game.id.split('-').pop()
   const { response, error } = await call(api, `/fixtures/events?fixture=${id}`, 5_000)
   if (error) return entry?.incidents
   const incidents = toIncidents(response ?? [], game)
   store.entries[key] = { fetchedAt: Date.now(), incidents, final: game.state === 'finished' }
+  const subs = toSubs(response ?? [], game, store.entries[`${api}|lineups|${game.id}`]?.lineups ?? [])
+  if (subs.length) store.entries[`${api}|subs|${game.id}`] = { fetchedAt: Date.now(), subs, final: game.state === 'finished' }
   extrasStore().flush()
   return incidents
+}
+
+/**
+ * The substitutions among API-Sports' events. Which of the two names went off is told by who was on the
+ * pitch (the starting eleven, then the ones who came on), as the two fields are not always the same way round.
+ */
+function toSubs(events: Raw[], game: Pick<ExternalGame, 'home' | 'away'>, lineups: Lineup[]): Substitution[] {
+  const subs: Substitution[] = []
+  const onPitch = new Set(lineups.flatMap((l) => l.startXI.map((p) => normalize(p.name))))
+  const ordered = [...events].sort((a, b) => Number(a.time?.elapsed ?? 0) + Number(a.time?.extra ?? 0) - (Number(b.time?.elapsed ?? 0) + Number(b.time?.extra ?? 0)))
+  for (const r of ordered) {
+    if (String(r.type ?? '').toLowerCase() !== 'subst') continue
+    const side = num(r.team?.id) === game.home.id ? 'home' : num(r.team?.id) === game.away.id ? 'away' : undefined
+    const minute = Number(r.time?.elapsed ?? 0) + Number(r.time?.extra ?? 0)
+    const a = r.player?.name ? String(r.player.name) : undefined
+    const b = r.assist?.name ? String(r.assist.name) : undefined
+    if (!side || !a || !b) continue
+    // The one on the pitch goes off; with no line-up to tell, API-Sports' "player" is the one going off
+    const aOn = onPitch.has(normalize(a))
+    const bOn = onPitch.has(normalize(b))
+    const [off, on] = bOn && !aOn ? [b, a] : [a, b]
+    onPitch.delete(normalize(off))
+    onPitch.add(normalize(on))
+    subs.push({ minute, side, on, off })
+  }
+  return subs
+}
+
+/** A game's saved substitutions (no request) */
+export function savedSubs(gameId: string): Substitution[] | undefined {
+  const subs = extrasStore().entries[`${gameId.split('-')[0]}|subs|${gameId}`]?.subs
+  return subs?.length ? subs : undefined
 }
 
 /** API-Sports' events (goals, cards) as our incidents */
@@ -1543,22 +1601,50 @@ function keepEvents(before: ExternalGame[], after: ExternalGame[]): ExternalGame
 // ---------------------------------------------------------------- goals and cards for every game (paid plans)
 
 /** What a game's goals and cards were fetched for: they are fetched again when this changes (live: also every 5 minutes, for the cards) */
-const eventsKey = (g: ExternalGame) => `${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' ? `|${Math.floor(Date.now() / 300_000)}` : ''}`
+// A live game in our leagues and cups again every 5 minutes (cards, line-up changes); any other game when its score changes
+// "s": fetched with the substitutions (games fetched before they were saved come once more)
+const eventsKey = (g: ExternalGame) =>
+  `s|${g.state}|${g.homeScore ?? '-'}-${g.awayScore ?? '-'}${g.state === 'live' && (divisionOfGame(g) || wholeSeason(g)) ? `|${Math.floor(Date.now() / 300_000)}` : g.state === 'upcoming' ? `|${Math.floor(Date.now() / 900_000)}` : ''}`
 
 /**
- * Football games in our leagues and cups whose goals and cards are missing or
- * out of date (a finished game once, a live one when the score changes), up to
- * 20: API-Sports gives 20 games with their events in one request.
+ * Football games whose goals, cards and line-ups are missing or out of date (a finished game once, a
+ * live one when the score changes), up to 20: API-Sports gives 20 games with their events, line-ups,
+ * statistics and players in one request. Every game, ours first, within the budget kept for live scores.
  */
+/**
+ * Games outside our leagues whose match page someone opened (friendlies, foreign leagues): their goals
+ * come with the next batch of 20 instead of a request of their own. Kept two days.
+ */
+const viewedGames = new Map<string, number>()
+export function wantEvents(game: ExternalGame) {
+  if (apiOf(game) !== 'football' || game.state === 'upcoming' || game.state === 'postponed') return
+  viewedGames.set(game.id, Date.now())
+  for (const [id, at] of viewedGames) if (Date.now() - at > 2 * 86_400_000) viewedGames.delete(id)
+}
+
 function eventsDue(s: ApiState): string[] {
   const remaining = s.quotaDay === utcDay() ? (s.remaining ?? 100) : (s.limit ?? 100)
   if (!isPaid(s) || remaining <= PAID_RESERVE) return []
   const games = [...Object.values(s.days).flatMap((d) => d.games), ...Object.values(s.past ?? {}).flat()]
   const due = new Set<string>()
-  // Live games first, then the newest finished ones
+  // Every football game the partner has data for (20 a request): live games first, then games about to start
+  // (their line-ups, out about an hour before), our leagues and cups, the games someone opened, and every other
+  // finished game in the days we keep, newest first. Older seasons only for our leagues and opened games.
+  const current = new Set(Object.values(s.days).flatMap((d) => d.games.map((g) => g.id)))
+  const ours = (g: ExternalGame) => !!(divisionOfGame(g) || wholeSeason(g))
+  const soon = (g: ExternalGame) => g.state === 'upcoming' && Date.parse(g.kickoff) - Date.now() < 75 * 60_000 && Date.parse(g.kickoff) > Date.now() - 15 * 60_000
+  const lineupsIn = (g: ExternalGame) => !!extrasStore().entries[`football|lineups|${g.id}`]
+  const rank = (g: ExternalGame) => (g.state === 'live' ? 0 : soon(g) ? 1 : ours(g) ? 2 : viewedGames.has(g.id) ? 3 : 4)
+  const spare = remaining > backgroundReserve(s)
   const wanted = games
-    .filter((g) => (g.state === 'live' || (g.state === 'finished' && remaining > backgroundReserve(s))) && (divisionOfGame(g) || wholeSeason(g)) && g.eventsFor !== eventsKey(g))
-    .sort((a, b) => (a.state === 'live' ? -1 : b.state === 'live' ? 1 : b.kickoff.localeCompare(a.kickoff)))
+    .filter((g) => {
+      if (!g.id.startsWith('football-') || g.eventsFor === eventsKey(g)) return false
+      // Our live games always; everything else only while the budget kept for live scores is not touched
+      if (g.state === 'live') return ours(g) || spare
+      if (soon(g)) return spare && !lineupsIn(g)
+      return g.state === 'finished' && spare && (ours(g) || viewedGames.has(g.id) || current.has(g.id))
+    })
+    .sort((a, b) => rank(a) - rank(b) || b.kickoff.localeCompare(a.kickoff))
   for (const g of wanted) {
     due.add(g.id.split('-').pop()!)
     if (due.size >= 20) break
@@ -1642,6 +1728,9 @@ async function fetchEvents(api: Api, ids: string[]) {
         // The line-ups come with them: saved for the match page
         const lineups = toLineups(r.lineups ?? [])
         if (lineups.length === 2) store.entries[`${api}|lineups|${id}`] = { fetchedAt: Date.now(), lineups, final: true }
+        // The substitutions come with the events: saved for the match page
+        const subs = toSubs(r.events ?? [], g, lineups)
+        if (subs.length) store.entries[`${api}|subs|${id}`] = { fetchedAt: Date.now(), subs, final: g.state === 'finished' }
         if (lineups.length === 2) statsChanged = true
         // The match statistics come with them: saved for the match page
         if (Array.isArray(r.statistics) && r.statistics.length) {
@@ -2257,6 +2346,17 @@ export async function apiTeamStats(leagueId: string, teamId: number, season = SE
     saveExtrasSoon()
     return stats
   })
+}
+
+/** The minutes of the own goals in a team's league matches this season, from the games the job has kept (no request) */
+export function apiTeamOwnGoals(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): number[] {
+  const out: number[] = []
+  for (const g of seasonGames()) {
+    if (String(g.league.id) !== String(leagueId) || String(g.league.season ?? season) !== season || (g.home.id !== teamId && g.away.id !== teamId)) continue
+    // Either side's: the source files an own goal now under the scorer's team, now under the other (checkedTeamStats works out which way)
+    for (const i of g.incidents ?? []) if (i.kind === 'own-goal') out.push(i.minute)
+  }
+  return out
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */

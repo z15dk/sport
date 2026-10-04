@@ -1,4 +1,4 @@
-import type { Periods, TeamStats } from '../data/teamStats'
+import { biggestOf, type Periods, type TeamStats } from '../data/teamStats'
 
 // A club's season statistics from our data source: key numbers, goals and
 // cards per quarter hour, and the formations used.
@@ -57,7 +57,7 @@ export function TeamStatsPanel({ stats, name }: { stats: TeamStats; name: string
     { label: 'Kampe uden mål', value: `${stats.failedToScore.total}`, sub: `${stats.failedToScore.home} hjemme · ${stats.failedToScore.away} ude` },
     { label: 'Mål pr. kamp', value: (stats.goalsFor.average ?? stats.goalsFor.total / stats.played.total).toFixed(1).replace('.', ','), sub: `${(stats.goalsAgainst.average ?? stats.goalsAgainst.total / stats.played.total).toFixed(1).replace('.', ',')} imod` },
     { label: 'Straffespark', value: `${stats.penalty?.scored ?? 0} af ${stats.penalty?.total ?? 0}`, sub: stats.penalty?.missed ? `${stats.penalty.missed} misset` : 'ingen misset' },
-    { label: 'Største sejr', value: score(stats.biggestWin?.home ?? stats.biggestWin?.away), sub: [stats.biggestWin?.home && `hjemme ${score(stats.biggestWin.home)}`, stats.biggestWin?.away && `ude ${score(stats.biggestWin.away)}`].filter(Boolean).join(' · ') || '–' },
+    { label: 'Største sejr', value: score(biggestOf(stats.biggestWin)), sub: [stats.biggestWin?.home && `hjemme ${score(stats.biggestWin.home)}`, stats.biggestWin?.away && `ude ${score(stats.biggestWin.away)}`].filter(Boolean).join(' · ') || '–' },
     { label: 'Længste sejrsstime', value: `${stats.streak?.wins ?? 0}`, sub: `${stats.streak?.loses ?? 0} nederlag i træk som værst` },
   ]
   return (

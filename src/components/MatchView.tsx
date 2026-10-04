@@ -20,6 +20,7 @@ import { FormChips } from './FormChips'
 import { summary } from '../lib/matchText'
 import { alike } from '../data/aliases'
 import { Updated } from './Updated'
+import { SubsList } from './SubsList'
 import { MatchExtrasPanel } from './MatchExtras'
 import { PartnerLogo } from './PartnerLogo'
 import { channelsFor } from '../data/channels'
@@ -27,7 +28,7 @@ import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
 import { MatchRow } from './MatchRow'
 import { MatchTimeline } from './MatchTimeline'
-import type { FormGame, Lineup, MatchExtra, MatchStats, TableRow } from '../data/matchExtra'
+import type { FormGame, Lineup, MatchExtra, MatchStats, Substitution, TableRow } from '../data/matchExtra'
 import { LineupPitch } from './LineupPitch'
 import { InjuryList } from './InjuryList'
 import type { Injury } from '../data/teamStats'
@@ -52,6 +53,8 @@ interface Props {
   cup?: boolean
   /** Line-ups, home team first (server) */
   lineups?: Lineup[]
+  /** Who came on and went off (saved with the match's events) */
+  subs?: Substitution[]
   /** Injured and suspended players for this match (server) */
   absent?: { home: Injury[]; away: Injury[] }
   /** The round's other matches in the league (server): links to their pages */
@@ -65,7 +68,7 @@ interface Props {
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, absent, related, promo, h2hHref, ticketHref }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, subs, absent, related, promo, h2hHref, ticketHref }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -78,7 +81,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   if (!match) return null
   return (
     <>
-      <MatchBody match={match.incidents?.length || !events?.length ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
+      <MatchBody match={!events?.length || (match.incidents?.length && (match.incidents.some((e) => e.player) || !events.some((e) => e.player))) ? match : { ...match, incidents: events }} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -146,6 +149,7 @@ function MatchBody({
   stats,
   cup,
   lineups,
+  subs,
   absent,
   promo,
   h2hHref,
@@ -158,6 +162,8 @@ function MatchBody({
   stats?: MatchStats
   cup?: boolean
   lineups?: Lineup[]
+  /** Who came on and went off (saved with the match's events) */
+  subs?: Substitution[]
   absent?: { home: Injury[]; away: Injury[] }
   promo?: React.ReactNode
   h2hHref?: string
@@ -239,7 +245,7 @@ function MatchBody({
                       {e.side === 'home' ? (
                         <>
                           <span>
-                            {e.player ?? label}
+                            {e.player ?? `${label} · ${match.home.name}`}
                             {e.player && <em> · {label}</em>}
                           </span>
                           {icon}
@@ -248,7 +254,7 @@ function MatchBody({
                         <>
                           {icon}
                           <span>
-                            {e.player ?? label}
+                            {e.player ?? `${label} · ${match.away.name}`}
                             {e.player && <em> · {label}</em>}
                           </span>
                         </>
@@ -258,12 +264,16 @@ function MatchBody({
                   return (
                     <li key={n} className="timeline__row">
                       {e.side === 'home' ? body : <span />}
-                      <span className="timeline__minute">{e.minute}&apos;</span>
+                      <span className="timeline__minute">
+                        {e.approx ? 'ca. ' : ''}
+                        {e.minute}&apos;
+                      </span>
                       {e.side === 'away' ? body : <span />}
                     </li>
                   )
                 })}
               </ol>
+              {match.incidents.some((e) => e.approx) && <p className="muted small">"ca.": målet er set ud fra, at stillingen ændrede sig. Målscoreren kommer på, så snart vi har den.</p>}
             </section>
           ) : null
   // The match statistics: at the top, right under the score, while the match is live (on computers in the
@@ -391,6 +401,7 @@ function MatchBody({
                 <LineupPitch lineups={[lineups[0], lineups[1]]} />
               </section>
             )}
+            {subs && subs.length > 0 && <SubsList subs={subs} home={match.home.name} away={match.away.name} />}
         </div>
       )}
 

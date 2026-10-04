@@ -50,6 +50,80 @@ export function AdminSubNav() {
   )
 }
 
+type Live = { visitors: { path: string; at: number; device: string; ref: string; views: number }[]; pages: { path: string; visitors: number }[] }
+
+const ago = (t: number) => {
+  const m = Math.floor((Date.now() - t) / 60_000)
+  return m < 1 ? 'lige nu' : `${m} min.`
+}
+const pageName = (p: string) => (p === '/' ? 'Forsiden' : decodeURIComponent(p))
+
+/** "N nu": opens who is on which page right now (the last 5 minutes), fresh every 15 seconds while open */
+function LiveMenu({ now, today }: { now: number; today: number }) {
+  const [open, setOpen] = useState(false)
+  const [live, setLive] = useState<Live>()
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    let stop = false
+    const load = () =>
+      fetch('/api/admin/bar?live=1', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d: Live) => !stop && setLive(d))
+        .catch(() => undefined)
+    void load()
+    const t = setInterval(load, 15_000)
+    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('click', close)
+    return () => {
+      stop = true
+      clearInterval(t)
+      document.removeEventListener('click', close)
+    }
+  }, [open])
+  return (
+    <div ref={ref} className={`adminbar__menu${open ? ' is-open' : ''}`}>
+      <button type="button" className="adminbar__item" aria-expanded={open} title="Hvor de besøgende er lige nu" onClick={() => setOpen((o) => !o)}>
+        <span className="adminbar__dot" aria-hidden />
+        {live ? live.visitors.length : now} nu <span className="adminbar__muted">· {today.toLocaleString('da-DK')} i dag</span> <i className="adminbar__caret" aria-hidden />
+      </button>
+      {open && (
+        <div className="adminbar__drop adminbar__live">
+          {!live ? (
+            <p className="adminbar__live-empty">Henter …</p>
+          ) : !live.visitors.length ? (
+            <p className="adminbar__live-empty">Ingen besøgende de sidste 5 minutter.</p>
+          ) : (
+            <>
+              <span className="adminbar__group-name">Sider lige nu</span>
+              {live.pages.slice(0, 12).map((p) => (
+                <a key={p.path} href={p.path} target="_blank" rel="noreferrer" className="adminbar__live-row">
+                  <span>{pageName(p.path)}</span>
+                  <b>{p.visitors}</b>
+                </a>
+              ))}
+              <span className="adminbar__group-name">Besøgende</span>
+              {live.visitors.slice(0, 15).map((v, i) => (
+                <div key={i} className="adminbar__live-row is-visitor">
+                  <span>{pageName(v.path)}</span>
+                  <small>
+                    {ago(v.at)} · {v.device === 'mobil' ? 'mobil' : v.device === 'tablet' ? 'tablet' : 'computer'}
+                    {v.ref ? ` · fra ${v.ref}` : ''}
+                    {v.views > 1 ? ` · ${v.views} sider` : ''}
+                  </small>
+                </div>
+              ))}
+            </>
+          )}
+          <Link href="/admin/indstillinger" className="adminbar__live-all" onClick={() => setOpen(false)}>
+            Alle besøgstal →
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** A dropdown's items by their heading (one unnamed group when none has one) */
 function groups(items: NonNullable<AdminMenuItem['children']>) {
   const out: { name?: string; items: typeof items }[] = []
@@ -116,12 +190,7 @@ export function AdminBar() {
 
   if (!bar) return null
   const { section, page } = adminSection(path)
-  const visitors = (
-    <Link className="adminbar__item" href="/admin/indstillinger" title="Besøgende lige nu og i dag">
-      <span className="adminbar__dot" aria-hidden />
-      {bar.now} nu <span className="adminbar__muted">· {bar.today.toLocaleString('da-DK')} i dag</span>
-    </Link>
-  )
+  const visitors = <LiveMenu key={`live${path}`} now={bar.now} today={bar.today} />
   const logout = (
     <form method="post" action="/api/admin/logout">
       <button className="adminbar__item" type="submit">

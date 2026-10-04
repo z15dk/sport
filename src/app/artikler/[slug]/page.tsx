@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { photoCredits, withPhotoCredits } from '../../../lib/photos/server'
 import { articleBySlug, articleBySlugAny, categoryName, cleanHtml, plainText, publishedArticles, readingMinutes } from '../../../lib/articles'
 import { slugify } from '../../../lib/slug'
-import { JsonLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
+import { JsonLd, articleFaqLd, articleLd, breadcrumbLd } from '../../../lib/jsonld'
 import { SITE_NAME, SITE_URL, paths } from '../../../lib/site'
 import { feedPath } from '../../../lib/articleFeed'
 import { formatLong, formatTime } from '../../../lib/time'
@@ -14,6 +14,8 @@ import { ArticleSide, articleSubject } from '../../../components/ArticleSide'
 import { ShareRow } from '../../../components/ShareRow'
 import { loadRealData } from '../../../lib/realdata'
 import { isAdmin } from '../../../lib/admin'
+import { expandWidgets, markNumberColumns } from '../../../lib/articleEmbeds'
+import Script from 'next/script'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +72,8 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const now = Date.now()
   const category = categoryName(a.category)
   // The photographer stands in the bottom right corner of every picture from the photo archive
-  const html = withPhotoCredits(cleanHtml(a.content))
+  // Our league table widget where the text has a [tabel …] code, and number columns centred
+  const { html, used: hasWidget } = expandWidgets(markNumberColumns(withPhotoCredits(cleanHtml(a.content))))
   const heroCredit = photoCredits([a.featuredImage]).get(a.featuredImage ?? '')
   const more = publishedArticles({ limit: 4 }).articles.filter((x) => x.id !== a.id).slice(0, 3)
   const published = a.publishedAt ? new Date(a.publishedAt) : undefined
@@ -107,6 +110,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           { name: a.title, path: paths.article(a.slug) },
         ])}
       />
+      {articleFaqLd(html) && <JsonLd data={articleFaqLd(html)!} />}
       <header className="article-hero">
         <span className="article-hero__m" aria-hidden="true">
           M
@@ -154,6 +158,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
       <div className="article-layout">
         <article className="article">
           <div className="article-body" dangerouslySetInnerHTML={{ __html: html }} />
+          {hasWidget && <Script src="/widget.js" strategy="afterInteractive" />}
           <ShareRow url={url} title={a.title} />
           {a.tags.length > 0 && (
             <ul className="article-tags" aria-label="Emner">

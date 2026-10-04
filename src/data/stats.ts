@@ -201,6 +201,8 @@ export interface ClubSeasonStats {
   /** Current run, e.g. { kind: 'V', length: 3 } */
   streak?: { kind: 'V' | 'U' | 'T'; length: number }
   longestUnbeaten: number
+  /** The longest runs of wins, draws and defeats, in the order the matches were played */
+  longest: { wins: number; draws: number; losses: number }
   scorers: ScorerRow[]
   yellow: number
   red: number
@@ -322,6 +324,15 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       run = r === 'T' ? 0 : run + 1
       longestUnbeaten = Math.max(longestUnbeaten, run)
     }
+    const longestRun = (kind: 'V' | 'U' | 'T') => {
+      let best = 0
+      let now = 0
+      for (const r of results) {
+        now = r === kind ? now + 1 : 0
+        best = Math.max(best, now)
+      }
+      return best
+    }
     const n = fixtures.length
     return {
       home,
@@ -337,6 +348,7 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       halfTime: hasHt ? halfTime : undefined,
       streak: { kind: last, length },
       longestUnbeaten,
+      longest: { wins: longestRun('V'), draws: longestRun('U'), losses: longestRun('T') },
       scorers: scorersOf(fixtures, club).slice(0, 5),
       yellow,
       red,

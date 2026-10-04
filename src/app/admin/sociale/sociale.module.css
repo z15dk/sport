@@ -189,6 +189,10 @@
 /* rows of one line each; long names end in "…" */
 .oneLine { table-layout: fixed; }
 .oneLine td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A whole league table on one card */
+.tight td { padding: 0.35cqw 0; line-height: 1.2; }
+.tight .plate { padding: 0.45cqw; border-radius: 1cqw; }
+.tight .crest { width: 3.3cqw; height: 3.3cqw; }
 .oneLine td.r { width: 17cqw; }
 
 /* the day's programme: each match in the two clubs' colours, the time between them */
@@ -270,3 +274,80 @@
 .women .wmMGreen { filter: drop-shadow(0 0 1.2cqw rgba(182, 156, 255, 0.45)); opacity: 0.45; }
 .women .brandbar { background: #15101f; }
 .women .fixtureTime { background: #15101f; }
+
+/* Dagens kampe: six matches on one graphic, a little lower rows so all six fit whole */
+.fixturesSix { gap: 1.4cqw; }
+.fixturesSix .fixtureRow { min-height: 9.8cqw; }
+.fixturesSix .fixtureTeam { font-size: 3.1cqw; padding: 1.2cqw 2cqw; }
+.fixturesSix .fixtureTime b { font-size: 4.8cqw; }
+.storySix .storyRow { min-height: 16.5cqw; }
+
+/* The head-to-head card: wins, draws and the other team's wins in big numbers */
+.h2hNums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2cqw; }
+.h2hNums div { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3cqw 1cqw; border-radius: 2cqw; background: rgba(0, 0, 0, 0.22); }
+.h2hNums b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16cqw; line-height: 1; }
+.h2hNums span { margin-top: 1.4cqw; font-size: 3cqw; font-weight: 700; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* The league's logo on the focus match card */
+.leagueLine { display: flex; align-items: center; gap: 2.4cqw; margin-bottom: 3cqw; font-size: 3.6cqw; font-weight: 700; }
+.leagueLine img { width: 10cqw; height: 10cqw; object-fit: contain; padding: 1.2cqw; border-radius: 2cqw; background: #fff; }
+
+.women .womenTag::after { content: var(--women-tag, 'Kvindefodbold'); }
+/* The head-to-head card: the clubs' logos over their wins, the leader in lime, the meetings as match rows */
+.h2hNums div { position: relative; gap: 1cqw; }
+.h2hNums div.lead { background: #c6f135; color: #11130e; }
+.h2hNums div > span:first-child { margin-bottom: 1cqw; }
+.h2hEq { display: grid; place-items: center; width: 11cqw; height: 11cqw; font-style: normal; font-family: var(--display); font-weight: 800; font-size: 9cqw; line-height: 1; opacity: 0.6; }
+.h2hRows { margin-top: 4cqw; }
+.h2hRowsTitle { font-size: 3cqw; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; margin-bottom: 1.4cqw; }
+.h2hRow { display: grid; grid-template-columns: 8cqw minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 2cqw; padding: 1.6cqw 0; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: 3.2cqw; font-weight: 600; }
+.h2hRow small { opacity: 0.65; font-size: 2.8cqw; }
+.h2hTeam { display: flex; align-items: center; gap: 1.6cqw; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.h2hTeam.right { justify-content: flex-end; text-align: right; }
+.h2hScore { padding: 0.8cqw 2.4cqw; border-radius: 1.4cqw; background: #11130e; color: #fff; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 4.4cqw; }
+/* Compact enough for the rows under it */
+.h2hNums div { padding: 2cqw 1cqw; }
+.h2hNums b { font-size: 11cqw; }
+.h2hEq { width: 7cqw; height: 7cqw; font-size: 6cqw; }
+.h2hRows { margin-top: 3cqw; }
+.h2hNums div { padding: 1.4cqw 1cqw; gap: 0.6cqw; }
+.h2hNums b { font-size: 10cqw; }
+.h2hNums span { margin-top: 0.4cqw; }
+.h2hRows { margin-top: 2.4cqw; }
+.h2hRowsTitle { margin-bottom: 0.6cqw; }
+.h2hRow { padding: 1cqw 0; }
+
+/* One or two meetings: the latest one large */
+.h2hBig { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 3cqw; padding: 4cqw 3cqw; border-radius: 2.4cqw; background: rgba(0, 0, 0, 0.22); }
+.h2hBig > div:not(.h2hBigScore) { display: flex; flex-direction: column; align-items: center; gap: 2cqw; text-align: center; font-size: 3.6cqw; font-weight: 700; line-height: 1.15; }
+.h2hBigScore { display: flex; flex-direction: column; align-items: center; gap: 1cqw; }
+.h2hBigScore b { padding: 1.4cqw 4cqw; border-radius: 2cqw; background: #c6f135; color: #11130e; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 13cqw; line-height: 1; }
+.h2hBigScore small { font-size: 3cqw; opacity: 0.75; font-weight: 700; }
+/* Women's football: its own colour for the highlights, not Matchly's lime */
+.women .h2hNums div.lead,
+.women .h2hBigScore b { background: #b69cff; color: #16181a; }
+/* The head-to-head under the match on one card: a little tighter */
+.h2hBig { padding: 2.6cqw 3cqw; }
+.h2hBigScore b { font-size: 11cqw; }
+.leagueLine { margin-bottom: 2cqw; }
+
+/* The focus match: everything centred on the card */
+.centerCard .hd { justify-content: center; text-align: center; }
+.centerCard .pad { text-align: center; }
+.centerCard .pad > div { justify-content: center; }
+.centerCard .leagueLine { justify-content: center; }
+.centerCard .h2hRowsTitle { text-align: center; }
+/* …the two logos side by side in the middle, the match's name on its own line under them */
+.centerCard .pad { justify-content: center; }
+.centerCard .pad > span:last-child:not(:first-child) { flex: 1 1 100% !important; text-align: center; }
+.centerCard .h2hBig { padding: 2cqw 3cqw; gap: 2cqw; }
+.centerCard .h2hBig > div:not(.h2hBigScore) { gap: 1.2cqw; }
+.centerCard .h2hBigScore b { font-size: 10cqw; }
+/* …and compact enough that a two-line head-to-head sentence leaves the numbers whole above the Matchly bar */
+.centerCard .crestLg { width: 10.5cqw; height: 10.5cqw; }
+.centerCard .leagueLine { margin-bottom: 1.2cqw; }
+.centerCard .leagueLine img { width: 8cqw; height: 8cqw; padding: 1cqw; }
+.centerCard .h2hNums div { padding: 1.2cqw 1cqw; }
+.centerCard .h2hNums b { font-size: 8.5cqw; }
+/* Tables on a centred card stay left (the goals) */
+.centerCard .tb { text-align: left; }

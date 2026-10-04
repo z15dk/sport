@@ -110,7 +110,7 @@ export function LeagueStats(props: ({ division: Division } | { stats: LeagueStat
                   <TeamBadge name={r.club.name} src={r.club.logo} colors={r.club.colors} size={22} />
                   <span className="rank-list__name">{r.club.name}</span>
                   <strong className="rank-list__cards">
-                    <span className="yellow-card" aria-label="Gule kort" /> {r.yellow} <span className="red-card" aria-label="Røde kort" /> {r.red}
+                    <span className="yellow-card" role="img" aria-label="Gule kort" /> {r.yellow} <span className="red-card" role="img" aria-label="Røde kort" /> {r.red}
                   </strong>
                 </li>
               ))}

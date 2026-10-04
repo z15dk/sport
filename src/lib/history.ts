@@ -6,7 +6,8 @@ import type { RealEvent } from '../data/real'
 import type { Incident, Match, MatchState, SportId } from '../types'
 import { alike, normalize, clubNames } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
-import type { ExternalGame } from '../data/external'
+import { danishLeagueName, type ExternalGame } from '../data/external'
+import { shownTeam } from '../data/countries'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
@@ -325,6 +326,8 @@ function data(): Loaded | undefined {
             hist.loaded = { ...built, dbTime, readAt: Date.now() }
             hist.building = false
             hist.lastBuildMs = Date.now() - began
+            // The past matches' index follows straight away, also in slices (before, the first page to ask built it while all waited)
+            if (historyHolder.__scorelinePast) rebuildPastIndex(hist.loaded)
           },
           (err) => {
             hist.building = false
@@ -920,7 +923,7 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
       .slice(0, 5)
       .map((a) => {
         const home = same(a.homeName, team)
-        return { date: a.date.toISOString(), opponent: home ? a.awayName : a.homeName, home, for: home ? a.homeScore : a.awayScore, against: home ? a.awayScore : a.homeScore, competition: a.tournament }
+        return { date: a.date.toISOString(), opponent: shownTeam(home ? a.awayName : a.homeName, game.league.country), home, for: home ? a.homeScore : a.awayScore, against: home ? a.awayScore : a.homeScore, competition: danishLeagueName(a.tournament) ?? a.tournament }
       })
   const form = { home: formOf(game.home.name), away: formOf(game.away.name) }
 
@@ -1072,12 +1075,14 @@ export interface PastGame {
 }
 
 
-function pastIndex() {
-  const d = data()
-  if (!d) return undefined
-  if (historyHolder.__scorelinePast?.loaded === d) return historyHolder.__scorelinePast
+type PastIndex = NonNullable<typeof historyHolder.__scorelinePast>
+
+/** The past matches by slug and by pair, built a slice at a time (yields every 2,000 matches) */
+function* pastIndexSteps(d: Loaded): Generator<void, PastIndex> {
   const bySlug = new Map<string, PastGame>()
+  let n = 0
   for (const m of d.matches) {
+    if (++n % 2000 === 0) yield
     const home = nameOf(d, m.homeId, m.homeName)
     const away = nameOf(d, m.awayId, m.awayName)
     const slug = matchSlug(home, away, isoDate(m.date))
@@ -1099,17 +1104,55 @@ function pastIndex() {
     })
   }
   const list = [...bySlug.values()]
+  yield
   // The two teams' meetings (any order), newest first, so a match page finds its head-to-head without reading every match
   const byPair = new Map<string, PastGame[]>()
   for (const g of list) {
+    if (++n % 5000 === 0) yield
     if (g.home === g.away) continue
     const key = pairKey(g.sport, g.home, g.away)
     const l = byPair.get(key)
     if (l) l.push(g)
     else byPair.set(key, [g])
   }
-  historyHolder.__scorelinePast = { loaded: d, bySlug, list, byPair }
-  return historyHolder.__scorelinePast
+  return { loaded: d, bySlug, list, byPair }
+}
+
+let pastBuilding: Loaded | undefined
+
+/** Builds the index for new history in slices, while pages keep using the one they have (it took 300 ms in one go, with every page waiting) */
+function rebuildPastIndex(d: Loaded) {
+  if (pastBuilding === d || historyHolder.__scorelinePast?.loaded === d) return
+  pastBuilding = d
+  runSliced(
+    pastIndexSteps(d),
+    (index) => {
+      if (pastBuilding === d) pastBuilding = undefined
+      // Only if no newer history has come in meanwhile
+      if (data() === d) historyHolder.__scorelinePast = index
+    },
+    () => {
+      if (pastBuilding === d) pastBuilding = undefined
+    },
+  )
+}
+
+function pastIndex(): PastIndex | undefined {
+  const d = data()
+  if (!d) return undefined
+  const have = historyHolder.__scorelinePast
+  if (have?.loaded === d) return have
+  // Newer history: the old index serves until the new one is built in the background
+  if (have) {
+    rebuildPastIndex(d)
+    return have
+  }
+  // None at all yet (right after a start): built in one go, once
+  const steps = pastIndexSteps(d)
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return (historyHolder.__scorelinePast = r.value)
+  }
 }
 
 const pairKey = (sport: string, a: string, b: string) => (a < b ? `${sport}|${a}|${b}` : `${sport}|${b}|${a}`)

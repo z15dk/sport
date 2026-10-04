@@ -108,10 +108,12 @@ export function kvStore<E extends { fetchedAt: number }>(file: string, legacyJso
         else delStmt.run(key)
       }
       putStmt.run('__spent', Date.now(), JSON.stringify(spent))
-      // Old entries go after a month (checked once an hour)
+      // Old entries go after a month (checked once an hour); a game's line-ups, statistics and goals are kept for good (they never change, and fetching them again costs calls)
       if (Date.now() - lastPrune > 3_600_000) {
         lastPrune = Date.now()
-        db.prepare("DELETE FROM entries WHERE fetched_at < ? AND key != '__spent'").run(Date.now() - MAX_AGE)
+        db.prepare(
+          "DELETE FROM entries WHERE fetched_at < ? AND key != '__spent' AND key NOT LIKE '%|lineups|%' AND key NOT LIKE '%|stats|%' AND key NOT LIKE '%|events|%' AND key NOT LIKE '%|subs|%'",
+        ).run(Date.now() - MAX_AGE)
       }
       db.exec('COMMIT')
       dirty.clear()

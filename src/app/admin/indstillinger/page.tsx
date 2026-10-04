@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '../../../lib/admin'
-import { siteSettings } from '../../../lib/settings'
+import { indexable, siteSettings } from '../../../lib/settings'
 import { SETTINGS } from '../../../data/settingsDef'
 import { SettingToggle } from '../../../components/admin/SettingToggle'
 import { AdminNav } from '../../../components/admin/AdminNav'
@@ -9,6 +9,7 @@ import { VisitorsDash } from '../../../components/admin/VisitorsDash'
 import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
 import { TrackingAdmin } from '../../../components/admin/TrackingAdmin'
 import { trackingConfig } from '../../../lib/tracking'
+import { indexNowStatus } from '../../../lib/indexnow'
 import { consentStats } from '../../../lib/consentLog'
 import Link from 'next/link'
 import { newsCoverage, newsFeeds, newsStatus } from '../../../lib/news'
@@ -27,6 +28,7 @@ export default async function AdminSettings({ searchParams }: { searchParams: Pr
   const lookup = params.samtykke?.trim().toLowerCase()
   const consents = consentStats(lookup)
   const tracking = trackingConfig()
+  const indexNow = indexNowStatus()
   const { settings } = siteSettings()
   const groups = [...new Set(SETTINGS.map((s) => s.group))]
   const status = newsStatus()
@@ -76,6 +78,16 @@ export default async function AdminSettings({ searchParams }: { searchParams: Pr
                     {!SITE_URL.startsWith('https://matchly.dk') && ' – bør være https://matchly.dk, ellers peger Google på en forkert adresse. Rettes i /opt/scoreline/env på serveren.'}
                   </p>
                 )}
+                {group === 'Søgemaskiner' && indexable() && (
+                  <p className={`small${indexNow && indexNow.status !== 200 && indexNow.status !== 202 ? ' is-error' : ' muted'}`}>
+                    Besked til Bing (IndexNow):{' '}
+                    {indexNow
+                      ? `senest ${formatNumeric(new Date(indexNow.at))} kl. ${formatTime(new Date(indexNow.at))} – ${indexNow.count} ${indexNow.count === 1 ? 'adresse' : 'adresser'}, svar ${indexNow.status}${
+                          indexNow.status === 200 || indexNow.status === 202 ? ' (modtaget)' : ' (afvist – tjek at /indexnow.txt kan åbnes)'
+                        }`
+                      : 'intet sendt endnu – den første besked går af sted kort efter en genstart.'}
+                  </p>
+                )}
               </div>
             ))}
           </section>
@@ -84,7 +96,9 @@ export default async function AdminSettings({ searchParams }: { searchParams: Pr
             <p className="muted small">
               Google Analytics og Meta Pixel indlæses først, når den besøgende har sagt ja i cookie-banneret (Statistik → Google Analytics, Marketing → Meta
               Pixel). Banneret vises kun, når mindst ét id er udfyldt, og aldrig for dig, når du er logget ind (du tælles heller ikke). Tomt felt = slået fra.
-              Id&apos;erne findes i Google Analytics under Administrator → Datastrømme og i Meta Events Manager under Datakilder.
+              Id&apos;erne findes i Google Analytics under Administrator → Datastrømme og i Meta Events Manager under Datakilder. Bing: på
+              bing.com/webmasters kan siden hentes direkte fra Google Search Console (så skal feltet ikke bruges) – ellers vælg &quot;HTML Meta Tag&quot; og
+              indsæt koden her.
             </p>
             <TrackingAdmin {...tracking} />
             {(tracking.ga || tracking.metaPixel) && !tracking.owner?.email && (
