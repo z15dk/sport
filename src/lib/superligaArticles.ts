@@ -386,85 +386,181 @@ function venueTable(s: Season, home: boolean) {
 
 // ---------------------------------------------------------------- 2. the form right now
 
+/** A club's result in a match, from its own side: "3-0 over AGF", "1-2 mod Brøndby IF", with the match page */
+function resultLine(f: Fixture, c: Club) {
+  const home = f.home.id === c.id
+  const [m, o] = home ? f.score : [f.score[1], f.score[0]]
+  const opp = home ? f.away : f.home
+  return `<a href="${paths.match(f.slug)}">${m}-${o} ${m > o ? 'over' : 'mod'} ${esc(opp.name)}</a>${home ? '' : ' (ude)'}`
+}
+const runOf = (games: Fixture[], c: Club, ok: (pts: number) => boolean) => {
+  let n = 0
+  for (let i = games.length - 1; i >= 0 && ok(pointsOf(games[i], c)); i--) n++
+  return n
+}
+
 function form(s: Season): SuperligaArticle | undefined {
   const N = 5
   const rows = s.table.map((r) => {
-    const last = playedBy(s, r.club).slice(-N)
-    const pts = last.reduce((a, f) => a + pointsOf(f, r.club), 0)
+    const all = playedBy(s, r.club)
+    const last = all.slice(-N)
     const gf = last.reduce((a, f) => a + (f.home.id === r.club.id ? f.score[0] : f.score[1]), 0)
     const ga = last.reduce((a, f) => a + (f.home.id === r.club.id ? f.score[1] : f.score[0]), 0)
-    const letters = last.map((f) => ['T', 'U', '', 'V'][pointsOf(f, r.club)]).join('')
-    // Current run: matches in a row without losing / without winning
-    const all = playedBy(s, r.club)
-    let unbeaten = 0
-    for (let i = all.length - 1; i >= 0 && pointsOf(all[i], r.club) > 0; i--) unbeaten++
-    let winless = 0
-    for (let i = all.length - 1; i >= 0 && pointsOf(all[i], r.club) < 3; i--) winless++
-    return { r, pts, gf, ga, letters, games: last.length, unbeaten, winless, pos: position(s, r.club) }
+    const lastWin = [...all].reverse().find((f) => pointsOf(f, r.club) === 3)
+    return {
+      r,
+      all,
+      last,
+      pts: last.reduce((a, f) => a + pointsOf(f, r.club), 0),
+      gf,
+      ga,
+      clean: last.filter((f) => (f.home.id === r.club.id ? f.score[1] : f.score[0]) === 0).length,
+      letters: last.map((f) => ['T', 'U', '', 'V'][pointsOf(f, r.club)]).join(''),
+      wins: runOf(all, r.club, (x) => x === 3),
+      unbeaten: runOf(all, r.club, (x) => x > 0),
+      winless: runOf(all, r.club, (x) => x < 3),
+      losses: runOf(all, r.club, (x) => x === 0),
+      lastWin,
+      next: s.upcoming.find((f) => f.home.id === r.club.id || f.away.id === r.club.id),
+      pos: position(s, r.club),
+    }
   })
-  if (rows.some((x) => x.games < 3)) return undefined
+  if (rows.some((x) => x.last.length < 3)) return undefined
   const formTable = [...rows].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf)
+  const formPos = (x: (typeof rows)[number]) => formTable.indexOf(x) + 1
   const hot = formTable[0]
   const cold = formTable[formTable.length - 1]
-  const climber = [...formTable].map((x, i) => ({ x, diff: x.pos - (i + 1) })).sort((a, b) => b.diff - a.diff)[0]
-  const faller = [...formTable].map((x, i) => ({ x, diff: x.pos - (i + 1) })).sort((a, b) => a.diff - b.diff)[0]
-  const longestUnbeaten = [...rows].sort((a, b) => b.unbeaten - a.unbeaten)[0]
-  const longestWinless = [...rows].sort((a, b) => b.winless - a.winless)[0]
+  const climber = formTable.filter((x) => x !== hot && x.pos - formPos(x) >= 2).sort((a, b) => b.pos - formPos(b) - (a.pos - formPos(a)))[0]
+  const faller = formTable.filter((x) => x !== cold && formPos(x) - x.pos >= 3).sort((a, b) => formPos(b) - b.pos - (formPos(a) - a.pos))[0]
+  const unbeaten = [...rows].filter((x) => x !== hot).sort((a, b) => b.unbeaten - a.unbeaten)[0]
+  const key = `form${s.rounds}`
+  const nextLine = (x: (typeof rows)[number]) => (x.next ? `Næste opgave er ${fixtureLink(x.next)} ${kickoffText(x.next)}.` : '')
   const parts: string[] = []
-  parts.push(
-    p(
-      `Stillingen fortæller, hvor holdene står efter ${s.rounds} runder. Formtabellen fortæller, hvor de er på vej hen. ` +
-        `Vi har lavet Superligaens tabel over de seneste ${N} kampe – og den ser anderledes ud end den rigtige. ` +
-        `${club(hot.r.club)} er ligaens varmeste hold med ${plural(hot.pts, 'point', 'point')} af ${N * 3} mulige, mens ${club(cold.r.club)} kun har hentet ${plural(cold.pts, 'point', 'point')}.`,
-    ),
-  )
-  parts.push(h2(`Formtabellen: de seneste ${N} kampe`))
-  parts.push(table(['#', 'Klub', 'Form', 'Mål', 'P', 'I tabellen'], formTable.map((x, i) => [i + 1, club(x.r.club), x.letters, `${x.gf}-${x.ga}`, x.pts, `nr. ${x.pos}`])))
-  parts.push(p('Form læses fra venstre mod højre, nyeste kamp til sidst: V = sejr, U = uafgjort, T = nederlag.'))
 
-  parts.push(h2(`${hot.r.club.name}: ligaens varmeste hold`))
+  // Lead
+  const hotPerfect = hot.pts === N * 3
   parts.push(
     p(
-      `${club(hot.r.club)} har formen ${hot.letters} og en målscore på ${hot.gf}-${hot.ga} i de seneste ${N} kampe. ` +
-        `I den rigtige tabel ligger holdet nr. ${hot.pos} med ${plural(hot.r.points, 'point', 'point')}` +
-        (hot.pos > 1 ? `, ${plural(s.table[0].points - hot.r.points, 'point', 'point')} efter ${esc(s.table[0].club.name)}.` : ' – i front.'),
+      `<strong>` +
+        (hotPerfect
+          ? pick(key, `${plural(N, 'kamp', 'kampe')}, ${plural(N, 'sejr', 'sejre')}: ${esc(hot.r.club.name)} er i en klasse for sig lige nu.`, `${esc(hot.r.club.name)} kan ikke stoppes.`)
+          : pick(key, `${esc(hot.r.club.name)} er Superligaens varmeste hold.`, `Formen peger ét sted hen: ${esc(hot.r.club.name)}.`)) +
+        `</strong> ` +
+        `Holdet har hentet ${plural(hot.pts, 'point', 'point')} af ${N * 3} mulige i de seneste ${plural(N, 'kamp', 'kampe')} med en målscore på ${hot.gf}-${hot.ga}. ` +
+        `I den anden ende står ${club(cold.r.club)} med ${plural(cold.pts, 'point', 'point')} og ${cold.winless >= 3 ? `${plural(cold.winless, 'kamp', 'kampe')} i træk uden sejr` : `formen ${cold.letters}`}. ` +
+        `Matchly har gennemgået alle klubbernes seneste kampe – her er, hvem der er på vej op, og hvem der er på vej ned.`,
     ),
   )
-  if (climber.diff >= 2 && climber.x !== hot) {
-    parts.push(h2(`${climber.x.r.club.name} spiller bedre end placeringen`))
-    parts.push(p(`${club(climber.x.r.club)} ligger nr. ${climber.x.pos} i tabellen, men nr. ${climber.x.pos - climber.diff} på formen med ${plural(climber.x.pts, 'point', 'point')} i de seneste ${N} kampe (${climber.x.letters}). Holdet er på vej op.`))
-  }
-  parts.push(h2(`${cold.r.club.name}: formkrisen`))
-  parts.push(p(`${club(cold.r.club)} har formen ${cold.letters} og har lukket ${plural(cold.ga, 'mål', 'mål')} ind i de seneste ${N} kampe. Holdet ligger nr. ${cold.pos} i tabellen.`))
-  if (faller.diff <= -2 && faller.x !== cold) {
-    parts.push(h2(`${faller.x.r.club.name} er gået i stå`))
-    parts.push(p(`${club(faller.x.r.club)} ligger nr. ${faller.x.pos} i tabellen, men kun nr. ${faller.x.pos - faller.diff} på formen (${faller.x.letters}). Placeringen er hentet tidligere i sæsonen.`))
-  }
-  parts.push(h2('Stimerne'))
+
+  // The hot team
+  parts.push(h2(hot.wins >= 3 ? `${plural(hot.wins, 'sejr', 'sejre')} i træk for ${hot.r.club.name}` : `${hot.r.club.name} i topform`))
   parts.push(
-    list([
-      ...(longestUnbeaten.unbeaten >= 3 ? [`${club(longestUnbeaten.r.club)} er ubesejret i ${plural(longestUnbeaten.unbeaten, 'kamp', 'kampe')} i træk.`] : []),
-      ...(longestWinless.winless >= 3 ? [`${club(longestWinless.r.club)} har ikke vundet i ${plural(longestWinless.winless, 'kamp', 'kampe')} i træk.`] : []),
-    ]),
+    p(
+      (hotPerfect ? `${club(hot.r.club)} har vundet ${hot.last.map((f) => resultLine(f, hot.r.club)).join(', ')}. ` : `${pick(key + 'res', 'Resultaterne taler for sig selv', 'Sådan er det gået')}: ${hot.last.map((f) => resultLine(f, hot.r.club)).join(', ')}. `) +
+        (hot.clean >= 2 ? `${pick(key + 'clean', 'Bagkæden står solidt', 'Forsvaret er låst af')}: ${plural(hot.clean, 'kamp', 'kampe')} uden mål imod i perioden. ` : '') +
+        (hot.pos === 1 ? `Det har sendt holdet til tops med ${plural(hot.r.points, 'point', 'point')}${s.table[1] ? `, ${plural(hot.r.points - s.table[1].points, 'point', 'point')} foran ${club(s.table[1].club)}` : ''}. ` : `Holdet ligger nr. ${hot.pos} med ${plural(hot.r.points, 'point', 'point')}, ${plural(s.table[0].points - hot.r.points, 'point', 'point')} fra førstepladsen. `) +
+        nextLine(hot),
+    ),
   )
+
+  // On the way up
+  if (climber) {
+    parts.push(h2(pick(key + 'up', `${climber.r.club.name} er på vej op`, `${climber.r.club.name} har fundet formen`)))
+    parts.push(
+      p(
+        `${club(climber.r.club)} ligger nr. ${climber.pos} i tabellen, men nr. ${formPos(climber)} på formen. ` +
+          `De seneste resultater: ${climber.last.map((f) => resultLine(f, climber.r.club)).join(', ')}. ` +
+          nextLine(climber),
+      ),
+    )
+  }
+
+  // The unbeaten run
+  if (unbeaten && unbeaten.unbeaten >= 4) {
+    const allGames = unbeaten.unbeaten === unbeaten.all.length
+    parts.push(h2(allGames ? `${unbeaten.r.club.name} har endnu ikke tabt` : `${unbeaten.r.club.name} er svære at slå`))
+    parts.push(
+      p(
+        `${club(unbeaten.r.club)} er ubesejret i ${plural(unbeaten.unbeaten, 'kamp', 'kampe')} i træk${allGames ? ' – hele sæsonen' : ''}. ` +
+          (unbeaten.r.drawn >= 3 ? `Men ${plural(unbeaten.r.drawn, 'uafgjort', 'uafgjorte')} betyder, at holdet ligger nr. ${unbeaten.pos} med ${plural(unbeaten.r.points, 'point', 'point')}. ` : `Holdet ligger nr. ${unbeaten.pos} med ${plural(unbeaten.r.points, 'point', 'point')}. `) + nextLine(unbeaten),
+      ),
+    )
+  }
+
+  // On the way down
+  if (faller) {
+    parts.push(h2(faller.losses >= 3 ? `${plural(faller.losses, 'nederlag', 'nederlag')} i træk: ${faller.r.club.name} er gået i stå` : `${faller.r.club.name} mister pusten`))
+    parts.push(
+      p(
+        `${club(faller.r.club)} ligger stadig nr. ${faller.pos}, men er kun nr. ${formPos(faller)} på formen. ` +
+          `Placeringen er hentet tidligere i sæsonen – de seneste kampe er endt ${faller.last.map((f) => resultLine(f, faller.r.club)).join(', ')}. ` +
+          nextLine(faller),
+      ),
+    )
+  }
+
+  // The crisis
+  const zone = s.table.length - 2
+  parts.push(h2(cold.winless >= 5 ? `Krisen kradser i ${cold.r.club.name}` : `${cold.r.club.name} har svært ved at vinde`))
+  parts.push(
+    p(
+      `${club(cold.r.club)} har hentet ${plural(cold.pts, 'point', 'point')} i de seneste ${plural(N, 'kamp', 'kampe')} og lukket ${plural(cold.ga, 'mål', 'mål')} ind. ` +
+        (cold.lastWin ? `Sidste sejr kom ${dkDate(cold.lastWin.kickoff)}: ${resultLine(cold.lastWin, cold.r.club)}. ` : `Holdet har endnu ikke vundet en kamp i denne sæson. `) +
+        (cold.pos > zone ? `Holdet ligger under nedrykningsstregen som nr. ${cold.pos}. ` : `Holdet ligger nr. ${cold.pos}, ${plural(cold.r.points - s.table[zone].points, 'point', 'point')} over nedrykningsstregen. `) +
+        nextLine(cold),
+    ),
+  )
+
+  // The form clash of the next round
+  const clash = s.upcoming
+    .slice(0, s.table.length)
+    .map((f) => {
+      const h = rows.find((x) => x.r.club.id === f.home.id)
+      const a = rows.find((x) => x.r.club.id === f.away.id)
+      return h && a ? { f, h, a, score: h.pts + a.pts } : undefined
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort((x, y) => y.score - x.score)[0]
+  if (clash && clash.score >= 14) {
+    parts.push(h2('Formkampen'))
+    parts.push(
+      p(
+        `Næste runde byder på et møde mellem to hold i form: ${fixtureLink(clash.f)} ${kickoffText(clash.f)}. ` +
+          `${esc(clash.h.r.club.name)} har formen ${clash.h.letters}, ${esc(clash.a.r.club.name)} ${clash.a.letters}.`,
+      ),
+    )
+  }
+
+  // Home and away, the rest after the best
   const home = venueTable(s, true)
   const away = venueTable(s, false)
   parts.push(h2('Hjemme og ude'))
   parts.push(
     p(
-      `På egen bane er ${club(home[0].club)} stærkest med ${num(home[0].points / home[0].played, 2)} point pr. kamp, ude er det ${club(away[0].club)} med ${num(away[0].points / away[0].played, 2)}. ` +
-        `Svagest hjemme er ${club(home[home.length - 1].club)}, svagest ude ${club(away[away.length - 1].club)}.`,
+      `${home[0].club.id === away[0].club.id ? `${club(home[0].club)} er bedst både hjemme (${num(home[0].points / home[0].played, 2)} point pr. kamp) og ude (${num(away[0].points / away[0].played, 2)}). ` : `Bedst hjemme er ${club(home[0].club)} (${num(home[0].points / home[0].played, 2)} point pr. kamp), bedst ude ${club(away[0].club)} (${num(away[0].points / away[0].played, 2)}). `}` +
+        (away[away.length - 1].points === 0
+          ? `${club(away[away.length - 1].club)} har endnu ikke hentet et point på udebane`
+          : `Sværest har ${club(away[away.length - 1].club)} på udebane med ${num(away[away.length - 1].points / away[away.length - 1].played, 2)} point pr. kamp`) +
+        `, mens ${club(home[home.length - 1].club)} kun henter ${num(home[home.length - 1].points / home[home.length - 1].played, 2)} point pr. kamp hjemme.`,
     ),
   )
+
+  // The form table, short enough for a phone
+  parts.push(h2(`Formtabellen: de seneste ${plural(N, 'kamp', 'kampe')}`))
+  parts.push(table(['#', 'Klub', 'Form', 'P', 'Nu'], formTable.map((x, i) => [i + 1, club(x.r.club), x.letters, x.pts, `nr. ${x.pos}`])))
+  parts.push(p('Formen læses fra venstre mod højre med den nyeste kamp til sidst: V = sejr, U = uafgjort, T = nederlag. "Nu" er placeringen i den rigtige tabel.'))
+
+  parts.push(h2('Fakta'))
   parts.push(
-    table(
-      ['Klub', 'Hjemme (P/kamp)', 'Ude (P/kamp)'],
-      s.table.map((r) => {
-        const h = home.find((x) => x.club.id === r.club.id)
-        const a = away.find((x) => x.club.id === r.club.id)
-        return [club(r.club), h ? num(h.points / h.played, 2) : '–', a ? num(a.points / a.played, 2) : '–']
-      }),
-    ),
+    list([
+      `Bedst i form: ${club(hot.r.club)}, ${plural(hot.pts, 'point', 'point')} (${hot.letters})`,
+      `Dårligst i form: ${club(cold.r.club)}, ${plural(cold.pts, 'point', 'point')} (${cold.letters})`,
+      ...(unbeaten && unbeaten.unbeaten >= 3 ? [`Længste stime uden nederlag: ${club(unbeaten.r.club)}, ${plural(unbeaten.unbeaten, 'kamp', 'kampe')}`] : []),
+      `Længste stime uden sejr: ${(() => {
+        const w = [...rows].sort((a, b) => b.winless - a.winless)[0]
+        return `${club(w.r.club)}, ${plural(w.winless, 'kamp', 'kampe')}`
+      })()}`,
+    ]),
   )
   parts.push(
     faq([
@@ -473,16 +569,19 @@ function form(s: Season): SuperligaArticle | undefined {
     ]),
   )
   parts.push(p(`Se stillingen og holdenes form live på <a href="${paths.league(s.div.slug)}">Superligaens side på Matchly</a>.`))
+  const title = hotPerfect
+    ? `${plural(N, 'sejr', 'sejre')} i træk: ${hot.r.club.name} er i en klasse for sig – krisen kradser i ${cold.r.club.name}`
+    : `${hot.r.club.name} er Superligaens varmeste hold – ${cold.r.club.name} leder efter formen`
   return {
     kind: 'form',
     slug: 'superligaen-formtabel',
-    title: `Formtabellen: Superligaens varmeste og koldeste hold efter ${s.rounds} runder`,
-    excerpt: `Tabellen over de seneste ${N} kampe viser, hvem der er på vej op og ned i Superligaen – ${hot.r.club.name} i topform, ${cold.r.club.name} i krise.`,
+    title,
+    excerpt: `${hot.r.club.name} har hentet ${hot.pts} af ${N * 3} mulige point, mens ${cold.r.club.name} kun har ${cold.pts}. Formtabellen over de seneste ${N} kampe viser, hvem der er på vej op og ned i Superligaen.`,
     content: parts.join(''),
     tags: ['Superliga', 'Statistik', hot.r.club.name, cold.r.club.name],
     focusKeyword: 'superligaen form',
-    seoTitle: `Superligaen formtabel – hvem er i form efter ${s.rounds} runder?`,
-    metaDescription: `Superligaens formtabel over de seneste ${N} kampe: ${hot.r.club.name} er varmest med ${hot.pts} point, ${cold.r.club.name} koldest. Hjemme, ude og stimer.`.slice(0, 158),
+    seoTitle: `Superligaen formtabel efter ${s.rounds} runder – hvem er i form?`,
+    metaDescription: `Superligaens formtabel over de seneste ${N} kampe: ${hot.r.club.name} er varmest med ${hot.pts} point, ${cold.r.club.name} koldest med ${cold.pts}. Stimer, kriser og formkampen.`.slice(0, 158),
   }
 }
 
