@@ -3,7 +3,7 @@ import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
 import type { TeamEntry } from '../data/teams'
 import { sportById } from '../sports'
-import { SITE_NAME, SITE_URL, paths } from './site'
+import { SITE_NAME, SITE_URL, paths, SOCIAL_PROFILES } from './site'
 
 // schema.org structured data, read by search engines and AI assistants.
 
@@ -162,6 +162,7 @@ export function organizationLd() {
     description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
     areaServed: ['DK', 'DE', 'GB', 'ES', 'PT', 'SE', 'NO'],
     knowsLanguage: 'da',
+    sameAs: Object.values(SOCIAL_PROFILES),
   }
 }
 

@@ -1,6 +1,8 @@
 import { addDays } from './time'
 export const SITE_NAME = 'Matchly'
 export const SITE_URL = (process.env.SITE_URL || 'http://localhost:5173').replace(/\/$/, '')
+/** Matchly's own profiles (the footer and the Organization's sameAs) */
+export const SOCIAL_PROFILES = { facebook: 'https://www.facebook.com/profile.php?id=61594831118706' }
 
 
 /** How a day is written in its address: "i-gaar", "i-morgen", a date, or nothing for today */
