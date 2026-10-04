@@ -40,7 +40,7 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
 import { checkedTeamStats } from '../../../data/teamStats'
 import { clubSeasonStats } from '../../../data/stats'
@@ -232,7 +232,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
-        {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division), apiTeamOwnGoals(apiLeague!, apiTeam!))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}

@@ -77,24 +77,34 @@ test('the biggest win is the widest margin, home or away', () => {
   assert.equal(biggestOf(undefined), undefined)
 })
 
-test("our own runs and quarter-hours replace the source's when we have every match", () => {
-  const own = { played: 9, longest: { wins: 5, draws: 0, losses: 1 }, byInterval: { scored: [5, 3, 5, 2, 3, 5], conceded: [2, 2, 2, 0, 1, 1] }, everyGoalTimed: true }
-  const checked = checkedTeamStats(source, own)
-  assert.deepEqual(checked.streak, { wins: 5, draws: 0, loses: 1 })
-  const sum = (list: { value: number }[]) => list.reduce((t, p) => t + p.value, 0)
-  assert.equal(sum(checked.goalsFor.periods), 23)
-  assert.equal(sum(checked.goalsAgainst.periods), 8)
-  // The source's own totals are kept
-  assert.equal(checked.goalsFor.total, 23)
-  assert.equal(checked.cleanSheets.total, 5)
+test("our own runs replace the source's when we have every match it has counted", () => {
+  assert.deepEqual(checkedTeamStats(source, { played: 9, longest: { wins: 5, draws: 0, losses: 1 } }).streak, { wins: 5, draws: 0, loses: 1 })
+  // Fewer matches than the source has counted: the source's runs stay
+  assert.equal(checkedTeamStats(source, { played: 8, longest: { wins: 5, draws: 0, losses: 1 } }), source)
+  assert.equal(checkedTeamStats(source, undefined), source)
 })
 
-test("the source's numbers stay when ours are incomplete", () => {
-  // Fewer matches than the source has counted: nothing of ours is used
-  assert.equal(checkedTeamStats(source, { played: 8, longest: { wins: 5, draws: 0, losses: 1 }, everyGoalTimed: true }), source)
-  assert.equal(checkedTeamStats(source, undefined), source)
-  // Every match, but not the minute of every goal: our runs, the source's quarter-hours
-  const partly = checkedTeamStats(source, { played: 9, longest: { wins: 5, draws: 0, losses: 1 }, byInterval: { scored: [1, 0, 0, 0, 0, 0], conceded: [0, 0, 0, 0, 0, 0] }, everyGoalTimed: false })
-  assert.equal(partly.streak?.wins, 5)
-  assert.deepEqual(partly.goalsFor.periods, source.goalsFor.periods)
+const sum = (list: { value: number }[]) => list.reduce((t, p) => t + p.value, 0)
+
+test('an own goal is moved to the side it counted for, so the quarter-hours sum to the goals', () => {
+  // The source: 24 scored and 7 conceded by the quarter-hour, 23-8 in goals – the team's own goal in the 10th minute stands as scored
+  const checked = checkedTeamStats(source, undefined, [{ minute: 10, byTeam: true }])
+  assert.equal(sum(checked.goalsFor.periods), 23)
+  assert.equal(sum(checked.goalsAgainst.periods), 8)
+  assert.equal(checked.goalsFor.periods[0].value, 5)
+  assert.equal(checked.goalsAgainst.periods[0].value, 3)
+  // In stoppage time of a half the source counted elsewhere: taken from the quarter-hour before
+  const late = checkedTeamStats(source, undefined, [{ minute: 93, byTeam: true }])
+  assert.equal(late.goalsFor.periods[5].value, 4)
+  assert.equal(late.goalsAgainst.periods[5].value, 1)
+  assert.equal(sum(late.goalsFor.periods), 23)
+})
+
+test("the source's quarter-hours stay when moving the own goals doesn't make them add up", () => {
+  // No own goal known, or one that doesn't explain the difference
+  assert.equal(checkedTeamStats(source, undefined, []), source)
+  assert.equal(checkedTeamStats(source, undefined, [{ minute: 10, byTeam: false }]), source)
+  // Already adding up: left alone
+  const fine = { ...source, goalsFor: { ...source.goalsFor, total: 24 }, goalsAgainst: { ...source.goalsAgainst, total: 7 } }
+  assert.equal(checkedTeamStats(fine, undefined, [{ minute: 10, byTeam: true }]), fine)
 })

@@ -164,6 +164,7 @@ const NATIONS: Record<string, string> = {
   philippines: 'Filippinerne',
   poland: 'Polen',
   'republic of ireland': 'Irland',
+  'rep. of ireland': 'Irland',
   romania: 'Rumænien',
   russia: 'Rusland',
   'saint kitts and nevis': 'Saint Kitts og Nevis',

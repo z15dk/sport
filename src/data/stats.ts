@@ -196,8 +196,6 @@ export interface ClubSeasonStats {
   goalsAgainstPerMatch: number
   /** Scored and conceded per quarter-hour, from matches with goal minutes */
   byInterval?: { scored: number[]; conceded: number[]; matches: number }
-  /** Every goal of every match has its minute (a goalless match has none to miss), so the quarter-hours sum to the goals */
-  everyGoalTimed: boolean
   /** Results after leading / trailing at half-time */
   halfTime?: { leading: number; leadingWon: number; trailing: number; trailingPoints: number }
   /** Current run, e.g. { kind: 'V', length: 3 } */
@@ -238,7 +236,6 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
     const scored = [0, 0, 0, 0, 0, 0]
     const conceded = [0, 0, 0, 0, 0, 0]
     let withMinutes = 0
-    let timed = 0
     const halfTime = { leading: 0, leadingWon: 0, trailing: 0, trailingPoints: 0 }
     let hasHt = false
     const results: ('V' | 'U' | 'T')[] = []
@@ -283,7 +280,6 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
         }
       }
       const goals = (f.incidents ?? []).filter(isGoal)
-      if (goals.length === gf + ga) timed++
       if (goals.length && goals.length === gf + ga) {
         withMinutes++
         for (const g of goals) {
@@ -349,7 +345,6 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       goalsForPerMatch: (home.goalsFor + away.goalsFor) / n,
       goalsAgainstPerMatch: (home.goalsAgainst + away.goalsAgainst) / n,
       byInterval: withMinutes ? { scored, conceded, matches: withMinutes } : undefined,
-      everyGoalTimed: timed === n,
       halfTime: hasHt ? halfTime : undefined,
       streak: { kind: last, length },
       longestUnbeaten,

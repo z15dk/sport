@@ -27,32 +27,56 @@ export interface TeamStats {
 interface OwnSeason {
   played: number
   longest: { wins: number; draws: number; losses: number }
-  byInterval?: { scored: number[]; conceded: number[] }
-  everyGoalTimed: boolean
 }
 
-/** Our six quarter-hours under the source's names for them (stoppage time counts in the half it belongs to) */
-const OWN_PERIODS = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90']
+/** An own goal in one of the team's matches: its minute, and whether the team's own player scored it */
+export interface OwnGoal {
+  minute: number
+  byTeam: boolean
+}
+
+const sum = (periods: Periods) => periods.reduce((t, p) => t + p.value, 0)
+
+/** The quarter-hour a minute falls in ("16-30"), the last one for anything later */
+function periodAt(periods: Periods, minute: number): number {
+  const i = periods.findIndex((p) => {
+    const m = /^(\d+)-(\d+)$/.exec(p.period)
+    return !!m && minute >= Number(m[1]) && minute <= Number(m[2])
+  })
+  return i >= 0 ? i : periods.length - 1
+}
+
+/** One goal moved from a list to the other, in the same quarter-hour (the one before when the source counted stoppage time there) */
+function moved(from: Periods, to: Periods, minute: number): [Periods, Periods] {
+  let i = periodAt(from, minute)
+  while (i > 0 && !from[i].value) i--
+  if (!from[i]?.value) return [from, to]
+  const period = from[i].period
+  return [from.map((p, j) => (j === i ? { ...p, value: p.value - 1 } : p)), to.map((p) => (p.period === period ? { ...p, value: p.value + 1 } : p))]
+}
 
 /**
  * The source's team statistics with our own numbers where the source's don't add up. Its runs of
  * wins and defeats follow the round numbers, not the dates (a postponed match breaks a run that
- * was never broken), and its goals per quarter-hour give an own goal to the wrong side, so they
- * don't sum to the goals. Ours come from the matches as they were played – used when we have
- * every match the source has counted (and, for the quarter-hours, the minute of every goal).
+ * was never broken): ours come from the matches as they were played, when we have every match
+ * the source has counted. Its goals per quarter-hour give an own goal to the scorer's team, so
+ * they don't sum to the goals: the season's own goals are moved to the side they counted for,
+ * and kept only when the quarter-hours then sum to the goals.
  */
-export function checkedTeamStats(stats: TeamStats, own: OwnSeason | undefined): TeamStats {
-  if (!own || own.played < stats.played.total) return stats
-  const every = own.everyGoalTimed ? (own.byInterval ?? { scored: [], conceded: [] }) : undefined
-  const periods = (values: number[]): Periods => OWN_PERIODS.map((period, i) => ({ period, value: values[i] ?? 0 }))
-  return {
-    ...stats,
-    streak: { wins: own.longest.wins, draws: own.longest.draws, loses: own.longest.losses },
-    ...(every && {
-      goalsFor: { ...stats.goalsFor, periods: periods(every.scored) },
-      goalsAgainst: { ...stats.goalsAgainst, periods: periods(every.conceded) },
-    }),
+export function checkedTeamStats(stats: TeamStats, own: OwnSeason | undefined, ownGoals: OwnGoal[] = []): TeamStats {
+  let out = stats
+  if (own && own.played >= stats.played.total) out = { ...out, streak: { wins: own.longest.wins, draws: own.longest.draws, loses: own.longest.losses } }
+  const adds = (f: Periods, a: Periods) => sum(f) === stats.goalsFor.total && sum(a) === stats.goalsAgainst.total
+  let scored = stats.goalsFor.periods
+  let conceded = stats.goalsAgainst.periods
+  if (ownGoals.length && !adds(scored, conceded)) {
+    for (const g of ownGoals) {
+      if (g.byTeam) [scored, conceded] = moved(scored, conceded, g.minute)
+      else [conceded, scored] = moved(conceded, scored, g.minute)
+    }
+    if (adds(scored, conceded)) out = { ...out, goalsFor: { ...stats.goalsFor, periods: scored }, goalsAgainst: { ...stats.goalsAgainst, periods: conceded } }
   }
+  return out
 }
 
 /** A score as the source writes it ("3-1", home team first): the winner's margin and goals, seen from the team at home or away */

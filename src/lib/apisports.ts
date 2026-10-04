@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
 import type { PlayerData, PlayerSeasonRow } from '../data/player'
-import type { Injury, Periods, TeamStats } from '../data/teamStats'
+import type { Injury, OwnGoal, Periods, TeamStats } from '../data/teamStats'
 import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
 import { checkSeason } from './seasonCheck'
 import { kvStore, type KvStore } from './extrasDb'
@@ -2346,6 +2346,17 @@ export async function apiTeamStats(leagueId: string, teamId: number, season = SE
     saveExtrasSoon()
     return stats
   })
+}
+
+/** The own goals in a team's league matches this season, from the games the job has kept (no request): the minute, and whether the team's own player scored it */
+export function apiTeamOwnGoals(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): OwnGoal[] {
+  const out: OwnGoal[] = []
+  for (const g of seasonGames()) {
+    if (String(g.league.id) !== String(leagueId) || String(g.league.season ?? season) !== season || (g.home.id !== teamId && g.away.id !== teamId)) continue
+    // An own goal is registered to the player's team (see toIncidents)
+    for (const i of g.incidents ?? []) if (i.kind === 'own-goal') out.push({ minute: i.minute, byTeam: (i.side === 'home') === (g.home.id === teamId) })
+  }
+  return out
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
