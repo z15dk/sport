@@ -23,6 +23,54 @@ export interface TeamStats {
   form?: string
 }
 
+/** Our own count of the same season (src/data/stats.ts), as far as the check below needs it */
+interface OwnSeason {
+  played: number
+  longest: { wins: number; draws: number; losses: number }
+  byInterval?: { scored: number[]; conceded: number[] }
+  everyGoalTimed: boolean
+}
+
+/** Our six quarter-hours under the source's names for them (stoppage time counts in the half it belongs to) */
+const OWN_PERIODS = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90']
+
+/**
+ * The source's team statistics with our own numbers where the source's don't add up. Its runs of
+ * wins and defeats follow the round numbers, not the dates (a postponed match breaks a run that
+ * was never broken), and its goals per quarter-hour give an own goal to the wrong side, so they
+ * don't sum to the goals. Ours come from the matches as they were played – used when we have
+ * every match the source has counted (and, for the quarter-hours, the minute of every goal).
+ */
+export function checkedTeamStats(stats: TeamStats, own: OwnSeason | undefined): TeamStats {
+  if (!own || own.played < stats.played.total) return stats
+  const every = own.everyGoalTimed ? (own.byInterval ?? { scored: [], conceded: [] }) : undefined
+  const periods = (values: number[]): Periods => OWN_PERIODS.map((period, i) => ({ period, value: values[i] ?? 0 }))
+  return {
+    ...stats,
+    streak: { wins: own.longest.wins, draws: own.longest.draws, loses: own.longest.losses },
+    ...(every && {
+      goalsFor: { ...stats.goalsFor, periods: periods(every.scored) },
+      goalsAgainst: { ...stats.goalsAgainst, periods: periods(every.conceded) },
+    }),
+  }
+}
+
+/** A score as the source writes it ("3-1", home team first): the winner's margin and goals, seen from the team at home or away */
+function margin(score: string | undefined, at: 'home' | 'away'): { score: string; by: number; goals: number } | undefined {
+  const m = /^(\d+)\s*-\s*(\d+)$/.exec(score ?? '')
+  if (!m) return undefined
+  const [own, other] = at === 'home' ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
+  return { score: score!, by: own - other, goals: own }
+}
+
+/** The bigger of the home and the away result: the wider margin, then the most goals ("0-5" away beats "3-1" at home) */
+export function biggestOf(pair: { home?: string; away?: string } | undefined): string | undefined {
+  const home = margin(pair?.home, 'home')
+  const away = margin(pair?.away, 'away')
+  if (!home || !away) return (home ?? away)?.score
+  return away.by > home.by || (away.by === home.by && away.goals > home.goals) ? away.score : home.score
+}
+
 export interface Injury {
   playerId?: number
   player: string

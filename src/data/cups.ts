@@ -83,7 +83,7 @@ export function wholeSeason(g: Pick<ExternalGame, 'sport' | 'league'>): boolean 
 }
 
 /** A women's, reserve or youth team: not the club itself, even with the club's name */
-export const NOT_FIRST_TEAM = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q|ii|iii|u\s?\d{2}|youth|junior|reserves?)\b|\s2$/i
+export const NOT_FIRST_TEAM = /\b(w|women|frauen|femenin\w*|feminin\w*|kvinde\w*|dame\w*|q|ii|iii|u\s?\d{2}|youth|junior|reserves?)\b|\(k\)|\s2$/i
 
 /** Our club with exactly this name (ours, TheSportsDB's or API-Sports'), in any country: "Real Madrid" in the Champions League is La Liga's Real Madrid */
 let exactMemo:

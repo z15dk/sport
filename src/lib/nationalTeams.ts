@@ -30,12 +30,13 @@ export function nationalTeams(): Record<string, string> {
   } catch {
     // none saved yet
   }
-  const teams = { ...saved }
+  // Names saved before the Danish list covered every country ("FYR Macedonia") go by their Danish names too
+  const teams = Object.fromEntries(Object.entries(saved).map(([name, logo]) => [danishCountry(name), logo]))
   for (const g of real?.external ?? []) {
     if (g.sport !== 'soccer' || g.league.country !== 'World' || !INTERNATIONAL.test(g.league.name) || isWomenGame(g)) continue
     for (const t of [g.home, g.away]) if (t.logo && !NOT_SENIOR.test(t.name)) teams[danishCountry(t.name)] = t.logo
   }
-  if (Object.keys(teams).length !== Object.keys(saved).length) {
+  if (Object.keys(teams).length !== Object.keys(saved).length || Object.keys(teams).some((name) => !(name in saved))) {
     try {
       writeFileSync(`${file()}.tmp`, JSON.stringify(teams))
       renameSync(`${file()}.tmp`, file())

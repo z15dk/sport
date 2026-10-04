@@ -6,7 +6,8 @@ import type { RealEvent } from '../data/real'
 import type { Incident, Match, MatchState, SportId } from '../types'
 import { alike, normalize, clubNames } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
-import type { ExternalGame } from '../data/external'
+import { danishLeagueName, type ExternalGame } from '../data/external'
+import { shownTeam } from '../data/countries'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
@@ -922,7 +923,7 @@ export function archiveGameExtras(game: ExternalGame): { form?: MatchExtra['form
       .slice(0, 5)
       .map((a) => {
         const home = same(a.homeName, team)
-        return { date: a.date.toISOString(), opponent: home ? a.awayName : a.homeName, home, for: home ? a.homeScore : a.awayScore, against: home ? a.awayScore : a.homeScore, competition: a.tournament }
+        return { date: a.date.toISOString(), opponent: shownTeam(home ? a.awayName : a.homeName, game.league.country), home, for: home ? a.homeScore : a.awayScore, against: home ? a.awayScore : a.homeScore, competition: danishLeagueName(a.tournament) ?? a.tournament }
       })
   const form = { home: formOf(game.home.name), away: formOf(game.away.name) }
 

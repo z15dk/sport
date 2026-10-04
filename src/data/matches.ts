@@ -224,7 +224,7 @@ export function isWomenMatch(m: Match): boolean {
  * way round, so the club with the same name never gets them.
  */
 export function teamTournamentMatches(names: string[], women: boolean): Match[] {
-  const bare = (n: string) => normalize(n.replace(/\b(w|women|q|kvinder)\b\.?/gi, '').trim())
+  const bare = (n: string) => normalize(n.replace(/\b(w|women|q|kvinder)\b\.?|\(k\)/gi, '').trim())
   const keys = new Set(names.map(bare))
   return (getRealData()?.external ?? [])
     .filter((g) => !divisionOfGame(g) && wholeSeason(g) && isWomenLeague(g.league.originalName ?? g.league.name, g.league.country) === women)
@@ -239,7 +239,7 @@ export function teamTournamentMatches(names: string[], women: boolean): Match[] 
  */
 export function teamGames(team: { name: string; names?: string[]; sport: SportId; league: string; leagueSlug?: string }, now: number): Match[] {
   const names = team.names ?? [team.name]
-  const women = isWomenLeague(team.league) || /\b(w|women)\b/i.test(team.name)
+  const women = isWomenLeague(team.league) || /\b(w|women)\b|\(k\)/i.test(team.name)
   const league = teamMatches(names, team.sport, addDays(isoDate(now), -10), 40, now, team.names ? team.leagueSlug : undefined)
   const tournaments = team.sport === 'soccer' ? teamTournamentMatches(names, women) : []
   return [...new Map([...league, ...tournaments].map((m) => [m.id, m])).values()].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())

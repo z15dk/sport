@@ -5,7 +5,8 @@ import { timed } from './slow'
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Incident, MatchState, PeriodScore, SportId } from '../types'
-import { danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
+import { danishLeagueName, danishRound, externalLeagueKey, isWomenGame, type ExternalGame } from '../data/external'
+import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
 import { estimateXg, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
@@ -740,7 +741,8 @@ export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[]
     const names = [...new Set(g.map((r) => r.group).filter(Boolean))] as string[]
     return names.length > 1 ? names.map((n) => g.filter((r) => r.group === n)) : [g]
   })
-  const shown = split?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, logo: realLogo(r.logo), group: r.group && /group|gruppe/i.test(r.group) ? danishGroup(r.group) : r.group })))
+  // The teams under the names we show (national teams in Danish, "(K)" for women's teams)
+  const shown = split?.filter((g) => g.length > 1).map((g) => g.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: realLogo(r.logo), group: r.group && /group|gruppe/i.test(r.group) ? danishGroup(r.group) : r.group })))
   return shown?.length ? shown : undefined
 }
 
@@ -1468,11 +1470,11 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
       const home = g.home.id === team
       return {
         date: g.kickoff,
-        opponent: home ? g.away.name : g.home.name,
+        opponent: shownTeam(home ? g.away.name : g.home.name, g.league.country),
         home,
         for: (home ? g.homeScore : g.awayScore) ?? 0,
         against: (home ? g.awayScore : g.homeScore) ?? 0,
-        competition: g.league.name,
+        competition: danishLeagueName(g.league.name) ?? g.league.name,
       }
     })
   const extra: MatchExtra = { facts }
@@ -1487,7 +1489,7 @@ export async function apiMatchExtra(game: ExternalGame): Promise<MatchExtra> {
   const group = own && marked.size > 1 ? list!.filter((r) => r.group === own) : list
   const groupName = own && /group|gruppe/i.test(own) ? danishGroup(own) : undefined
   if (group && group.length > 1)
-    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
+    extra.table = { name: groupName, rows: group.map((r) => ({ ...r, name: shownTeam(r.name, game.league.country), logo: realLogo(r.logo) })), homeId: game.home.id, awayId: game.away.id, source: 'api-sports' }
   return extra
 }
 

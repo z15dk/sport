@@ -47,6 +47,7 @@ import { customLogoUrl } from '../../../lib/customLogos'
 import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishRound, externalLeagueKey } from '../../../data/external'
+import { shownTeam } from '../../../data/countries'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
@@ -230,7 +231,7 @@ async function externalLeaguePage(slug: string) {
       rounds={tournament ? rounds : knockout ? [] : undefined}
       bracket={bracket}
       leaders={leaders}
-      groups={fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, logo: r.logo ?? logoFor(r.name) }))])}
+      groups={fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: r.logo ?? logoFor(r.name) }))])}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}

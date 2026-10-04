@@ -8,6 +8,7 @@ import { ourClubByName, ourClubInGame } from './cups'
 import { BASELINES, sameLeagueKeys } from './baselines'
 import { alike, nameWords, normalize } from './aliases'
 import { slugify } from '../lib/slug'
+import { SHOWN_WOMEN, shownTeam } from './countries'
 
 // One register of every team playing in the leagues we show (from the real
 // season). Every team automatically gets a page at /klub/<slug>, links from
@@ -31,7 +32,7 @@ export interface TeamEntry {
 }
 
 /** "Brondby W", "HB Køge Women" -> the club part, for matching a women's team across sources */
-const clubPart = (name: string) => name.replace(/\b(w|women|kvinder|dame|damer|q)\b\.?/gi, '').trim()
+const clubPart = (name: string) => name.replace(/\b(w|women|kvinder|dame|damer|q)\b\.?|\(k\)/gi, '').trim()
 
 /** Every word of our clubs' names, once (the check below runs for every team API-Sports sends) */
 let ourWords: Set<string> | undefined
@@ -56,7 +57,9 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     if (taken.has(slug) || resemblesOurClub(name)) slug = `${slug}-${slugify(e.league)}`
     if (taken.has(slug)) slug = `${slug}-${slugify(e.country ?? '')}`
     taken.add(slug)
-    const team: TeamEntry = { slug, name, ...e, names: [name] }
+    // Shown under its Danish name (national teams, "(K)" for women's teams); found under the source's too
+    const shown = shownTeam(name, e.country)
+    const team: TeamEntry = { slug, name: shown, ...e, names: shown === name ? [name] : [name, shown] }
     out.set(key, team)
     if (e.leagueSlug) (inLeagueSlug.get(e.leagueSlug) ?? inLeagueSlug.set(e.leagueSlug, []).get(e.leagueSlug)!).push(team)
   }
@@ -105,7 +108,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     const same = tiers.find((t) => t.length === 1)
     if (same) {
       const t = same[0]
-      if (!t.names!.includes(name)) t.names!.push(name)
+      for (const n of [name, shownTeam(name, e.country)]) if (!t.names!.includes(n)) t.names!.push(n)
       t.logo ??= logo
       return
     }
@@ -193,16 +196,23 @@ export const teamBySlug = (slug: string) => teams().bySlug.get(slug)
 
 /** In the browser: the server's name index, so a link never needs the whole register built there */
 const browserIndex = () => (typeof window === 'undefined' ? undefined : getRealData()?.teamIndex)
-// '' = the name's own slug; 'slug' = another slug; 'slug|Name' = a team shown under another name (a name it also goes by)
+// '' = the name's own slug; 'w' = its slug as the source writes a women's team ("Paris FC (K)" is paris-fc-w);
+// 'slug' = another slug; 'slug|Name' = a team shown under another name (a name it also goes by)
+const sourceSlug = (name: string) => slugify(name.replace(SHOWN_WOMEN, ' W'))
 const fromIndex = (name: string, value: string | undefined) => {
   if (value === undefined) return undefined
   const bar = value.indexOf('|')
-  return (bar < 0 ? { slug: value || slugify(name), name } : { slug: value.slice(0, bar), name: value.slice(bar + 1) }) as TeamEntry
+  return (bar < 0 ? { slug: value === 'w' ? sourceSlug(name) : value || slugify(name), name } : { slug: value.slice(0, bar), name: value.slice(bar + 1) }) as TeamEntry
 }
 
 export const teamByName = (name: string): TeamEntry | undefined => {
   const index = browserIndex()
-  if (index) return fromIndex(name, index[name])
+  if (index) {
+    if (name in index) return fromIndex(name, index[name])
+    // The index has a team under the name we show: the source's own name ("Scotland", "Paris FC W") finds it too
+    const shown = shownTeam(name, 'World')
+    return fromIndex(shown, index[shown])
+  }
   return teams().byName.get(name)
 }
 
@@ -213,7 +223,12 @@ export function teamNameIndex(): Record<string, string> {
   const byName = teams().byName
   if (nameIndex?.for === byName) return nameIndex.index
   const index: Record<string, string> = {}
-  for (const [name, t] of byName) index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug
+  for (const [name, t] of byName) {
+    // A name we show differently ("Scotland" as "Skotland") is found through the shown one (teamByName), so the list is no longer
+    const shown = shownTeam(name, 'World')
+    if (shown !== name && byName.get(shown) === t) continue
+    index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug === sourceSlug(name) ? 'w' : t.slug
+  }
   nameIndex = { for: byName, index }
   return index
 }
@@ -221,7 +236,7 @@ export function teamNameIndex(): Record<string, string> {
 /** For a women's team of one of our clubs ("FC Copenhagen W" in the A-Liga): that club's id */
 export function womenOf(team: TeamEntry): string | undefined {
   if (team.season) return undefined
-  if (!/\b(w|women|kvinder|dame|damer)\b/i.test(team.name) && !/kvinde|women|frauen|a-liga|damallsvenskan|toppserien/i.test(team.league)) return undefined
+  if (!/\b(w|women|kvinder|dame|damer)\b|\(k\)/i.test(team.name) && !/kvinde|women|frauen|a-liga|damallsvenskan|toppserien/i.test(team.league)) return undefined
   return ourClubByName(clubPart(team.name), team.sport)?.club.id
 }
 

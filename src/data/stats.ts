@@ -196,11 +196,15 @@ export interface ClubSeasonStats {
   goalsAgainstPerMatch: number
   /** Scored and conceded per quarter-hour, from matches with goal minutes */
   byInterval?: { scored: number[]; conceded: number[]; matches: number }
+  /** Every goal of every match has its minute (a goalless match has none to miss), so the quarter-hours sum to the goals */
+  everyGoalTimed: boolean
   /** Results after leading / trailing at half-time */
   halfTime?: { leading: number; leadingWon: number; trailing: number; trailingPoints: number }
   /** Current run, e.g. { kind: 'V', length: 3 } */
   streak?: { kind: 'V' | 'U' | 'T'; length: number }
   longestUnbeaten: number
+  /** The longest runs of wins, draws and defeats, in the order the matches were played */
+  longest: { wins: number; draws: number; losses: number }
   scorers: ScorerRow[]
   yellow: number
   red: number
@@ -234,6 +238,7 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
     const scored = [0, 0, 0, 0, 0, 0]
     const conceded = [0, 0, 0, 0, 0, 0]
     let withMinutes = 0
+    let timed = 0
     const halfTime = { leading: 0, leadingWon: 0, trailing: 0, trailingPoints: 0 }
     let hasHt = false
     const results: ('V' | 'U' | 'T')[] = []
@@ -278,6 +283,7 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
         }
       }
       const goals = (f.incidents ?? []).filter(isGoal)
+      if (goals.length === gf + ga) timed++
       if (goals.length && goals.length === gf + ga) {
         withMinutes++
         for (const g of goals) {
@@ -322,6 +328,15 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       run = r === 'T' ? 0 : run + 1
       longestUnbeaten = Math.max(longestUnbeaten, run)
     }
+    const longestRun = (kind: 'V' | 'U' | 'T') => {
+      let best = 0
+      let now = 0
+      for (const r of results) {
+        now = r === kind ? now + 1 : 0
+        best = Math.max(best, now)
+      }
+      return best
+    }
     const n = fixtures.length
     return {
       home,
@@ -334,9 +349,11 @@ export function clubSeasonStats(club: Club, division: Division): ClubSeasonStats
       goalsForPerMatch: (home.goalsFor + away.goalsFor) / n,
       goalsAgainstPerMatch: (home.goalsAgainst + away.goalsAgainst) / n,
       byInterval: withMinutes ? { scored, conceded, matches: withMinutes } : undefined,
+      everyGoalTimed: timed === n,
       halfTime: hasHt ? halfTime : undefined,
       streak: { kind: last, length },
       longestUnbeaten,
+      longest: { wins: longestRun('V'), draws: longestRun('U'), losses: longestRun('T') },
       scorers: scorersOf(fixtures, club).slice(0, 5),
       yellow,
       red,

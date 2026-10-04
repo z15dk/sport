@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { ROBOT_UA, forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { danishCountry } from '../../../data/countries'
+import { shownTeam } from '../../../data/countries'
 import type { ExternalGame } from '../../../data/external'
 import { MatchView } from '../../../components/MatchView'
 import { loadMatch, loadPastMatch } from '../../../lib/matchLookup'
@@ -13,7 +13,7 @@ import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubLeagues, realExtras } from '../../../lib/clientData'
 import { realLogo } from '../../../lib/logoCheck'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
-import { danishRound } from '../../../data/external'
+import { danishLeagueName, danishRound } from '../../../data/external'
 import { lineupPhotos } from '../../../lib/playerPhotos'
 import { savedSubs, apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiMatchLineups, apiMatchStats, apiMatchExtra, observedGoals, teamLogos } from '../../../lib/apisports'
 import type { PastMatch } from '../../../data/matchInsights'
@@ -48,7 +48,7 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   if (!past || !('game' in past)) return { title: 'Kampen findes ikke' }
   const { game: raw, match } = past
   // National teams by their Danish names in the title too
-  const g = { ...raw, home: danishCountry(raw.home), away: danishCountry(raw.away) }
+  const g = { ...raw, home: shownTeam(raw.home, 'World'), away: shownTeam(raw.away, 'World') }
   // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
   const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
@@ -66,7 +66,7 @@ async function pastMetadata(slug: string): Promise<Metadata> {
 async function PastMatchPageInner({ game: g, match: original }: { game: PastGame; match: Match }) {
   const now = Date.now()
   // National teams by their Danish names ("Denmark" is Danmark)
-  const match: Match = { ...original, home: { ...original.home, name: danishCountry(original.home.name) }, away: { ...original.away, name: danishCountry(original.away.name) } }
+  const match: Match = { ...original, home: { ...original.home, name: shownTeam(original.home.name, 'World') }, away: { ...original.away, name: shownTeam(original.away.name, 'World') } }
   // The line-ups and statistics saved when the game was fetched (read, not fetched again for a finished game)
   const partnerId = g.source.archive && /^football-\d+$/.test(g.source.archive) ? g.source.archive : undefined
   const asGame = partnerId
@@ -74,9 +74,9 @@ async function PastMatchPageInner({ game: g, match: original }: { game: PastGame
     : undefined
   const [saved, stats] = asGame ? await Promise.all([within(apiMatchLineups(asGame)), within(apiMatchStats(asGame, match.incidents))]) : [undefined, undefined]
   // The players' photos (their pictures cost no calls) and the national teams' Danish names on the pitch
-  const lineups = lineupPhotos(saved)?.map((l) => ({ ...l, team: danishCountry(l.team) }))
-  const h2h = withMatchLinks(pastMeetings(g))
-  const teamPath = Object.fromEntries([g.home, g.away].flatMap((n) => [n, danishCountry(n)].map((k) => [k, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined])))
+  const lineups = lineupPhotos(saved)?.map((l) => ({ ...l, team: shownTeam(l.team, 'World') }))
+  const h2h = withMatchLinks(pastMeetings(g)).map((m) => ({ ...m, home: shownTeam(m.home, 'World'), away: shownTeam(m.away, 'World') }))
+  const teamPath = Object.fromEntries([g.home, g.away].flatMap((n) => [n, shownTeam(n, 'World')].map((k) => [k, teamByName(n) ? paths.club(teamByName(n)!.slug) : undefined])))
   const report = matchReport({ match, now, h2h })
   const players = g.source.archive ? eventPlayers(g.source.archive) : []
   const title = `${g.home} – ${g.away}`
@@ -176,7 +176,7 @@ async function MatchPageInner({ params }: { params: Params }) {
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent
   const logos = teamLogos()
-  const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, logo: r.logo ?? logos.get(r.name) })) }
+  const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, name: shownTeam(r.name, match.country), logo: r.logo ?? logos.get(r.name) })) }
   // A cup has rounds, not a table
   const cup = !!(external && cupOfGame(external))
   // Our match database's cup games: at least the round (API-Sports' games bring more facts)
@@ -190,12 +190,14 @@ async function MatchPageInner({ params }: { params: Params }) {
   if ((dbH2h?.length ?? 0) < 5) {
     const games = h2hGames
     if (game && games?.length) {
+      // Under the source's own names here (the meetings' pages are found by them); shown in Danish below
+      const source = (shown: string, own: string) => (shownTeam(own, game.league.country) === shown ? own : shown)
       const nameOf = (id?: number, fallback = '') =>
-        id === game.home.id ? match.home.name : id === game.away.id ? match.away.name : fallback
+        id === game.home.id ? source(match.home.name, game.home.name) : id === game.away.id ? source(match.away.name, game.away.name) : fallback
       const fromApi = games.map(
         (g): PastMatch => ({
           date: new Date(g.kickoff),
-          competition: g.league.name,
+          competition: danishLeagueName(g.league.name) ?? g.league.name,
           home: nameOf(g.home.id, g.home.name),
           away: nameOf(g.away.id, g.away.name),
           homeScore: g.homeScore ?? 0,
@@ -218,7 +220,8 @@ async function MatchPageInner({ params }: { params: Params }) {
     h2hSource = 'database'
   }
   // The meetings link to their own match pages; the round's other matches too (at the foot)
-  if (realH2h) realH2h = withMatchLinks(realH2h)
+  // National teams in Danish and women's teams marked "(K)", as the match itself
+  if (realH2h) realH2h = withMatchLinks(realH2h).map((m) => ({ ...m, home: shownTeam(m.home, match.country), away: shownTeam(m.away, match.country) }))
   const related = isFriendly(match.league) ? [] : relatedMatches(match, now)
   const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
   const title = `${match.home.name} – ${match.away.name}`
@@ -248,7 +251,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         // Both clubs' leagues in full: the table, the form and the clubs' other matches
         leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

@@ -225,7 +225,7 @@ function externalFixture(m: Match): Fixture {
   const club = (name: string): Club => {
     const t = teamByName(name)
     // A women's team without colours of its own wears its club's: "Brøndby W" in Brøndby's yellow
-    const bare = name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino)\.?$/i, '').trim()
+    const bare = name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino|\(k\))\.?$/i, '').trim()
     const parent = t?.colors || t?.season ? undefined : bare !== name ? (ourClubByName(bare, 'soccer')?.club ?? teamByName(bare)) : undefined
     const parentColors = parent && ('season' in parent ? (parent.colors ?? parent.season?.club.colors) : parent.colors)
     const colors = t?.colors ?? t?.season?.club.colors ?? parentColors ?? ['#16181a', '#ffffff']
@@ -233,7 +233,7 @@ function externalFixture(m: Match): Fixture {
     const women = bare !== name
     const ours = women ? ourClubByName(bare, 'soccer')?.club : undefined
     // The name from our own club list ("FC København", not "FC Copenhagen W" or the register's "F.C. København")
-    const tBare = t?.name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino)\.?$/i, '').trim()
+    const tBare = t?.name.replace(/\s+(w|women|kvinder|damer|frauen|femenino|feminino|\(k\))\.?$/i, '').trim()
     const tries = [ours?.name, bare, tBare].filter((n): n is string => !!n)
     const ourName = women ? DIVISIONS.flatMap((d) => d.clubs).find((c) => (ours && c.id === ours.id) || tries.some((n) => alike([c.name, c.originalName ?? c.name], n)))?.name : undefined
     const shown = ourName ?? ours?.name ?? t?.name ?? name

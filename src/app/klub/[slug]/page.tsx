@@ -15,7 +15,7 @@ import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { danishCountry } from '../../../data/countries'
+import { danishCountry, shownTeam } from '../../../data/countries'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
@@ -42,6 +42,8 @@ import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
+import { checkedTeamStats } from '../../../data/teamStats'
+import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
@@ -230,7 +232,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
-        {teamStats?.played.total ? <TeamStatsPanel stats={teamStats} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
@@ -270,8 +272,10 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
 }
 
 /** A team's finished games: its matches around today and those our statistics bank has saved, newest first */
-function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string): PastMatch[] {
+function teamResults(names: string[], around: Match[], divisionIds: string[], leagueName: string, country?: string): PastMatch[] {
   const keys = new Set(names.map(normalize))
+  // The saved games under the names we show, as the matches around today (national teams in Danish, "(K)" for women's teams)
+  const shown = (name: string) => shownTeam(name, country)
   const logos = teamLogos()
   const fromMatches: PastMatch[] = around
     .filter((m) => m.state === 'finished')
@@ -291,12 +295,12 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
     // In its own league when it has one (a women's team can share its name with the men's club)
     .filter((a) => (divisionIds.length ? divisionIds.includes(a.divisionId) : a.divisionId.startsWith('ext-') && normalize(a.tournament) === normalize(leagueName)))
     .filter((a) => keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))
-    .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(a.homeName)}`))
+    .filter((a) => !seen.has(`${isoDate(a.date)}|${normalize(shown(a.homeName))}`))
     .map((a) => ({
       date: a.date,
       competition: a.tournament,
-      home: a.homeName,
-      away: a.awayName,
+      home: shown(a.homeName),
+      away: shown(a.awayName),
       homeScore: a.homeScore,
       awayScore: a.awayScore,
       homeLogo: logos.get(a.homeName),
@@ -338,7 +342,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const around = teamGames(team, now)
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
-  const results = teamResults(names, around, divisionIds, team.league)
+  const results = teamResults(names, around, divisionIds, team.league, team.country)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)
@@ -500,7 +504,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
                           <td>
                             <span className="table__club">
                               <TeamBadge link={false} name={r.name} src={r.logo ?? teamLogos().get(r.name)} size={20} />
-                              {r.name}
+                              {shownTeam(r.name, team.country)}
                             </span>
                           </td>
                           <td className="num">{r.played}</td>
