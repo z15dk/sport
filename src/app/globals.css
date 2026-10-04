@@ -701,8 +701,17 @@ h2.league__name { margin: 0; }
 .footer__more summary::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s; }
 .footer__more[open] summary::before { transform: rotate(45deg); }
 .footer__more summary:hover { opacity: 1; }
-.footer__more .footer__row { margin-top: 8px; }
-.footer__more .footer__row ul a { opacity: 0.7; }
+/* Every tournament, sport by sport: the countries in even columns, each with its tournaments under it */
+.footer__all { margin-top: 16px; }
+.footer__all .footer__sport { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.footer__all .footer__sport span { font-family: var(--body, inherit); font-style: normal; font-weight: 600; font-size: 11px; color: #fff; opacity: 0.5; }
+.footer__countries { columns: 190px; column-gap: 24px; }
+.footer__country { break-inside: avoid; padding: 0 0 12px; }
+.footer__countryname { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 2px; }
+.footer__country ul { list-style: none; margin: 0; padding: 0 0 0 20px; }
+.footer__country li a { display: block; padding-block: 2px; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.footer .flag--none { display: inline-block; flex: none; }
+.footer img.flag { object-fit: cover; flex: none; }
 /* The small print */
 .footer__bottom { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.12); font-size: 12px; opacity: 0.6; }
 .footer__bottom a { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
@@ -710,6 +719,7 @@ h2.league__name { margin: 0; }
   .footer__in { padding: 18px 16px 16px; gap: 12px; }
   .footer__top { flex-direction: column; align-items: flex-start; }
   .footer__sport { min-width: 100%; }
+  .footer__countries { columns: 2; column-gap: 16px; }
 }
 @media (max-width: 900px) {
   .footer { order: 3; margin: 24px 0 0; }
