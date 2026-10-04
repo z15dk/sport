@@ -29,12 +29,6 @@ interface OwnSeason {
   longest: { wins: number; draws: number; losses: number }
 }
 
-/** An own goal in one of the team's matches: its minute, and whether the team's own player scored it */
-export interface OwnGoal {
-  minute: number
-  byTeam: boolean
-}
-
 const sum = (periods: Periods) => periods.reduce((t, p) => t + p.value, 0)
 
 /** The quarter-hour a minute falls in ("16-30"), the last one for anything later */
@@ -59,24 +53,26 @@ function moved(from: Periods, to: Periods, minute: number): [Periods, Periods] {
  * The source's team statistics with our own numbers where the source's don't add up. Its runs of
  * wins and defeats follow the round numbers, not the dates (a postponed match breaks a run that
  * was never broken): ours come from the matches as they were played, when we have every match
- * the source has counted. Its goals per quarter-hour give an own goal to the scorer's team, so
- * they don't sum to the goals: the season's own goals are moved to the side they counted for,
- * and kept only when the quarter-hours then sum to the goals.
+ * the source has counted. Its goals per quarter-hour count an own goal for the wrong side (and it
+ * files own goals now under one team, now under the other), so they don't sum to the goals: each
+ * own goal of the season (its minute) is moved from the side that has a goal too many to the side
+ * that lacks one, and the result is kept only when the quarter-hours then sum to the goals.
  */
-export function checkedTeamStats(stats: TeamStats, own: OwnSeason | undefined, ownGoals: OwnGoal[] = []): TeamStats {
+export function checkedTeamStats(stats: TeamStats, own: OwnSeason | undefined, ownGoalMinutes: number[] = []): TeamStats {
   let out = stats
   if (own && own.played >= stats.played.total) out = { ...out, streak: { wins: own.longest.wins, draws: own.longest.draws, loses: own.longest.losses } }
-  const adds = (f: Periods, a: Periods) => sum(f) === stats.goalsFor.total && sum(a) === stats.goalsAgainst.total
   let scored = stats.goalsFor.periods
   let conceded = stats.goalsAgainst.periods
-  if (ownGoals.length && !adds(scored, conceded)) {
-    for (const g of ownGoals) {
-      if (g.byTeam) [scored, conceded] = moved(scored, conceded, g.minute)
-      else [conceded, scored] = moved(conceded, scored, g.minute)
-    }
-    if (adds(scored, conceded)) out = { ...out, goalsFor: { ...stats.goalsFor, periods: scored }, goalsAgainst: { ...stats.goalsAgainst, periods: conceded } }
+  const tooMany = (f: Periods, a: Periods) => [sum(f) - stats.goalsFor.total, sum(a) - stats.goalsAgainst.total]
+  const [f0, a0] = tooMany(scored, conceded)
+  if (!ownGoalMinutes.length || (f0 === 0 && a0 === 0)) return out
+  for (const minute of ownGoalMinutes) {
+    const [f, a] = tooMany(scored, conceded)
+    if (f > 0 && a < 0) [scored, conceded] = moved(scored, conceded, minute)
+    else if (a > 0 && f < 0) [conceded, scored] = moved(conceded, scored, minute)
   }
-  return out
+  const [f1, a1] = tooMany(scored, conceded)
+  return f1 === 0 && a1 === 0 ? { ...out, goalsFor: { ...stats.goalsFor, periods: scored }, goalsAgainst: { ...stats.goalsAgainst, periods: conceded } } : out
 }
 
 /** A score as the source writes it ("3-1", home team first): the winner's margin and goals, seen from the team at home or away */

@@ -88,23 +88,30 @@ const sum = (list: { value: number }[]) => list.reduce((t, p) => t + p.value, 0)
 
 test('an own goal is moved to the side it counted for, so the quarter-hours sum to the goals', () => {
   // The source: 24 scored and 7 conceded by the quarter-hour, 23-8 in goals – the team's own goal in the 10th minute stands as scored
-  const checked = checkedTeamStats(source, undefined, [{ minute: 10, byTeam: true }])
+  const checked = checkedTeamStats(source, undefined, [10])
   assert.equal(sum(checked.goalsFor.periods), 23)
   assert.equal(sum(checked.goalsAgainst.periods), 8)
   assert.equal(checked.goalsFor.periods[0].value, 5)
   assert.equal(checked.goalsAgainst.periods[0].value, 3)
   // In stoppage time of a half the source counted elsewhere: taken from the quarter-hour before
-  const late = checkedTeamStats(source, undefined, [{ minute: 93, byTeam: true }])
+  const late = checkedTeamStats(source, undefined, [93])
   assert.equal(late.goalsFor.periods[5].value, 4)
   assert.equal(late.goalsAgainst.periods[5].value, 1)
   assert.equal(sum(late.goalsFor.periods), 23)
 })
 
 test("the source's quarter-hours stay when moving the own goals doesn't make them add up", () => {
-  // No own goal known, or one that doesn't explain the difference
+  // No own goal known
   assert.equal(checkedTeamStats(source, undefined, []), source)
-  assert.equal(checkedTeamStats(source, undefined, [{ minute: 10, byTeam: false }]), source)
+  // Two goals out on each side and only one own goal to explain it
+  const worse = { ...source, goalsFor: { ...source.goalsFor, total: 22 }, goalsAgainst: { ...source.goalsAgainst, total: 9 } }
+  assert.equal(checkedTeamStats(worse, undefined, [10]), worse)
   // Already adding up: left alone
   const fine = { ...source, goalsFor: { ...source.goalsFor, total: 24 }, goalsAgainst: { ...source.goalsAgainst, total: 7 } }
-  assert.equal(checkedTeamStats(fine, undefined, [{ minute: 10, byTeam: true }]), fine)
+  assert.equal(checkedTeamStats(fine, undefined, [10]), fine)
+  // The other way round: a goal too many conceded
+  const other = { ...source, goalsFor: { ...source.goalsFor, total: 25 }, goalsAgainst: { ...source.goalsAgainst, total: 6 } }
+  const fixed = checkedTeamStats(other, undefined, [10])
+  assert.equal(sum(fixed.goalsFor.periods), 25)
+  assert.equal(sum(fixed.goalsAgainst.periods), 6)
 })
