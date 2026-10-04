@@ -466,6 +466,10 @@ table.visually-hidden { display: block; }
   .hide-sm { display: none; }
   .table td, .table th { padding: 8px 6px; }
   .club-cell { gap: 8px; }
+  /* The club takes the room left over and a long name ("Frederikshavn White Hawks") wraps, so the points never fall off the screen */
+  .table td.club-td { white-space: normal; width: 100%; }
+  .table td.club-td .club-cell__text { min-width: 0; }
+  .table td.club-td .club-cell__text strong { line-height: 1.2; overflow-wrap: anywhere; }
 }
 
 /* Clickable matches */

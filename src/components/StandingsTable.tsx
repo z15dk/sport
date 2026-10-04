@@ -71,7 +71,7 @@ export function StandingsTable({ division, rows, highlight, offset = 0, total = 
               return (
                 <tr key={r.club.id} className={`${zone}${r.club.id === highlight ? ' is-highlight' : ''}`}>
                   <td className="num pos">{i + 1}</td>
-                  <td>
+                  <td className="club-td">
                     <Link className="club-cell" href={paths.club(r.club.slug)}>
                       <TeamBadge link={false} name={r.club.name} colors={r.club.colors} size={28} />
                       <span className="club-cell__text">
