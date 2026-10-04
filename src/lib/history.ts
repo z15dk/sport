@@ -6,7 +6,7 @@ import type { RealEvent } from '../data/real'
 import type { Incident, Match, MatchState, SportId } from '../types'
 import { alike, normalize, clubNames } from '../data/aliases'
 import type { PastMatch } from '../data/matchInsights'
-import type { ExternalGame } from '../data/external'
+import { WOMEN_TEAM, type ExternalGame } from '../data/external'
 import type { FormGame, MatchExtra, TableRow } from '../data/matchExtra'
 import type { Baseline } from '../data/baselines'
 import { cacheDir } from './tsdb'
@@ -91,6 +91,9 @@ const historyHolder = globalThis as typeof globalThis & {
 const hist = (historyHolder.__scorelineHistory ??= { checkedAt: 0 })
 
 /** Finds our club for a team name, among the clubs of one sport (a football team is never a basketball club of the same town) */
+/** Tournaments whose games belong to other teams than our clubs' first teams: women's leagues and youth rows */
+const OTHER_TEAMS = /kvinde|women|frauen|f[ée]minin|femenin|damer|\bu\s?\d{2}\b|\bu-\d{2}\b|youth|ungdom/i
+
 function resolver(sport: SportId = 'soccer') {
   const byName = new Map<string, Club>()
   // Danish football first (football.db is Danish football), then every other league (the archive has them all)
@@ -121,6 +124,8 @@ function resolver(sport: SportId = 'soccer') {
     return found
   }
   function look(name: string): Club | undefined {
+    // A women's team ("FC Midtjylland W", "Brondby Women") is never the men's club: its games stay out of the men's history and head-to-heads
+    if (WOMEN_TEAM.test(name)) return undefined
     const exact = byName.get(normalize(name))
     if (exact) return exact
     // Written differently ("AGF Aarhus" for AGF): one Danish club alone matches loosely. Second teams and youth sides never do
@@ -254,6 +259,8 @@ function* readSteps(file: string | undefined, mtime: number): Generator<void, Lo
   const byClub = new Map<string, DbMatch[]>()
   for (const m of matches) {
     if (++n % 5000 === 0) yield
+    // Women's and youth tournaments never count for our (men's) clubs
+    if (OTHER_TEAMS.test(m.tournament)) continue
     const clubs = new Set([clubOf.get(m.homeId)?.id, clubOf.get(m.awayId)?.id])
     for (const id of clubs) {
       if (!id) continue

@@ -182,9 +182,10 @@ function MatchBody({
   const colorsOf = (name: string) => findClub(name)?.club.colors
   const compare = seasonCompare(match)
   const channels = channelsFor(match)
-  // Latest results and the table: from API-Sports for their games, otherwise from our own season
-  const form = extra?.form ?? seasonForm(match)
-  // API-Sports' own table first, then ours for our leagues (complete), and only then one computed from the few games saved
+  // Latest results: the league games from our own season for our clubs (the same five the comparison box and the preview use;
+  // API-Sports' form mixes the cup in), otherwise API-Sports' for their games
+  const form = seasonForm(match) ?? extra?.form
+  // Our own table for our leagues (complete, our club names and links), then API-Sports' own table, and only then one computed from the few games saved
   // A cup has rounds, not a table
   // Friendlies have no table: the day's friendlies instead (sent by the page with RealDataExtra)
   const friendly = isFriendly(match.league)
@@ -193,7 +194,7 @@ function MatchBody({
         .filter((m) => m.league === match.league)
         .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
     : []
-  const sourceTable = cup || friendly ? undefined : ((extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? seasonTable(match) ?? extra?.table)
+  const sourceTable = cup || friendly ? undefined : (seasonTable(match) ?? (extra?.table?.source === 'api-sports' ? extra.table : undefined) ?? extra?.table)
   // The table under our clubs' own names ("Nykobing FC" from API-Sports is "Nykøbing FC"), so the report and the table say the same
   const ourClubs = [...(homeStats?.division.clubs ?? []), ...(awayStats?.division.clubs ?? [])]
   const ourName = (name: string) =>
@@ -720,12 +721,14 @@ function TeamForm({ name, badge, games }: { name: string; badge?: string; games:
 }
 
 /** Both clubs' latest results in our season, before this match */
+/** The clubs' last five league games (cup and European games left out, as in the comparison box) */
 function seasonForm(match: Match): MatchExtra['form'] {
   const of = (name: string): FormGame[] => {
-    const club = findClub(name)?.club
-    if (!club) return []
+    const found = findClub(name)
+    if (!found) return []
+    const club = found.club
     return clubFixtures(club.id)
-      .filter((f) => isFinished(f) && f.kickoff.getTime() < match.kickoff.getTime())
+      .filter((f) => f.division?.id === found.division.id && isFinished(f) && f.kickoff.getTime() < match.kickoff.getTime())
       .slice(-5)
       .reverse()
       .map((f) => {
