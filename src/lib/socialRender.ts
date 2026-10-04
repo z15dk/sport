@@ -58,6 +58,9 @@ export function renderPost(postId: string): Promise<{ file: string; surface: Sur
   return job
 }
 
+/** The longest a set of pictures may take to make */
+const RENDER_MAX_MS = 120_000
+
 /** A template's cards for an own post (kind, date, topic, league), saved as `<prefix>-…jpg` */
 export function renderSpec(prefix: string, spec: object): Promise<{ file: string; surface: Surface }[]> {
   const job = queue.then(() => render(prefix, `spec=${Buffer.from(JSON.stringify(spec)).toString('base64url')}`))
@@ -70,18 +73,27 @@ async function render(postId: string, query: string): Promise<{ file: string; su
   if (!executablePath) throw new Error('Chromium er ikke installeret på serveren (deploy/update.sh installerer det)')
   const { chromium } = await import('playwright-core')
   const browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] })
+  // Never longer than two minutes: a page that hangs must not hold up every later picture and the engine with it
+  // (closing the browser makes whatever is waiting fail, and the post is tried again)
+  const giveUp = setTimeout(() => void browser.close().catch(() => undefined), RENDER_MAX_MS)
   try {
     const context = await browser.newContext({ viewport: { width: 1200, height: 1000 }, deviceScaleFactor: SCALE })
     await context.addCookies([{ name: COOKIE, value: sessionToken(), url: selfUrl() }])
     const page = await context.newPage()
     const res = await page.goto(`${selfUrl()}/admin/sociale/kort?${query}`, { waitUntil: 'networkidle', timeout: 60_000 })
     if (!res?.ok()) throw new Error(`Kortsiden svarede ${res?.status() ?? 'intet'}`)
-    // The web fonts and every logo in, and the rows that don't fit hidden (FitRows)
+    // The web fonts and every logo on the cards in, and the rows that don't fit hidden (FitRows). Only the cards' own
+    // pictures, fetched now (not when they scroll into view), and at most a quarter of a minute: the rest of the page is
+    // not on the pictures, and it has pictures that never load by themselves (the flags in the footer's folded list –
+    // waiting for those once held every post back)
     await page.evaluate(async () => {
       await document.fonts.ready
-      await Promise.all(
-        [...document.images].map((img) => (img.complete ? undefined : new Promise((r) => ((img.onload = r), (img.onerror = r))))),
-      )
+      const pictures = Array.from(document.querySelectorAll<HTMLImageElement>('[data-card] img'))
+      for (const img of pictures) img.loading = 'eager'
+      await Promise.race([
+        Promise.all(pictures.map((img) => (img.complete ? undefined : new Promise((r) => ((img.onload = r), (img.onerror = r)))))),
+        new Promise((r) => setTimeout(r, 15_000)),
+      ])
     })
     // Only the cards on the pictures: the cookie banner, the admin bar and anything else laid over the page are hidden
     await page.addStyleTag({ content: '.consent, .adminbar, [role="dialog"] { display: none !important; }' })
@@ -107,6 +119,7 @@ async function render(postId: string, query: string): Promise<{ file: string; su
     }
     return out
   } finally {
-    await browser.close()
+    clearTimeout(giveUp)
+    await browser.close().catch(() => undefined)
   }
 }
