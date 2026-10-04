@@ -208,7 +208,7 @@ async function PlayerPageInner({ params }: { params: Params }) {
                 .join(' · ')}
             </span>
           </div>
-          {main?.teamLogo && <img className="player-hero__club" src={sizedImage(main.teamLogo, 56)} alt="" width={56} height={56} />}
+          {main?.teamLogo && <img className="player-hero__club" src={sizedImage(main.teamLogo, 112)} alt="" width={112} height={112} />}
         </header>
 
         <p className="lead">

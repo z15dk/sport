@@ -1643,7 +1643,7 @@ a.table__club:hover { text-decoration: underline; }
 /* Player page (/spiller/<id>-<name>) */
 .player-hero__photo { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: #fff; flex: none; position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--club-bg); }
 .player-hero__facts { font-size: 14px; opacity: 0.8; }
-.player-hero__club { margin-left: auto; position: relative; z-index: 1; width: 56px; height: 56px; object-fit: contain; background: #fff; border-radius: 50%; padding: 8px; }
+.player-hero__club { margin-left: auto; position: relative; z-index: 1; width: 112px; height: 112px; object-fit: contain; background: #fff; border-radius: 50%; padding: 16px; flex: none; }
 @media (max-width: 600px) { .player-hero__photo { width: 80px; height: 80px; } .player-hero__club { display: none; } }
 .player-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; align-items: start; }
 @media (max-width: 900px) { .player-grid { grid-template-columns: minmax(0, 1fr); } }
