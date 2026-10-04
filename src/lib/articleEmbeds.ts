@@ -3,9 +3,9 @@
 //
 // [tabel liga="3-division" hold="broenshoej-bk,bk-frem"] alone in a paragraph becomes the live
 // league table widget (public/widget.js) with those clubs highlighted; `kompakt="1"` hides the
-// extra columns. Table cells that are only numbers or scores ("9", "1-1", "24-17", "42 %") get
+// extra columns. Table cells that are only numbers or scores ("9", "1-1", "24-17", "42 %", "7 (2)") get
 // class "num", column by column (not the first, which names the row), so they stand centred while
-// names and text stay to the left.
+// names and text stay to the left, and each table sits in a box that scrolls sideways on a phone.
 
 const SHORTCODE = /<p>\s*\[tabel\s+([^\]]*)\]\s*<\/p>/g
 const ATTR = /(\w+)="([^"]*)"/g
@@ -27,7 +27,7 @@ export function expandWidgets(html: string): { html: string; used: boolean } {
   return { html: out, used }
 }
 
-const NUMERIC = /^[\d\s.,:%+–−-]+$/
+const NUMERIC = /^[\d\s.,:%+–−()-]+$/
 const text = (cell: string) => cell.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
 
 /** Marks the columns that hold only numbers, so they can be centred */
@@ -48,6 +48,7 @@ export function markNumberColumns(html: string): string {
       let i = 0
       return `<tr>${cells.replace(/<(td|th)([^>]*)>/g, (tag, name: string, rest: string) => (numeric[i++] ? `<${name}${rest} class="num">` : tag))}</tr>`
     })
-    return `<table>${marked}</table>`
+    // In its own box that scrolls sideways, so a wide table never pushes the page wider on a phone
+    return `<div class="table-scroll"><table>${marked}</table></div>`
   })
 }

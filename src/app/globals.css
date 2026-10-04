@@ -1830,7 +1830,8 @@ a.player-games__match:hover { text-decoration: underline; }
 }
 .article-share a:hover, .article-share button:hover { background: var(--lime); border-color: var(--lime); }
 @media (max-width: 1000px) {
-  .article-layout { grid-template-columns: 1fr; }
+  /* minmax(0, …): a wide table must not make the column (and the page) wider than the screen */
+  .article-layout, .article-layout:not(:has(.article-side)) { grid-template-columns: minmax(0, 1fr); }
   .article-side { position: static; }
 }
 @media (max-width: 700px) {
@@ -1877,7 +1878,19 @@ a.player-games__match:hover { text-decoration: underline; }
 /* Columns of numbers or scores (marked "num" by src/lib/articleEmbeds.ts) stand centred, text to the left */
 .article-body th.num, .article-body td.num { text-align: center; white-space: nowrap; }
 .article-body td.num:last-child { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 17px; }
-@media (max-width: 560px) { .article-body table { font-size: 13.5px; } .article-body td { padding: 7px 8px; } .article-body th { padding: 4px 8px; } }
+/* Each table in its own box (markNumberColumns): a wide one scrolls sideways inside the text, the names stay put */
+.article-body .table-scroll { margin: 1.4em 0; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.article-body .table-scroll table { margin: 0; }
+@media (max-width: 560px) {
+  .article-body table { font-size: 12.5px; }
+  .article-body td { padding: 7px 5px; }
+  .article-body th, .article-body th.num { padding: 4px 5px; font-size: 10px; letter-spacing: 0.02em; vertical-align: bottom; white-space: normal; }
+  .article-body td.num:last-child { font-size: 15px; }
+  .article-body .table-scroll { margin-right: -18px; padding-right: 18px; }
+  .article-body .table-scroll :is(td, th):first-child { position: sticky; left: 0; z-index: 1; }
+  .article-body .table-scroll th:first-child { background: var(--surface); }
+  .article-body .table-scroll td:first-child { box-shadow: 6px 0 6px -6px rgba(15, 17, 12, 0.25); }
+}
 /* Our league table widget in an article ([tabel …]) */
 .article-body .article-widget { margin: 1.4em 0; }
 .article-body .article-widget > a { font-size: 13px; }
