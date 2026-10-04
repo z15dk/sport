@@ -261,3 +261,11 @@ export function shownTeam(name: string, leagueCountry?: string): string {
 
 /** The women's mark we show ("Paris FC (K)"), where a name is read again */
 export const SHOWN_WOMEN = /\s*\(k\)$/i
+
+/** A national team's name ("Wales", "Denmark U21", "Danmark"), not a club's */
+export function isNationalTeam(name: string): boolean {
+  let base = name.trim()
+  for (let m = KINDS.exec(base); m; m = KINDS.exec(base)) base = base.slice(0, m.index)
+  const folded = foldCountry(base)
+  return !!base && (!!nation(folded) || !!englishNation(folded))
+}
