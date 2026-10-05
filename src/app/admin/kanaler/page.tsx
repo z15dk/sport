@@ -5,7 +5,7 @@ import { AdminNav } from '../../../components/admin/AdminNav'
 import { isAdmin } from '../../../lib/admin'
 import { getBadges } from '../../../lib/badges'
 import { customLogoUrl } from '../../../lib/customLogos'
-import { channelConfig, channelData, tvStatus } from '../../../lib/channels'
+import { boldStatus, channelConfig, channelData, sportLiveStatus, tvStatus } from '../../../lib/channels'
 import { loadRealData } from '../../../lib/realdata'
 import { channelInfo } from '../../../data/channels'
 import { getMatches } from '../../../data/matches'
@@ -33,6 +33,8 @@ export default async function AdminChannels({ searchParams }: { searchParams: Se
   const all = channelData().data.channels
   const own = new Set(config.channels.map((c) => c.id))
   const tv = tvStatus()
+  const bold = boldStatus()
+  const sportLive = sportLiveStatus()
   const matches = getMatches(date, 'all', now).sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
   const leagues = [...new Set([...DIVISIONS.map((d) => d.name), ...(real?.external ?? []).map((g) => g.league.name)])].sort((a, b) => a.localeCompare(b, 'da'))
 
@@ -128,6 +130,24 @@ export default async function AdminChannels({ searchParams }: { searchParams: Se
                 : 'Ikke hentet endnu.'}
           </p>
           {tv.channels.length > 0 && <p className="muted small">Kanaler: {tv.channels.join(', ')}</p>}
+        </section>
+
+        <section className="panel prose__section">
+          <h2 className="panel__title">Bold+ og SPORT LIVE (automatisk)</h2>
+          <p>
+            <strong>Bold+:</strong>{' '}
+            {bold.lastError ? `Kunne ikke hentes: ${bold.lastError}. ` : ''}
+            {bold.fetchedAt ? `${bold.programmes} kampe på Bolds egen kanal. Senest hentet ${bold.fetchedAt}.` : 'Ikke hentet endnu.'}
+          </p>
+          <p className="muted small">
+            Så længe Bolds liste er frisk (hentet inden for tre dage), er det den, der afgør hvilke kampe der vises på Bold+. En regel, der giver Bold en hel liga, bruges så ikke.
+          </p>
+          <p>
+            <strong>SPORT LIVE:</strong>{' '}
+            {sportLive.lastError ? `Kunne ikke hentes: ${sportLive.lastError}. ` : ''}
+            {sportLive.fetchedAt ? `${sportLive.programmes} direkte kampe i fodbold, basketball, håndbold, ishockey og volleyball. Senest hentet ${sportLive.fetchedAt}.` : 'Ikke hentet endnu.'}
+          </p>
+          <p className="muted small">SPORT LIVE vises ved siden af den kanal, kampen i forvejen har.</p>
         </section>
       </div>
     </div>
