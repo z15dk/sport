@@ -373,16 +373,6 @@ function MatchBody({
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
-        {brief.length > 0 && (
-        <section className="mx-brief" aria-labelledby="mx-brief-title">
-          <h2 id="mx-brief-title">Kort fortalt</h2>
-          <ul>
-            {brief.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </section>
-      )}
       </div>
 
       {/* The written report or preview right under the summary: the page's own text, high up for readers and search engines */}
@@ -398,6 +388,20 @@ function MatchBody({
         </section>
       )}
       </div>
+
+      {/* "Kort fortalt" as an ordinary box under the summary and the preview, not in the middle of them */}
+      {brief.length > 0 && (
+        <section className="panel mx-brief" aria-labelledby="mx-brief-title">
+          <h2 id="mx-brief-title" className="panel__title">
+            Kort fortalt
+          </h2>
+          <ul>
+            {brief.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* One flow in two columns: each box goes where there is room, so a short box leaves no gap beside a long one */}
       <div className="match-page__flow" ref={flowRef}>

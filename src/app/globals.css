@@ -2738,11 +2738,16 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 .match-page [id] { scroll-margin-top: 72px; }
 
 /* "Kort fortalt" */
-.mx-brief { border-radius: var(--radius); padding: 18px 20px; background: var(--surface); border-left: 6px solid var(--lime); }
-.mx-brief h2 { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; text-transform: uppercase; margin-bottom: 8px; }
+.mx-brief { padding: 0 18px 18px; margin-top: 16px; }
+.mx-brief .panel__title { padding-inline: 0; }
 .mx-brief ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .mx-brief li { position: relative; padding-left: 20px; font-size: 15px; line-height: 1.45; }
 .mx-brief li::before { content: ''; position: absolute; left: 2px; top: 0.55em; width: 8px; height: 8px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
+/* On a wide screen the points stand in two columns, so the box is not a tall block */
+@media (min-width: 1000px) {
+  .mx-brief ul { display: block; columns: 2; column-gap: 40px; }
+  .mx-brief li { break-inside: avoid; margin-bottom: 8px; }
+}
 
 /* The clubs over a box's two sides */
 .mx-teams { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; }
