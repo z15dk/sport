@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { SportId } from '../types'
 import type { ChannelData, ChannelDef, ChannelRule } from '../data/channels'
+import { parseBold, parseSportLive, type BoldProgramme, type SportLiveProgramme } from '../data/tvProgrammes'
 import { gameKey } from '../data/external'
 import { alike, normalize } from '../data/aliases'
 import { slugify } from './slug'
@@ -257,6 +258,87 @@ export function startTvSync() {
   started = true
   void fetchTv()
   setInterval(() => void fetchTv(), 6 * 3_600_000).unref()
+  void fetchBold()
+  setInterval(() => void fetchBold(), 2 * 3_600_000).unref()
+  void fetchSportLive()
+  setInterval(() => void fetchSportLive(), 2 * 3_600_000).unref()
+}
+
+// ---------------------------------------------------------------- Bold's own matches (Bold+)
+
+// Bold shows some of a league's matches itself (Liga Portugal), not all of them. Which ones stands in the programme
+// list its own TV guide is drawn from, under the channel "Bold+": fetched every two hours (one small request) and kept
+// in bold-tv.json. While the list is fresh it decides which matches are on Bold+; a rule in /admin/kanaler that gives
+// Bold a whole league is not used then (boldTv below).
+const BOLD_PROGRAMMES = 'https://api.bold.dk/content/v2/programs?order=upcoming&limit=500&active=1&channel_id=74'
+const BOLD_FRESH_MS = 3 * 86_400_000
+interface BoldStore {
+  fetchedAt?: number
+  lastError?: string
+  programmes: BoldProgramme[]
+}
+const boldFile = (): string => process.env.BOLD_TV_FILE ?? path.join(dir(), 'bold-tv.json')
+
+async function fetchBold() {
+  const store: BoldStore = readJson<BoldStore>(boldFile()).value ?? { programmes: [] }
+  try {
+    const res = await fetch(BOLD_PROGRAMMES, { headers: { 'user-agent': 'Matchly/1.0 (+https://matchly.dk)', accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const body = (await res.json()) as { data?: unknown }
+    if (!Array.isArray(body.data)) throw new Error('Uventet svar')
+    store.programmes = parseBold(body.data)
+    store.fetchedAt = Date.now()
+    store.lastError = undefined
+  } catch (e) {
+    // The list from last time is kept (it counts as fresh for three days)
+    store.lastError = e instanceof Error ? e.message : String(e)
+  }
+  try {
+    writeJson(boldFile(), store)
+  } catch {
+    // try again next time
+  }
+}
+
+/** Numbers for the status page */
+export function boldStatus() {
+  const store = readJson<BoldStore>(boldFile()).value
+  return { fetchedAt: store?.fetchedAt ? new Date(store.fetchedAt).toISOString() : null, lastError: store?.lastError ?? null, programmes: store?.programmes.length ?? 0 }
+}
+
+export function boldTvVersion() {
+  // The hour too: the list stops counting when it has not been fetched for three days
+  return `${Math.round(readJson<BoldStore>(boldFile()).mtime)}|${Math.floor(Date.now() / 3_600_000)}`
+}
+
+/**
+ * The matches Bold shows itself, by match id, from its programme list: the match on the programme's day (Danish time)
+ * with both teams alike ("Braga" is our "SC Braga"). `id` is the Bold channel
+ * (the one set up in /admin/kanaler as "Bold+" or "Bold", else one of our own); `listed` says the list is fresh, so
+ * it and not a rule decides what is on Bold.
+ */
+export function boldTv(games: { id: string; kickoff: string; home: { name: string }; away: { name: string } }[], channels: ChannelDef[]): { tv: Record<string, string[]>; id: string; channel?: ChannelDef; listed: boolean } {
+  const known = channels.find((c) => ['bold+', 'bold'].includes(fold(c.name)))
+  const id = known?.id ?? 'bold-plus'
+  const channel = known ? undefined : { id, name: 'Bold+', url: 'https://bold.dk' }
+  const store = readJson<BoldStore>(boldFile()).value
+  const listed = !!store?.fetchedAt && Date.now() - store.fetchedAt < BOLD_FRESH_MS
+  const tv: Record<string, string[]> = {}
+  if (!listed || !store.programmes.length) return { tv, id, channel: listed ? channel : undefined, listed }
+  const days = new Set(store.programmes.map((p) => p.start.slice(0, 10)))
+  const byDay = new Map<string, typeof games>()
+  for (const g of games) {
+    const day = isoDate(new Date(g.kickoff))
+    if (days.has(day)) byDay.set(day, [...(byDay.get(day) ?? []), g])
+  }
+  for (const p of store.programmes) {
+    const [home, away] = p.name.split(/\s+vs\.?\s+/i)
+    if (!home || !away) continue
+    const hits = (byDay.get(p.start.slice(0, 10)) ?? []).filter((g) => alike([g.home.name], home) && alike([g.away.name], away))
+    // The same match can be here twice, from two sources (a team plays one match a day)
+    for (const g of hits) tv[g.id] = [id]
+  }
+  return { tv, id, channel, listed }
 }
 
 /** Everything the site needs to pick channels, and a version that changes with it */
@@ -401,4 +483,75 @@ export function dbuHomeGround(names: string[]): string | undefined {
   }
   const hit = groundCache.rows.find((r) => names.some((n) => normalize(n) === normalize(r.hn)) || alike(names, r.hn))
   return hit?.venue.replace(/\s*\([^)]*\)\s*$/, '').trim() || undefined
+}
+
+// ---------------------------------------------------------------- SPORT LIVE's live matches
+
+// The TV channel SPORT LIVE shows single matches live (the Basketliga's match of the week, football now and then).
+// Its programme overview (sport-live.dk/programoversigt) is drawn from an open programme file: fetched every two
+// hours and kept in sportlive-tv.json. Only what it sends live counts, not repeats and not the studio before a match.
+// SPORT LIVE is shown beside the channel a match has already (ChannelData.also), never instead of it.
+const SPORTLIVE_PROGRAMME = 'https://sportlivedk.github.io/programoversigt/sportlive_program.xml'
+interface SportLiveStore {
+  fetchedAt?: number
+  lastError?: string
+  programmes: SportLiveProgramme[]
+}
+const sportLiveFile = (): string => process.env.SPORTLIVE_TV_FILE ?? path.join(dir(), 'sportlive-tv.json')
+
+async function fetchSportLive() {
+  const store: SportLiveStore = readJson<SportLiveStore>(sportLiveFile()).value ?? { programmes: [] }
+  try {
+    const res = await fetch(SPORTLIVE_PROGRAMME, { headers: { 'user-agent': 'Matchly/1.0 (+https://matchly.dk)' }, cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const xml = await res.text()
+    if (!xml.includes('<EPG>') || xml.length > 5_000_000) throw new Error('Uventet svar')
+    store.programmes = parseSportLive(xml)
+    store.fetchedAt = Date.now()
+    store.lastError = undefined
+  } catch (e) {
+    store.lastError = e instanceof Error ? e.message : String(e)
+  }
+  try {
+    writeJson(sportLiveFile(), store)
+  } catch {
+    // try again next time
+  }
+}
+
+/** Numbers for the status page */
+export function sportLiveStatus() {
+  const store = readJson<SportLiveStore>(sportLiveFile()).value
+  return { fetchedAt: store?.fetchedAt ? new Date(store.fetchedAt).toISOString() : null, lastError: store?.lastError ?? null, programmes: store?.programmes.length ?? 0 }
+}
+
+export function sportLiveTvVersion() {
+  return String(Math.round(readJson<SportLiveStore>(sportLiveFile()).mtime))
+}
+
+/**
+ * The matches SPORT LIVE sends live, by match id: the match on the programme's day whose two teams are the two
+ * sides of the programme's title, split at one of its hyphens ("Holbæk-Stenhus-BMS Herlev" has two).
+ * A list that has not been fetched for three days is not used.
+ */
+export function sportLiveTv(games: { id: string; sport?: string; kickoff: string; home: { name: string }; away: { name: string } }[], channels: ChannelDef[]): { also: Record<string, string[]>; channel?: ChannelDef } {
+  const store = readJson<SportLiveStore>(sportLiveFile()).value
+  const also: Record<string, string[]> = {}
+  if (!store?.fetchedAt || Date.now() - store.fetchedAt > BOLD_FRESH_MS || !store.programmes.length) return { also }
+  const known = channels.find((c) => fold(c.name) === 'sportlive')
+  const id = known?.id ?? 'sport-live'
+  const days = new Set(store.programmes.map((p) => p.day))
+  const byDay = new Map<string, typeof games>()
+  for (const g of games) {
+    const day = isoDate(new Date(g.kickoff))
+    if (days.has(day)) byDay.set(day, [...(byDay.get(day) ?? []), g])
+  }
+  for (const p of store.programmes) {
+    const parts = p.match.split('-')
+    const hits = (byDay.get(p.day) ?? []).filter((g) =>
+      (!g.sport || g.sport === p.sport) && parts.slice(1).some((_, i) => alike([g.home.name], parts.slice(0, i + 1).join('-').trim()) && alike([g.away.name], parts.slice(i + 1).join('-').trim())),
+    )
+    for (const g of hits) also[g.id] = [id]
+  }
+  return { also, channel: known || !Object.keys(also).length ? undefined : { id, name: 'SPORT LIVE', url: 'https://www.sport-live.dk' } }
 }

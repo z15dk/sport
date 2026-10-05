@@ -35,6 +35,8 @@ export interface ChannelData {
   overrides: Record<string, string>
   /** Channel ids from the TV listings, by match id ("tsdb-<id>") and by "date|home|away" */
   tv: Record<string, string[]>
+  /** Channels that show a match beside the one it has from the listings or a rule (SPORT LIVE's live matches), by match id */
+  also?: Record<string, string[]>
 }
 
 /** Our Danish country names -> the English ones the data sources use */
@@ -75,10 +77,14 @@ export function channelInfo(match: Match, data = getRealData()?.channels): { cha
   const partners = (ids: string[]) => ids.map((id) => byId.get(id)).filter((c): c is ChannelDef => !!c).map((c) => ({ id: c.id, name: c.name, url: c.url }))
   const override = data.overrides[match.id]
   if (override) return override === 'none' ? { channels: [], source: 'undtagelse' } : { channels: partners([override]), source: 'undtagelse' }
+  // A channel that sends the match too stands after the match's own
+  const also = data.also?.[match.id] ?? []
+  const withAlso = (ids: string[]) => partners([...ids, ...also.filter((id) => !ids.includes(id))])
   const tv = data.tv[match.id] ?? data.tv[gameKey(match.kickoff, match.home.name, match.away.name)]
-  if (tv?.length) return { channels: partners(tv), source: 'tv-program' }
+  if (tv?.length) return { channels: withAlso(tv), source: 'tv-program' }
   const rule = ruleFor(data.rules, match)
-  return rule ? { channels: partners([rule.channelId]), source: 'regel' } : { channels: [] }
+  if (rule) return { channels: withAlso([rule.channelId]), source: 'regel' }
+  return also.length ? { channels: partners(also), source: 'tv-program' } : { channels: [] }
 }
 
 /** The channels showing a match, or none */

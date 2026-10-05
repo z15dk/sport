@@ -25,7 +25,7 @@ import { logoCheckVersion, realLogo } from './logoCheck'
 import { nationalFlag } from './flags'
 import { externalLeagueKey } from '../data/leagues'
 import { danishLeagueName } from '../data/external'
-import { channelData, dbuTv, dbuTvVersion } from './channels'
+import { boldTv, boldTvVersion, channelData, dbuTv, dbuTvVersion, sportLiveTv, sportLiveTvVersion } from './channels'
 import { siteSettings } from './settings'
 import { adsConfig } from './adsConfig'
 
@@ -215,12 +215,21 @@ function apply() {
     logos: Object.keys(customLogos()).length,
   }))
   const { tables, tablesKey } = timed('Fletning: tabellerne', () => tablesOf(tableTeams(), leagueNames))
-  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${dbuTvVersion()}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
+  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${dbuTvVersion()}|${boldTvVersion()}|${sportLiveTvVersion()}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
   if (!tsdbData && !db && !external.games.length) return setRealData(undefined)
   const dbu = dbuTv(leagues, channels.data.channels, divisionNames)
+  // The matches Bold shows itself, from its own programme list; while that is fresh, no rule gives Bold a whole league
+  // and the matches SPORT LIVE sends live. Looked for among API-Sports' games and our own leagues' (their ids as DBU's channels have them)
+  const sportOfLeague = new Map(DIVISIONS.map((d) => [d.id, sportOf(d)]))
+  const shown = [
+    ...external.games,
+    ...Object.entries(leagues).flatMap(([league, events]) => events.map((e) => ({ id: `tsdb-${e.id}`, sport: sportOfLeague.get(league), kickoff: e.kickoff, home: { name: e.home }, away: { name: e.away } }))),
+  ]
+  const bold = boldTv(shown, channels.data.channels)
+  const sportLive = sportLiveTv(shown, channels.data.channels)
   setRealData({
     version: hashString(key).toString(36),
     fetchedAt: tsdbData?.fetchedAt ?? Date.now(),
@@ -248,7 +257,13 @@ function apply() {
     clubNames: names.names,
     clubAliases: aliases.aliases,
     // DBU's channels for the Danish divisions under TheSportsDB's listings (those win)
-    channels: { ...channels.data, channels: [...channels.data.channels, ...dbu.channels], tv: { ...dbu.tv, ...channels.data.tv } },
+    channels: {
+      ...channels.data,
+      channels: [...channels.data.channels, ...dbu.channels, ...(bold.channel ? [bold.channel] : []), ...(sportLive.channel ? [sportLive.channel] : [])],
+      rules: bold.listed ? channels.data.rules.filter((r) => r.channelId !== bold.id) : channels.data.rules,
+      tv: { ...dbu.tv, ...channels.data.tv, ...bold.tv },
+      also: sportLive.also,
+    },
     settings: settings.settings,
     ads: ads.config,
   })
