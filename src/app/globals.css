@@ -1076,8 +1076,14 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 .ad__rg { font-size: 11px; color: var(--ink-3); }
 .ad--top { padding: 16px 24px 0; }
 .ad--content { margin: 4px 0; }
-/* An ad as a box among the page's boxes (the club page's columns): the same white box, the banner in its middle */
+/* An ad as a box among the page's boxes (the club page's columns): the same white box, the banner in its middle.
+   The slim banner (728×90) is as wide as the column lets it be, in its own proportions */
 .ad--panel { justify-content: center; padding: 12px 18px 18px; background: var(--surface); border-radius: var(--radius); }
+.ad--panel.ad--feed .ad__label, .ad--panel.ad--feed .ad__box { width: min(100%, var(--ad-w)); }
+@media (min-width: 701px) {
+  .ad--panel.ad--feed .ad__box { height: auto; aspect-ratio: 728 / 90; }
+  .ad--panel.ad--feed .ad__code a, .ad--panel.ad--feed .ad__code picture, .ad--panel.ad--feed .ad__code img { display: block; width: 100%; height: auto; }
+}
 
 @media (max-width: 700px) {
   .ad__label, .ad__box { width: min(100%, var(--ad-mw)); }

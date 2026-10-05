@@ -339,8 +339,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
                 <InjuryList list={absent.list} />
               </section>
             )}
-            {/* With the new header the page's ad stands here, in the shorter column, and the two columns end level */}
-            {newHeader && <AdSlot placement="content" className="ad--panel" />}
+            {/* With the new header the match list's slim banner stands here, in the shorter column, and the two columns end level */}
+            {newHeader && <AdSlot placement="feed" className="ad--panel" />}
           </div>
         </MasonryFlow>
 
@@ -401,7 +401,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         })()}
         <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
-        {!newHeader && <AdSlot placement="content" />}
+        <AdSlot placement="content" />
         <Faq items={faq} />
       </div>
     </div>
