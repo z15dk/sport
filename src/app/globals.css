@@ -2293,9 +2293,24 @@ a.player-games__match:hover { text-decoration: underline; }
 .rivalry__bar i:nth-child(3) { background: var(--ink, #0f110c); }
 .rivalry__facts { margin: 0; padding: 4px 18px 20px 38px; display: grid; gap: 8px; }
 .h2h__all { margin: 10px 0 0; font-weight: 600; }
-.rivals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
-.rivals a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface, #f6f7f2); color: inherit; text-decoration: none; }
-.rivals__name { flex: 1; font-weight: 600; min-width: 0; }
+/* The club page's "Indbyrdes opgør": one card per opponent, with the club's wins, draws and defeats against it */
+.rivals-panel { padding: 0 18px 18px; }
+.rivals-panel .panel__title { padding: 18px 0 6px; }
+.rivals__sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); }
+.rivals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; }
+.rivals__card { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
+.rivals__card:hover, .rivals__card:focus-visible { border-color: var(--lime); background: var(--surface); }
+.rivals__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+/* The whole name, on two lines when it has to (never cut off) */
+.rivals__name { font-size: 15px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.rivals__meta { font-size: 12px; color: var(--ink-3); }
+.rivals__rec { display: flex; gap: 4px; flex: none; }
+.rivals__chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 30px; height: 40px; border-radius: 8px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 19px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rivals__chip i { font-family: var(--body); font-style: normal; font-weight: 700; font-size: 9px; letter-spacing: 0.04em; opacity: 0.75; }
+.rivals__chip--V { background: var(--lime); color: var(--ink); }
+.rivals__chip--U { background: var(--line); color: var(--ink); }
+.rivals__chip--T { background: var(--ink); color: #fff; }
+.rivals__chip.is-none { opacity: 0.4; }
 @media (max-width: 640px) {
   .rivalry { grid-template-columns: 1fr 1fr; padding: 16px; }
   .rivalry__record { grid-column: 1 / -1; grid-row: 2; }
@@ -2337,11 +2352,29 @@ a.player-games__match:hover { text-decoration: underline; }
 /* "Køb billetter" (src/lib/tickets.ts): in the match page's score bar and on the club page */
 .duel__tickets { margin-top: 8px; display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; }
 .duel__tickets:hover { background: #000; }
-.tickets__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 0 4px; }
-.tickets__head .panel__title { margin-bottom: 2px; }
-.tickets__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
-.tickets__list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, #f4f5ef); }
-.tickets__list a { font-weight: 700; white-space: nowrap; }
+/* The club page's "Billetter": the club's ticket sale, and its next home matches as rows that open the sale for the match */
+.tickets { padding: 0 18px 18px; }
+.tickets__head { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; padding-top: 18px; }
+.tickets .panel__title { padding: 0 0 6px; }
+.tickets__sub { margin: 0; font-size: 13px; color: var(--ink-3); }
+.tickets__buy { display: inline-flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 999px; background: var(--lime); color: var(--ink); font-weight: 700; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.tickets__buy:hover { background: var(--ink); color: var(--lime); }
+.tickets__list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.tickets__row { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 8px 14px 8px 8px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; transition: border-color 0.15s, background 0.15s; }
+.tickets__row:hover, .tickets__row:focus-visible { border-color: var(--lime); background: var(--surface); }
+.tickets__date { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; width: 52px; height: 52px; border-radius: 10px; background: var(--ink); line-height: 1; }
+.tickets__date strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; color: var(--lime); }
+.tickets__date span { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
+.tickets__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tickets__text strong { font-size: 15px; }
+.tickets__meta { font-size: 13px; color: var(--ink-3); }
+.tickets__cta { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 36px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+.tickets__row:hover .tickets__cta { background: var(--lime); border-color: var(--lime); }
+@media (max-width: 520px) {
+  .tickets__buy { flex: 1; justify-content: center; }
+  .tickets__row .badge { display: none; }
+  .tickets__cta { padding: 0 12px; }
+}
 
 /* The admin bar on the public pages while logged in (AdminBar) */
 .adminbar { position: sticky; top: 0; z-index: 60; background: #0f110c; color: #fff; font-size: 13px; }

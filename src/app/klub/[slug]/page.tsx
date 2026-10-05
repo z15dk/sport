@@ -16,7 +16,7 @@ import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry, shownTeam } from '../../../data/countries'
-import { counted } from '../../../lib/words'
+import { counted, genitive } from '../../../lib/words'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
@@ -54,7 +54,7 @@ import { calendarLinks } from '../../../lib/calendar'
 import { getBadges } from '../../../lib/badges'
 import { FollowButton } from '../../../components/FollowButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
-import { formatLong, formatShortYear, isoDate } from '../../../lib/time'
+import { formatDayMonth, formatLong, formatShortYear, formatTime, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 
@@ -206,30 +206,41 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
                   <h2 id="tickets-title" className="panel__title">
                     Billetter til {club.name}
                   </h2>
-                  <p className="muted small">Billetterne sælges af {club.name} selv. Knapperne åbner klubbens billetsalg.</p>
+                  <p className="tickets__sub">Billetterne sælges af {club.name} selv. Knapperne åbner klubbens billetsalg.</p>
                 </div>
-                <a className="pill is-active" href={ticketClickPath({ klub: club.id })} target="_blank" rel="sponsored nofollow noopener">
+                <a className="tickets__buy" href={ticketClickPath({ klub: club.id })} target="_blank" rel="sponsored nofollow noopener">
                   Køb billetter
                 </a>
               </div>
               {homes.length > 0 && (
-                <ul className="tickets__list">
-                  {homes.map((m) => (
-                    <li key={m.id}>
-                      <span>
-                        <strong>
-                          {m.home.name} – {m.away.name}
-                        </strong>
-                        <span className="muted small">
-                          {' '}
-                          · {m.league} · {formatLong(m.kickoff)} kl. {m.kickoff.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' })}
-                        </span>
-                      </span>
-                      <a href={ticketClickPath({ kamp: m.slug })} target="_blank" rel="sponsored nofollow noopener">
-                        Billetter →
-                      </a>
-                    </li>
-                  ))}
+                <ul className="tickets__list" aria-label={`${genitive(club.name)} næste hjemmekampe`}>
+                  {homes.map((m) => {
+                    // "18. okt." as a number and a month for the date mark
+                    const [day, month] = formatDayMonth(isoDate(m.kickoff)).replace(/\.$/, '').split('. ')
+                    return (
+                      <li key={m.id}>
+                        {/* The whole row opens the club's ticket sale for the match */}
+                        <a className="tickets__row" href={ticketClickPath({ kamp: m.slug })} target="_blank" rel="sponsored nofollow noopener">
+                          <span className="tickets__date" aria-hidden>
+                            <strong>{day}</strong>
+                            <span>{month}</span>
+                          </span>
+                          <TeamBadge link={false} name={m.away.name} src={m.away.badge} colors={m.away.colors} size={30} />
+                          <span className="tickets__text">
+                            <strong>
+                              <span className="visually-hidden">Billetter til {m.home.name} </span>mod {m.away.name}
+                            </strong>
+                            <span className="tickets__meta">
+                              {m.league} · {formatLong(m.kickoff)} kl. {formatTime(m.kickoff)}
+                            </span>
+                          </span>
+                          <span className="tickets__cta">
+                            Billetter <span aria-hidden>→</span>
+                          </span>
+                        </a>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </section>
@@ -294,18 +305,39 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           // The head-to-heads with the league's other clubs (src/lib/rivalry.ts)
           if (!rivals.length) return null
           return (
-            <section className="panel kh-target" id="indbyrdes-opgoer">
+            <section className="panel rivals-panel kh-target" id="indbyrdes-opgoer">
               <h2 className="panel__title">Indbyrdes opgør</h2>
+              <p className="rivals__sub">
+                {genitive(club.name)} kampe mod de andre hold i {division.name}. Tryk på et hold for at se alle opgør.
+              </p>
               <ul className="rivals">
                 {rivals.map((x) => (
                   <li key={x.path}>
-                    <Link href={x.path} prefetch={false}>
-                      <TeamBadge link={false} name={x.other.name} colors={x.other.colors} size={22} />
-                      <span className="rivals__name">
-                        {club.name} – {x.other.name}
+                    <Link
+                      className="rivals__card"
+                      href={x.path}
+                      prefetch={false}
+                      aria-label={`${club.name} mod ${x.other.name}: ${counted(x.meetings, 'kamp', 'kampe')}, ${counted(x.record.a, 'sejr', 'sejre')}, ${x.record.draw} uafgjort og ${x.record.b} nederlag`}
+                    >
+                      <TeamBadge link={false} name={x.other.name} colors={x.other.colors} size={34} />
+                      <span className="rivals__text">
+                        <strong className="rivals__name">{x.other.name}</strong>
+                        <span className="rivals__meta">{counted(x.meetings, 'kamp', 'kampe')}</span>
                       </span>
-                      <span className="rivals__rec muted small">
-                        {x.meetings} kampe · {x.record.a}-{x.record.draw}-{x.record.b}
+                      {/* Won, drawn and lost, seen from this club */}
+                      <span className="rivals__rec" aria-hidden>
+                        {(
+                          [
+                            ['V', x.record.a],
+                            ['U', x.record.draw],
+                            ['T', x.record.b],
+                          ] as const
+                        ).map(([letter, n]) => (
+                          <span key={letter} className={`rivals__chip rivals__chip--${letter}${n ? '' : ' is-none'}`}>
+                            {n}
+                            <i>{letter}</i>
+                          </span>
+                        ))}
                       </span>
                     </Link>
                   </li>
