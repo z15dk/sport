@@ -16,6 +16,8 @@ const GROUPS: { pos: string; title: string }[] = [
   { pos: 'F', title: 'Angreb' },
 ]
 const matchesOf = (p: SquadPlayer) => p.starts + p.subbedOn
+/** "9 kampe", with the minutes where we have them (API-Sports' player list) */
+const metaOf = (p: SquadPlayer) => (matchesOf(p) > 0 ? `${counted(matchesOf(p), 'kamp', 'kampe')}${p.minutes ? ` · ${p.minutes} min.` : ''}` : 'På bænken')
 
 export function ClubSquad({ name, league, season, players, id }: { name: string; league: string; season?: string; players: SquadPlayer[]; id?: string }) {
   if (!players.length) return null
@@ -46,7 +48,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
                     <PlayerPhoto photo={p.photo} team={name} size={52} />
                     <span className="squad__text">
                       <span className="squad__name">{p.name}</span>
-                      <span className="squad__meta">{counted(matchesOf(p), 'kamp', 'kampe')}</span>
+                      <span className="squad__meta">{metaOf(p)}</span>
                     </span>
                     <span className="squad__goals">
                       <strong>{p.goals}</strong>
@@ -80,9 +82,14 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
                     </span>
                     <span className="squad__text">
                       <span className="squad__name">{p.name}</span>
-                      <span className="squad__meta">{matchesOf(p) > 0 ? counted(matchesOf(p), 'kamp', 'kampe') : 'På bænken'}</span>
+                      <span className="squad__meta">{metaOf(p)}</span>
                     </span>
-                    {p.goals > 0 && <span className="squad__pill">{p.goals} mål</span>}
+                    {(p.goals > 0 || (p.assists ?? 0) > 0) && (
+                      <span className="squad__tags">
+                        {p.goals > 0 && <span className="squad__pill">{p.goals} mål</span>}
+                        {(p.assists ?? 0) > 0 && <span className="squad__pill squad__pill--assist">{p.assists} assist.</span>}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
