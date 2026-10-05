@@ -132,9 +132,10 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
                       <span className="squad__name">{p.name}</span>
                       <span className="squad__meta">{metaOf(p)}</span>
                     </span>
-                    {(p.goals > 0 || cardsOf(p) > 0) && (
+                    {(p.goals > 0 || (p.assists ?? 0) > 0 || cardsOf(p) > 0) && (
                       <span className="squad__tags">
                         {p.goals > 0 && <span className="squad__pill">{p.goals} mål</span>}
+                        {(p.assists ?? 0) > 0 && <span className="squad__pill squad__pill--assist">{p.assists} assist.</span>}
                         {(p.yellow ?? 0) > 0 && (
                           <span className="squad__card squad__card--yellow" title={`${p.yellow} gule kort`}>
                             {p.yellow}

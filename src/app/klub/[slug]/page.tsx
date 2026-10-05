@@ -42,7 +42,7 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamCoach, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamCoach, apiTeamPlayers, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
 import { checkedTeamStats } from '../../../data/teamStats'
 import { clubSeasonStats } from '../../../data/stats'
@@ -512,7 +512,10 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   // The new design (KlubHeader, the squad, the extra questions, the ad in the column) for chosen leagues, src/data/nyKlubside.ts
   const newPage = !!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer'
   const apiTeam = newPage && league ? apiTeamIdOf(league.id, names) : undefined
-  const squad = newPage && league && apiTeam ? apiTeamSquad(league.id, apiTeam) : []
+  // The whole squad with this season's statistics from API-Sports' player list, else the players of the saved line-ups (the days kept)
+  const lineupSquad = newPage && league && apiTeam ? apiTeamSquad(league.id, apiTeam) : []
+  const listed = newPage && league && apiTeam ? await apiTeamPlayers(league.id, apiTeam).catch(() => undefined) : undefined
+  const squad = listed?.length ? listed : lineupSquad
   const ground = newPage && league && apiTeam ? apiTeamStadium(league.id, apiTeam) : undefined
   // The next match that has not been played (a match the data still calls coming after its time is not it)
   const nextUp = upcoming.find((m) => m.kickoff.getTime() > now)

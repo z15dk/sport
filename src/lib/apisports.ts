@@ -9,6 +9,7 @@ import { danishLeagueName, danishRound, externalLeagueKey, isWomenGame, type Ext
 import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
+import { squadFromApi } from '../data/squadApi'
 import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type LineupPlayer, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -518,7 +519,7 @@ function countUsage(s: ApiState, pathAndQuery: string) {
   s.usage.hours[new Date().getUTCHours()]++
 }
 
-async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise<{ response?: Raw[]; error?: string }> {
+async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise<{ response?: Raw[]; error?: string; paging?: { current?: number; total?: number } }> {
   const s = (mem.store[api] ??= { days: {} })
   s.requests = (s.requests ?? 0) + 1
   countUsage(s, pathAndQuery)
@@ -541,11 +542,11 @@ async function call(api: Api, pathAndQuery: string, timeoutMs = 20_000): Promise
     if (limit !== undefined) s.limit = limit
     onPaidPlan(s)
     // An error page instead of JSON (a 502 from the source): its status, so it counts as a passing error
-    const body = (await res.json().catch(() => undefined)) as { response?: Raw[]; errors?: unknown } | undefined
+    const body = (await res.json().catch(() => undefined)) as { response?: Raw[]; errors?: unknown; paging?: { current?: number; total?: number } } | undefined
     if (!body) return { error: `${res.status} ${res.statusText || 'svar uden JSON'}` }
     const errors: string[] = !body.errors ? [] : (Array.isArray(body.errors) ? body.errors : Object.values(body.errors as object)).map(String)
     if (!res.ok || errors.length) return { error: `${res.status} ${errors.join('; ') || res.statusText}` }
-    return { response: body.response ?? [] }
+    return { response: body.response ?? [], paging: body.paging }
   } catch (err) {
     return { error: (err as Error).message }
   }
@@ -1325,7 +1326,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[] }>
+  entries: Record<string, { fetchedAt: number; squad?: SquadPlayer[]; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -2432,6 +2433,9 @@ export interface SquadPlayer {
   red?: number
   /** Minutes played (from the substitutions) */
   minutes?: number
+  /** From API-Sports' player list (apiTeamPlayers) */
+  assists?: number
+  rating?: number
 }
 
 const plainName = (n: string) => n.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -2533,6 +2537,49 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
     }
   squadsMemo = { key, games: base, mtime: mem.mtime, teams, coaches }
   return teams
+}
+
+/**
+ * A team's whole squad with this season's statistics for the league, from API-Sports' player list (two or three requests,
+ * kept 24 hours; paid plans): every player who has played, with photo, position, shirt number, matches, minutes, goals,
+ * assists, cards and rating. For the leagues we have no line-ups of our own for (Serie A, Liga Profesional Argentina). Stale
+ * lists are shown while a new one is fetched; nothing at all without the plan or a list.
+ */
+export async function apiTeamPlayers(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): Promise<SquadPlayer[] | undefined> {
+  const key = `football|squad|${leagueId}|${season}|${teamId}`
+  const entry = extrasStore().entries[key]
+  if (entry?.squad?.length && Date.now() - entry.fetchedAt < 24 * 3_600_000) return entry.squad
+  const fresh = fetchTeamPlayers(key, leagueId, teamId, season).catch(() => undefined)
+  return entry?.squad?.length ? entry.squad : await fresh
+}
+
+const squadsRunning = new Set<string>()
+async function fetchTeamPlayers(key: string, leagueId: string, teamId: number, season: string): Promise<SquadPlayer[] | undefined> {
+  const api: Api = 'football'
+  const store = extrasStore()
+  if (squadsRunning.has(key)) return store.entries[key]?.squad
+  squadsRunning.add(key)
+  try {
+    load()
+    const s = mem.store[api]
+    if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.squad
+    // Crawlers follow every club link: the same third of the day's extras as the player pages
+    if (!spendExtra(api, 3, 'players')) return store.entries[key]?.squad
+    const raw: Raw[] = []
+    for (let page = 1, last = 1; page <= Math.min(last, 4); page++) {
+      const r = await call(api, `/players?league=${leagueId}&team=${teamId}&season=${season}&page=${page}`, 8_000)
+      if (r.error || !r.response) return store.entries[key]?.squad
+      raw.push(...r.response)
+      last = num(r.paging?.total) ?? 1
+    }
+    const squad = squadFromApi(raw, leagueId).map((p): SquadPlayer => ({ ...p, photo: proxyImage(p.photo) }))
+    if (!squad.length) return store.entries[key]?.squad
+    store.entries[key] = { fetchedAt: Date.now(), squad }
+    saveExtras()
+    return squad
+  } finally {
+    squadsRunning.delete(key)
+  }
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
