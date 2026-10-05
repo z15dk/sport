@@ -1076,6 +1076,8 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 .ad__rg { font-size: 11px; color: var(--ink-3); }
 .ad--top { padding: 16px 24px 0; }
 .ad--content { margin: 4px 0; }
+/* An ad as a box among the page's boxes (the club page's columns): the same white box, the banner in its middle */
+.ad--panel { justify-content: center; padding: 12px 18px 18px; background: var(--surface); border-radius: var(--radius); }
 
 @media (max-width: 700px) {
   .ad__label, .ad__box { width: min(100%, var(--ad-mw)); }
@@ -2504,6 +2506,8 @@ a.player-games__match:hover { text-decoration: underline; }
   .flow2.is-masonry { gap: 16px 8px; flex-wrap: wrap; align-content: flex-start; }
   .flow2.is-masonry > *, .flow2.is-masonry .club-layout__side > * { width: calc((100% - 16px) / 2); }
   .flow2.is-masonry::before { content: ''; flex-basis: 100%; width: 0; order: 2; }
+  /* With an ad in the flow the two columns end level: the last box of each column takes the height that is left */
+  .flow2.is-masonry:has(.ad--panel) .is-colend { flex-grow: 1; }
   .flow2 .leaders__grid { grid-template-columns: minmax(0, 1fr); }
 }
 

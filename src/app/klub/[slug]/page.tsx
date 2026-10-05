@@ -42,13 +42,14 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamSquad, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
 import { checkedTeamStats } from '../../../data/teamStats'
 import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
+import { dbuHomeGround } from '../../../lib/channels'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { KlubHeader } from '../../../components/KlubHeader'
 import { klubfarve } from '../../../data/klubfarver'
@@ -137,7 +138,6 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const season = clubMatches(club.name, now)
   const recent = season.filter((m) => m.state === 'finished').reverse()
   const upcoming = season.filter((m) => m.state !== 'finished')
-  const faq = clubFaq(club, division, stats, upcoming[0], recent[0])
   const table = standings(division, now)
   const i = table.findIndex((x) => x.club.id === club.id)
   // Five rows around the club
@@ -160,6 +160,22 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const articles = articlesAbout({ club })
   // The players the club has used this season, from the saved line-ups (no request); with the new header to begin with
   const squad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
+  // The questions people search for; with the new header also the channel, the top scorer, the ground and the tickets
+  const faq = clubFaq(
+    club,
+    division,
+    stats,
+    upcoming[0],
+    recent[0],
+    newHeader
+      ? {
+          channel: upcoming[0] && channelsFor(upcoming[0])[0]?.name,
+          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.starts + p.subbedOn })),
+          stadium: dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
+          tickets: !!clubTicketUrl(club.id),
+        }
+      : undefined,
+  )
 
   return (
     <div className="page">
@@ -304,7 +320,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         )}
 
         <MasonryFlow className="club-flow">
-          <ClubMatches clubName={club.name} initialNow={now} showTv={newHeader} />
+          <ClubMatches clubName={club.name} initialNow={now} showTv={newHeader} fill={newHeader} />
           <div className="club-layout__side">
             <FormChart clubName={club.name} initialNow={now} />
             <section className="panel table-panel kh-target" id="stilling">
@@ -323,6 +339,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
                 <InjuryList list={absent.list} />
               </section>
             )}
+            {/* With the new header the page's ad stands here, in the shorter column, and the two columns end level */}
+            {newHeader && <AdSlot placement="content" className="ad--panel" />}
           </div>
         </MasonryFlow>
 
@@ -383,7 +401,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         })()}
         <AboutText title={`Om ${club.name}`} paragraphs={clubAbout(club, division, now)} />
 
-        <AdSlot placement="content" />
+        {!newHeader && <AdSlot placement="content" />}
         <Faq items={faq} />
       </div>
     </div>

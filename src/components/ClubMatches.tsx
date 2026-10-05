@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { channelsFor } from '../data/channels'
 import { clubMatches } from '../data/matches'
 import { getRealData } from '../data/real'
@@ -16,14 +16,18 @@ import { danishCountry } from '../data/countries'
 import { TeamBadge } from './TeamBadge'
 
 const PAGE = 8
+/** The most rows a list that fills its box (`fill`) adds to a page */
+const FILL_MAX = 8
 type Tab = 'finished' | 'upcoming'
 
 /** Club fixtures and results, as a paged list or a month calendar */
 /**
  * `matches` gives the list for teams outside our leagues (their games and the
  * ones our statistics bank has saved); our clubs' come from the season.
+ * `fill`: when the box is made taller than its list (the page's columns end level, see .flow2), the list
+ * shows as many more matches as there is room for instead of an empty space under it.
  */
-export function ClubMatches({ clubName, initialNow, matches: given, showTv }: { clubName: string; initialNow: number; matches?: Match[]; showTv?: boolean }) {
+export function ClubMatches({ clubName, initialNow, matches: given, showTv, fill }: { clubName: string; initialNow: number; matches?: Match[]; showTv?: boolean; fill?: boolean }) {
   const now = useNow(30_000, initialNow)
   const dataVersion = getRealData()?.version
   const all = useMemo(() => given ?? clubMatches(clubName, now), [given, clubName, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -34,13 +38,44 @@ export function ClubMatches({ clubName, initialNow, matches: given, showTv }: { 
   const [tab, setTab] = useState<Tab>(() => (all.some((m) => m.state !== 'finished') ? 'upcoming' : 'finished'))
   const [page, setPage] = useState(0)
   const [month, setMonth] = useState(() => isoDate(initialNow).slice(0, 7))
+  const box = useRef<HTMLElement>(null)
+  const [more, setMore] = useState(0)
+  const drawn = useRef(0)
+  useEffect(() => {
+    drawn.current = more
+  }, [more])
+  // The room under the list, in rows; rows are only added, so the box never jumps back and forth
+  const fit = () => {
+    const el = box.current
+    const row = el?.querySelector<HTMLElement>('.cm-row')
+    const end = el?.lastElementChild
+    if (!fill || !el || !row || !end || !row.offsetHeight) return
+    const free = el.getBoundingClientRect().bottom - end.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom || '0')
+    const rows = Math.floor(free / row.offsetHeight)
+    // From the rows that are drawn now, so two measurements of the same page add the rows once
+    const want = Math.min(FILL_MAX, drawn.current + rows)
+    if (rows > 0) setMore((m) => Math.max(m, want))
+  }
+  // When the box changes height, and once more after the rows it added are drawn (the box keeps its height then)
+  useEffect(() => {
+    const el = box.current
+    if (!fill || !el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fill]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const frame = requestAnimationFrame(fit)
+    return () => cancelAnimationFrame(frame)
+  }, [more, tab, view]) // eslint-disable-line react-hooks/exhaustive-deps
+  const size = PAGE + more
 
   const matches = competition === 'all' ? all : all.filter((m) => m.league === competition)
   const finished = matches.filter((m) => m.state === 'finished').reverse()
   const upcoming = matches.filter((m) => m.state !== 'finished')
   const list = tab === 'finished' ? finished : upcoming
-  const pages = Math.max(1, Math.ceil(list.length / PAGE))
-  const shown = list.slice(page * PAGE, page * PAGE + PAGE)
+  const pages = Math.max(1, Math.ceil(list.length / size))
+  const shown = list.slice(page * size, page * size + size)
   // For results "back" is older; for fixtures "forward" is later
   const canBack = tab === 'finished' ? page < pages - 1 : page > 0
   const canForward = tab === 'finished' ? page > 0 : page < pages - 1
@@ -60,7 +95,7 @@ export function ClubMatches({ clubName, initialNow, matches: given, showTv }: { 
   }
 
   return (
-    <section className="panel club-matches kh-target" id="kampe" aria-labelledby="club-matches-title">
+    <section ref={box} className="panel club-matches kh-target" id="kampe" aria-labelledby="club-matches-title">
       <header className="club-matches__head">
         <h2 id="club-matches-title" className="panel__title">
           Kampe

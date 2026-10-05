@@ -2402,6 +2402,16 @@ export function apiTeamOwnGoals(leagueId: string, teamId: number, season = SEASO
   return out
 }
 
+/** The ground a team plays its home matches at this season: the one most of its league home matches name (no request) */
+export function apiTeamStadium(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): string | undefined {
+  const count = new Map<string, number>()
+  for (const g of seasonGames()) {
+    if (String(g.league.id) !== String(leagueId) || String(g.league.season ?? season) !== season || g.home.id !== teamId || !g.stadium) continue
+    count.set(g.stadium, (count.get(g.stadium) ?? 0) + 1)
+  }
+  return [...count].sort((a, b) => b[1] - a[1])[0]?.[0]
+}
+
 export interface SquadPlayer {
   /** API-Sports' player id (the player's page) */
   id: number
@@ -2434,52 +2444,74 @@ function samePlayer(a: string, b: string) {
  * where the player's profile is saved, else the line-up's ("P. Pentz").
  */
 export function apiTeamSquad(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): SquadPlayer[] {
+  return [...(leagueSquads(leagueId, season).get(teamId)?.values() ?? [])]
+}
+
+// Every team of the league in one pass (a player who has changed club is known then), kept until the games change
+let squadsMemo: { key: string; games: ExternalGame[]; teams: Map<number, Map<number, SquadPlayer>> } | undefined
+function leagueSquads(leagueId: string, season: string): Map<number, Map<number, SquadPlayer>> {
+  const all = seasonGames()
+  const key = `${leagueId}|${season}`
+  if (squadsMemo?.key === key && squadsMemo.games === all) return squadsMemo.teams
   const store = extrasStore()
-  const players = new Map<number, SquadPlayer>()
-  const games = seasonGames()
-    .filter((g) => g.state === 'finished' && String(g.league.id) === String(leagueId) && String(g.league.season ?? season) === season && (g.home.id === teamId || g.away.id === teamId))
+  const teams = new Map<number, Map<number, SquadPlayer>>()
+  const teamNames = new Map<number, string>()
+  const games = all
+    .filter((g) => g.state === 'finished' && String(g.league.id) === String(leagueId) && String(g.league.season ?? season) === season)
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
   for (const g of games) {
     const lineups = store.entries[`football|lineups|${g.id}`]?.lineups
     if (!lineups || lineups.length !== 2) continue
-    const side = g.home.id === teamId ? 'home' : 'away'
-    const own = side === 'home' ? g.home.name : g.away.name
-    // By the team's name, else in the source's order (home first)
-    const lineup = lineups.find((l) => l.team.toLowerCase() === own.toLowerCase()) ?? lineups[side === 'home' ? 0 : 1]
-    const subs = (store.entries[`football|subs|${g.id}`]?.subs ?? []).filter((x) => x.side === side)
-    const goals = (g.incidents ?? []).filter((i) => i.side === side && i.player && (i.kind === 'goal' || i.kind === 'penalty'))
-    const seen = (p: LineupPlayer, started: boolean) => {
-      if (!p.id || !p.name) return
-      const row = players.get(p.id) ?? players.set(p.id, { id: p.id, name: p.name, starts: 0, subbedOn: 0, goals: 0 }).get(p.id)!
-      // The newest match's number and position
-      row.number = p.number ?? row.number
-      row.pos = p.pos ?? row.pos
-      if (started) row.starts++
-      else if (subs.some((x) => plainName(x.on) === plainName(p.name))) row.subbedOn++
-    }
-    for (const p of lineup.startXI) seen(p, true)
-    for (const p of lineup.substitutes) seen(p, false)
-    // A goal counts for the one player in the match squad it fits
-    const squad = [...lineup.startXI, ...lineup.substitutes].filter((p) => p.id)
-    for (const i of goals) {
-      // The same name first ("M. Jensen" is not "M. Frokjaer-Jensen"), then the same last name and first letter
-      const exact = squad.filter((p) => plainName(p.name) === plainName(i.player!))
-      const hits = exact.length ? exact : squad.filter((p) => samePlayer(p.name, i.player!))
-      if (hits.length === 1) players.get(hits[0].id!)!.goals++
+    const allSubs = store.entries[`football|subs|${g.id}`]?.subs ?? []
+    for (const side of ['home', 'away'] as const) {
+      const team = g[side]
+      if (!team.id) continue
+      teamNames.set(team.id, team.name)
+      const players = teams.get(team.id) ?? teams.set(team.id, new Map()).get(team.id)!
+      // By the team's name, else in the source's order (home first)
+      const lineup = lineups.find((l) => l.team.toLowerCase() === team.name.toLowerCase()) ?? lineups[side === 'home' ? 0 : 1]
+      const subs = allSubs.filter((x) => x.side === side)
+      const goals = (g.incidents ?? []).filter((i) => i.side === side && i.player && (i.kind === 'goal' || i.kind === 'penalty'))
+      const seen = (p: LineupPlayer, started: boolean) => {
+        if (!p.id || !p.name) return
+        const row = players.get(p.id) ?? players.set(p.id, { id: p.id, name: p.name, starts: 0, subbedOn: 0, goals: 0 }).get(p.id)!
+        // The newest match's number and position
+        row.number = p.number ?? row.number
+        row.pos = p.pos ?? row.pos
+        if (started) row.starts++
+        else if (subs.some((x) => plainName(x.on) === plainName(p.name))) row.subbedOn++
+      }
+      for (const p of lineup.startXI) seen(p, true)
+      for (const p of lineup.substitutes) seen(p, false)
+      // A goal counts for the one player in the match squad it fits
+      const squad = [...lineup.startXI, ...lineup.substitutes].filter((p) => p.id)
+      for (const i of goals) {
+        // The same name first ("M. Jensen" is not "M. Frokjaer-Jensen"), then the same last name and first letter
+        const exact = squad.filter((p) => plainName(p.name) === plainName(i.player!))
+        const hits = exact.length ? exact : squad.filter((p) => samePlayer(p.name, i.player!))
+        if (hits.length === 1) players.get(hits[0].id!)!.goals++
+      }
     }
   }
-  // The league's own top scorer list where it has the player (it counts a goal the events file as an own goal or under another name)
+  // The league's own top scorer list where it has the player: it counts a goal the events file as an own goal or under
+  // another name. The list has a player's goals for all his clubs together, so the goals it has more than we counted
+  // go to the club it names him with (his club now), or to his only club
   for (const r of store.entries[`football|leaders|${leagueId}|${season}`]?.leaders?.scorers ?? []) {
-    const row = r.id ? players.get(r.id) : undefined
-    if (row && r.value > row.goals) row.goals = r.value
+    const rows = r.id ? [...teams].flatMap(([team, players]) => (players.has(r.id!) ? [{ team, row: players.get(r.id!)! }] : [])) : []
+    const more = r.value - rows.reduce((n, x) => n + x.row.goals, 0)
+    if (more <= 0) continue
+    const his = rows.length === 1 ? rows[0] : rows.find((x) => teamNames.get(x.team)?.toLowerCase() === r.team.toLowerCase())
+    if (his) his.row.goals += more
   }
-  for (const row of players.values()) {
-    const full = store.entries[`football|player|${row.id}`]?.player?.name
-    if (full && !/\.\s/.test(full)) row.name = full
-    // The source has a photo of every player under his id
-    row.photo = proxyImage(`https://media.api-sports.io/football/players/${row.id}.png`)
-  }
-  return [...players.values()]
+  for (const players of teams.values())
+    for (const row of players.values()) {
+      const full = store.entries[`football|player|${row.id}`]?.player?.name
+      if (full && !/\.\s/.test(full)) row.name = full
+      // The source has a photo of every player under his id
+      row.photo = proxyImage(`https://media.api-sports.io/football/players/${row.id}.png`)
+    }
+  squadsMemo = { key, games: all, teams }
+  return teams
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */

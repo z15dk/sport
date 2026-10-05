@@ -38,13 +38,20 @@ export function useMasonry(ref: RefObject<HTMLElement | null>, columns = 3, wide
     const clear = () => {
       el.classList.remove('is-masonry')
       el.style.height = ''
-      for (const b of boxesOf(el)) b.style.order = ''
+      for (const b of boxesOf(el)) {
+        b.style.order = ''
+        b.classList.remove('is-colend')
+      }
     }
     const layout = () => {
       frame = 0
       if (!media.matches) return clear()
       const boxes = boxesOf(el)
       const heights = Array(columns).fill(0) as number[]
+      // The last box of each column is marked (a flow can let it grow, so the columns end level, see .flow2 in
+      // globals.css); the boxes are measured without the mark, at their own height
+      for (const b of boxes) b.classList.remove('is-colend')
+      const last: (HTMLElement | undefined)[] = Array(columns).fill(undefined)
       for (const b of boxes) {
         const h = b.getBoundingClientRect().height + GAP
         let c = 0
@@ -53,7 +60,9 @@ export function useMasonry(ref: RefObject<HTMLElement | null>, columns = 3, wide
         const order = String(c * 2 + 1)
         if (b.style.order !== order) b.style.order = order
         heights[c] += h
+        last[c] = b
       }
+      for (const b of last) b?.classList.add('is-colend')
       const height = `${Math.ceil(Math.max(...heights)) + 4}px`
       if (el.style.height !== height) el.style.height = height
       el.classList.add('is-masonry')

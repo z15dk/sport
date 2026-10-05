@@ -87,12 +87,25 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
   return items
 }
 
+/** What the club page knows beyond the table (the pages with the new header): asked for as people search for it */
+export interface ClubFaqExtra {
+  /** The channel showing the next match */
+  channel?: string
+  /** The club's scorers this season, most goals first */
+  scorers?: { name: string; goals: number; matches: number }[]
+  /** The ground the club plays its home matches at */
+  stadium?: string
+  /** The club sells tickets through a link on the page */
+  tickets?: boolean
+}
+
 export function clubFaq(
   club: Club,
   division: Division,
   stats: ClubStats,
   next?: Match,
   last?: Match,
+  extra?: ClubFaqExtra,
 ): FaqItem[] {
   const r = stats.row
   const items: FaqItem[] = [
@@ -108,6 +121,11 @@ export function clubFaq(
       q: `Hvornår spiller ${club.name} næste gang?`,
       a: `${club.name} møder ${opponent} ${when(next.kickoff)} (${next.home.name === club.name ? 'hjemme' : 'ude'}).`,
     })
+    if (extra?.channel)
+      items.push({
+        q: `Hvilken kanal viser ${genitive(club.name)} næste kamp?`,
+        a: `Kampen mod ${opponent} ${when(next.kickoff)} vises på ${extra.channel}.`,
+      })
   }
   if (last) {
     const hs = last.home.score ?? 0
@@ -120,6 +138,34 @@ export function clubFaq(
       a: `${own > other ? 'Sejr' : own < other ? 'Nederlag' : 'Uafgjort'} ${own}-${other} mod ${opponent} ${formatLong(last.kickoff)}.`,
     })
   }
+  const top = extra?.scorers?.[0]
+  if (top) {
+    const level = extra!.scorers!.filter((s) => s.goals === top.goals)
+    items.push({
+      q: `Hvem er ${genitive(club.name)} topscorer?`,
+      a:
+        level.length === 1
+          ? `${top.name} er topscorer for ${club.name} i ${division.name} ${seasonOf(division)} med ${top.goals} mål i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}.`
+          : level.length <= 3
+            ? `${level.map((s) => s.name).join(', ').replace(/, ([^,]*)$/, ' og $1')} deler førstepladsen med ${top.goals} mål hver i ${division.name} ${seasonOf(division)}.`
+            : `${level.length} spillere deler førstepladsen med ${top.goals} mål hver i ${division.name} ${seasonOf(division)}.`,
+    })
+  }
+  if (extra && r.played > 0)
+    items.push({
+      q: `Hvor mange mål har ${club.name} scoret?`,
+      a: `${club.name} har scoret ${r.goalsFor} mål og lukket ${r.goalsAgainst} ind i ${r.played} ${r.played === 1 ? 'kamp' : 'kampe'} i ${division.name} ${seasonOf(division)}.`,
+    })
+  if (extra?.stadium)
+    items.push({
+      q: `Hvor spiller ${club.name} hjemmekampe?`,
+      a: `${club.name} spiller sine hjemmekampe på ${extra.stadium}${club.city && !extra.stadium.includes(',') && !extra.stadium.includes(club.city) ? ` i ${club.city}` : ''}.`,
+    })
+  if (extra?.tickets)
+    items.push({
+      q: `Hvor køber jeg billetter til ${club.name}?`,
+      a: `Billetter til ${genitive(club.name)} hjemmekampe købes hos klubben. Du finder linket under Billetter her på siden.`,
+    })
   items.push({
     q: `Hvordan er ${genitive(club.name)} form?`,
     a: `De seneste fem kampe: ${r.form
