@@ -3,11 +3,11 @@ import { categories } from '../lib/articles'
 import { ArticleCards } from './ArticleList'
 
 /** Our own articles tagged with this league or club (on the league and club pages) */
-export function TaggedArticles({ articles, title }: { articles: Article[]; title: string }) {
+export function TaggedArticles({ articles, title, id }: { articles: Article[]; title: string; id?: string }) {
   if (!articles.length) return null
   const names = new Map(categories().map((c) => [c.slug, c.name]))
   return (
-    <section className="panel tagged-articles">
+    <section className={id ? 'panel tagged-articles kh-target' : 'panel tagged-articles'} id={id}>
       <h2 className="panel__title">{title}</h2>
       <ArticleCards articles={articles} categoryNames={names} lead={false} />
     </section>

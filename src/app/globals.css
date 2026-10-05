@@ -685,6 +685,7 @@ html:not(:has(.kh-target:target)) .kh-nav a[data-kh='oversigt'],
 html:has(#oversigt:target) .kh-nav a[data-kh='oversigt'],
 html:has(#kampe:target) .kh-nav a[data-kh='kampe'],
 html:has(#stilling:target) .kh-nav a[data-kh='stilling'],
+html:has(#artikler:target) .kh-nav a[data-kh='artikler'],
 html:has(#holdstatistik:target) .kh-nav a[data-kh='holdstatistik'],
 html:has(#indbyrdes-opgoer:target) .kh-nav a[data-kh='indbyrdes-opgoer'],
 html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { color: #fff; font-weight: 700; border-bottom-color: var(--kh-lime); }

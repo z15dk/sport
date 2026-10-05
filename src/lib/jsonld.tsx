@@ -70,10 +70,12 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
   }
 }
 
-export function clubLd(club: Club, division: Division) {
+export function clubLd(club: Club, division: Division, logo?: string) {
   return {
     '@context': 'https://schema.org',
     ...teamLd(club.name, club.slug, sportById(division.sport ?? 'soccer').label),
+    // The club's logo, when the page has it: what search engines show beside the club's name
+    ...(logo && { logo: absoluteImage(logo), image: absoluteImage(logo) }),
     location: { '@type': 'Place', name: club.city, address: { '@type': 'PostalAddress', addressLocality: club.city, addressCountry: division.countryCode } },
     memberOf: { '@type': 'SportsOrganization', name: division.name, url: `${SITE_URL}${paths.league(division.slug)}` },
   }
@@ -206,6 +208,16 @@ const textOf = (html: string) =>
     .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim()
+
+/** A page's questions and answers (the ones it shows under "Spørgsmål og svar") as FAQPage, for search engines and AI answers */
+export function faqLd(items: { q: string; a: string }[]) {
+  if (!items.length) return undefined
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((x) => ({ '@type': 'Question', name: x.q, acceptedAnswer: { '@type': 'Answer', text: x.a } })),
+  }
+}
 
 /**
  * The article's questions and answers (FAQPage) for search engines and AI answers: the section under an

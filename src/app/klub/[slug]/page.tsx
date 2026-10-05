@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { MasonryFlow } from '../../../components/MasonryFlow'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
-import { allTeams, movedTeamSlug, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
+import { allTeams, movedTeamSlug, teamByName, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
@@ -18,7 +18,7 @@ import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry, shownTeam } from '../../../data/countries'
 import { counted, genitive } from '../../../lib/words'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
-import { JsonLd, breadcrumbLd, clubLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
+import { JsonLd, breadcrumbLd, clubLd, faqLd, matchLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
 import { Faq } from '../../../components/Faq'
 import { AboutText } from '../../../components/AboutText'
 import { clubRivalries } from '../../../lib/rivalry'
@@ -85,10 +85,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     }
   }
   const { club, division } = team.season
-  const stats = clubStats(club.name, Date.now())!
+  const now = Date.now()
+  const stats = clubStats(club.name, now)!
+  const standard = `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`
   return {
     title: `${club.name} – kampe og stilling ${seasonOf(division)}`,
-    description: `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`,
+    description: NEW_HEADER_DIVISIONS.has(division.id) ? (nextMatchDescription(club.name, division.name, stats, now) ?? standard) : standard,
     alternates: { canonical: paths.club(club.slug) },
   }
 }
@@ -103,6 +105,21 @@ export default async function ClubPage({ params }: { params: Params }) {
     notFound()
   }
   return team.season ? <LeagueClub {...team.season} /> : <TeamPage team={team} />
+}
+
+/**
+ * The description for search results with the club's next match in it ("fck næste kamp" is what people search for):
+ * the place in the table, the next match with day and time, and what the page has. Kept within what Google shows
+ * (about 155 characters) by leaving out the last sentence when the names are long. Nothing without a match to come.
+ */
+function nextMatchDescription(name: string, league: string, stats: NonNullable<ReturnType<typeof clubStats>>, now: number): string | undefined {
+  const next = clubMatches(name, now).find((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
+  if (!next) return undefined
+  const home = next.home.name === name
+  const first = `${name} er nr. ${stats.position} i ${league} med ${stats.row.points} point.`
+  const match = `Næste kamp: ${home ? 'hjemme' : 'ude'} mod ${home ? next.away.name : next.home.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)}.`
+  const full = `${first} ${match} Se kampprogram, resultater og stilling.`
+  return full.length <= 158 ? full : `${first} ${match}`
 }
 
 /** Full page for clubs in the leagues we cover, which have season and table data */
@@ -133,11 +150,17 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const rivals = clubRivalries(club, division, now)
   const pastSeasons = clubSeasons(club, sport)
   const hasTeamStats = !!teamStats?.played.total || !!clubSeasonStats(club, division)
+  // Our own articles tagged with the club: with the new header they have their own place in the menu and stand above the statistics
+  const articles = articlesAbout({ club })
 
   return (
     <div className="page">
       <RealDataExtra games={clubExternalGames(club.name)} leagues={clubLeagues([club.id])} />
-      <JsonLd data={clubLd(club, division)} />
+      <JsonLd data={clubLd(club, division, logo)} />
+      {/* The questions the page answers at its foot, for search engines and AI answers (with the new header to begin with) */}
+      {newHeader && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
+      {/* The club's next match as an event, so a search for the club can show day, time and place */}
+      {newHeader && nextMatch && <JsonLd data={matchLd(nextMatch, (name) => teamByName(name, nextMatch.leagueSlug)?.slug, undefined, matchTicketUrl(nextMatch))} />}
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd
         data={breadcrumbLd([
@@ -161,6 +184,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
               { id: 'oversigt', label: 'Oversigt' },
               { id: 'kampe', label: 'Kampe' },
               { id: 'stilling', label: 'Stilling' },
+              ...(articles.length ? [{ id: 'artikler', label: 'Artikler' }] : []),
               ...(hasTeamStats ? [{ id: 'holdstatistik', label: 'Holdstatistik' }] : []),
               ...(rivals.length ? [{ id: 'indbyrdes-opgoer', label: 'Indbyrdes opgør' }] : []),
               ...(pastSeasons.length ? [{ id: 'tidligere-saesoner', label: 'Tidligere sæsoner' }] : []),
@@ -294,9 +318,10 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
+        {newHeader && <TaggedArticles articles={articles} title={`Artikler om ${club.name}`} id="artikler" />}
         <span className="kh-target kh-anchor" id="holdstatistik" />
         {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division), apiTeamOwnGoals(apiLeague!, apiTeam!))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
-        <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
+        {!newHeader && <TaggedArticles articles={articles} title={`Artikler om ${club.name}`} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
         {pastSeasons.length > 0 && <span className="kh-target kh-anchor" id="tidligere-saesoner" />}

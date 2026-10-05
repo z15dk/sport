@@ -69,7 +69,7 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
         <span className="kh-stripe kh-stripe--wide" aria-hidden />
         {logo && (
           // eslint-disable-next-line @next/next/no-img-element -- logos come from many hosts, through our own picture addresses
-          <img className="kh-logo" src={sizedImage(logo, 130)} alt={`${name} logo`} width={130} height={130} />
+          <img className="kh-logo" src={sizedImage(logo, 130)} alt={`${name} logo`} width={130} height={130} fetchPriority="high" decoding="async" />
         )}
         <div className="kh-id">
           <p className="kh-league">
