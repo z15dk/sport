@@ -2664,7 +2664,16 @@ async function refreshSquads(s: ApiState): Promise<boolean> {
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
 export async function apiInjuries(leagueId: string, season = SEASON.slice(0, 4)): Promise<Injury[] | undefined> {
-  return (await apiInjuriesRaw(leagueId, season))?.map((i) => ({ ...i, photo: proxyImage(i.photo) }))
+  // The source lists some players twice for the same match: once each (also in what is saved already)
+  const seen = new Set<string>()
+  return (await apiInjuriesRaw(leagueId, season))
+    ?.filter((i) => {
+      const key = `${i.fixtureId ?? i.date}|${i.teamId ?? i.team}|${i.playerId ?? i.player}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .map((i) => ({ ...i, photo: proxyImage(i.photo) }))
 }
 async function apiInjuriesRaw(leagueId: string, season: string): Promise<Injury[] | undefined> {
   const key = `football|injuries|${leagueId}|${season}`
