@@ -8,6 +8,7 @@ import { formatTime, isoDate, formatDayMonth, formatWeekday } from '../../lib/ti
 import { counted } from '../../lib/words'
 import { playerPath } from '../../data/player'
 import { TeamBadge } from '../TeamBadge'
+import { sportOf } from '../../data/leagues'
 import { PlayerPhoto } from '../PlayerPhoto'
 import { FormChips } from '../FormChips'
 
@@ -15,6 +16,8 @@ import { FormChips } from '../FormChips'
 // "Kort fortalt", the clubs in form, attack against defence, the players in numbers and who is out.
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
+/** Points in the last five matches */
+const formPoints = (form: ('V' | 'U' | 'T')[]) => form.slice(-5).reduce((t, f) => t + (f === 'V' ? 3 : f === 'U' ? 1 : 0), 0)
 const dayText = (iso: string) => `${formatWeekday(isoDate(new Date(iso)))} ${formatDayMonth(isoDate(new Date(iso)))}`
 
 function StatusLine({ deep }: { deep: LeagueDeep }) {
@@ -45,7 +48,24 @@ function StatusLine({ deep }: { deep: LeagueDeep }) {
   )
 }
 
-export function LeagueHero({ division, rows, stats, deep, badge }: { division: Division; rows: StandingRow[]; stats?: LeagueStats; deep: LeagueDeep; badge?: string }) {
+export function LeagueHero({
+  division,
+  rows,
+  stats,
+  deep,
+  badge,
+  topScorer,
+}: {
+  division: Division
+  rows: StandingRow[]
+  stats?: LeagueStats
+  deep: LeagueDeep
+  badge?: string
+  topScorer?: { name: string; club: string; goals: number; photo?: string }
+}) {
+  // In form: the most points in the last five (only once a few rounds are played)
+  const hot = Math.max(0, ...rows.map((r) => r.form.length)) >= 3 ? [...rows].sort((a, b) => formPoints(b.form) - formPoints(a.form) || b.points - a.points)[0] : undefined
+  const goalWord = sportOf(division) === 'basketball' ? 'point' : 'mål'
   const leader = rows[0]
   const { played, total } = deep.round
   const pct = total ? Math.min(100, Math.round((played / total) * 100)) : 0
@@ -87,20 +107,32 @@ export function LeagueHero({ division, rows, stats, deep, badge }: { division: D
           </Link>
         )}
         {stats && (
-          <>
-            <div className="lx-hero__num">
-              <strong>{one(stats.goalsPerMatch)}</strong>
-              <span>mål pr. kamp</span>
-            </div>
-            <div className="lx-hero__num">
-              <strong>{stats.homeWinPct}%</strong>
-              <span>hjemmesejre</span>
-            </div>
-            <div className="lx-hero__num">
-              <strong>{stats.played}</strong>
-              <span>kampe spillet</span>
-            </div>
-          </>
+          <div className="lx-hero__num">
+            <strong>{one(stats.goalsPerMatch)}</strong>
+            <span>gns. {goalWord} pr. kamp</span>
+          </div>
+        )}
+        {hot && (
+          <Link className="lx-hero__card" href={paths.club(hot.club.slug)}>
+            <TeamBadge link={false} name={hot.club.name} colors={hot.club.colors} size={34} />
+            <span>
+              <em>Bedste form</em>
+              <b>{hot.club.name}</b>
+              <FormChips form={hot.form} />
+            </span>
+            <strong>{formPoints(hot.form)}</strong>
+          </Link>
+        )}
+        {topScorer && (
+          <div className="lx-hero__card">
+            <PlayerPhoto photo={topScorer.photo} team={topScorer.club} size={40} />
+            <span>
+              <em>Topscorer</em>
+              <b>{topScorer.name}</b>
+              <small>{topScorer.club}</small>
+            </span>
+            <strong>{topScorer.goals}</strong>
+          </div>
         )}
       </div>
       <StatusLine deep={deep} />
@@ -122,7 +154,6 @@ export function LeagueBriefBox({ items }: { items: string[] }) {
   )
 }
 
-const formPoints = (form: ('V' | 'U' | 'T')[]) => form.slice(-5).reduce((t, f) => t + (f === 'V' ? 3 : f === 'U' ? 1 : 0), 0)
 
 /** The clubs by points in their last five matches */
 export function FormTableBox({ rows }: { rows: StandingRow[] }) {

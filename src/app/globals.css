@@ -2811,7 +2811,16 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 .lx-hero__progress b { color: #fff; font-size: 15px; }
 .lx-hero__progress i { display: block; height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
 .lx-hero__progress em { display: block; height: 100%; border-radius: 999px; background: var(--lime); }
-.lx-hero__cards { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: 10px; }
+.lx-hero__cards { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr) minmax(0, 1.25fr) minmax(0, 1.25fr); gap: 10px; }
+.lx-hero__card { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.08); color: #fff; min-width: 0; }
+a.lx-hero__card:hover { background: rgba(255, 255, 255, 0.13); }
+.lx-hero__card > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lx-hero__card em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--lime); text-transform: uppercase; letter-spacing: 0.06em; }
+.lx-hero__card b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-hero__card small { font-size: 11px; color: rgba(255, 255, 255, 0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-hero__card strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 32px; line-height: 1; }
+.lx-hero__card .player-photo, .lx-hero__card .badge { border-radius: 50%; background: #fff; object-fit: cover; flex: none; }
+.lx-hero__card .form__chip { width: 13px; height: 13px; font-size: 8px; }
 .lx-hero__leader { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: var(--radius-sm); background: #fff; color: var(--ink); min-width: 0; }
 .lx-hero__leader span { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .lx-hero__leader em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
@@ -2820,21 +2829,19 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 .lx-hero__num { display: flex; flex-direction: column; justify-content: center; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.08); }
 .lx-hero__num strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; }
 .lx-hero__num span { font-size: 12px; color: rgba(255, 255, 255, 0.72); }
-.lx-hero__status { align-self: flex-start; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 13px; color: rgba(255, 255, 255, 0.9); }
+.lx-hero__status { align-self: flex-start; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: rgba(255, 255, 255, 0.9); }
 .lx-hero__status b { color: var(--lime); text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
-a.lx-hero__status:hover { background: rgba(255, 255, 255, 0.16); }
-.lx-hero__status.is-live { background: var(--live); color: #fff; font-weight: 700; }
-.lx-hero__status.is-live i { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: mx-pulse 1.6s ease-in-out infinite; }
-.lx-hero__status.is-break { background: rgba(198, 241, 53, 0.14); }
+a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lx-hero__status.is-live { color: #fff; font-weight: 700; }
+.lx-hero__status.is-live i { width: 9px; height: 9px; border-radius: 50%; background: var(--live); animation: mx-pulse 1.6s ease-in-out infinite; }
 @media (max-width: 760px) {
   .lx-hero { padding: 16px 14px; gap: 14px; }
   .lx-hero__logo { width: 60px; height: 60px; border-radius: 16px; }
   .lx-hero__logo :is(img, svg, .badge) { width: 44px !important; height: 44px !important; }
-  .lx-hero__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .lx-hero__leader { grid-column: 1 / -1; }
+  .lx-hero__cards { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+  .lx-hero__leader, .lx-hero__card:last-child { grid-column: 1 / -1; }
   .lx-hero__num { padding: 8px 10px; }
   .lx-hero__num strong { font-size: 24px; }
-  .lx-hero__status { border-radius: var(--radius-sm); }
 }
 .lx-box { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .lx-box > .panel__title { padding-inline: 0; padding-bottom: 0; }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { playerFaces } from '../../../lib/playerPhotos'
 import { leagueDeep } from '../../../lib/leagueDeep'
 import { leagueBrief } from '../../../data/leagueBrief'
 import { leagueStats } from '../../../data/stats'
@@ -287,6 +288,8 @@ async function LeaguePageInner({ params }: { params: Params }) {
       ? { name: dbuScorers.scorers[0].name, club: dbuScorers.scorers[0].club ?? dbuScorers.scorers[0].team, goals: dbuScorers.scorers[0].goals }
       : stats?.scorers[0] && { name: stats.scorers[0].player, club: stats.scorers[0].club.name, goals: stats.scorers[0].goals }
   const brief = leagueBrief({ division, rows, stats, deep, topScorer: top })
+  // The top scorer's photo for the top: the league's player list has it, else by name in the statistics bank (football)
+  const topPhoto = leaders?.scorers[0]?.photo ?? (top && sportOf(division) === 'soccer' ? playerFaces([{ name: top.name, team: top.club }])[0]?.photo : undefined)
 
   return (
     <div className="page">
@@ -300,7 +303,7 @@ async function LeaguePageInner({ params }: { params: Params }) {
       />
       <div className="clubs">
         <div className="clubs__head">
-          <LeagueHero division={division} rows={rows} stats={stats} deep={deep} badge={badges[division.name]} />
+          <LeagueHero division={division} rows={rows} stats={stats} deep={deep} badge={badges[division.name]} topScorer={top ? { ...top, photo: topPhoto } : undefined} />
           <DivisionTabs active={division.slug} />
           <LeagueSubNav division={division} active="stilling" />
         </div>
