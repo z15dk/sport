@@ -20,6 +20,8 @@ højst 50 % af én CPU og 700 MB hukommelse). Siden går altid forud.
 Hver 3. dag (`PHOTOS_DBU_EVERY_DAYS`), i natkørslen kl. 00–06, henter jobbet klubber, trøjefarver, holdkort, resultater og målscorere fra dbu.dk – eller når du kører `npm run -s photos -- dbu`
 (2026/27: pulje 506118 = 3F Superliga, 507530 = Betinia Liga (1. division), 508656 = CampoBet 2. Division, 508657 = CampoBet 3. Division; ændres i `PHOTOS_DBU_POOLS` – nye puljer hvert år). Kommer der billeder fra en kamp, hvis holdkort eller resultat mangler, hentes netop den kampside med det samme (ét opslag).
 
+På kampdage læser det lette job `scripts/photos-job.ts kampe` (timeren `scoreline-dbu-kampe.timer`, hvert 30. minut kl. 12–23) kun de kampsider, der mangler holdkort, resultat, kort, udskiftninger, dommer eller trænere: en kamp tidligst 105 minutter efter kampstart og derefter hvert 25. minut, til siden har resultatet. Er ingen kamp klar, spørges DBU ikke om noget. Kort, spilletid og trænere på klubsiderne følger efter hver kørsel. Installér enhederne fra `deploy/` med `cp deploy/scoreline-dbu-kampe.* /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now scoreline-dbu-kampe.timer`.
+
 ## Opsætning (én gang)
 
 ### 1. Servicekonto til Drive (gratis)

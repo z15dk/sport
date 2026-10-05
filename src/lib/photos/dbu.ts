@@ -326,6 +326,58 @@ async function fetchMatch(db: Db, m: Row): Promise<boolean> {
   return !!sheet
 }
 
+/** Minutes from kick-off until a match is over and its page has the result (90 minutes, the break and some stoppage) */
+const MATCH_OVER_MIN = 105
+/** How often a match played today is tried again until its page has the result, and how often an older one */
+const RETRY_TODAY_MS = 25 * 60_000
+const RETRY_OLDER_MS = 12 * 3600_000
+
+/**
+ * Whether a match's DBU page should be read now: a match played today not before it is over (kick-off + 105 minutes,
+ * Danish time) and then every 25 minutes until the page has its result; an earlier day's match every 12 hours; never a
+ * match to come. `now` is a parameter so the rule can be tested.
+ */
+export function matchDueNow(m: { date: string; kickoff?: string | null; fetchedAt?: string | null }, now: Date): boolean {
+  const today = now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  if (m.date > today) return false
+  const tried = m.fetchedAt ? Date.parse(m.fetchedAt) : 0
+  if (m.date < today) return tried < now.getTime() - RETRY_OLDER_MS
+  const clock = now.toLocaleTimeString('sv-SE', { timeZone: 'Europe/Copenhagen', hour: '2-digit', minute: '2-digit' })
+  const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+  const kickoff = m.kickoff && /^\d{1,2}:\d{2}$/.test(m.kickoff) ? m.kickoff.padStart(5, '0') : '12:00'
+  if (minutes(clock) < minutes(kickoff) + MATCH_OVER_MIN) return false
+  return tried < now.getTime() - RETRY_TODAY_MS
+}
+
+/**
+ * The light run for match days: only the match pages that are due (matchDueNow) and still lack their sheets, result or
+ * details; no programme and no club pages. Nothing is asked of DBU when no match is due. At most `limit` pages a run.
+ */
+export async function syncDbuMatches(db: Db, pools: string[], pauseMs: number, log: (s: string) => void = () => {}, limit = 40, now = new Date()): Promise<{ checked: number; read: number; errors: string[] }> {
+  const out = { checked: 0, read: 0, errors: [] as string[] }
+  const today = now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const rows = db
+    .prepare(`SELECT match_key, url, home_id, away_id, has_lineups, date, kickoff, fetched_at FROM matches WHERE source = 'dbu' AND (has_lineups = 0 OR has_events = 0 OR has_details = 0) AND date <= ? ORDER BY date DESC`)
+    .all(today)
+    .filter((m) => pools.some((p) => String(m.match_key).endsWith(`_${p}`)))
+    .filter((m) => matchDueNow({ date: String(m.date), kickoff: m.kickoff as string | null, fetchedAt: m.fetched_at as string | null }, now))
+    .slice(0, limit)
+  out.checked = rows.length
+  let sheets = 0
+  for (const m of rows) {
+    try {
+      if (await fetchMatch(db, m)) sheets++
+      out.read++
+    } catch (e) {
+      out.errors.push(`${String(m.url)}: ${(e as Error).message}`)
+    }
+    await sleep(pauseMs)
+  }
+  if (sheets) rebuildDbuSquads(db)
+  if (rows.length) log(`DBU kampe: ${out.read} af ${rows.length} kampsider læst, ${sheets} med holdkort`)
+  return out
+}
+
 /**
  * Between the full fetches (every 3rd night): the page of each match that new photos come from, when its
  * sheet or result is missing (one request per match, at most every 6 hours). Squads are

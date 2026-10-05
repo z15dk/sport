@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseEvents, parseInfo, parseProgram, parseResult, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
+import { matchDueNow, parseEvents, parseInfo, parseProgram, parseResult, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
 
 // Small made-up pages in dbu.dk's structure (no real contact details)
 const teams = `<div class="sr--pool--team-list--team" onclick="window.location.href = '/resultater/hold/9351_508656/'">
@@ -152,4 +152,26 @@ test('dommer, bane, spillested og trænere fra kampsiden', () => {
     awayTrainers: ['Thomas Loran', 'Tommy Jeppesen'],
   })
   assert.deepEqual(parseInfo('<h2>Kampinfo</h2>'), { assistants: [], homeTrainers: [], awayTrainers: [] })
+})
+
+test('kampsider på kampdagen: først når kampen er slut, så hvert 25. minut', () => {
+  // 2026-10-10 is in summer time (Danish time = UTC + 2): 15:30 UTC is 17:30
+  const at = (iso: string) => new Date(iso)
+  const m = { date: '2026-10-10', kickoff: '14:30', fetchedAt: null as string | null }
+  // kick-off 14:30 + 105 minutes = 16:15
+  assert.equal(matchDueNow(m, at('2026-10-10T13:40:00Z')), false, '15:40 dansk tid: kampen er ikke slut')
+  assert.equal(matchDueNow(m, at('2026-10-10T14:20:00Z')), true, '16:20: slut, aldrig læst')
+  assert.equal(matchDueNow({ ...m, fetchedAt: '2026-10-10T14:10:00Z' }, at('2026-10-10T14:20:00Z')), false, 'læst for 10 minutter siden')
+  assert.equal(matchDueNow({ ...m, fetchedAt: '2026-10-10T13:50:00Z' }, at('2026-10-10T14:20:00Z')), true, 'læst for 30 minutter siden')
+  // no kick-off time: not before 13:45 (12:00 + 105 minutes)
+  assert.equal(matchDueNow({ date: '2026-10-10', fetchedAt: null }, at('2026-10-10T11:30:00Z')), false)
+  assert.equal(matchDueNow({ date: '2026-10-10', fetchedAt: null }, at('2026-10-10T12:00:00Z')), true)
+})
+
+test('kampsider: ikke kommende kampe, og ældre kampe hver 12. time', () => {
+  const now = new Date('2026-10-10T20:00:00Z')
+  assert.equal(matchDueNow({ date: '2026-10-11', kickoff: '14:00' }, now), false, 'en kamp i morgen')
+  assert.equal(matchDueNow({ date: '2026-10-09', kickoff: '19:00', fetchedAt: '2026-10-10T10:00:00Z' }, now), false, 'læst for 10 timer siden')
+  assert.equal(matchDueNow({ date: '2026-10-09', kickoff: '19:00', fetchedAt: '2026-10-10T07:00:00Z' }, now), true, 'læst for 13 timer siden')
+  assert.equal(matchDueNow({ date: '2026-10-09', kickoff: '19:00' }, now), true, 'aldrig læst')
 })

@@ -1,0 +1,11 @@
+# DBU-kampsiderne hvert 30. minut kl. 12-23 (dansk tid). En kørsel der stadig er i gang, springes blot over.
+# Kampene læses først 105 minutter efter kampstart og derefter hvert 25. minut, til siden har resultatet.
+[Unit]
+Description=Matchly DBU kampsider hvert 30. minut kl. 12-23
+
+[Timer]
+OnCalendar=*-*-* 12..23:00/30:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -4,6 +4,7 @@
 //   node --experimental-strip-types scripts/photos-job.ts run [--limit 50] [--dbu] [--nat]   (--nat: stop taking photos at 06)
 //   node --experimental-strip-types scripts/photos-job.ts status
 //   node --experimental-strip-types scripts/photos-job.ts dbu          (clubs and team sheets only)
+//   node --experimental-strip-types scripts/photos-job.ts kampe        (match days: only DBU match pages that are due; nothing asked when none is)
 //   node --experimental-strip-types scripts/photos-job.ts retry        (photos with status fejl back in the queue)
 //   node --experimental-strip-types scripts/photos-job.ts retag        (names worked out again for tagged photos, no AI calls)
 //   node --experimental-strip-types scripts/photos-job.ts rapport      (the morning report; mailed when mail is set up)
@@ -15,7 +16,7 @@
 
 import { photoConfig } from '../src/lib/photos/config.ts'
 import { nowIso, openPhotoDb, setMeta } from '../src/lib/photos/db.ts'
-import { syncDbu } from '../src/lib/photos/dbu.ts'
+import { syncDbu, syncDbuMatches } from '../src/lib/photos/dbu.ts'
 import { photoStatus, retryFailed, runPhotoJob } from '../src/lib/photos/job.ts'
 import { buildReport, mailSettings, reportText, reportWorthSending, sendReportMail } from '../src/lib/photos/report.ts'
 import { backfillArticleImages, retag } from '../src/lib/photos/store.ts'
@@ -50,6 +51,13 @@ try {
     setMeta(db, 'dbu_last', JSON.stringify(r))
     db.close()
     stamp(`DBU: ${r.clubs} klubber, ${r.fixtures} kampe, ${r.sheetsFetched} nye holdkort, ${r.squadRows} trup-rækker${r.errors.length ? `, fejl: ${r.errors.join(' | ')}` : ''}`)
+  } else if (cmd === 'kampe') {
+    // The light match-day run: only DBU's match pages that are due (nothing asked when none is), see syncDbuMatches
+    const cfg = photoConfig()
+    const db = openPhotoDb(cfg.db)
+    const r = await syncDbuMatches(db, cfg.dbuPools, cfg.dbuPauseMs, stamp)
+    db.close()
+    if (r.errors.length) stamp(`DBU kampe: fejl: ${r.errors.join(' | ')}`)
   } else if (cmd === 'retag') {
     const cfg = photoConfig()
     const db = openPhotoDb(cfg.db)

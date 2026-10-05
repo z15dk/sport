@@ -1,0 +1,20 @@
+# DBU's kampsider på kampdage (scoreline-dbu-kampe.timer): kun de kampsider der mangler holdkort, resultat, kort,
+# udskiftninger, dommer og trænere, og først når kampen er slut. Intet spørges af DBU, når ingen kamp er klar.
+# Samme begrænsninger og lås som billedjobbet, så siden altid går forud, og to kørsler aldrig overlapper.
+[Unit]
+Description=Matchly DBU kampsider (kampdage, lav prioritet)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=scoreline
+WorkingDirectory=/opt/scoreline/current
+EnvironmentFile=/opt/scoreline/env
+ExecStart=/usr/bin/flock -n -E 0 /opt/scoreline/data/fotos/.job.lock /usr/bin/node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts kampe
+Nice=19
+UMask=0077
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=700M
+TimeoutStartSec=20min
