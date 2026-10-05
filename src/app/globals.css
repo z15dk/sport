@@ -2363,6 +2363,7 @@ a.player-games__match:hover { text-decoration: underline; }
 .squad__face { position: relative; display: flex; flex: none; }
 .squad__no { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 6px; background: var(--ink); color: var(--lime); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 13px; line-height: 1; font-variant-numeric: tabular-nums; }
 .squad__tags { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; }
+.squad__tags--below { grid-column: 2 / -1; justify-content: flex-start; margin-top: 2px; }
 .squad__pill--assist { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .squad__pill { padding: 4px 8px; border-radius: 999px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 700; white-space: nowrap; }
 @media (max-width: 700px) {
