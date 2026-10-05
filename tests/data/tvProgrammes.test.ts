@@ -1,17 +1,32 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseBold, parseSportLive } from '../../src/data/tvProgrammes.ts'
+import { boldChannelName, parseBold, parseSportLive } from '../../src/data/tvProgrammes.ts'
 
-test('Bold: kun kampe på Bolds egen kanal', () => {
+test('Bold: alle kampe med kanal, med kanalnavne som vi skriver dem', () => {
   const data = [
     { name: 'Braga vs Gil Vicente', program_start: '2026-10-19 21:15:00', channel: { id: 74, name: 'Bold+' } },
     { name: 'Elche vs Racing Santander', program_start: '2027-05-30 15:00:00', channel: { id: 76, name: 'Disney+' } },
+    { name: 'Brøndby IF vs Lyngby Boldklub', program_start: '2026-10-11 16:00:00', channel: { id: 67, name: 'TV2 Sport X' } },
+    { name: 'FC Midtjylland vs F.C. København', program_start: '2026-10-11 18:00:00', channel: { id: 25, name: '3+' } },
     { name: 'Studiet', program_start: '2026-10-19 20:45:00', channel: { id: 74, name: 'Bold+' } },
     { name: 'Porto vs Benfica', channel: { id: 74, name: 'Bold+' } },
+    { name: 'Chelsea vs Bournemouth', program_start: '2026-10-10 18:30:00' },
   ]
-  assert.deepEqual(parseBold(data), [{ name: 'Braga vs Gil Vicente', start: '2026-10-19 21:15:00' }])
+  assert.deepEqual(parseBold(data), [
+    { name: 'Braga vs Gil Vicente', start: '2026-10-19 21:15:00', channel: 'Bold+' },
+    { name: 'Elche vs Racing Santander', start: '2027-05-30 15:00:00', channel: 'Disney+' },
+    { name: 'Brøndby IF vs Lyngby Boldklub', start: '2026-10-11 16:00:00', channel: 'TV 2 Sport X' },
+    { name: 'FC Midtjylland vs F.C. København', start: '2026-10-11 18:00:00', channel: 'TV3+' },
+  ])
   assert.deepEqual(parseBold(undefined), [])
   assert.deepEqual(parseBold({ fejl: true }), [])
+})
+
+test('Bold: kanalnavne', () => {
+  assert.equal(boldChannelName('TV2 Play'), 'TV 2 Play')
+  assert.equal(boldChannelName('Viaplay Sport News DK'), 'Viaplay Sport News')
+  assert.equal(boldChannelName('Viaplay'), 'Viaplay')
+  assert.equal(boldChannelName(' Disney+ '), 'Disney+')
 })
 
 test('SPORT LIVE: kun direkte kampe, ikke genudsendelser og optakter', () => {

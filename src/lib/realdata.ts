@@ -225,10 +225,10 @@ function apply() {
   // and the matches SPORT LIVE sends live. Looked for among API-Sports' games and our own leagues' (their ids as DBU's channels have them)
   const sportOfLeague = new Map(DIVISIONS.map((d) => [d.id, sportOf(d)]))
   const shown = [
-    ...external.games,
+    ...external.games.map((g) => ({ id: g.id, sport: g.sport, country: g.league.country, kickoff: g.kickoff, home: g.home, away: g.away })),
     ...Object.entries(leagues).flatMap(([league, events]) => events.map((e) => ({ id: `tsdb-${e.id}`, sport: sportOfLeague.get(league), kickoff: e.kickoff, home: { name: e.home }, away: { name: e.away } }))),
   ]
-  const bold = boldTv(shown, channels.data.channels)
+  const bold = boldTv(shown, [...channels.data.channels, ...dbu.channels])
   const sportLive = sportLiveTv(shown, channels.data.channels)
   setRealData({
     version: hashString(key).toString(36),
@@ -259,9 +259,10 @@ function apply() {
     // DBU's channels for the Danish divisions under TheSportsDB's listings (those win)
     channels: {
       ...channels.data,
-      channels: [...channels.data.channels, ...dbu.channels, ...(bold.channel ? [bold.channel] : []), ...(sportLive.channel ? [sportLive.channel] : [])],
-      rules: bold.listed ? channels.data.rules.filter((r) => r.channelId !== bold.id) : channels.data.rules,
-      tv: { ...dbu.tv, ...channels.data.tv, ...bold.tv },
+      channels: [...channels.data.channels, ...dbu.channels, ...bold.channels, ...(sportLive.channel ? [sportLive.channel] : [])],
+      rules: bold.listed ? channels.data.rules.filter((r) => r.channelId !== bold.plusId) : channels.data.rules,
+      // Bold's guide for every league; DBU's programme for our Danish divisions and TheSportsDB's listings before it
+      tv: { ...bold.tv, ...dbu.tv, ...channels.data.tv },
       also: sportLive.also,
     },
     settings: settings.settings,

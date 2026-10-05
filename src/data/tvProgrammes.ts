@@ -1,23 +1,38 @@
 // The programme lists of two channels that show single matches, read into what we need of them
 // (fetched and matched to our matches in src/lib/channels.ts). No imports, so the tests can read it.
 
-/** A match on Bold's own channel: "Braga vs Gil Vicente" and the start in Danish time ("2026-10-19 21:15:00") */
+/** A match in Bold's TV guide: "Braga vs Gil Vicente", the start in Danish time ("2026-10-19 21:15:00") and the channel ("Viaplay") */
 export interface BoldProgramme {
   name: string
   start: string
+  channel: string
 }
 
+/** Bold's names for the channels -> the names we show (and DBU's programme uses): "TV2 Sport X" is "TV 2 Sport X" */
+const BOLD_CHANNELS: Record<string, string> = {
+  'tv2 sport x': 'TV 2 Sport X',
+  'tv2 sport': 'TV 2 Sport',
+  'tv2 play': 'TV 2 Play',
+  tv2: 'TV 2',
+  '3+': 'TV3+',
+  see: 'SEE',
+  prime: 'Prime Video',
+  'viaplay sport news dk': 'Viaplay Sport News',
+}
+export const boldChannelName = (name: string) => BOLD_CHANNELS[name.trim().toLowerCase()] ?? name.trim()
+
 /**
- * Bold's programme list (the list its TV guide is drawn from): the programmes on its own channel, "Bold+".
- * Also asked for by channel; the channel's name is checked here too, should the address one day answer with every channel.
+ * Bold's programme list (the list its TV guide is drawn from): every match with the channel that shows it, one entry
+ * per channel. Only entries with two sides in the name ("A vs B"), a start and a channel.
  */
 export function parseBold(data: unknown): BoldProgramme[] {
   if (!Array.isArray(data)) return []
   const out: BoldProgramme[] = []
   for (const x of data as { name?: unknown; program_start?: unknown; channel?: { name?: unknown } }[]) {
-    if (typeof x?.name !== 'string' || typeof x.program_start !== 'string' || !/^bold/i.test(String(x.channel?.name ?? ''))) continue
+    const channel = typeof x?.channel?.name === 'string' ? boldChannelName(x.channel.name) : ''
+    if (typeof x?.name !== 'string' || typeof x.program_start !== 'string' || !channel) continue
     if (!/\svs\.?\s/i.test(x.name) || !/^\d{4}-\d{2}-\d{2}/.test(x.program_start)) continue
-    out.push({ name: x.name.slice(0, 120), start: x.program_start.slice(0, 19) })
+    out.push({ name: x.name.slice(0, 120), start: x.program_start.slice(0, 19), channel: channel.slice(0, 40) })
   }
   return out
 }

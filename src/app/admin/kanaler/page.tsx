@@ -133,14 +133,15 @@ export default async function AdminChannels({ searchParams }: { searchParams: Se
         </section>
 
         <section className="panel prose__section">
-          <h2 className="panel__title">Bold+ og SPORT LIVE (automatisk)</h2>
+          <h2 className="panel__title">Bolds TV-guide og SPORT LIVE (automatisk)</h2>
           <p>
-            <strong>Bold+:</strong>{' '}
+            <strong>Bolds TV-guide:</strong>{' '}
             {bold.lastError ? `Kunne ikke hentes: ${bold.lastError}. ` : ''}
-            {bold.fetchedAt ? `${bold.programmes} kampe på Bolds egen kanal. Senest hentet ${bold.fetchedAt}.` : 'Ikke hentet endnu.'}
+            {bold.fetchedAt ? `${bold.programmes} udsendelser fremover. Senest hentet ${bold.fetchedAt}.` : 'Ikke hentet endnu.'}
           </p>
+          {bold.channels.length > 0 && <p className="muted small">Kanaler: {bold.channels.join(', ')}</p>}
           <p className="muted small">
-            Så længe Bolds liste er frisk (hentet inden for tre dage), er det den, der afgør hvilke kampe der vises på Bold+. En regel, der giver Bold en hel liga, bruges så ikke.
+            Kanalen for en kamp findes i Bolds TV-guide, efter en undtagelse for kampen og DBU&apos;s og TheSportsDB&apos;s egne programmer og før reglerne. Så længe guiden er frisk (hentet inden for tre dage), er det den, der afgør hvilke kampe der vises på Bold+; en regel, der giver Bold+ en hel liga, bruges så ikke.
           </p>
           <p>
             <strong>SPORT LIVE:</strong>{' '}

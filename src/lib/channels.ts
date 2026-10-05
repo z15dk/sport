@@ -6,6 +6,7 @@ import type { SportId } from '../types'
 import type { ChannelData, ChannelDef, ChannelRule } from '../data/channels'
 import { parseBold, parseSportLive, type BoldProgramme, type SportLiveProgramme } from '../data/tvProgrammes'
 import { gameKey } from '../data/external'
+import { shownTeam } from '../data/countries'
 import { alike, normalize } from '../data/aliases'
 import { slugify } from './slug'
 import { addDays, isoDate } from './time'
@@ -259,19 +260,21 @@ export function startTvSync() {
   void fetchTv()
   setInterval(() => void fetchTv(), 6 * 3_600_000).unref()
   void fetchBold()
-  setInterval(() => void fetchBold(), 2 * 3_600_000).unref()
+  setInterval(() => void fetchBold(), 3 * 3_600_000).unref()
   void fetchSportLive()
   setInterval(() => void fetchSportLive(), 2 * 3_600_000).unref()
 }
 
-// ---------------------------------------------------------------- Bold's own matches (Bold+)
+// ---------------------------------------------------------------- Bold's TV guide
 
-// Bold shows some of a league's matches itself (Liga Portugal), not all of them. Which ones stands in the programme
-// list its own TV guide is drawn from, under the channel "Bold+": fetched every two hours (one small request) and kept
-// in bold-tv.json. While the list is fresh it decides which matches are on Bold+; a rule in /admin/kanaler that gives
-// Bold a whole league is not used then (boldTv below).
-const BOLD_PROGRAMMES = 'https://api.bold.dk/content/v2/programs?order=upcoming&limit=500&active=1&channel_id=74'
+// Bold's TV guide (bold.dk/tv) lists the football matches shown on Danish TV and streaming with the channel for each
+// (Viaplay, Disney+, TV 2, TV3, Bold+ ...), from every league. Its programme list is fetched every three hours (a few
+// small requests) and kept in bold-tv.json; a match found in it gets its channels from it (after the admin's exceptions and
+// TheSportsDB's and DBU's own listings, before the rules). While the list is fresh, which matches are on Bold+ stands
+// in it, and a rule in /admin/kanaler that gives Bold+ a whole league (Liga Portugal) is not used (boldTv below).
+const BOLD_PROGRAMMES = 'https://api.bold.dk/content/v2/programs?order=upcoming&limit=500&active=1'
 const BOLD_FRESH_MS = 3 * 86_400_000
+const BOLD_MAX_PAGES = 8
 interface BoldStore {
   fetchedAt?: number
   lastError?: string
@@ -282,11 +285,17 @@ const boldFile = (): string => process.env.BOLD_TV_FILE ?? path.join(dir(), 'bol
 async function fetchBold() {
   const store: BoldStore = readJson<BoldStore>(boldFile()).value ?? { programmes: [] }
   try {
-    const res = await fetch(BOLD_PROGRAMMES, { headers: { 'user-agent': 'Matchly/1.0 (+https://matchly.dk)', accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15_000) })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const body = (await res.json()) as { data?: unknown }
-    if (!Array.isArray(body.data)) throw new Error('Uventet svar')
-    store.programmes = parseBold(body.data)
+    const rows: unknown[] = []
+    let last = 1
+    for (let page = 1; page <= Math.min(last, BOLD_MAX_PAGES); page++) {
+      const res = await fetch(`${BOLD_PROGRAMMES}&page=${page}`, { headers: { 'user-agent': 'Matchly/1.0 (+https://matchly.dk)', accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(20_000) })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const body = (await res.json()) as { data?: unknown; last_page?: unknown }
+      if (!Array.isArray(body.data)) throw new Error('Uventet svar')
+      rows.push(...body.data)
+      if (typeof body.last_page === 'number') last = body.last_page
+    }
+    store.programmes = parseBold(rows)
     store.fetchedAt = Date.now()
     store.lastError = undefined
   } catch (e) {
@@ -303,7 +312,15 @@ async function fetchBold() {
 /** Numbers for the status page */
 export function boldStatus() {
   const store = readJson<BoldStore>(boldFile()).value
-  return { fetchedAt: store?.fetchedAt ? new Date(store.fetchedAt).toISOString() : null, lastError: store?.lastError ?? null, programmes: store?.programmes.length ?? 0 }
+  const programmes = (store?.programmes ?? []).filter((p) => p.channel)
+  const channels = new Map<string, number>()
+  for (const p of programmes) channels.set(p.channel, (channels.get(p.channel) ?? 0) + 1)
+  return {
+    fetchedAt: store?.fetchedAt ? new Date(store.fetchedAt).toISOString() : null,
+    lastError: store?.lastError ?? null,
+    programmes: programmes.length,
+    channels: [...channels].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name} (${n})`),
+  }
 }
 
 export function boldTvVersion() {
@@ -312,33 +329,48 @@ export function boldTvVersion() {
 }
 
 /**
- * The matches Bold shows itself, by match id, from its programme list: the match on the programme's day (Danish time)
- * with both teams alike ("Braga" is our "SC Braga"). `id` is the Bold channel
- * (the one set up in /admin/kanaler as "Bold+" or "Bold", else one of our own); `listed` says the list is fresh, so
- * it and not a rule decides what is on Bold.
+ * The channels of the matches in Bold's TV guide, by match id: the football match on the programme's day (Danish time)
+ * with both teams alike, by our name or by its Danish one ("Italien" for Italy). A channel Bold names that we have not
+ * set up (in /admin/kanaler, or from DBU's programme) becomes a channel of its own. `plusId` is the Bold+ channel;
+ * `listed` says the list is fresh, so it and not a rule decides what is on Bold+.
  */
-export function boldTv(games: { id: string; kickoff: string; home: { name: string }; away: { name: string } }[], channels: ChannelDef[]): { tv: Record<string, string[]>; id: string; channel?: ChannelDef; listed: boolean } {
-  const known = channels.find((c) => ['bold+', 'bold'].includes(fold(c.name)))
-  const id = known?.id ?? 'bold-plus'
-  const channel = known ? undefined : { id, name: 'Bold+', url: 'https://bold.dk' }
+export function boldTv(
+  games: { id: string; sport?: string; country?: string; kickoff: string; home: { name: string }; away: { name: string } }[],
+  known: ChannelDef[],
+): { tv: Record<string, string[]>; channels: ChannelDef[]; plusId: string; listed: boolean } {
+  const byFold = new Map(known.map((c) => [fold(c.name), c]))
+  const created = new Map<string, ChannelDef>()
+  const channelId = (name: string) => {
+    const have = byFold.get(fold(name)) ?? created.get(fold(name))
+    if (have) return have.id
+    const def: ChannelDef = { id: fold(name) === 'bold+' ? 'bold-plus' : `bold-${slugify(name)}`, name, ...(fold(name) === 'bold+' && { url: 'https://bold.dk' }) }
+    created.set(fold(name), def)
+    return def.id
+  }
+  const plusId = channelId('Bold+')
   const store = readJson<BoldStore>(boldFile()).value
   const listed = !!store?.fetchedAt && Date.now() - store.fetchedAt < BOLD_FRESH_MS
+  const programmes = (store?.programmes ?? []).filter((p) => p.channel)
   const tv: Record<string, string[]> = {}
-  if (!listed || !store.programmes.length) return { tv, id, channel: listed ? channel : undefined, listed }
-  const days = new Set(store.programmes.map((p) => p.start.slice(0, 10)))
+  if (!listed || !programmes.length) return { tv, channels: [], plusId, listed }
+  const days = new Set(programmes.map((p) => p.start.slice(0, 10)))
   const byDay = new Map<string, typeof games>()
   for (const g of games) {
+    if (g.sport && g.sport !== 'soccer') continue
     const day = isoDate(new Date(g.kickoff))
     if (days.has(day)) byDay.set(day, [...(byDay.get(day) ?? []), g])
   }
-  for (const p of store.programmes) {
+  const names = (name: string, country?: string) => [name, shownTeam(name, country)]
+  for (const p of programmes) {
     const [home, away] = p.name.split(/\s+vs\.?\s+/i)
     if (!home || !away) continue
-    const hits = (byDay.get(p.start.slice(0, 10)) ?? []).filter((g) => alike([g.home.name], home) && alike([g.away.name], away))
-    // The same match can be here twice, from two sources (a team plays one match a day)
-    for (const g of hits) tv[g.id] = [id]
+    const hits = (byDay.get(p.start.slice(0, 10)) ?? []).filter((g) => alike(names(g.home.name, g.country), home) && alike(names(g.away.name, g.country), away))
+    if (!hits.length) continue
+    const id = channelId(p.channel)
+    // The same match can be here twice, from two sources, and in the guide once per channel
+    for (const g of hits) if (!tv[g.id]?.includes(id)) tv[g.id] = [...(tv[g.id] ?? []), id]
   }
-  return { tv, id, channel, listed }
+  return { tv, channels: [...created.values()], plusId, listed }
 }
 
 /** Everything the site needs to pick channels, and a version that changes with it */
