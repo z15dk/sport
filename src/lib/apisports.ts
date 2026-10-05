@@ -485,6 +485,43 @@ function gamesVersion(games: ExternalGame[]) {
 
 const inOurLeague = (g: ExternalGame) => g.state === 'finished' && g.homeScore !== undefined && (!!divisionOfGame(g) || wholeSeason(g))
 
+/**
+ * A league's finished games in a season (kept days, the whole season where it is kept, and the current window),
+ * oldest first: the match page's calculation and the clubs' season (src/lib/matchDeep.ts). Nothing is fetched.
+ */
+export function leagueSeasonGames(api: Api, leagueId: string, season?: string): ExternalGame[] {
+  load()
+  const s = mem.store[api]
+  if (!s) return []
+  const byId = new Map<string, ExternalGame>()
+  const take = (g: ExternalGame) => {
+    if (String(g.league.id) !== String(leagueId) || (season && g.league.season && g.league.season !== season)) return
+    if (g.state === 'finished' && g.homeScore !== undefined && g.awayScore !== undefined) byId.set(g.id, g)
+  }
+  for (const games of Object.values(s.past ?? {})) games.forEach(take)
+  for (const d of Object.values(s.days)) d.games.forEach(take)
+  return [...byId.values()].sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+}
+
+/** The line-up a team started its latest game with (any competition), as saved with the game; nothing is fetched */
+export function lastStartingLineup(api: Api, teamId: number, before: string): { lineup: Lineup; game: ExternalGame } | undefined {
+  load()
+  const s = mem.store[api]
+  if (!s) return undefined
+  const games = [...Object.values(s.past ?? {}).flat(), ...Object.values(s.days).flatMap((d) => d.games)]
+    .filter((g) => g.state === 'finished' && g.kickoff < before && (g.home.id === teamId || g.away.id === teamId))
+    .sort((a, b) => b.kickoff.localeCompare(a.kickoff))
+  const store = extrasStore()
+  for (const g of games.slice(0, 6)) {
+    const lineups = store.entries[`${api}|lineups|${g.id}`]?.lineups
+    // Home team first, as saved with the game; the team's own name in the line-up decides when it says otherwise
+    const name = g.home.id === teamId ? g.home.name : g.away.name
+    const own = lineups?.find((l) => alike([l.team], name)) ?? (lineups?.length === 2 ? lineups[g.home.id === teamId ? 0 : 1] : undefined)
+    if (own?.startXI.length === 11) return { lineup: own, game: g }
+  }
+  return undefined
+}
+
 /** The finished games in our leagues this season (kept days and the current window) */
 export function seasonGames(): ExternalGame[] {
   load()
@@ -2627,7 +2664,16 @@ async function refreshSquads(s: ApiState): Promise<boolean> {
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
 export async function apiInjuries(leagueId: string, season = SEASON.slice(0, 4)): Promise<Injury[] | undefined> {
-  return (await apiInjuriesRaw(leagueId, season))?.map((i) => ({ ...i, photo: proxyImage(i.photo) }))
+  // The source lists some players twice for the same match: once each (also in what is saved already)
+  const seen = new Set<string>()
+  return (await apiInjuriesRaw(leagueId, season))
+    ?.filter((i) => {
+      const key = `${i.fixtureId ?? i.date}|${i.teamId ?? i.team}|${i.playerId ?? i.player}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .map((i) => ({ ...i, photo: proxyImage(i.photo) }))
 }
 async function apiInjuriesRaw(leagueId: string, season: string): Promise<Injury[] | undefined> {
   const key = `football|injuries|${leagueId}|${season}`

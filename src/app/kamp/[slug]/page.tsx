@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { channelsFor } from '../../../data/channels'
+import { matchDeep } from '../../../lib/matchDeep'
 import { ROBOT_UA, forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -183,6 +185,8 @@ async function MatchPageInner({ params }: { params: Params }) {
   const events = details?.cards.length ? [...(goalEvents ?? []), ...details.cards.filter((c) => !goalEvents?.some((e) => e.kind === c.kind && e.player === c.player && e.minute === c.minute))].sort((a, b) => a.minute - b.minute) : goalEvents
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
+  // The clubs' season, players, latest line-ups and Matchly's calculation (from what is saved)
+  const deep = await matchDeep(match, game)
   // Our own table has API-Sports' team names but no logos: from the games they have sent
   const logos = teamLogos()
   const savedTable = saved?.table && { ...saved.table, rows: saved.table.rows.map((r) => ({ ...r, name: shownTeam(r.name, match.country), logo: r.logo ?? logos.get(r.name) })) }
@@ -247,7 +251,7 @@ async function MatchPageInner({ params }: { params: Params }) {
   // National teams in Danish and women's teams marked "(K)", as the match itself
   if (realH2h) realH2h = withMatchLinks(realH2h).map((m) => ({ ...m, home: shownTeam(m.home, match.country), away: shownTeam(m.away, match.country) }))
   const related = isFriendly(match.league) ? [] : relatedMatches(match, now)
-  const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats)
+  const faq = matchFaq(match, realH2h ?? [], homeStats, awayStats, { channels: channelsFor(match).map((c) => c.name), deep })
   const title = `${match.home.name} – ${match.away.name}`
 
   return (
@@ -275,7 +279,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         // Both clubs' leagues in full: the table, the form and the clubs' other matches
         leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
+      <MatchView deep={deep} slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}
