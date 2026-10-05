@@ -500,6 +500,9 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .vsd__preview img { display: block; width: 100%; height: auto; transition: opacity 0.2s; }
 .vsd__preview.is-loading img { opacity: 0.55; }
 .vsd__preview p { color: #b9bdb0; }
+.vsd__preview .vsd__bg-only { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.62); }
+.vsd__preview .vsd__hint { position: relative; color: #fff; font-weight: 600; background: rgba(17, 19, 14, 0.6); padding: 8px 14px; border-radius: 999px; }
+.vsd__bg-thumb { width: 64px; height: 36px; object-fit: cover; border-radius: 6px; }
 @media (max-width: 560px) { .vsd__grid { grid-template-columns: 1fr; } }
 .own-post__later { flex-basis: 100%; font-size: 14px; }
 .own-post__focus { flex: 1 1 100%; display: grid; gap: 6px; }

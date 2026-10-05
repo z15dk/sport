@@ -118,9 +118,9 @@ export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
         {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
-        {/* The photo darkened, most in the middle and at the top, so the logos and text stand out */}
-        {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'radial-gradient(ellipse at center, rgba(17,19,14,0.35) 0%, rgba(17,19,14,0.82) 100%)' }} />}
-        {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'linear-gradient(180deg, rgba(17,19,14,0.75) 0%, rgba(17,19,14,0.25) 35%, rgba(17,19,14,0.55) 100%)' }} />}
+        {/* The photo darkened just enough for the logos and text to stand out – a little more at the top line and the edges – so the photo is still clearly seen */}
+        {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'linear-gradient(180deg, rgba(17,19,14,0.55) 0%, rgba(17,19,14,0.3) 30%, rgba(17,19,14,0.3) 70%, rgba(17,19,14,0.5) 100%)' }} />}
+        {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'radial-gradient(ellipse at center, rgba(17,19,14,0) 45%, rgba(17,19,14,0.35) 100%)' }} />}
         {/* The big M behind the clubs, as an outline */}
         <img src={mOutline(photo ? 'rgba(198,241,53,0.18)' : '#23271a', 0.5)} width={1000} height={720} alt="" style={{ position: 'absolute', left: 100, top: -60 }} />
         {top && (

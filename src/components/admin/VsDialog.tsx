@@ -110,10 +110,16 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
               Upload billede
               <input type="file" accept="image/*" hidden onChange={(e) => void upload(e.target.files?.[0])} />
             </label>
+            {busy && !ready && <span className="muted small">Lægger billedet op …</span>}
             {bg && (
-              <button type="button" className="text-btn" onClick={() => setBg(undefined)}>
-                Fjern baggrund
-              </button>
+              <>
+                {/* The chosen picture, so it is plain that one is chosen */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- an upload of our own */}
+                <img className="vsd__bg-thumb" src={bg} alt="Valgt baggrund" />
+                <button type="button" className="text-btn" onClick={() => setBg(undefined)}>
+                  Fjern baggrund
+                </button>
+              </>
             )}
           </div>
           <small className="muted">Billedet gøres mørkere bag logoerne, så de står tydeligt.</small>
@@ -132,6 +138,13 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
                 setError('Forhåndsvisningen kunne ikke tegnes')
               }}
             />
+          ) : bg ? (
+            // Before the clubs are chosen: the background as it will sit behind them
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- an upload of our own */}
+              <img className="vsd__bg-only" src={bg} alt="Valgt baggrund" />
+              <p className="vsd__hint small">Baggrunden er valgt – vælg to klubber fra listen for at se hele grafikken.</p>
+            </>
           ) : (
             <p className="muted small">Vælg to klubber fra listen for at se grafikken.</p>
           )}
