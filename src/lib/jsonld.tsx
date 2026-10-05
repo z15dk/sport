@@ -28,7 +28,9 @@ const teamLd = (name: string, slug?: string, sport = 'Fodbold') => ({
 /** How long a match takes, for endDate (kick-off to full time with the break) */
 const DURATION_MS: Partial<Record<Match['sport'], number>> = { soccer: 115 * 60_000, ice_hockey: 150 * 60_000, basketball: 120 * 60_000 }
 
-export function matchLd(match: Match, clubSlug: (name: string) => string | undefined, description?: string, ticketUrl?: string) {
+/** `stadium`: the ground's own name ("Brøndby Stadion") where we know it; the match's venue is often only the town */
+export function matchLd(match: Match, clubSlug: (name: string) => string | undefined, description?: string, ticketUrl?: string, stadium?: string) {
+  const place = stadium ?? match.venue
   const status =
     match.state === 'postponed' ? 'https://schema.org/EventPostponed' : 'https://schema.org/EventScheduled'
   const sport = sportById(match.sport).label
@@ -43,7 +45,7 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     // Always a description (Google asks for one): the page's own text, else what, where and when
     description:
       description ??
-      `${match.home.name} mod ${match.away.name} i ${match.league}${match.venue ? ` på ${match.venue}` : ''}, ${match.kickoff.toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'long', year: 'numeric' })}.`,
+      `${match.home.name} mod ${match.away.name} i ${match.league}${place ? ` på ${place}` : ''}, ${match.kickoff.toLocaleDateString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'long', year: 'numeric' })}.`,
     // The match's own sharing picture (teams, logos, score or time)
     image: `${url}/opengraph-image`,
     startDate: match.kickoff.toISOString(),
@@ -60,8 +62,13 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
     // Where it is played: the stadium, or else the home team's ground
     location: {
       '@type': 'Place',
-      name: match.venue ?? `${genitive(match.home.name)} hjemmebane`,
-      address: { '@type': 'PostalAddress', ...(match.venue && { streetAddress: match.venue }), ...(match.country && { addressCountry: match.country }) },
+      name: place ?? `${genitive(match.home.name)} hjemmebane`,
+      address: {
+        '@type': 'PostalAddress',
+        // With the ground's name the venue is the town; alone it is all we know of the address
+        ...(match.venue && (stadium && stadium !== match.venue ? { addressLocality: match.venue } : { streetAddress: match.venue })),
+        ...(match.country && { addressCountry: match.country }),
+      },
     },
     // The league or tournament runs the match (not us)
     organizer: { '@type': 'SportsOrganization', name: match.league, ...(league && { url: league }) },
@@ -70,7 +77,8 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
   }
 }
 
-export function clubLd(club: Club, division: Division, logo?: string) {
+/** `athletes`: the club's players with their pages, where the page shows the squad */
+export function clubLd(club: Club, division: Division, logo?: string, athletes?: { name: string; path: string }[]) {
   return {
     '@context': 'https://schema.org',
     ...teamLd(club.name, club.slug, sportById(division.sport ?? 'soccer').label),
@@ -78,6 +86,7 @@ export function clubLd(club: Club, division: Division, logo?: string) {
     ...(logo && { logo: absoluteImage(logo), image: absoluteImage(logo) }),
     location: { '@type': 'Place', name: club.city, address: { '@type': 'PostalAddress', addressLocality: club.city, addressCountry: division.countryCode } },
     memberOf: { '@type': 'SportsOrganization', name: division.name, url: `${SITE_URL}${paths.league(division.slug)}` },
+    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, url: `${SITE_URL}${a.path}` })) }),
   }
 }
 

@@ -10,7 +10,7 @@ import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubLeagues } from '../../../lib/clientData'
-import { clubStats } from '../../../data/matchInsights'
+import { clubStats, findClub } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
 import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
@@ -51,6 +51,7 @@ import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { dbuHomeGround } from '../../../lib/channels'
 import { ClubSquad } from '../../../components/ClubSquad'
+import { playerPath } from '../../../data/player'
 import { KlubHeader } from '../../../components/KlubHeader'
 import { klubfarve } from '../../../data/klubfarver'
 import { calendarLinks } from '../../../lib/calendar'
@@ -109,6 +110,12 @@ export default async function ClubPage({ params }: { params: Params }) {
     notFound()
   }
   return team.season ? <LeagueClub {...team.season} /> : <TeamPage team={team} />
+}
+
+/** The home team's ground by DBU's name ("Brøndby Stadion"), for our own clubs */
+function homeGround(home: string): string | undefined {
+  const club = findClub(home)?.club
+  return club && dbuHomeGround(clubNames(club))
 }
 
 /**
@@ -180,11 +187,11 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   return (
     <div className="page">
       <RealDataExtra games={clubExternalGames(club.name)} leagues={clubLeagues([club.id])} />
-      <JsonLd data={clubLd(club, division, logo)} />
+      <JsonLd data={clubLd(club, division, logo, squad.map((p) => ({ name: p.name, path: playerPath(p.id, p.name) })))} />
       {/* The questions the page answers at its foot, for search engines and AI answers (with the new header to begin with) */}
       {newHeader && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
       {/* The club's next match as an event, so a search for the club can show day, time and place */}
-      {newHeader && nextMatch && <JsonLd data={matchLd(nextMatch, (name) => teamByName(name, nextMatch.leagueSlug)?.slug, undefined, matchTicketUrl(nextMatch))} />}
+      {newHeader && nextMatch && <JsonLd data={matchLd(nextMatch, (name) => teamByName(name, nextMatch.leagueSlug)?.slug, undefined, matchTicketUrl(nextMatch), homeGround(nextMatch.home.name))} />}
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd
         data={breadcrumbLd([

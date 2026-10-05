@@ -20,6 +20,8 @@ import { savedSubs, apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiM
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
+import { clubNames } from '../../../data/aliases'
+import { dbuHomeGround } from '../../../lib/channels'
 import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, withMatchLinks, type PastGame } from '../../../lib/history'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
@@ -37,6 +39,12 @@ import { paths } from '../../../lib/site'
 import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
 export const dynamic = 'force-dynamic'
+
+/** The ground of a Superliga club at home, by DBU's name ("Brøndby Stadion"), for the match's data for search engines */
+function superligaGround(home: string): string | undefined {
+  const found = findClub(home)
+  return found?.division.id === 'superliga' ? dbuHomeGround(clubNames(found.club)) : undefined
+}
 
 type Params = Promise<{ slug: string }>
 
@@ -237,7 +245,7 @@ async function MatchPageInner({ params }: { params: Params }) {
 
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined), ticketUrl)} />
+      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined), ticketUrl, superligaGround(match.home.name))} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },
