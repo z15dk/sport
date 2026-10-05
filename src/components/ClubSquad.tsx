@@ -26,6 +26,19 @@ const metaOf = (p: SquadPlayer) =>
       : 'På bænken'
 const linkOf = (p: SquadPlayer) => (p.id ? playerPath(p.id, p.name) : undefined)
 
+/** The player's photo; a drawn person where we have none (DBU's sheets have names and numbers only) */
+function Face({ photo, team, size }: { photo?: string; team: string; size: number }) {
+  if (photo) return <PlayerPhoto photo={photo} team={team} size={size} />
+  return (
+    <span className="squad__avatar" style={{ width: size, height: size }} aria-hidden>
+      <svg viewBox="0 0 40 40" width={size} height={size} focusable="false">
+        <circle cx="20" cy="15" r="7.5" />
+        <path d="M5 40c0-10 6.5-16 15-16s15 6 15 16z" />
+      </svg>
+    </span>
+  )
+}
+
 /** A link to the player's page, or a plain box for a player who has none (DBU's sheets give no player ids) */
 function Wrap({ className, href, children }: { className: string; href?: string; children: ReactNode }) {
   return href ? (
@@ -65,7 +78,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
               {scorers.map((p) => (
                 <li key={p.id ?? p.name}>
                   <Wrap className="squad__scorer" href={linkOf(p)}>
-                    <PlayerPhoto photo={p.photo} team={name} size={52} />
+                    <Face photo={p.photo} team={name} size={52} />
                     <span className="squad__text">
                       <span className="squad__name">{p.name}</span>
                       <span className="squad__meta">{metaOf(p)}</span>
@@ -92,7 +105,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
                 <li key={p.id ?? p.name}>
                   <Wrap className="squad__player" href={linkOf(p)}>
                     <span className="squad__face">
-                      <PlayerPhoto photo={p.photo} team={name} size={44} />
+                      <Face photo={p.photo} team={name} size={44} />
                       {p.number !== undefined && (
                         <span className="squad__no">
                           <span className="visually-hidden">Nummer </span>

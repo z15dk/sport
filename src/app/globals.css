@@ -2347,6 +2347,10 @@ a.player-games__match:hover { text-decoration: underline; }
 .squad__scorer:hover, .squad__scorer:focus-visible { border-color: var(--lime); }
 .squad__scorer .player-photo, .squad__scorer .badge { background: #fff; }
 .squad__text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* A drawn person where there is no photo */
+.squad__avatar { display: block; flex: none; overflow: hidden; border-radius: 50%; background: #e3e6dc; }
+.squad__avatar svg { display: block; fill: #a4aa98; }
+.squad__scorer .squad__avatar { background: #e9ebe3; }
 .squad__name { font-size: 15px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .squad__meta { font-size: 12px; color: var(--ink-3); }
 .squad__scorer .squad__meta { color: rgba(255, 255, 255, 0.65); }
