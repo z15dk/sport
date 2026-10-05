@@ -686,6 +686,7 @@ html:has(#oversigt:target) .kh-nav a[data-kh='oversigt'],
 html:has(#kampe:target) .kh-nav a[data-kh='kampe'],
 html:has(#stilling:target) .kh-nav a[data-kh='stilling'],
 html:has(#artikler:target) .kh-nav a[data-kh='artikler'],
+html:has(#trup:target) .kh-nav a[data-kh='trup'],
 html:has(#holdstatistik:target) .kh-nav a[data-kh='holdstatistik'],
 html:has(#indbyrdes-opgoer:target) .kh-nav a[data-kh='indbyrdes-opgoer'],
 html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { color: #fff; font-weight: 700; border-bottom-color: var(--kh-lime); }
@@ -891,6 +892,8 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 .cm-row .badge-link { position: relative; z-index: 2; }
 .cm-row__score { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .cm-row__score .is-win { color: var(--ink); font-weight: 800; }
+/* The channel showing a match to come, in the place of the score and the result */
+.cm-row__tv { grid-column: 3 / -1; justify-self: end; max-width: 100%; font-size: 11px; font-weight: 700; line-height: 1.2; text-align: right; color: var(--ink-2); }
 .cm-row--live .cm-row__score { color: var(--live); }
 .outcome {
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff;
@@ -2295,6 +2298,29 @@ a.player-games__match:hover { text-decoration: underline; }
 .rivalry__facts { margin: 0; padding: 4px 18px 20px 38px; display: grid; gap: 8px; }
 .h2h__all { margin: 10px 0 0; font-weight: 600; }
 /* The club page's "Indbyrdes opgør": one card per opponent, with the club's wins, draws and defeats against it */
+/* The club page's squad box: top scorers and the players by position */
+.squad { padding: 0 18px 18px; }
+.squad .panel__title { padding: 18px 0 6px; }
+.squad__sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); }
+.squad__head { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.squad__scorers { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.squad__scorer { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px 8px 8px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
+.squad__scorer:hover, .squad__scorer:focus-visible { border-color: var(--lime); background: var(--surface); }
+.squad__goals { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; width: 44px; height: 44px; border-radius: 10px; background: var(--ink); line-height: 1; }
+.squad__goals strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; color: var(--lime); }
+.squad__goals span { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
+.squad__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.squad__name { font-size: 15px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.squad__meta { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.squad__groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px 24px; }
+.squad__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.squad__player { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px 4px 4px; border-radius: var(--radius-sm); color: inherit; text-decoration: none; }
+.squad__player:hover, .squad__player:focus-visible { background: var(--surface-2); }
+.squad__player:hover .squad__name { text-decoration: underline; text-underline-offset: 3px; }
+.squad__player .squad__name { font-size: 14px; font-weight: 600; }
+.squad__no { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+.squad__player:hover .squad__no { background: var(--lime); }
+
 .rivals-panel { padding: 0 18px 18px; }
 .rivals-panel .panel__title { padding: 18px 0 6px; }
 .rivals__sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); }

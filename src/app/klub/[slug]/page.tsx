@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { MasonryFlow } from '../../../components/MasonryFlow'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagues'
+import { channelsFor } from '../../../data/channels'
 import { allTeams, movedTeamSlug, teamByName, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
@@ -41,13 +42,14 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamSquad, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
 import { checkedTeamStats } from '../../../data/teamStats'
 import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
+import { ClubSquad } from '../../../components/ClubSquad'
 import { KlubHeader } from '../../../components/KlubHeader'
 import { klubfarve } from '../../../data/klubfarver'
 import { calendarLinks } from '../../../lib/calendar'
@@ -89,7 +91,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const stats = clubStats(club.name, now)!
   const standard = `${club.name} fra ${club.city} spiller i ${division.name} ${seasonOf(division)} og ligger nr. ${stats.position} med ${stats.row.points} point efter ${stats.row.played} kampe. Se seneste resultater og kommende kampe.`
   return {
-    title: `${club.name} – kampe og stilling ${seasonOf(division)}`,
+    // "kampprogram" is the word people search for; with the new header to begin with
+    title: NEW_HEADER_DIVISIONS.has(division.id) ? `${club.name}: kampprogram, resultater og stilling ${seasonOf(division)}` : `${club.name} – kampe og stilling ${seasonOf(division)}`,
     description: NEW_HEADER_DIVISIONS.has(division.id) ? (nextMatchDescription(club.name, division.name, stats, now) ?? standard) : standard,
     alternates: { canonical: paths.club(club.slug) },
   }
@@ -117,9 +120,12 @@ function nextMatchDescription(name: string, league: string, stats: NonNullable<R
   if (!next) return undefined
   const home = next.home.name === name
   const first = `${name} er nr. ${stats.position} i ${league} med ${stats.row.points} point.`
-  const match = `Næste kamp: ${home ? 'hjemme' : 'ude'} mod ${home ? next.away.name : next.home.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)}.`
-  const full = `${first} ${match} Se kampprogram, resultater og stilling.`
-  return full.length <= 158 ? full : `${first} ${match}`
+  const when = `Næste kamp: ${home ? 'hjemme' : 'ude'} mod ${home ? next.away.name : next.home.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)}`
+  // The channel too ("brøndby kamp tv" is searched for as much as the time), when it fits
+  const channel = channelsFor(next)[0]?.name
+  const last = 'Se kampprogram, resultater og stilling.'
+  const tries = [channel && `${first} ${when} på ${channel}. ${last}`, channel && `${first} ${when} på ${channel}.`, `${first} ${when}. ${last}`]
+  return tries.find((t) => t && t.length <= 158) || `${first} ${when}.`
 }
 
 /** Full page for clubs in the leagues we cover, which have season and table data */
@@ -152,6 +158,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const hasTeamStats = !!teamStats?.played.total || !!clubSeasonStats(club, division)
   // Our own articles tagged with the club: with the new header they have their own place in the menu and stand above the statistics
   const articles = articlesAbout({ club })
+  // The players the club has used this season, from the saved line-ups (no request); with the new header to begin with
+  const squad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
 
   return (
     <div className="page">
@@ -179,13 +187,14 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
             color={klubfarve(club.slug, club.colors)}
             row={{ position: stats.position, played: r.played, won: r.won, drawn: sport === 'soccer' ? r.drawn : undefined, lost: r.lost, points: r.points }}
             form={r.form}
-            next={nextMatch && { opponent: nextMatch.home.name === club.name ? nextMatch.away.name : nextMatch.home.name, home: nextMatch.home.name === club.name, kickoff: nextMatch.kickoff, href: paths.match(nextMatch.slug) }}
+            next={nextMatch && { opponent: nextMatch.home.name === club.name ? nextMatch.away.name : nextMatch.home.name, home: nextMatch.home.name === club.name, kickoff: nextMatch.kickoff, href: paths.match(nextMatch.slug), channel: channelsFor(nextMatch)[0]?.name }}
             sections={[
               { id: 'oversigt', label: 'Oversigt' },
               { id: 'kampe', label: 'Kampe' },
               { id: 'stilling', label: 'Stilling' },
               ...(articles.length ? [{ id: 'artikler', label: 'Artikler' }] : []),
               ...(hasTeamStats ? [{ id: 'holdstatistik', label: 'Holdstatistik' }] : []),
+              ...(squad.length ? [{ id: 'trup', label: 'Trup' }] : []),
               ...(rivals.length ? [{ id: 'indbyrdes-opgoer', label: 'Indbyrdes opgør' }] : []),
               ...(pastSeasons.length ? [{ id: 'tidligere-saesoner', label: 'Tidligere sæsoner' }] : []),
             ]}
@@ -295,7 +304,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         )}
 
         <MasonryFlow className="club-flow">
-          <ClubMatches clubName={club.name} initialNow={now} />
+          <ClubMatches clubName={club.name} initialNow={now} showTv={newHeader} />
           <div className="club-layout__side">
             <FormChart clubName={club.name} initialNow={now} />
             <section className="panel table-panel kh-target" id="stilling">
@@ -321,6 +330,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         {newHeader && <TaggedArticles articles={articles} title={`Artikler om ${club.name}`} id="artikler" />}
         <span className="kh-target kh-anchor" id="holdstatistik" />
         {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division), apiTeamOwnGoals(apiLeague!, apiTeam!))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
+        <ClubSquad name={club.name} league={division.name} season={seasonOf(division)} players={squad} id="trup" />
         {!newHeader && <TaggedArticles articles={articles} title={`Artikler om ${club.name}`} />}
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}

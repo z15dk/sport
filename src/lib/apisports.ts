@@ -9,7 +9,7 @@ import { danishLeagueName, danishRound, externalLeagueKey, isWomenGame, type Ext
 import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
-import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
+import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type LineupPlayer, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
 import { logoCheckVersion, realLogo } from './logoCheck'
@@ -2400,6 +2400,82 @@ export function apiTeamOwnGoals(leagueId: string, teamId: number, season = SEASO
     for (const i of g.incidents ?? []) if (i.kind === 'own-goal') out.push(i.minute)
   }
   return out
+}
+
+export interface SquadPlayer {
+  /** API-Sports' player id (the player's page) */
+  id: number
+  name: string
+  number?: number
+  /** G, D, M or F */
+  pos?: string
+  /** Matches from the start, and matches he came on in */
+  starts: number
+  subbedOn: number
+  goals: number
+}
+
+const plainName = (n: string) => n.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
+/** "Marcus Younis" and "M. Younis": the same words, or the same last name and first letter */
+function samePlayer(a: string, b: string) {
+  const [x, y] = [plainName(a), plainName(b)]
+  if (!x || !y) return false
+  if (x === y) return true
+  const [xw, yw] = [x.split(' '), y.split(' ')]
+  return xw.length > 1 && yw.length > 1 && xw[xw.length - 1] === yw[yw.length - 1] && xw[0][0] === yw[0][0]
+}
+
+/**
+ * The players a team has used in its league matches this season: everyone in a starting eleven or on a bench, with
+ * matches from the start, matches come on in and goals. From the line-ups, substitutions and goals saved with the
+ * matches (no request), so a player who has not been in a match squad yet is not here. The name is the full one
+ * where the player's profile is saved, else the line-up's ("P. Pentz").
+ */
+export function apiTeamSquad(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): SquadPlayer[] {
+  const store = extrasStore()
+  const players = new Map<number, SquadPlayer>()
+  const games = seasonGames()
+    .filter((g) => g.state === 'finished' && String(g.league.id) === String(leagueId) && String(g.league.season ?? season) === season && (g.home.id === teamId || g.away.id === teamId))
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+  for (const g of games) {
+    const lineups = store.entries[`football|lineups|${g.id}`]?.lineups
+    if (!lineups || lineups.length !== 2) continue
+    const side = g.home.id === teamId ? 'home' : 'away'
+    const own = side === 'home' ? g.home.name : g.away.name
+    // By the team's name, else in the source's order (home first)
+    const lineup = lineups.find((l) => l.team.toLowerCase() === own.toLowerCase()) ?? lineups[side === 'home' ? 0 : 1]
+    const subs = (store.entries[`football|subs|${g.id}`]?.subs ?? []).filter((x) => x.side === side)
+    const goals = (g.incidents ?? []).filter((i) => i.side === side && i.player && (i.kind === 'goal' || i.kind === 'penalty'))
+    const seen = (p: LineupPlayer, started: boolean) => {
+      if (!p.id || !p.name) return
+      const row = players.get(p.id) ?? players.set(p.id, { id: p.id, name: p.name, starts: 0, subbedOn: 0, goals: 0 }).get(p.id)!
+      // The newest match's number and position
+      row.number = p.number ?? row.number
+      row.pos = p.pos ?? row.pos
+      if (started) row.starts++
+      else if (subs.some((x) => plainName(x.on) === plainName(p.name))) row.subbedOn++
+    }
+    for (const p of lineup.startXI) seen(p, true)
+    for (const p of lineup.substitutes) seen(p, false)
+    // A goal counts for the one player in the match squad it fits
+    const squad = [...lineup.startXI, ...lineup.substitutes].filter((p) => p.id)
+    for (const i of goals) {
+      // The same name first ("M. Jensen" is not "M. Frokjaer-Jensen"), then the same last name and first letter
+      const exact = squad.filter((p) => plainName(p.name) === plainName(i.player!))
+      const hits = exact.length ? exact : squad.filter((p) => samePlayer(p.name, i.player!))
+      if (hits.length === 1) players.get(hits[0].id!)!.goals++
+    }
+  }
+  // The league's own top scorer list where it has the player (it counts a goal the events file as an own goal or under another name)
+  for (const r of store.entries[`football|leaders|${leagueId}|${season}`]?.leaders?.scorers ?? []) {
+    const row = r.id ? players.get(r.id) : undefined
+    if (row && r.value > row.goals) row.goals = r.value
+  }
+  for (const row of players.values()) {
+    const full = store.entries[`football|player|${row.id}`]?.player?.name
+    if (full && !/\.\s/.test(full)) row.name = full
+  }
+  return [...players.values()]
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */

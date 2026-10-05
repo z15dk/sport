@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { channelsFor } from '../data/channels'
 import { clubMatches } from '../data/matches'
 import { getRealData } from '../data/real'
 import { competitionLabel } from '../data/leagues'
@@ -22,7 +23,7 @@ type Tab = 'finished' | 'upcoming'
  * `matches` gives the list for teams outside our leagues (their games and the
  * ones our statistics bank has saved); our clubs' come from the season.
  */
-export function ClubMatches({ clubName, initialNow, matches: given }: { clubName: string; initialNow: number; matches?: Match[] }) {
+export function ClubMatches({ clubName, initialNow, matches: given, showTv }: { clubName: string; initialNow: number; matches?: Match[]; showTv?: boolean }) {
   const now = useNow(30_000, initialNow)
   const dataVersion = getRealData()?.version
   const all = useMemo(() => given ?? clubMatches(clubName, now), [given, clubName, now, dataVersion]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -134,7 +135,7 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
                 </div>
                 <ul className="cm-list">
                   {g.matches.map((m) => (
-                    <ClubMatchRow key={m.id} match={m} clubName={clubName} />
+                    <ClubMatchRow key={m.id} match={m} clubName={clubName} showTv={showTv} />
                   ))}
                 </ul>
               </div>
@@ -148,8 +149,10 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
   )
 }
 
-function ClubMatchRow({ match, clubName }: { match: Match; clubName: string }) {
+function ClubMatchRow({ match, clubName, showTv }: { match: Match; clubName: string; showTv?: boolean }) {
   const outcome = outcomeFor(match, clubName)
+  // The channel showing a match to come, where the score will stand
+  const channel = showTv && match.state === 'upcoming' ? channelsFor(match)[0]?.name : undefined
   const showScore = match.state !== 'upcoming'
   const side = (i: 0 | 1) => {
     const team = i === 0 ? match.home : match.away
@@ -175,7 +178,13 @@ function ClubMatchRow({ match, clubName }: { match: Match; clubName: string }) {
         {side(0)}
         {side(1)}
       </span>
-      <span className="cm-row__score">
+      {channel && (
+        <span className="cm-row__tv" title={`Vises på ${channel}`}>
+          <span className="visually-hidden">Vises på </span>
+          {channel}
+        </span>
+      )}
+      <span className="cm-row__score" hidden={!!channel}>
         {showScore ? (
           <>
             <span className={match.winner === 'home' ? 'is-win' : ''}>{match.home.score}</span>
@@ -188,7 +197,7 @@ function ClubMatchRow({ match, clubName }: { match: Match; clubName: string }) {
           {outcome}
         </span>
       ) : (
-        <span />
+        !channel && <span />
       )}
     </li>
   )

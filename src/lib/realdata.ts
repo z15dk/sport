@@ -220,6 +220,7 @@ function apply() {
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
   if (!tsdbData && !db && !external.games.length) return setRealData(undefined)
+  const dbu = dbuTv(leagues, channels.data.channels, divisionNames)
   setRealData({
     version: hashString(key).toString(36),
     fetchedAt: tsdbData?.fetchedAt ?? Date.now(),
@@ -247,7 +248,7 @@ function apply() {
     clubNames: names.names,
     clubAliases: aliases.aliases,
     // DBU's channels for the Danish divisions under TheSportsDB's listings (those win)
-    channels: { ...channels.data, tv: { ...dbuTv(leagues, channels.data.channels, divisionNames), ...channels.data.tv } },
+    channels: { ...channels.data, channels: [...channels.data.channels, ...dbu.channels], tv: { ...dbu.tv, ...channels.data.tv } },
     settings: settings.settings,
     ads: ads.config,
   })

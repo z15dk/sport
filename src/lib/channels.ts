@@ -297,9 +297,22 @@ export function tvStatus() {
  * match id ("tsdb-<id>") like TheSportsDB's listings; those and the admin's exceptions still win, and a
  * match DBU names no known channel for falls to the rules.
  */
-const DBU_DIVISIONS = ['1div', '2div', '3div']
+const DBU_DIVISIONS = ['superliga', '1div', '2div', '3div']
 const fold = (s: string) => s.toLowerCase().replace(/[^a-z0-9æøå+]/g, '')
-let dbuCache: { key: string; tv: Record<string, string[]> } | undefined
+type DbuTv = { tv: Record<string, string[]>; channels: ChannelDef[] }
+let dbuCache: ({ key: string } & DbuTv) | undefined
+
+/**
+ * A TV channel DBU names that is not set up in /admin/kanaler (the Superliga's "TV 2 SPORT X", "TV3+") becomes a
+ * channel of its own, written as the channel writes it; a channel set up in the admin pages with the same name wins.
+ * Only names that are TV channels: DBU writes the league ("3. division") where there is no TV.
+ */
+const BROADCASTER = /^(tv ?2|tv ?3|viaplay|dr ?\d?\b|disney|max\b|discovery|kanal ?5|6'?eren)/i
+function dbuChannel(name: string): ChannelDef | undefined {
+  if (!BROADCASTER.test(name)) return undefined
+  const shown = name.replace(/\bSPORT\b/g, 'Sport').replace(/\bNEWS\b/g, 'News').replace(/\bPLAY\b/g, 'Play')
+  return { id: `dbu-${slugify(name)}`, name: shown }
+}
 
 export function dbuTvVersion() {
   try {
@@ -311,10 +324,11 @@ export function dbuTvVersion() {
 
 const photosDb = () => process.env.PHOTOS_DB ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'billeder.db')
 
-export function dbuTv(leagues: Record<string, { id: string; home: string; away: string; kickoff: string }[]>, channels: ChannelDef[], namesOf: (division: string, team: string) => string[]): Record<string, string[]> {
+export function dbuTv(leagues: Record<string, { id: string; home: string; away: string; kickoff: string }[]>, channels: ChannelDef[], namesOf: (division: string, team: string) => string[]): DbuTv {
   const byName = new Map(channels.map((c) => [fold(c.name), c.id]))
+  const added = new Map<string, ChannelDef>()
   const key = `${dbuTvVersion()}|${channels.map((c) => c.id + c.name).join(',')}|${DBU_DIVISIONS.map((d) => leagues[d]?.length ?? 0).join(',')}`
-  if (dbuCache?.key === key) return dbuCache.tv
+  if (dbuCache?.key === key) return dbuCache
   const tv: Record<string, string[]> = {}
   const from = addDays(isoDate(Date.now()), -1)
   type Row = { date: string; hn: string; an: string; tv: string }
@@ -334,9 +348,17 @@ export function dbuTv(leagues: Record<string, { id: string; home: string; away: 
   } catch {
     // no photo database on this server
   }
-  // Only channels we know: DBU writes the league ("3. division") where there is no TV
+  // Only channels we know, and the TV channels DBU names itself: DBU writes the league ("3. division") where there is no TV
   const byDate = new Map<string, Row[]>()
-  for (const r of rows) if (byName.has(fold(r.tv))) byDate.set(r.date, [...(byDate.get(r.date) ?? []), r])
+  for (const r of rows) {
+    if (!byName.has(fold(r.tv))) {
+      const channel = dbuChannel(r.tv)
+      if (!channel) continue
+      byName.set(fold(r.tv), channel.id)
+      added.set(channel.id, channel)
+    }
+    byDate.set(r.date, [...(byDate.get(r.date) ?? []), r])
+  }
   for (const d of DBU_DIVISIONS)
     for (const e of leagues[d] ?? []) {
       const date = isoDate(new Date(e.kickoff))
@@ -349,6 +371,6 @@ export function dbuTv(leagues: Record<string, { id: string; home: string; away: 
       const hit = day.find((r) => same(home, r.hn) && same(away, r.an))
       if (hit) tv[`tsdb-${e.id}`] = [byName.get(fold(hit.tv))!]
     }
-  dbuCache = { key, tv }
-  return tv
+  dbuCache = { key, tv, channels: [...added.values()] }
+  return dbuCache
 }

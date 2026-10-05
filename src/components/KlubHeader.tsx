@@ -33,7 +33,7 @@ export interface KlubHeaderProps {
   /** The latest results in the club's own league, oldest first */
   form?: ('V' | 'U' | 'T')[]
   /** The club's next match (its own team and sport only) */
-  next?: { opponent: string; home: boolean; kickoff: Date; href?: string }
+  next?: { opponent: string; home: boolean; kickoff: Date; href?: string; channel?: string }
   /** The page's sections that exist, in the order of the menu */
   sections: { id: string; label: string }[]
   calendarHref?: string
@@ -132,6 +132,13 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
                       next.opponent
                     )}
                     , {next.home ? 'hjemme' : 'ude'}
+                    {next.channel && (
+                      <>
+                        {' · '}
+                        <span className="visually-hidden">Vises på </span>
+                        {next.channel}
+                      </>
+                    )}
                   </span>
                 </div>
               )}
