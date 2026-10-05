@@ -21,10 +21,12 @@ export interface TableShiftRow {
 
 const W = 1200
 const H = 500
-const LEFT = 64
-const RIGHT = 16
-const TOP = 44
-const BOTTOM = 8
+const LEFT = 52
+const RIGHT = 4
+const TOP = 46
+const BOTTOM = 4
+/** Gap between the row bands */
+const GAP = 4
 /** Time per round while it plays */
 const STEP_MS = 380
 
@@ -115,7 +117,7 @@ export function TableShift({ league, rounds, rows, top, topLabel, bottom }: { le
   const n = rows.length
   const rowH = (H - TOP - BOTTOM) / n
   const colW = (W - LEFT - RIGHT) / rounds.length
-  const size = Math.min(Math.round(rowH * 0.8), Math.round(colW * 0.72), 40)
+  const size = Math.min(Math.round(rowH * 0.68), Math.round(colW * 0.6), 34)
   const X = (i: number) => LEFT + colW * (i + 0.5)
   const Y = (p: number) => TOP + rowH * (p - 0.5)
   // How many rounds are shown: all of them before the page has run (the finished chart), then from 0 as it plays
@@ -193,24 +195,35 @@ export function TableShift({ league, rounds, rows, top, topLabel, bottom }: { le
           role="img"
           aria-label={`Tabelforskydning i ${league}: hver klubs placering efter runde ${rounds[0]} til ${lastRound}`}
         >
-          <text x={LEFT / 2} y={24} textAnchor="middle" className="tshift__head-text">
-            POS
-          </text>
-          {rounds.map((r, i) => (
-            <text key={r} x={X(i)} y={24} textAnchor="middle" className={`tshift__head-text${i === rounds.length - 1 ? ' is-last' : ''}`}>
-              R{r}
-            </text>
-          ))}
-          {/* The newest round in a frame */}
-          <rect x={X(rounds.length - 1) - colW / 2 + 4} y={4} width={colW - 8} height={H - 8} rx={16} className="tshift__frame" />
-          {/* The zones: promotion (or the top group) and relegation */}
-          {top > 0 && top < n && <line x1={8} x2={W - 6} y1={TOP + rowH * top} y2={TOP + rowH * top} className="tshift__zone" />}
-          {bottom > 0 && bottom < n && <line x1={8} x2={W - 6} y1={TOP + rowH * (n - bottom)} y2={TOP + rowH * (n - bottom)} className="tshift__zone" />}
-          {rows.map((_, i) => (
-            <text key={i} x={LEFT / 2} y={Y(i + 1) + 7} textAnchor="middle" className="tshift__pos">
-              {i + 1}
-            </text>
-          ))}
+          {/* A band per place, like the rows of the table and the match lists; the zones marked at the left as in the table */}
+          {rows.map((_, i) => {
+            const zone = i < top ? 'up' : i >= n - bottom ? 'down' : ''
+            return (
+              <g key={i}>
+                <rect x={0} y={TOP + rowH * i + GAP / 2} width={W} height={rowH - GAP} rx={Math.min(14, (rowH - GAP) / 2)} className="tshift__band" />
+                {zone && <rect x={0} y={TOP + rowH * i + GAP / 2 + 4} width={4} height={rowH - GAP - 8} rx={2} className={`tshift__zone tshift__zone--${zone}`} />}
+                <text x={LEFT / 2} y={Y(i + 1) + 5} textAnchor="middle" className="tshift__pos">
+                  {i + 1}
+                </text>
+              </g>
+            )
+          })}
+          {/* The newest round: its column lightly marked, its heading as the active pill */}
+          <rect x={X(rounds.length - 1) - colW / 2 + 2} y={TOP} width={colW - 4} height={H - TOP - BOTTOM} rx={14} className="tshift__now" />
+          {rounds.map((r, i) =>
+            i === rounds.length - 1 ? (
+              <g key={r}>
+                <rect x={X(i) - 26} y={8} width={52} height={28} rx={14} className="tshift__pill" />
+                <text x={X(i)} y={27} textAnchor="middle" className="tshift__head-text is-last">
+                  R{r}
+                </text>
+              </g>
+            ) : (
+              <text key={r} x={X(i)} y={27} textAnchor="middle" className="tshift__head-text">
+                R{r}
+              </text>
+            ),
+          )}
           <g>
             {rows.map((r) => {
               const on = chosen.has(r.name)
@@ -246,15 +259,19 @@ export function TableShift({ league, rounds, rows, top, topLabel, bottom }: { le
           ))}
         </svg>
       </div>
-      <p className="tshift__legend">
-        {top > 0 && <span>- - - {topLabel} (nr. 1–{top})</span>}
+      <footer className="table-legend">
+        {top > 0 && (
+          <span>
+            <i className="zone-dot zone-dot--up" /> {topLabel}
+          </span>
+        )}
         {bottom > 0 && (
           <span>
-            - - - Nedrykning (nr. {n - bottom + 1}–{n})
+            <i className="zone-dot zone-dot--down" /> Nedrykning
           </span>
         )}
         <span>Tryk på et logo for at følge klubben</span>
-      </p>
+      </footer>
     </section>
   )
 }
