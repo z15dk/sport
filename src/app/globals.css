@@ -648,7 +648,7 @@ h2.league__name { margin: 0; }
 
 /* ---------------------------------------------------------------- Klubsidens header (KlubHeader), test
    Tre lag: toppen (logo, liga og by, navn, to skrå striber i klubbens farve), klubbens række i stillingen
-   med form og næste kamp, og menuen til sidens sektioner. --kh-club, --kh-n og --kh-w sættes på .kh. */
+   med form og næste kamp, og menuen til sidens sektioner. --kh-club og --kh-n sættes på .kh. */
 .kh {
   --kh-lime: var(--lime); --kh-strip: #14170f; --kh-line: #33382a; --kh-muted: #a3a995; --kh-soft: #c9cdbd;
   container: kh / inline-size; border-radius: var(--radius); overflow: hidden; background: var(--ink); color: #fff;
@@ -729,8 +729,8 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
   .kh-stripe--thin { right: 62px; width: 3px; }
   .kh-id { gap: 8px; max-width: calc(100% - 78px); }
   .kh-league { font-size: 14px; }
-  /* Under the logo, in lines when it has to: sized by the longest word */
-  .kh-name { white-space: normal; overflow-wrap: anywhere; font-size: clamp(32px, calc((100cqi - 110px) / (var(--kh-w) * 0.5)), 76px); }
+  /* Under the logo, always on one line: sized by the whole name's length (left of the stripes) */
+  .kh-name { white-space: nowrap; font-size: clamp(22px, calc((100cqi - 110px) / (var(--kh-n) * 0.5)), 76px); }
   .kh-strip { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 12px 16px 4px; }
   .kh-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding-bottom: 12px; }
   .kh-wide { display: none; }

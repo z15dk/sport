@@ -58,9 +58,8 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
   const latest = (form ?? []).slice(-5)
   // Unbeaten in every match of the season so far
   const unbeaten = row?.lost === 0 && (row.played ?? 0) > 0 ? row.played : undefined
-  const words = name.split(/\s+/)
   // The name's length sets its size, so a long name ("FC Nordsjælland") stops short of the stripes (see .kh-name)
-  const style = { '--kh-club': color, '--kh-n': Math.max(3, name.length), '--kh-w': Math.max(3, ...words.map((w) => w.length)) } as CSSProperties
+  const style = { '--kh-club': color, '--kh-n': Math.max(3, name.length) } as CSSProperties
   const hasStrip = fields.length > 0 || latest.length > 0 || !!next
   return (
     <header className="kh" id="oversigt" style={style}>
