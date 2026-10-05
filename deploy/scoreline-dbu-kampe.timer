@@ -1,11 +1,12 @@
-# DBU-kampsiderne hvert 30. minut kl. 12-23 (dansk tid), kun mandag og fredag til søndag (Superligaen spiller også mandag). Kampe på andre
+# DBU-kampsiderne én gang i timen kl. 12-23 (dansk tid), kun mandag og fredag til søndag (Superligaen spiller også mandag). Kampe på andre
 # dage læses af natkørslen (scoreline-photos-nat.timer). En kørsel der stadig er i gang, springes blot over.
-# Kampene læses først 105 minutter efter kampstart og derefter hvert 25. minut, til siden har resultatet.
+# Kampene læses først 105 minutter efter kampstart og derefter ved hver kørsel, til siden har resultatet. Højst én kørsel i timen,
+# så DBU ikke oplever os som en bot; ingen kamp klar betyder ingen forespørgsler.
 [Unit]
-Description=Matchly DBU kampsider hvert 30. minut kl. 12-23, mandag og fredag til søndag
+Description=Matchly DBU kampsider hver time kl. 12-23, mandag og fredag til søndag
 
 [Timer]
-OnCalendar=Mon,Fri..Sun *-*-* 12..23:00/30:00 Europe/Copenhagen
+OnCalendar=Mon,Fri..Sun *-*-* 12..23:07:00 Europe/Copenhagen
 Persistent=false
 
 [Install]
