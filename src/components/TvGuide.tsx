@@ -35,7 +35,7 @@ export function TvLeagueLinks({ leagues, current }: { leagues: TvLeague[]; curre
   return (
     <section className="panel">
       <h2 className="panel__title">TV-oversigt pr. turnering</h2>
-      <p className="filter-bar pad">
+      <p className="tv-links">
         <Link className={`pill${current ? '' : ' is-active'}`} href={paths.tv()}>
           I dag
         </Link>
@@ -49,3 +49,20 @@ export function TvLeagueLinks({ leagues, current }: { leagues: TvLeague[]; curre
   )
 }
 
+
+/** "Hvor vises ligaerne?": every league with its usual channel and a link to its TV page */
+export function TvLeagueChannels({ leagues }: { leagues: (TvLeague & { channel?: string })[] }) {
+  return (
+    <section className="panel">
+      <h2 className="panel__title">Hvor vises ligaerne?</h2>
+      <ul className="tv-leagues">
+        {leagues.map((l) => (
+          <li key={l.slug}>
+            <Link href={paths.tv(l.slug)}>{l.name} i TV</Link>
+            {l.channel && <span className="muted">{l.channel}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

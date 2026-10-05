@@ -412,6 +412,21 @@ table.visually-hidden { display: block; }
 /* Clubs page */
 .clubs { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1040px; margin-inline: auto; }
 .clubs__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* TV guide (/tv and /tv/<league>) */
+.tv-day { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; text-transform: uppercase; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.tv-day span { font-family: var(--body); font-style: normal; font-weight: 500; font-size: 13px; text-transform: none; color: var(--ink-3); }
+.tv-day-block { display: flex; flex-direction: column; gap: 10px; }
+.tv-next { padding: 18px; font-size: 16px; line-height: 1.5; }
+.tv-next a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.tv-links { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 18px 18px; }
+.tv-links .pill { background: var(--surface-2); }
+.tv-links .pill.is-active { background: var(--ink); }
+.tv-leagues { list-style: none; margin: 0; padding: 0 18px 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); column-gap: 28px; }
+.tv-leagues li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.tv-leagues a { font-weight: 600; }
+.tv-leagues a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tv-leagues .muted { font-size: 13px; text-align: right; }
+@media (max-width: 600px) { .tv-day { font-size: 20px; } .tv-next { font-size: 15px; } }
 .table-panel { overflow: hidden; }
 .table-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 18px; flex-wrap: wrap; }
 .tag {

@@ -1,7 +1,7 @@
 import 'server-only'
 import type { Match, SportId } from '../types'
 import { getMatches } from '../data/matches'
-import { channelsFor } from '../data/channels'
+import { channelsFor, ruleFor } from '../data/channels'
 import { shownDivisions, sportOf } from '../data/leagues'
 import { getRealData } from '../data/real'
 import { cupOfGame, wholeSeason } from '../data/cups'
@@ -44,6 +44,27 @@ export function tvMatches(days: number, now: number, leagueSlug?: string, sport:
     }
   }
   return out.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+}
+
+/** Matches grouped by their day (Danish time), in time order */
+export function byDay(matches: Match[]): { date: string; matches: Match[] }[] {
+  const days: { date: string; matches: Match[] }[] = []
+  for (const m of matches) {
+    const date = isoDate(m.kickoff)
+    const d = days.find((x) => x.date === date)
+    if (d) d.matches.push(m)
+    else days.push({ date, matches: [m] })
+  }
+  return days
+}
+
+/** Every league with a TV page and the channel it is normally shown on (the rules in /admin/kanaler; none without a rule) */
+export function leagueChannels(): (TvLeague & { channel?: string })[] {
+  const data = getRealData()?.channels
+  return tvLeagues().map((l) => {
+    const rule = data && ruleFor(data.rules, { sport: l.sport, country: l.country, league: l.name })
+    return { ...l, channel: rule && data.channels.find((c) => c.id === rule.channelId)?.name }
+  })
 }
 
 /** Matches grouped by tournament, in the order they first come */
