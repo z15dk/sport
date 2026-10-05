@@ -16,7 +16,7 @@ import { categories, publishedArticles } from './articles'
 import { loadRealData } from './realdata'
 import { pastGameIndexable, pastGames, pastSeasons } from './history'
 import { teamKey } from './pastMatch'
-import { tvLeagues } from './tv'
+import { TV_PERIODS, tvLeagues } from './tv'
 import { newsSitemapXml } from './articleFeed'
 import { divisionOfGame } from '../data/ourLeagues'
 import { SPORTS } from '../sports'
@@ -45,6 +45,7 @@ export function pageEntries(): SitemapEntry[] {
     { path: '/kampe/i-morgen' },
     // The TV guide: today, and each league's coming matches on TV
     { path: paths.tv() },
+    ...Object.keys(TV_PERIODS).map((p) => ({ path: paths.tv(p) })),
     ...tvLeagues().map((l) => ({ path: paths.tv(l.slug) })),
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
     // Head-to-heads between clubs of the same league with a few meetings (src/lib/rivalry.ts)

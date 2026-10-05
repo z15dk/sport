@@ -446,6 +446,12 @@ function MatchBody({
                     {channels.map((c) => (
                       <PartnerLogo key={c.id} partner={c} kind="kanal" height={36} />
                     ))}
+                    {/* The TV guide: what else is on today */}
+                    {match.state !== 'finished' && match.sport === 'soccer' && (
+                      <Link className="facts__tv" href={paths.tv()}>
+                        Al fodbold i TV i dag
+                      </Link>
+                    )}
                   </dd>
                 </div>
               )}

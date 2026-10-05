@@ -62,6 +62,10 @@ export function ruleMatches(r: ChannelRule, match: Pick<Match, 'sport' | 'countr
   )
 }
 
+/** The rule that decides for a match or a league: the most specific one that fits */
+export const ruleFor = (rules: ChannelRule[], match: Pick<Match, 'sport' | 'country' | 'league'>): ChannelRule | undefined =>
+  rules.filter((r) => ruleMatches(r, match)).sort((a, b) => specificity(b) - specificity(a))[0]
+
 type Source = 'undtagelse' | 'tv-program' | 'regel'
 
 /** The channels showing a match and where that comes from (for the admin pages) */
@@ -73,7 +77,7 @@ export function channelInfo(match: Match, data = getRealData()?.channels): { cha
   if (override) return override === 'none' ? { channels: [], source: 'undtagelse' } : { channels: partners([override]), source: 'undtagelse' }
   const tv = data.tv[match.id] ?? data.tv[gameKey(match.kickoff, match.home.name, match.away.name)]
   if (tv?.length) return { channels: partners(tv), source: 'tv-program' }
-  const rule = data.rules.filter((r) => ruleMatches(r, match)).sort((a, b) => specificity(b) - specificity(a))[0]
+  const rule = ruleFor(data.rules, match)
   return rule ? { channels: partners([rule.channelId]), source: 'regel' } : { channels: [] }
 }
 
