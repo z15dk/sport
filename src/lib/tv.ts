@@ -58,12 +58,17 @@ export function byDay(matches: Match[]): { date: string; matches: Match[] }[] {
   return days
 }
 
-/** Every league with a TV page and the channel it is normally shown on (the rules in /admin/kanaler; none without a rule) */
-export function leagueChannels(): (TvLeague & { channel?: string })[] {
+/**
+ * Every league with a TV page and where it is shown: the channel from the rules in /admin/kanaler,
+ * else the channels of the league's coming matches (the TV listings); none when neither says
+ */
+export function leagueChannels(coming: Match[] = []): (TvLeague & { channel?: string })[] {
   const data = getRealData()?.channels
   return tvLeagues().map((l) => {
     const rule = data && ruleFor(data.rules, { sport: l.sport, country: l.country, league: l.name })
-    return { ...l, channel: rule && data.channels.find((c) => c.id === rule.channelId)?.name }
+    const byRule = rule && data.channels.find((c) => c.id === rule.channelId)?.name
+    const seen = [...new Set(coming.filter((m) => m.leagueSlug === l.slug).flatMap((m) => channelsFor(m).map((c) => c.name)))]
+    return { ...l, channel: byRule ?? (seen.length ? seen.slice(0, 3).join(', ') : undefined) }
   })
 }
 

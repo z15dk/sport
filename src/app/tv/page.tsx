@@ -25,8 +25,9 @@ const kampe = (n: number) => `${n} ${n === 1 ? 'fodboldkamp' : 'fodboldkampe'}`
 
 function football(now: number) {
   const today = isoDate(now)
-  const all = tvMatches(DAYS, now, undefined, 'soccer')
-  return { today, all, todays: all.filter((m) => isoDate(m.kickoff) === today), coming: all.filter((m) => isoDate(m.kickoff) !== today) }
+  const week = tvMatches(DAYS, now)
+  const all = week.filter((m) => m.sport === 'soccer')
+  return { today, week, all, todays: all.filter((m) => isoDate(m.kickoff) === today), coming: all.filter((m) => isoDate(m.kickoff) !== today) }
 }
 
 /** "FC Nordsjælland – OB fredag 9. oktober kl. 19.00 på TV 2 Sport" */
@@ -50,8 +51,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function TvPage() {
   const now = Date.now()
-  const { today, todays, coming } = football(now)
-  const other = tvMatches(1, now).filter((m) => m.sport !== 'soccer' && isoDate(m.kickoff) === today)
+  const { today, week, todays, coming } = football(now)
+  const other = week.filter((m) => m.sport !== 'soccer' && isoDate(m.kickoff) === today)
   const next = coming[0]
   const title = 'Fodbold i TV i dag'
   return (
@@ -95,7 +96,7 @@ export default function TvPage() {
             <TvMatches matches={d.matches} empty="" />
           </section>
         ))}
-        <TvLeagueChannels leagues={leagueChannels()} />
+        <TvLeagueChannels leagues={leagueChannels(week)} />
         <p className="muted small">
           Kanalerne kommer fra TV-programmer og rettighedsaftaler og kan ændre sig. Se også <Link href={paths.home({ dato: addDays(today, 1), today })}>alle kampe i morgen</Link>.
         </p>
