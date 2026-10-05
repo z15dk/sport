@@ -511,7 +511,8 @@ function groundRows() {
   }
   return groundCache.rows
 }
-const noSurface = (venue: string) => venue.replace(/\s*\([^)]*\)\s*$/, '').trim()
+/** The ground without the surface DBU adds: "JYSK Park (kunstgræs)", "Frederiksberg IP, kunst" */
+const noSurface = (venue: string) => venue.replace(/\s*\([^)]*\)\s*$/, '').replace(/,\s*(?:kunst|græs|kunstgræs)\s*\d?\s*$/i, '').trim()
 const isClub = (names: string[], hn: string) => names.some((n) => normalize(n) === normalize(hn)) || alike(names, hn)
 
 /**
