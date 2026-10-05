@@ -6,7 +6,7 @@ import { shownDivisions, sportOf } from '../data/leagues'
 import { getRealData } from '../data/real'
 import { cupOfGame, wholeSeason } from '../data/cups'
 import { externalLeagueKey } from '../data/external'
-import { addDays, isoDate } from './time'
+import { addDays, formatLong, formatTime, isoDate } from './time'
 
 // The TV guide (/tv and /tv/<league>): the coming matches that have a channel,
 // from the same choice as everywhere else on the site (channelsFor: an
@@ -46,6 +46,34 @@ export function tvMatches(days: number, now: number, leagueSlug?: string, sport:
   return out.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
 }
 
+/** How far ahead /tv looks: today and the six days after (so the coming weekend is always in it) */
+export const TV_DAYS = 7
+
+/** The other pages of the guide by day: tomorrow and the weekend */
+export const TV_PERIODS = { 'i-morgen': 'i morgen', weekenden: 'i weekenden' } as const
+export type TvPeriod = keyof typeof TV_PERIODS
+
+/** The weekend's dates: from today until Sunday when it has begun (Friday on), else the coming Friday to Sunday */
+export function weekendDates(today: string): string[] {
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay()
+  if (dow === 0) return [today]
+  if (dow >= 5) return Array.from({ length: 8 - dow }, (_, i) => addDays(today, i))
+  return [0, 1, 2].map((i) => addDays(today, 5 - dow + i))
+}
+
+export const periodDates = (period: TvPeriod, today: string) => (period === 'i-morgen' ? [addDays(today, 1)] : weekendDates(today))
+
+/** "i dag", "i morgen" or "fredag 9. oktober" */
+export const tvDayName = (date: string, today: string) => (date === today ? 'i dag' : date === addDays(today, 1) ? 'i morgen' : formatLong(date))
+
+/** "FC Nordsjælland – OB fredag 9. oktober kl. 19.00 på TV 2 Sport" */
+export const tvMatchText = (m: Match, today: string) =>
+  `${m.home.name} – ${m.away.name} ${tvDayName(isoDate(m.kickoff), today)} kl. ${formatTime(m.kickoff)} på ${channelsFor(m)
+    .map((c) => c.name)
+    .join(' og ')}`
+
+export const footballCount = (n: number) => `${n} ${n === 1 ? 'fodboldkamp' : 'fodboldkampe'}`
+
 /** Matches grouped by their day (Danish time), in time order */
 export function byDay(matches: Match[]): { date: string; matches: Match[] }[] {
   const days: { date: string; matches: Match[] }[] = []
@@ -68,7 +96,7 @@ export function leagueChannels(coming: Match[] = []): (TvLeague & { channel?: st
     const rule = data && ruleFor(data.rules, { sport: l.sport, country: l.country, league: l.name })
     const byRule = rule && data.channels.find((c) => c.id === rule.channelId)?.name
     const seen = [...new Set(coming.filter((m) => m.leagueSlug === l.slug).flatMap((m) => channelsFor(m).map((c) => c.name)))]
-    return { ...l, channel: byRule ?? (seen.length ? seen.slice(0, 3).join(', ') : undefined) }
+    return { ...l, channel: byRule ?? (seen.length ? seen.slice(0, 2).join(' · ') : undefined) }
   })
 }
 

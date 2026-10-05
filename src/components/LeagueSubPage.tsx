@@ -44,6 +44,10 @@ export function LeagueSubNav({ division, active }: { division: Division; active:
           {LABEL[p]}
         </Link>
       ))}
+      {/* The league's coming matches on TV (/tv/<liga>) */}
+      <Link className="pill" href={paths.tv(division.slug)}>
+        I TV
+      </Link>
     </nav>
   )
 }
