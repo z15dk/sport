@@ -457,21 +457,17 @@ export function dbuTv(leagues: Record<string, { id: string; home: string; away: 
   return dbuCache
 }
 
-let groundCache: { key: string; rows: { hn: string; venue: string; n: number }[] } | undefined
-/**
- * The ground a club plays its home matches at, as DBU's match programme names it ("Brøndby Stadion", "Parken"):
- * the one most of its home matches are set at. Without the surface DBU adds ("JYSK Park (kunstgræs)").
- */
-export function dbuHomeGround(names: string[]): string | undefined {
+let groundCache: { key: string; rows: { hn: string; venue: string; date: string }[] } | undefined
+function groundRows() {
   const key = dbuTvVersion()
   if (groundCache?.key !== key) {
-    let rows: { hn: string; venue: string; n: number }[] = []
+    let rows: { hn: string; venue: string; date: string }[] = []
     try {
       const lib = process.getBuiltinModule?.('node:sqlite') as { DatabaseSync: new (f: string, o?: { readOnly?: boolean }) => { prepare(s: string): { all(...p: unknown[]): unknown[] }; close(): void } } | undefined
       if (lib) {
         const db = new lib.DatabaseSync(photosDb(), { readOnly: true })
         try {
-          rows = db.prepare(`SELECT h.name hn, m.venue venue, COUNT(*) n FROM matches m JOIN clubs h ON h.id = m.home_id WHERE m.venue IS NOT NULL AND m.venue <> '' GROUP BY h.name, m.venue ORDER BY n DESC`).all() as typeof rows
+          rows = db.prepare(`SELECT h.name hn, m.venue venue, m.date date FROM matches m JOIN clubs h ON h.id = m.home_id WHERE m.venue IS NOT NULL AND m.venue <> ''`).all() as typeof rows
         } finally {
           db.close()
         }
@@ -481,8 +477,34 @@ export function dbuHomeGround(names: string[]): string | undefined {
     }
     groundCache = { key, rows }
   }
-  const hit = groundCache.rows.find((r) => names.some((n) => normalize(n) === normalize(r.hn)) || alike(names, r.hn))
-  return hit?.venue.replace(/\s*\([^)]*\)\s*$/, '').trim() || undefined
+  return groundCache.rows
+}
+const noSurface = (venue: string) => venue.replace(/\s*\([^)]*\)\s*$/, '').trim()
+const isClub = (names: string[], hn: string) => names.some((n) => normalize(n) === normalize(hn)) || alike(names, hn)
+
+/**
+ * The ground a club plays its home matches at, as DBU's match programme names it ("Brøndby Stadion", "Parken"): the one
+ * most of its home matches already played are at (a club that moves later in the season, Aarhus Fremad from Riisvangen
+ * to JYSK Park, is at its ground now), else the one most of its matches are set at. Without the surface DBU adds
+ * ("JYSK Park (kunstgræs)").
+ */
+export function dbuHomeGround(names: string[]): string | undefined {
+  const today = isoDate(Date.now())
+  const own = groundRows().filter((r) => isClub(names, r.hn))
+  const most = (rows: typeof own) => {
+    const count = new Map<string, number>()
+    for (const r of rows) count.set(r.venue, (count.get(r.venue) ?? 0) + 1)
+    return [...count].sort((a, b) => b[1] - a[1])[0]?.[0]
+  }
+  const venue = most(own.filter((r) => r.date <= today)) ?? most(own)
+  return venue && noSurface(venue)
+}
+
+/** The ground a home match is set at, from DBU's programme (the day and the home club); the club's usual ground where DBU has nothing for the day */
+export function dbuMatchGround(names: string[], kickoff: Date | string): string | undefined {
+  const day = isoDate(typeof kickoff === 'string' ? new Date(kickoff) : kickoff)
+  const hit = groundRows().find((r) => r.date === day && isClub(names, r.hn))
+  return hit ? noSurface(hit.venue) : dbuHomeGround(names)
 }
 
 // ---------------------------------------------------------------- SPORT LIVE's live matches

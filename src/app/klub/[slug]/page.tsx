@@ -49,7 +49,8 @@ import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
-import { dbuHomeGround } from '../../../lib/channels'
+import { dbuHomeGround, dbuMatchGround } from '../../../lib/channels'
+import { NEW_CLUB_PAGE_DIVISIONS } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
 import { KlubHeader } from '../../../components/KlubHeader'
@@ -66,8 +67,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
 
-/** The leagues (our division ids) whose clubs have the new header, KlubHeader; add a league here to give its clubs the header too */
-const NEW_HEADER_DIVISIONS = new Set(['superliga'])
+const NEW_HEADER_DIVISIONS = NEW_CLUB_PAGE_DIVISIONS
 
 export function generateStaticParams() {
   return allTeams().map((t) => ({ slug: t.slug }))
@@ -113,9 +113,9 @@ export default async function ClubPage({ params }: { params: Params }) {
 }
 
 /** The home team's ground by DBU's name ("Brøndby Stadion"), for our own clubs */
-function homeGround(home: string): string | undefined {
+function homeGround(home: string, kickoff: Date): string | undefined {
   const club = findClub(home)?.club
-  return club && dbuHomeGround(clubNames(club))
+  return club && dbuMatchGround(clubNames(club), kickoff)
 }
 
 /**
@@ -191,7 +191,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
       {/* The questions the page answers at its foot, for search engines and AI answers (with the new header to begin with) */}
       {newHeader && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
       {/* The club's next match as an event, so a search for the club can show day, time and place */}
-      {newHeader && nextMatch && <JsonLd data={matchLd(nextMatch, (name) => teamByName(name, nextMatch.leagueSlug)?.slug, undefined, matchTicketUrl(nextMatch), homeGround(nextMatch.home.name))} />}
+      {newHeader && nextMatch && <JsonLd data={matchLd(nextMatch, (name) => teamByName(name, nextMatch.leagueSlug)?.slug, undefined, matchTicketUrl(nextMatch), homeGround(nextMatch.home.name, nextMatch.kickoff))} />}
       <JsonLd data={webPageLd(paths.club(club.slug), club.name, new Date(now))} />
       <JsonLd
         data={breadcrumbLd([
