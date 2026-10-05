@@ -140,11 +140,13 @@ export function LeagueHero({
   )
 }
 
-export function LeagueBriefBox({ items }: { items: string[] }) {
+export function LeagueBriefBox({ items, title = 'Kort fortalt' }: { items: string[]; title?: string }) {
   if (!items.length) return null
   return (
-    <section className="mx-brief" aria-labelledby="lx-brief-title">
-      <h2 id="lx-brief-title">Kort fortalt</h2>
+    <section className="panel lx-box lx-brief" aria-labelledby="lx-brief-title">
+      <h2 id="lx-brief-title" className="panel__title">
+        {title}
+      </h2>
       <ul>
         {items.map((b) => (
           <li key={b}>{b}</li>

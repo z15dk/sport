@@ -2846,6 +2846,7 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .lx-box { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .lx-box > .panel__title { padding-inline: 0; padding-bottom: 0; }
 .lx-box > .muted { margin: 0; }
+.lx-brief ul { margin: 0; padding: 0 0 0 18px; display: grid; gap: 6px; font-size: 15px; line-height: 1.45; }
 
 /* Formtabellen */
 .lx-form { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }

@@ -308,7 +308,6 @@ async function LeaguePageInner({ params }: { params: Params }) {
           <LeagueSubNav division={division} active="stilling" />
         </div>
 
-        <LeagueBriefBox items={brief} />
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
         <LiveNow matches={todays} />
@@ -413,6 +412,8 @@ async function LeaguePageInner({ params }: { params: Params }) {
         )}
 
 
+        {/* The season in short sentences (for readers and answer engines), beside the text about the league */}
+        <LeagueBriefBox items={brief} title={`${division.name} kort fortalt`} />
         <AboutText
           title={`Om ${division.name}`}
           paragraphs={leagueAbout(division, now, { topScorer: dbuScorers?.scorers[0] ? { player: dbuScorers.scorers[0].name, club: dbuScorers.scorers[0].club, goals: dbuScorers.scorers[0].goals } : undefined })}
