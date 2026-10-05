@@ -10,6 +10,7 @@ import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
 import { squadFromApi } from '../data/squadApi'
+import { NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../data/nyKlubside'
 import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type LineupPlayer, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -1155,6 +1156,14 @@ async function tick() {
           changed = true
           await sleep(300)
         }
+      }
+    }
+    // The squads of the clubs in the outside leagues with the new club page (paid plans), three teams a run, down to the reserve
+    {
+      const s = mem.store.football
+      const left = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
+      if (s && isPaid(s) && keyFor('football') && !dueDay('football', Date.now()) && left > backgroundReserve(s) + 100) {
+        if (await refreshSquads(s)) changed = true
       }
     }
     // Goals and cards for our leagues' and cups' games (paid plans), 20 games a request
@@ -2548,13 +2557,19 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
 export async function apiTeamPlayers(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): Promise<SquadPlayer[] | undefined> {
   const key = `football|squad|${leagueId}|${season}|${teamId}`
   const entry = extrasStore().entries[key]
-  if (entry?.squad?.length && Date.now() - entry.fetchedAt < 24 * 3_600_000) return entry.squad
+  // A list fetched in the last 24 hours (an empty one too: the team has no player with statistics yet)
+  if (entry?.squad && Date.now() - entry.fetchedAt < 24 * 3_600_000) return entry.squad.length ? entry.squad : undefined
   const fresh = fetchTeamPlayers(key, leagueId, teamId, season).catch(() => undefined)
   return entry?.squad?.length ? entry.squad : await fresh
 }
 
 const squadsRunning = new Set<string>()
-async function fetchTeamPlayers(key: string, leagueId: string, teamId: number, season: string): Promise<SquadPlayer[] | undefined> {
+/** A page view's fetch: from the day's extras, the same third as the player pages (crawlers follow every club link) */
+function fetchTeamPlayers(key: string, leagueId: string, teamId: number, season: string): Promise<SquadPlayer[] | undefined> {
+  return loadTeamPlayers(key, leagueId, teamId, season, true)
+}
+
+async function loadTeamPlayers(key: string, leagueId: string, teamId: number, season: string, fromExtras: boolean): Promise<SquadPlayer[] | undefined> {
   const api: Api = 'football'
   const store = extrasStore()
   if (squadsRunning.has(key)) return store.entries[key]?.squad
@@ -2563,8 +2578,7 @@ async function fetchTeamPlayers(key: string, leagueId: string, teamId: number, s
     load()
     const s = mem.store[api]
     if (!keyFor(api) || !isPaid(s)) return store.entries[key]?.squad
-    // Crawlers follow every club link: the same third of the day's extras as the player pages
-    if (!spendExtra(api, 3, 'players')) return store.entries[key]?.squad
+    if (fromExtras && !spendExtra(api, 3, 'players')) return store.entries[key]?.squad
     const raw: Raw[] = []
     for (let page = 1, last = 1; page <= Math.min(last, 4); page++) {
       const r = await call(api, `/players?league=${leagueId}&team=${teamId}&season=${season}&page=${page}`, 8_000)
@@ -2573,13 +2587,42 @@ async function fetchTeamPlayers(key: string, leagueId: string, teamId: number, s
       last = num(r.paging?.total) ?? 1
     }
     const squad = squadFromApi(raw, leagueId).map((p): SquadPlayer => ({ ...p, photo: proxyImage(p.photo) }))
-    if (!squad.length) return store.entries[key]?.squad
+    // An empty list is kept too (a team that has played nothing yet), so the job does not ask for it again and again
+    if (!squad.length && store.entries[key]?.squad?.length) return store.entries[key]?.squad
     store.entries[key] = { fetchedAt: Date.now(), squad }
     saveExtras()
     return squad
   } finally {
     squadsRunning.delete(key)
   }
+}
+
+/**
+ * The squads of the clubs in the outside leagues with the new club page (src/data/nyKlubside.ts), kept up to date by the
+ * job: the teams (from the days' games) whose list is more than 24 hours old, three a run, from the background budget
+ * so the club pages do not have to ask when they are opened.
+ */
+async function refreshSquads(s: ApiState): Promise<boolean> {
+  const store = extrasStore()
+  const leagues = externalLeagues().filter((l) => l.api === 'football' && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(l.key))
+  if (!leagues.length) return false
+  const season = SEASON.slice(0, 4)
+  const teams = new Map<string, { leagueId: string; teamId: number }>()
+  for (const d of Object.values(s.days))
+    for (const g of d.games) {
+      if (!leagues.some((l) => l.id === String(g.league.id))) continue
+      for (const t of [g.home, g.away]) if (t.id) teams.set(`football|squad|${g.league.id}|${season}|${t.id}`, { leagueId: String(g.league.id), teamId: t.id })
+    }
+  const due = [...teams]
+    .filter(([key]) => Date.now() - (store.entries[key]?.fetchedAt ?? 0) > 24 * 3_600_000)
+    .sort((a, b) => (store.entries[a[0]]?.fetchedAt ?? 0) - (store.entries[b[0]]?.fetchedAt ?? 0))
+    .slice(0, 3)
+  for (const [key, t] of due) {
+    // A failed fetch is tried again a little later (the entry's time is not touched; a team with no list stays in the queue)
+    await loadTeamPlayers(key, t.leagueId, t.teamId, season, false).catch(() => undefined)
+    await sleep(300)
+  }
+  return due.length > 0
 }
 
 /** Injured and suspended players in a league this season, per match (one request, kept 6 hours) */
