@@ -831,6 +831,53 @@ export function eventPlayers(eventId: string): PlayerGame[] {
   }
 }
 
+/**
+ * A team's players over a set of matches (a season in a league): appearances, minutes, goals, assists, average
+ * rating and the rest, by the source's team id. The matches' ids use the primary key, so only those rows are read.
+ */
+export function teamPlayerTotals(eventIds: string[], teamId: number) {
+  const lib = sqlite()
+  if (!lib || !eventIds.length || !existsFile(archiveFile())) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return []
+  }
+  try {
+    const marks = eventIds.map(() => '?').join(',')
+    return db
+      .prepare(
+        `SELECT player_id, MAX(name) AS name, MAX(position) AS position, COUNT(*) AS apps, SUM(COALESCE(minutes, 0)) AS minutes,
+          SUM(goals) AS goals, SUM(assists) AS assists, AVG(rating) AS rating, SUM(COALESCE(key_passes, 0)) AS key_passes,
+          SUM(COALESCE(shots, 0)) AS shots, SUM(COALESCE(shots_on, 0)) AS shots_on, SUM(COALESCE(saves, 0)) AS saves,
+          SUM(yellow) AS yellow, SUM(red) AS red
+        FROM player_games WHERE event_id IN (${marks}) AND team_id = ? GROUP BY player_id`,
+      )
+      .all(...eventIds, teamId)
+      .map((r) => ({
+        id: Number(r.player_id),
+        name: String(r.name ?? ''),
+        position: (r.position ?? undefined) as string | undefined,
+        apps: Number(r.apps ?? 0),
+        minutes: Number(r.minutes ?? 0),
+        goals: Number(r.goals ?? 0),
+        assists: Number(r.assists ?? 0),
+        rating: r.rating === null ? undefined : Math.round(Number(r.rating) * 100) / 100,
+        keyPasses: Number(r.key_passes ?? 0),
+        shots: Number(r.shots ?? 0),
+        shotsOn: Number(r.shots_on ?? 0),
+        saves: Number(r.saves ?? 0),
+        yellow: Number(r.yellow ?? 0),
+        red: Number(r.red ?? 0),
+      }))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
 /** How many player-match rows and checked matches the bank has (for /admin/data) */
 export function playerGamesStatus() {
   const lib = sqlite()

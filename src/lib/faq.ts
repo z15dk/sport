@@ -1,4 +1,5 @@
 import { counted, genitive } from './words'
+import type { MatchDeep } from '../data/matchDeep'
 import type { Match } from '../types'
 import { danishTier, seasonOf, type Club, type Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
@@ -18,9 +19,10 @@ export { genitive }
 
 const when = (d: Date) => `${formatLong(d)} kl. ${formatTime(d)}`
 
-export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?: ClubStats): FaqItem[] {
+export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?: ClubStats, more?: { channels?: string[]; deep?: MatchDeep }): FaqItem[] {
   const { home: h, away: a } = match
   const items: FaqItem[] = []
+  const deep = more?.deep
 
   if (match.state === 'finished') {
     const hs = h.score ?? 0
@@ -70,7 +72,7 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
       q: `Hvem har vundet flest af de seneste indbyrdes opgør?`,
       a:
         hw === aw
-          ? `De seneste ${h2h.length} opgør står lige: ${hw} sejre til hver${draws ? ` og ${draws} uafgjorte` : ''}.`
+          ? `De seneste ${h2h.length} opgør står lige: ${counted(hw, 'sejr', 'sejre')} til hver${draws ? ` og ${counted(draws, 'uafgjort', 'uafgjorte')}` : ''}.`
           : `${hw > aw ? h.name : a.name} har vundet ${Math.max(hw, aw)} af de seneste ${h2h.length} opgør og ${hw > aw ? a.name : h.name} ${Math.min(hw, aw)}${draws ? `, mens ${draws} er endt uafgjort` : ''}.`,
     })
     items.push({
@@ -84,6 +86,33 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
       a: `${h.name} ligger nr. ${home.position} med ${home.row.points} point, og ${a.name} ligger nr. ${away.position} med ${away.row.points} point.`,
     })
   }
+  // Where to watch it, before and while it is played
+  if (more?.channels?.length && match.state !== 'finished')
+    items.push({ q: `Hvor kan jeg se ${h.name} – ${a.name} i TV?`, a: `Kampen vises på ${more.channels.join(' og ')}.` })
+  // The clubs' top scorers this season
+  const top = (list?: { name: string; goals: number; minutes: number }[]) => [...(list ?? [])].sort((x, y) => y.goals - x.goals || y.minutes - x.minutes)[0]
+  const th = top(deep?.players?.home)
+  const ta = top(deep?.players?.away)
+  if (th?.goals && ta?.goals)
+    items.push({
+      q: `Hvem er topscorer for ${h.name} og ${a.name}?`,
+      a: `${th.name} har scoret ${counted(th.goals, 'mål', 'mål')} for ${h.name} i sæsonen, og ${ta.name} ${counted(ta.goals, 'mål', 'mål')} for ${a.name}.`,
+    })
+  // Matchly's calculation, as a calculation
+  const c = deep?.chance
+  if (c && match.state === 'upcoming')
+    items.push({
+      q: `Hvem er favorit i ${h.name} – ${a.name}?`,
+      a: `Matchlys beregning ud fra sæsonens mål hjemme og ude giver ${h.name} ${c.home} %, uafgjort ${c.draw} % og ${a.name} ${c.away} %. Det er en beregning, ikke odds.`,
+    })
+  // The line-ups: when they come, and how the clubs started last time
+  const xh = deep?.lastXI?.home
+  const xa = deep?.lastXI?.away
+  if (match.state === 'upcoming' && xh?.lineup.formation && xa?.lineup.formation)
+    items.push({
+      q: `Hvordan stiller ${h.name} og ${a.name} op?`,
+      a: `Opstillingerne kommer cirka en time før kampstart. I deres seneste kamp startede ${h.name} i ${xh.lineup.formation} og ${a.name} i ${xa.lineup.formation}.`,
+    })
   return items
 }
 

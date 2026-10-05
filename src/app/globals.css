@@ -2667,3 +2667,124 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 .subs-list__min { font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .subs-list__on { color: #2f9e44; font-weight: 800; }
 .subs-list__off { color: var(--live); font-weight: 800; }
+
+/* ------------------------------------------------------------------ the match page, before kick-off and around the score */
+/* The top (MatchHero): both clubs on a dark field lit in their colours, the time left or the score, where and on which channel */
+.mx-hero {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius); color: #fff; padding: 18px 18px 18px;
+  background:
+    radial-gradient(55% 85% at 0% 45%, color-mix(in srgb, var(--mx-home) 62%, transparent) 0%, transparent 72%),
+    radial-gradient(55% 85% at 100% 45%, color-mix(in srgb, var(--mx-away) 62%, transparent) 0%, transparent 72%),
+    linear-gradient(180deg, #171c0d 0%, #0b0d07 100%);
+}
+.mx-hero__m {
+  position: absolute; z-index: -1; left: 50%; top: 50%; transform: translate(-50%, -52%); pointer-events: none;
+  font-family: var(--display); font-style: italic; font-weight: 800; font-size: 420px; line-height: 0.8;
+  color: transparent; -webkit-text-stroke: 2px rgba(198, 241, 53, 0.13);
+}
+.mx-hero__top { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lime); }
+.mx-hero__top > * + *::before { content: '·'; margin-right: 10px; color: rgba(255, 255, 255, 0.4); }
+.mx-hero__top a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mx-hero__row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 10px; margin-top: 16px; }
+.mx-hero__side { display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center; min-width: 0; }
+.mx-hero__crest {
+  width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), 0 0 0 5px rgba(255, 255, 255, 0.08);
+}
+.mx-hero__side { container-type: inline-size; }
+.mx-hero__name { width: 100%; font-family: var(--display); font-style: italic; font-weight: 800; font-size: min(24px, calc(100cqw / (var(--len) * 0.58))); line-height: 1; text-transform: uppercase; overflow-wrap: normal; hyphens: none; }
+.mx-hero__name a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mx-hero__pos { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.72); }
+.mx-hero__center { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 22px; min-width: 120px; }
+.mx-hero__time, .mx-hero__score { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 64px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.mx-hero__score i { font-style: normal; opacity: 0.45; margin: 0 6px; }
+.mx-hero__score.is-live { color: var(--lime); }
+.mx-hero__count { padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 12px; font-weight: 600; white-space: nowrap; color: rgba(255, 255, 255, 0.85); }
+.mx-hero__count b { color: var(--lime); font-weight: 800; }
+.mx-hero__status { padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.mx-hero__status.is-live { background: var(--live); animation: mx-pulse 1.6s ease-in-out infinite; }
+@keyframes mx-pulse { 50% { box-shadow: 0 0 0 6px rgba(255, 74, 31, 0.25); } }
+.mx-hero__meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px 14px; margin-top: 16px; font-size: 13px; color: rgba(255, 255, 255, 0.78); text-align: center; }
+.mx-hero__meta span:first-letter { text-transform: uppercase; }
+.mx-hero__actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.mx-hero__tv { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 14px; border-radius: 999px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 700; }
+.mx-hero__tickets { display: inline-flex; align-items: center; padding: 9px 18px; border-radius: 999px; background: var(--lime); color: var(--ink); font-weight: 800; font-size: 14px; }
+.mx-hero__tickets:hover { background: #d4f75e; }
+.mx-hero .form__chip { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+@media (max-width: 600px) {
+  .mx-hero { padding: 14px 12px 16px; }
+  .mx-hero__m { font-size: 300px; }
+  .mx-hero__row { gap: 6px; margin-top: 12px; }
+  .mx-hero__crest { width: 76px; height: 76px; }
+  .mx-hero__crest :is(img, svg, .badge) { width: 56px !important; height: 56px !important; }
+  .mx-hero__name { font-size: min(18px, calc(100cqw / (var(--len) * 0.58))); }
+  .mx-hero__center { padding-top: 14px; min-width: 96px; }
+  .mx-hero__time, .mx-hero__score { font-size: 46px; }
+  .mx-hero__pos { font-size: 11px; }
+  .mx-hero .form__chip { width: 15px; height: 15px; font-size: 9px; }
+}
+
+/* The sections as tabs under the top (MatchNav), kept in sight while scrolling */
+.mx-nav {
+  position: sticky; top: 8px; z-index: 30; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 5px;
+  border-radius: 999px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px);
+  box-shadow: 0 6px 22px rgba(15, 17, 12, 0.08);
+}
+.mx-nav::-webkit-scrollbar { display: none; }
+.mx-nav a { flex: none; padding: 8px 15px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.mx-nav a:hover { color: var(--ink); background: var(--surface-2); }
+.mx-nav a.is-active { background: var(--ink); color: #fff; }
+.match-page [id] { scroll-margin-top: 72px; }
+
+/* "Kort fortalt" */
+.mx-brief { border-radius: var(--radius); padding: 18px 20px; background: var(--surface); border-left: 6px solid var(--lime); }
+.mx-brief h2 { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; text-transform: uppercase; margin-bottom: 8px; }
+.mx-brief ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.mx-brief li { position: relative; padding-left: 20px; font-size: 15px; line-height: 1.45; }
+.mx-brief li::before { content: ''; position: absolute; left: 2px; top: 0.55em; width: 8px; height: 8px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
+
+/* The clubs over a box's two sides */
+.mx-teams { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; }
+.mx-teams span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* Matchly's calculation */
+.mx-chance__nums { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+.mx-chance__num { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mx-chance__num b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 40px; line-height: 0.9; }
+.mx-chance__num span { font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-chance__num--draw { align-items: center; }
+.mx-chance__num--draw b { font-size: 28px; color: var(--ink-2); }
+.mx-chance__num--away { align-items: flex-end; text-align: right; }
+.mx-chance__bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; gap: 3px; }
+.mx-chance__bar i { display: block; min-width: 4px; }
+.mx-chance__facts { display: grid; gap: 8px; margin: 0; }
+.mx-chance__facts div { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
+.mx-chance__facts dt { font-size: 13px; color: var(--ink-2); }
+.mx-chance__facts dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mx-chance__scores { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.mx-chance__scores span { padding: 3px 9px; border-radius: 999px; background: var(--surface-2); font-weight: 800; }
+.mx-chance__scores em { font-style: normal; font-weight: 600; color: var(--ink-3); font-size: 12px; }
+
+/* When the goals fall: home to the left, away to the right of each quarter */
+.mx-mirror { display: grid; gap: 5px; }
+.mx-mirror h3 { margin: 4px 0 2px; font-size: 12px; font-weight: 700; color: var(--ink-2); text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
+.mx-mirror__row { display: grid; grid-template-columns: 18px 1fr 52px 1fr 18px; align-items: center; gap: 6px; }
+.mx-mirror__n { font-weight: 800; font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+.mx-mirror__q { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mx-mirror__bar { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; display: flex; }
+.mx-mirror__bar--home { justify-content: flex-end; }
+.mx-mirror__bar i { display: block; height: 100%; border-radius: 999px; }
+
+/* Key players */
+.mx-players { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mx-players__team h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; }
+.mx-players__team ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mx-players__team li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px 7px 7px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.mx-players__team li .player-photo, .mx-players__team li .badge { border-radius: 50%; background: #fff; object-fit: cover; }
+.mx-players__who { display: flex; flex-direction: column; min-width: 0; }
+.mx-players__who em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.mx-players__who a { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-players__who a:hover { text-decoration: underline; }
+.mx-players__team li b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; white-space: nowrap; }
+.match-page__flow .mx-players { grid-template-columns: 1fr; }
+@media (max-width: 600px) { .mx-players { grid-template-columns: 1fr; } }

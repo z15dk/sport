@@ -22,7 +22,6 @@ import { alike } from '../data/aliases'
 import { Updated } from './Updated'
 import { SubsList } from './SubsList'
 import { MatchExtrasPanel } from './MatchExtras'
-import { PartnerLogo } from './PartnerLogo'
 import { channelsFor } from '../data/channels'
 import { clubFixtures, isFinished, standings } from '../data/season'
 import { TeamBadge } from './TeamBadge'
@@ -32,6 +31,11 @@ import { lineupSpelling, type FormGame, type Lineup, type MatchExtra, type Match
 import { LineupPitch } from './LineupPitch'
 import { InjuryList } from './InjuryList'
 import type { Injury } from '../data/teamStats'
+import type { MatchDeep } from '../data/matchDeep'
+import { matchBrief } from '../data/matchBrief'
+import { MatchHero } from './match/MatchHero'
+import { MatchNav } from './match/MatchNav'
+import { ExpectedLineupsBox, GoalTimingBox, KeyPlayersBox, WinChanceBox } from './match/MatchDeepBoxes'
 
 /** Where the head-to-head meetings come from */
 export type H2hSource = 'database' | 'api-sports' | 'both'
@@ -65,10 +69,12 @@ interface Props {
   h2hHref?: string
   /** "Køb billetter": our counting address for the home club's ticket shop (src/lib/tickets.ts) */
   ticketHref?: string
+  /** The clubs' season statistics, their players, latest line-ups and Matchly's calculation (server, src/lib/matchDeep.ts) */
+  deep?: MatchDeep
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, subs, absent, related, promo, h2hHref, ticketHref }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, subs, absent, related, promo, h2hHref, ticketHref, deep }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -85,7 +91,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   const shown = lineups?.length && withEvents.incidents?.length ? { ...withEvents, incidents: withEvents.incidents.map((e) => (e.player ? { ...e, player: spell(e.player) } : e)) } : withEvents
   return (
     <>
-      <MatchBody match={shown} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={lineups?.length ? subs?.map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) })) : subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} />
+      <MatchBody match={shown} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={lineups?.length ? subs?.map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) })) : subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} deep={deep} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -123,7 +129,7 @@ function seasonCompare(match: Match) {
   const homePpg = ppg(hs.home.points, hs.home.played)
   const awayPpg = ppg(as.away.points, as.away.played)
   const rows = [
-    { label: 'Point pr. kamp (hjemme / ude)', home: homePpg, away: awayPpg, homeText: one(homePpg), awayText: one(awayPpg) },
+    { label: 'Point pr. kamp (hjemme mod ude)', home: homePpg, away: awayPpg, homeText: one(homePpg), awayText: one(awayPpg) },
     { label: 'Mål pr. kamp', home: hs.goalsForPerMatch, away: as.goalsForPerMatch, homeText: one(hs.goalsForPerMatch), awayText: one(as.goalsForPerMatch) },
     {
       label: 'Mål imod pr. kamp',
@@ -158,6 +164,7 @@ function MatchBody({
   promo,
   h2hHref,
   ticketHref,
+  deep,
 }: {
   match: Match
   now: number
@@ -172,12 +179,12 @@ function MatchBody({
   promo?: React.ReactNode
   h2hHref?: string
   ticketHref?: string
+  deep?: MatchDeep
 }) {
   const { home, away, state } = match
   // On computers each box goes into the shortest of the three columns (src/hooks/useMasonry.ts)
   const flowRef = useRef<HTMLDivElement>(null)
   useMasonry(flowRef)
-  const showScore = state === 'live' || state === 'finished'
   const homeStats = clubStats(home.name, now)
   const awayStats = clubStats(away.name, now)
   const h2h = realH2h ?? []
@@ -286,7 +293,7 @@ function MatchBody({
   // boxes' columns like the rest, `match-stats--wide`); else in the flow with the line-ups
   const statsTop = match.state === 'live' && !!stats
   const statsBox = (cls = '') => stats ? (
-    <section className={`sheet__section${cls}`}>
+    <section className={`sheet__section${cls}`} id={statsAt === 'match' && !cls ? 'statistik' : undefined}>
       <h2 className="sheet__title">Kampstatistik</h2>
       {stats.xg && (
         <StatBar
@@ -310,6 +317,27 @@ function MatchBody({
   ) : null
   const pairRow = !!stats || lineups?.length === 2
 
+  // The top's form: the season's last five in the league (our clubs), else the source's
+  const letters = (games?: FormGame[]) => (games ?? []).slice(0, 5).reverse().map((g): 'V' | 'U' | 'T' => (g.for > g.against ? 'V' : g.for < g.against ? 'T' : 'U'))
+  const heroForm = { home: homeStats?.row.form.slice(-5) ?? letters(form?.home), away: awayStats?.row.form.slice(-5) ?? letters(form?.away) }
+  // "Kort fortalt": the few things to know before the match (also for answer engines)
+  const brief =
+    state === 'upcoming'
+      ? matchBrief({ match, homeStats, awayStats, h2h, deep, channels: channels.map((c) => c.name), absent: absent && { home: absent.home.length, away: absent.away.length } })
+      : []
+  const xi = state === 'upcoming' && lineups?.length !== 2 ? deep?.lastXI : undefined
+  const showTiming = !!deep?.teamStats?.home && !!deep.teamStats.away
+  // "Statistik" in the tabs goes to the first statistics box on the page
+  const statsAt = state === 'upcoming' && deep?.chance ? 'chance' : compare ? 'compare' : showTiming ? 'timing' : 'match'
+  const navItems = [
+    ...(brief.length || story ? [{ id: 'overblik', label: 'Overblik' }] : []),
+    ...(compare || deep?.chance || showTiming || stats ? [{ id: 'statistik', label: 'Statistik' }] : []),
+    ...(deep?.players && (deep.players.home.length || deep.players.away.length) ? [{ id: 'spillere', label: 'Spillere' }] : []),
+    ...(lineups?.length === 2 || (xi?.home && xi.away) ? [{ id: 'opstilling', label: 'Opstilling' }] : []),
+    { id: 'indbyrdes', label: 'Indbyrdes' },
+    ...(table && table.rows.length > 1 ? [{ id: 'stilling', label: 'Stilling' }] : []),
+  ]
+
   return (
     <article className="match-page">
       <nav className="crumbs" aria-label="Brødkrummer">
@@ -322,37 +350,8 @@ function MatchBody({
         </span>
       </nav>
 
-      <header className="duel">
-        <div className="duel__team">
-          <TeamBadge name={home.name} src={home.badge} colors={home.colors} size={72} league={match.leagueSlug} />
-          <strong>
-            <ClubName name={home.name} />
-          </strong>
-          {homeStats && <span className="duel__pos">{homeStats.position}. plads</span>}
-        </div>
-        <div className="duel__center">
-          {showScore ? (
-            <span className={`duel__score duel__score--${state}`}>
-              {home.score ?? 0}–{away.score ?? 0}
-            </span>
-          ) : (
-            <span className="duel__score">{formatTime(match.kickoff)}</span>
-          )}
-          <span className={`status status--${state}`}>{match.statusLabel ?? 'Kommende'}</span>
-          {ticketHref && state === 'upcoming' && (
-            <a className="duel__tickets" href={ticketHref} target="_blank" rel="sponsored nofollow noopener">
-              Køb billetter
-            </a>
-          )}
-        </div>
-        <div className="duel__team">
-          <TeamBadge name={away.name} src={away.badge} colors={away.colors} size={72} league={match.leagueSlug} />
-          <strong>
-            <ClubName name={away.name} />
-          </strong>
-          {awayStats && <span className="duel__pos">{awayStats.position}. plads</span>}
-        </div>
-      </header>
+      <MatchHero match={match} now={now} homeStats={homeStats} awayStats={awayStats} form={heroForm} channels={channels} ticketHref={ticketHref} />
+      <MatchNav items={navItems} />
 
       {statsTop && <div className="match-page__live-stats">{statsBox()}</div>}
 
@@ -360,7 +359,7 @@ function MatchBody({
       <MatchExtrasPanel match={match} withChannels={false} />
 
       {/* The title and summary, and beside them on wide screens the written report or preview */}
-      <div className={`match-page__intro${story ? ' has-story' : ''}`}>
+      <div id="overblik" className={`match-page__intro${story ? ' has-story' : ''}`}>
       <div className="match-page__lede">
       <h1 className="match-page__title">
         <span className="match-page__title-team">
@@ -374,6 +373,16 @@ function MatchBody({
       </h1>
       <p className="match-page__summary">{summary(match, homeStats, awayStats, table?.rows)}</p>
       <Updated at={now} />
+        {brief.length > 0 && (
+        <section className="mx-brief" aria-labelledby="mx-brief-title">
+          <h2 id="mx-brief-title">Kort fortalt</h2>
+          <ul>
+            {brief.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       </div>
 
       {/* The written report or preview right under the summary: the page's own text, high up for readers and search engines */}
@@ -402,7 +411,7 @@ function MatchBody({
           </div>
           )}
             {lineups?.length === 2 && (
-              <section className="sheet__section">
+              <section className="sheet__section" id="opstilling">
                 <h2 className="sheet__title">Opstillinger</h2>
                 <LineupPitch lineups={[lineups[0], lineups[1]]} />
               </section>
@@ -411,76 +420,118 @@ function MatchBody({
         </div>
       )}
 
-      <div className="match-page__cols">
-        <div className="match-page__col">
-          {match.periods && match.periods.length > 0 && <PeriodScores match={match} />}
-          <section className="sheet__section">
-            <h2 className="sheet__title">Kampfakta</h2>
-            <dl className="facts">
-              <div>
-                <dt>Turnering</dt>
-                <dd>{match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : match.league}</dd>
-              </div>
-              {match.country && (
-                <div>
-                  <dt>Land</dt>
-                  <dd>{danishCountry(match.country)}</dd>
-                </div>
-              )}
-              <div>
-                <dt>Dato</dt>
-                <dd>
-                  {formatFull(match.kickoff)} kl. {formatTime(match.kickoff)}
-                </dd>
-              </div>
-              {match.venue && !extra?.facts.some((f) => f.label === 'Spillested') && (
-                <div>
-                  <dt>Spillested</dt>
-                  <dd>{match.venue}</dd>
-                </div>
-              )}
-              {channels.length > 0 && (
-                <div className="facts__wide">
-                  <dt>{match.state === 'finished' ? 'Blev vist på' : match.state === 'live' ? 'Vises nu på' : 'Vises på'}</dt>
-                  <dd className="facts__channels">
-                    {channels.map((c) => (
-                      <PartnerLogo key={c.id} partner={c} kind="kanal" height={36} />
-                    ))}
-                    {/* The TV guide: what else is on today */}
-                    {match.state !== 'finished' && match.sport === 'soccer' && (
-                      <Link className="facts__tv" href={paths.tv()}>
-                        Al fodbold i TV i dag
-                      </Link>
-                    )}
-                  </dd>
-                </div>
-              )}
-              {extra?.facts.map((f) => (
-                <div key={f.label}>
-                  <dt>{f.label}</dt>
-                  <dd>{f.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
-          {!pairRow && timeline}
-
-          {dayGames.length > 1 && (
+      {/* The boxes in the order a reader wants them on a phone; on computers each goes into the shortest column */}
+      {match.periods && match.periods.length > 0 && <PeriodScores match={match} />}
+      {!pairRow && timeline}
+      {state === 'upcoming' && deep?.chance && <WinChanceBox match={match} chance={deep.chance} id={statsAt === 'chance' ? 'statistik' : undefined} />}
+      {deep?.players && <KeyPlayersBox match={match} deep={deep} />}
+          {absent && absent.home.length + absent.away.length > 0 && (
             <section className="sheet__section">
-              <h2 className="sheet__title">
-                {isoDate(match.kickoff) === isoDate(new Date(now)) ? 'I dag' : formatDayMonth(isoDate(match.kickoff))} · {match.league}
-              </h2>
-              <ul className="league__matches league__matches--flush">
-                {dayGames.map((m) => (
-                  <MatchRow key={m.id} match={m} />
+              <h2 className="sheet__title">Skader og karantæner</h2>
+              <div className="absent-cols">
+                {(['home', 'away'] as const).map((side) => (
+                  <div key={side}>
+                    <h3 className="absent-cols__team">{side === 'home' ? home.name : away.name}</h3>
+                    {absent[side].length ? <InjuryList list={absent[side]} compact /> : <p className="muted small">Ingen meldt ude</p>}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           )}
-
+      {xi && <ExpectedLineupsBox match={match} xi={xi} />}
+      {deep && showTiming && <GoalTimingBox match={match} deep={deep} id={statsAt === 'timing' ? 'statistik' : undefined} />}
+          {compare && (
+            <section className="sheet__section" id={statsAt === 'compare' ? 'statistik' : undefined}>
+              <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
+            <CompareHead home={home} away={away} />
+              {compare.map((c) => (
+                <StatBar
+                  key={c.label}
+                  label={c.label}
+                  home={c.home}
+                  away={c.away}
+                  homeText={c.homeText}
+                  awayText={c.awayText}
+                  lowerIsBetter={c.lowerIsBetter}
+                />
+              ))}
+              <p className="muted small">Beregnet af Matchly ud fra sæsonens spillede kampe.</p>
+            </section>
+          )}
+        {form && (form.home.length > 0 || form.away.length > 0) && (
+          <section className="sheet__section">
+            <h2 className="sheet__title">Seneste kampe</h2>
+            <div className="form-cols">
+              <TeamForm name={home.name} badge={home.badge} games={form.home} />
+              <TeamForm name={away.name} badge={away.badge} games={form.away} />
+            </div>
+          </section>
+        )}
+        <section className="sheet__section" id="indbyrdes">
+          <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
+          {h2h.length > 0 && (
+          <div className="h2h-summary">
+            <div>
+              <strong>{wins.home}</strong>
+              <span>{home.name}</span>
+            </div>
+            <div>
+              <strong>{match.sport === 'soccer' || wins.draw > 0 ? wins.draw : h2h.length}</strong>
+              <span>{match.sport === 'soccer' || wins.draw > 0 ? 'Uafgjort' : 'Kampe'}</span>
+            </div>
+            <div>
+              <strong>{wins.away}</strong>
+              <span>{away.name}</span>
+            </div>
+          </div>
+          )}
+          {h2h.length === 0 && (
+            <p className="muted small">
+              {realH2h ? 'Klubberne har ikke mødt hinanden i vores data.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
+            </p>
+          )}
+          <ul className="h2h">
+            {h2h.map((m, i) => {
+              const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
+              return (
+                <li key={i} className="h2h__row">
+                  <span className="h2h__meta">
+                    {formatShortYear(m.date)}
+                    <em>{m.competition}</em>
+                  </span>
+                  <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
+                    {m.home}
+                    <TeamBadge name={m.home} src={m.homeLogo ?? (m.home === home.name ? home.badge : m.home === away.name ? away.badge : undefined)} colors={colorsOf(m.home)} size={22} />
+                  </span>
+                  <span className="h2h__score">
+                    {m.slug ? (
+                      <Link href={paths.match(m.slug)} title={`${m.home} – ${m.away} ${m.homeScore}-${m.awayScore}`}>
+                        {m.homeScore}–{m.awayScore}
+                      </Link>
+                    ) : (
+                      <>
+                        {m.homeScore}–{m.awayScore}
+                      </>
+                    )}
+                  </span>
+                  <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
+                    <TeamBadge name={m.away} src={m.awayLogo ?? (m.away === home.name ? home.badge : m.away === away.name ? away.badge : undefined)} colors={colorsOf(m.away)} size={22} />
+                    {m.away}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          {h2hHref && (
+            <p className="h2h__all">
+              <Link href={h2hHref}>
+                Alle opgør mellem {home.name} og {away.name} →
+              </Link>
+            </p>
+          )}
+        </section>
           {table && table.rows.length > 1 && (
-            <section className="sheet__section">
+            <section className="sheet__section" id="stilling">
               <h2 className="sheet__title">Stilling · {match.league}{table.name ? ` · ${table.name}` : ''}</h2>
               <div className="table-wrap table-wrap--flush">
                 <table className="table table--compact">
@@ -547,125 +598,59 @@ function MatchBody({
               {table.behind && <p className="muted small">Stillingen er fra før denne kamp og opdateres inden for en time.</p>}
             </section>
           )}
-          {absent && absent.home.length + absent.away.length > 0 && (
+          {dayGames.length > 1 && (
             <section className="sheet__section">
-              <h2 className="sheet__title">Skader og karantæner</h2>
-              <div className="absent-cols">
-                {(['home', 'away'] as const).map((side) => (
-                  <div key={side}>
-                    <h3 className="absent-cols__team">{side === 'home' ? home.name : away.name}</h3>
-                    {absent[side].length ? <InjuryList list={absent[side]} compact /> : <p className="muted small">Ingen meldt ude</p>}
-                  </div>
+              <h2 className="sheet__title">
+                {isoDate(match.kickoff) === isoDate(new Date(now)) ? 'I dag' : formatDayMonth(isoDate(match.kickoff))} · {match.league}
+              </h2>
+              <ul className="league__matches league__matches--flush">
+                {dayGames.map((m) => (
+                  <MatchRow key={m.id} match={m} />
                 ))}
-              </div>
+              </ul>
             </section>
           )}
-        </div>
-        <div className="match-page__col">
-          {compare && (
-            <section className="sheet__section">
-              <h2 className="sheet__title">{state === 'upcoming' ? 'Før kampen' : 'Sæsonen i tal'}</h2>
-            <CompareHead home={home} away={away} />
-              {compare.map((c) => (
-                <StatBar
-                  key={c.label}
-                  label={c.label}
-                  home={c.home}
-                  away={c.away}
-                  homeText={c.homeText}
-                  awayText={c.awayText}
-                  lowerIsBetter={c.lowerIsBetter}
-                />
-              ))}
-              <p className="muted small">Beregnet af Matchly ud fra sæsonens spillede kampe.</p>
-            </section>
-          )}
-
-          {homeStats && awayStats && (
+      {/* The clubs' season counted side by side: after the match (before it, the comparison and the table say it) */}
+          {homeStats && awayStats && state !== 'upcoming' && (
             <section className="sheet__section">
               <h2 className="sheet__title">Klubberne i sæsonen</h2>
             <CompareHead home={home} away={away} />
               <ClubComparison home={homeStats} away={awayStats} />
             </section>
           )}
-
-        </div>
-      </div>
-      {/* The teams' latest matches in the same two-column flow */}
-        {form && (form.home.length > 0 || form.away.length > 0) && (
           <section className="sheet__section">
-            <h2 className="sheet__title">Seneste kampe</h2>
-            <div className="form-cols">
-              <TeamForm name={home.name} badge={home.badge} games={form.home} />
-              <TeamForm name={away.name} badge={away.badge} games={form.away} />
-            </div>
+            <h2 className="sheet__title">Kampfakta</h2>
+            <dl className="facts">
+              <div>
+                <dt>Turnering</dt>
+                <dd>{match.leagueSlug ? <Link href={paths.league(match.leagueSlug)}>{match.league}</Link> : match.league}</dd>
+              </div>
+              {match.country && (
+                <div>
+                  <dt>Land</dt>
+                  <dd>{danishCountry(match.country)}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Dato</dt>
+                <dd>
+                  {formatFull(match.kickoff)} kl. {formatTime(match.kickoff)}
+                </dd>
+              </div>
+              {match.venue && !extra?.facts.some((f) => f.label === 'Spillested') && (
+                <div>
+                  <dt>Spillested</dt>
+                  <dd>{match.venue}</dd>
+                </div>
+              )}
+              {extra?.facts.map((f) => (
+                <div key={f.label}>
+                  <dt>{f.label}</dt>
+                  <dd>{f.value}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
-        )}
-      {/* The head-to-heads in the same flow: beside the other boxes where there is room, full width on phones */}
-        <section className="sheet__section">
-          <h2 className="sheet__title">Seneste indbyrdes opgør</h2>
-          {h2h.length > 0 && (
-          <div className="h2h-summary">
-            <div>
-              <strong>{wins.home}</strong>
-              <span>{home.name}</span>
-            </div>
-            <div>
-              <strong>{match.sport === 'soccer' || wins.draw > 0 ? wins.draw : h2h.length}</strong>
-              <span>{match.sport === 'soccer' || wins.draw > 0 ? 'Uafgjort' : 'Kampe'}</span>
-            </div>
-            <div>
-              <strong>{wins.away}</strong>
-              <span>{away.name}</span>
-            </div>
-          </div>
-          )}
-          {h2h.length === 0 && (
-            <p className="muted small">
-              {realH2h ? 'Klubberne har ikke mødt hinanden i vores data.' : 'Vi har ingen tidligere opgør mellem klubberne.'}
-            </p>
-          )}
-          <ul className="h2h">
-            {h2h.map((m, i) => {
-              const winner = m.homeScore > m.awayScore ? m.home : m.homeScore < m.awayScore ? m.away : null
-              return (
-                <li key={i} className="h2h__row">
-                  <span className="h2h__meta">
-                    {formatShortYear(m.date)}
-                    <em>{m.competition}</em>
-                  </span>
-                  <span className={`h2h__team${winner === m.home ? ' is-winner' : ''}`}>
-                    {m.home}
-                    <TeamBadge name={m.home} src={m.homeLogo ?? (m.home === home.name ? home.badge : m.home === away.name ? away.badge : undefined)} colors={colorsOf(m.home)} size={22} />
-                  </span>
-                  <span className="h2h__score">
-                    {m.slug ? (
-                      <Link href={paths.match(m.slug)} title={`${m.home} – ${m.away} ${m.homeScore}-${m.awayScore}`}>
-                        {m.homeScore}–{m.awayScore}
-                      </Link>
-                    ) : (
-                      <>
-                        {m.homeScore}–{m.awayScore}
-                      </>
-                    )}
-                  </span>
-                  <span className={`h2h__team h2h__team--away${winner === m.away ? ' is-winner' : ''}`}>
-                    <TeamBadge name={m.away} src={m.awayLogo ?? (m.away === home.name ? home.badge : m.away === away.name ? away.badge : undefined)} colors={colorsOf(m.away)} size={22} />
-                    {m.away}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-          {h2hHref && (
-            <p className="h2h__all">
-              <Link href={h2hHref}>
-                Alle opgør mellem {home.name} og {away.name} →
-              </Link>
-            </p>
-          )}
-        </section>
-        {/* The widget advert last in the flow: it fills the gap where one column ends early */}
         {promo && <div className="match-promo">{promo}</div>}
       </div>
     </article>
