@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { TV_DAYS, TV_PERIODS, footballCount, leagueChannels, periodDates, tvMatchText, tvMatches, type TvPeriod } from '../lib/tv'
-import { TvDayNav, TvDays, TvLeagueChannels, TvMatches } from './TvGuide'
+import { TV_DAYS, TV_PERIODS, byDay, footballCount, leagueChannels, periodDates, tvMatchText, tvMatches, type TvPeriod } from '../lib/tv'
+import { TvAdFallback, TvDayNav, TvDays, TvLeagueChannels, TvMatches, tvAdPlans } from './TvGuide'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../lib/jsonld'
 import { paths } from '../lib/site'
 import { formatDayMonth, formatLong, isoDate } from '../lib/time'
@@ -42,6 +42,9 @@ export function TvPeriodPage({ period: p }: { period: TvPeriod }) {
   const { today, week, football, other, when } = period(p, now)
   const name = TV_PERIODS[p]
   const title = `Fodbold i TV ${name}`
+  // The "Kampliste" banners down the page: the days first, the other sports last
+  const days = byDay(football)
+  const plans = tvAdPlans([...days.map((d) => d.matches), other])
   return (
     <div className="page">
       <JsonLd
@@ -63,7 +66,7 @@ export function TvPeriodPage({ period: p }: { period: TvPeriod }) {
         </div>
         <TvDayNav current={p} />
         {football.length > 0 ? (
-          <TvDays matches={football} today={today} />
+          <TvDays matches={football} today={today} ads={plans.slice(0, days.length)} />
         ) : (
           <p className="panel tv-next">
             <strong>Vi kender endnu ikke til fodbold i TV {name}.</strong> Se <Link href={paths.tv()}>fodbold i TV i dag og de kommende dage</Link>.
@@ -72,9 +75,10 @@ export function TvPeriodPage({ period: p }: { period: TvPeriod }) {
         {other.length > 0 && (
           <>
             <h2 className="tv-day">Anden sport i TV {name}</h2>
-            <TvMatches matches={other} showDate={p === 'weekenden'} empty="" />
+            <TvMatches matches={other} showDate={p === 'weekenden'} empty="" ads={plans[days.length]} />
           </>
         )}
+        <TvAdFallback plans={plans} />
         <TvLeagueChannels leagues={leagueChannels(week)} />
         <p className="muted small">Kanalerne kommer fra TV-programmer og rettighedsaftaler og kan ændre sig.</p>
       </div>

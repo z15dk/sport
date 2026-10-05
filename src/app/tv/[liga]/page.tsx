@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { tvLeagues, tvMatches } from '../../../lib/tv'
-import { TvLeagueLinks, TvMatches } from '../../../components/TvGuide'
+import { TvAdFallback, TvLeagueLinks, TvMatches, tvAdPlans } from '../../../components/TvGuide'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../../../lib/jsonld'
 import { paths } from '../../../lib/site'
 
@@ -34,6 +34,7 @@ export default async function TvLeaguePage({ params }: { params: Params }) {
   const now = Date.now()
   const matches = tvMatches(DAYS, now, league.slug)
   const title = `${league.name} i TV`
+  const plans = tvAdPlans([matches])
   return (
     <div className="page">
       <JsonLd
@@ -52,7 +53,8 @@ export default async function TvLeaguePage({ params }: { params: Params }) {
             De kommende kampe i <Link href={paths.league(league.slug)}>{league.name}</Link> i TV de næste fire uger, med dato, tidspunkt og kanal.
           </p>
         </div>
-        <TvMatches matches={matches} showDate empty={`Vi kender ikke til kampe i ${league.name} i TV de næste fire uger.`} />
+        <TvMatches matches={matches} showDate empty={`Vi kender ikke til kampe i ${league.name} i TV de næste fire uger.`} ads={plans[0]} />
+        <TvAdFallback plans={plans} />
         <TvLeagueLinks leagues={tvLeagues()} current={league.slug} />
       </div>
     </div>

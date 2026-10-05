@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { TV_DAYS, footballCount, leagueChannels, tvMatchText, tvMatches } from '../../lib/tv'
-import { TvDayNav, TvDays, TvLeagueChannels, TvMatches } from '../../components/TvGuide'
+import { TV_DAYS, byDay, footballCount, leagueChannels, tvMatchText, tvMatches } from '../../lib/tv'
+import { TvAdFallback, TvDayNav, TvDays, TvLeagueChannels, TvMatches, tvAdPlans } from '../../components/TvGuide'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../../lib/jsonld'
 import { paths } from '../../lib/site'
 import { addDays, formatFull, formatLong, isoDate } from '../../lib/time'
@@ -40,6 +40,9 @@ export default function TvPage() {
   const { today, week, todays, coming } = football(now)
   const other = week.filter((m) => m.sport !== 'soccer' && isoDate(m.kickoff) === today)
   const next = coming[0]
+  // The "Kampliste" banners down the page, in the order the lists are shown
+  const plans = tvAdPlans([todays, other, ...byDay(coming).map((d) => d.matches)])
+  const [adsToday, adsOther, ...adsDays] = plans
   const title = 'Fodbold i TV i dag'
   return (
     <div className="page">
@@ -56,7 +59,7 @@ export default function TvPage() {
         </div>
         <TvDayNav />
         {todays.length > 0 ? (
-          <TvMatches matches={todays} empty="" />
+          <TvMatches matches={todays} empty="" ads={adsToday} />
         ) : (
           <p className="panel tv-next">
             <strong>Ingen fodbold i TV i dag.</strong>{' '}
@@ -72,10 +75,11 @@ export default function TvPage() {
         {other.length > 0 && (
           <>
             <h2 className="tv-day">Anden sport i TV i dag</h2>
-            <TvMatches matches={other} empty="" />
+            <TvMatches matches={other} empty="" ads={adsOther} />
           </>
         )}
-        <TvDays matches={coming} today={today} />
+        <TvDays matches={coming} today={today} ads={adsDays} />
+        <TvAdFallback plans={plans} />
         <TvLeagueChannels leagues={leagueChannels(week)} />
         <p className="muted small">
           Kanalerne kommer fra TV-programmer og rettighedsaftaler og kan ændre sig. Se også <Link href={paths.home({ dato: addDays(today, 1), today })}>alle kampe i morgen</Link>.
