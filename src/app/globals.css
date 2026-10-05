@@ -694,8 +694,7 @@ h2.league__name { margin: 0; }
 .kh-text a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .kh-menu { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 56px; padding: 0 32px; border-top: 1px solid var(--kh-line); }
-.kh-nav { display: flex; gap: 26px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.kh-nav::-webkit-scrollbar { display: none; }
+.kh-nav { display: flex; flex-wrap: wrap; gap: 0 26px; min-width: 0; }
 .kh-nav a { display: inline-flex; align-items: center; height: 56px; border-bottom: 3px solid transparent; color: var(--kh-soft); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .kh-nav a:hover { color: #fff; }
 /* The section the address points at is the active one (no script); the first until then */
@@ -717,13 +716,21 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 .kh-follow { height: 44px; padding: 0 22px; border: 2px solid var(--kh-lime); border-radius: 999px; background: var(--kh-lime); color: var(--ink); font-size: 14px; font-weight: 700; white-space: nowrap; }
 .kh-follow.is-on { background: transparent; color: var(--kh-lime); }
 
+/* Narrower than the menu and the buttons fit side by side: the menu has its own row under the buttons, every item in view
+   (it wraps to a second row instead of scrolling sideways) */
+@container kh (max-width: 1250px) {
+  .kh-menu { flex-wrap: wrap; gap: 0 20px; }
+  .kh-actions { padding: 12px 0; }
+  .kh-nav { order: 1; flex: 1 0 calc(100% + 64px); margin: 0 -32px; padding: 0 32px; border-top: 1px solid var(--kh-line); }
+  .kh-nav a { height: 48px; }
+}
 /* Between phone and full width: the form and the next match on their own line under the table row */
 @container kh (max-width: 900px) {
   .kh-strip { flex-wrap: wrap; row-gap: 12px; }
   .kh-extras { flex-basis: 100%; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--kh-line); min-height: 0; }
 }
 @media (max-width: 700px) {
-  .kh-hero { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 14px; min-height: 0; padding: 20px 16px 22px; }
+  .kh-hero { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 14px; min-height: 0; padding: 20px 22px 22px; }
   .kh-logo { height: 80px; max-width: 100px; }
   .kh-stripe--wide { right: -34px; width: 84px; }
   .kh-stripe--thin { right: 62px; width: 3px; }
@@ -731,7 +738,7 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
   .kh-league { font-size: 14px; }
   /* Under the logo, always on one line: sized by the whole name's length (left of the stripes) */
   .kh-name { white-space: nowrap; font-size: clamp(22px, calc((100cqi - 110px) / (var(--kh-n) * 0.5)), 76px); }
-  .kh-strip { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 12px 16px 4px; }
+  .kh-strip { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 12px 22px 4px; }
   .kh-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding-bottom: 12px; }
   .kh-wide { display: none; }
   .kh-narrow { display: inline; }
@@ -740,11 +747,12 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
   .kh-extra { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; min-height: 48px; padding: 10px 0; border-top: 1px solid var(--kh-line); }
   .kh-note { flex-basis: 100%; }
   .kh-text { white-space: normal; text-align: right; }
-  .kh-menu { flex-direction: column; align-items: stretch; gap: 0; padding: 0 16px; }
-  .kh-actions { order: 0; gap: 16px; padding: 12px 0; }
-  .kh-follow { order: -1; }
-  .kh-nav { order: 1; gap: 22px; margin: 0 -16px; padding: 0 16px; border-top: 1px solid var(--kh-line); }
-  .kh-nav a { height: 48px; }
+  .kh-menu { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; padding: 0 22px; }
+  /* The buttons wrap rather than run past the edge: "Følg klubben" across the width, the two links under it */
+  .kh-actions { order: 0; flex-wrap: wrap; gap: 0 22px; padding: 12px 0 4px; }
+  .kh-follow { order: -1; flex: 1 0 100%; margin-bottom: 4px; }
+  .kh-nav { order: 1; flex: none; gap: 0 22px; margin: 0 -22px; padding: 0 22px; border-top: 1px solid var(--kh-line); }
+  .kh-nav a { height: 46px; }
 }
 
 .tile--form { background: var(--surface); }
