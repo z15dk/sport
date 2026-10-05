@@ -20,9 +20,11 @@ const matchesOf = (p: SquadPlayer) => p.starts + p.subbedOn
 export function ClubSquad({ name, league, season, players, id }: { name: string; league: string; season: string; players: SquadPlayer[]; id?: string }) {
   if (!players.length) return null
   const scorers = players.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || matchesOf(a) - matchesOf(b) || a.name.localeCompare(b.name, 'da')).slice(0, 3)
-  const groups = GROUPS.map((g) => ({
+  // A player the line-ups give no position stands last, under "Øvrige", so everyone counted is shown
+  const known = new Set(GROUPS.map((g) => g.pos))
+  const groups = [...GROUPS, { pos: '', title: 'Øvrige' }].map((g) => ({
     ...g,
-    players: players.filter((p) => p.pos === g.pos).sort((a, b) => matchesOf(b) - matchesOf(a) || b.starts - a.starts || (a.number ?? 99) - (b.number ?? 99)),
+    players: players.filter((p) => (g.pos ? p.pos === g.pos : !p.pos || !known.has(p.pos))).sort((a, b) => matchesOf(b) - matchesOf(a) || b.starts - a.starts || (a.number ?? 99) - (b.number ?? 99)),
   })).filter((g) => g.players.length)
   return (
     <section className="panel squad kh-target" id={id}>
@@ -59,7 +61,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
       </div>
       <div className="squad__body">
         {groups.map((g) => (
-          <div key={g.pos}>
+          <div key={g.pos || 'other'}>
             <h3 className="squad__head">
               {g.title} <span>{g.players.length}</span>
             </h3>
