@@ -33,6 +33,7 @@ export interface EditorArticle {
   author: string
   status: 'draft' | 'published'
   publishedAt?: string
+  noSocial?: boolean
 }
 
 async function upload(file: File): Promise<{ url?: string; photoId?: number; error?: string }> {
@@ -295,6 +296,10 @@ export function ArticleEditor({
             <span>Udgivelsestidspunkt</span>
             <input type="datetime-local" value={localInput(a.publishedAt)} onChange={(e) => set('publishedAt', e.target.value ? new Date(e.target.value).toISOString() : undefined)} />
             <small>Tomt = nu. Et tidspunkt frem i tiden planlægger artiklen.</small>
+          </label>
+          <label className="ed-radio">
+            <input type="checkbox" checked={!!a.noSocial} onChange={(e) => set('noSocial', e.target.checked)} />
+            Del ikke på sociale medier
           </label>
           <label className="ed-field">
             <span>Forfatter</span>

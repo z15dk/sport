@@ -29,6 +29,8 @@ export interface Article {
   status: ArticleStatus
   /** ISO time; a published article with a later time is scheduled */
   publishedAt?: string
+  /** Not shared on social media when it goes live */
+  noSocial: boolean
   updatedAt: string
   createdAt: string
 }
@@ -83,6 +85,15 @@ const SCHEMA = `
   );
 `
 
+// Columns added after the table was first made
+let migrated = false
+function migrate(db: Db) {
+  if (migrated) return
+  const cols = new Set(db.prepare('PRAGMA table_info(articles)').all().map((r) => String(r.name)))
+  if (!cols.has('no_social')) db.exec('ALTER TABLE articles ADD COLUMN no_social INTEGER NOT NULL DEFAULT 0')
+  migrated = true
+}
+
 function open<T>(fn: (db: Db) => T, fallback: T): T {
   const lib = sqlite()
   if (!lib) return fallback
@@ -91,6 +102,7 @@ function open<T>(fn: (db: Db) => T, fallback: T): T {
   try {
     db.exec('PRAGMA busy_timeout = 5000')
     db.exec(SCHEMA)
+    migrate(db)
     return fn(db)
   } finally {
     db.close()
@@ -122,6 +134,7 @@ function toArticle(r: Row): Article {
     author: String(r.author ?? 'Matchly'),
     status: r.status === 'published' ? 'published' : 'draft',
     publishedAt: str(r.published_at),
+    noSocial: Number(r.no_social ?? 0) === 1,
     updatedAt: String(r.updated_at),
     createdAt: String(r.created_at),
   }
@@ -262,14 +275,16 @@ export function saveArticle(input: ArticleInput): { article?: Article; error?: s
         db.prepare(
           `UPDATE articles SET slug=?, title=?, excerpt=?, content=?, featured_image=?, featured_alt=?, category=?, tags=?, focus_keyword=?, seo_title=?, meta_description=?, author=?, status=?, published_at=?, updated_at=? WHERE id=?`,
         ).run(...row, input.id)
+        // Only the editor sends the choice; other writers (the preview robots) keep it
+        if (input.noSocial !== undefined) db.prepare('UPDATE articles SET no_social = ? WHERE id = ?').run(input.noSocial ? 1 : 0, input.id)
         return input.id
       }
       const res = db
         .prepare(
-          `INSERT INTO articles (slug, title, excerpt, content, featured_image, featured_alt, category, tags, focus_keyword, seo_title, meta_description, author, status, published_at, updated_at, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO articles (slug, title, excerpt, content, featured_image, featured_alt, category, tags, focus_keyword, seo_title, meta_description, author, status, published_at, updated_at, created_at, no_social)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(...row, now)
+        .run(...row, now, input.noSocial ? 1 : 0)
       return Number(res.lastInsertRowid)
     }, 0)
     const article = articleById(id)

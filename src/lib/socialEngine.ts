@@ -724,7 +724,7 @@ async function shareNewArticles(now: number) {
   const shared = new Set(readPosts().posts.map((p) => p.article).filter((x): x is number => x !== undefined))
   for (const a of publishedArticles({ limit: 10 }).articles) {
     const at = Date.parse(a.publishedAt ?? '')
-    if (!Number.isFinite(at) || shared.has(a.id) || at < (cfg.articles.since ?? now) || now - at > 24 * HOUR) continue
+    if (!Number.isFinite(at) || a.noSocial || shared.has(a.id) || at < (cfg.articles.since ?? now) || now - at > 24 * HOUR) continue
     await queueArticle(a, platforms, now, `art-${a.id}`)
   }
 }

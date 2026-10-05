@@ -33,6 +33,7 @@ export default async function EditArticle({ params }: { params: Promise<{ id: st
         author: found.author,
         status: found.status,
         publishedAt: found.publishedAt,
+        noSocial: found.noSocial,
       }
     : { slug: '', title: '', excerpt: '', content: '', tags: [], author: 'Matchly', status: 'draft' }
   return (
