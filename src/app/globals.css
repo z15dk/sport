@@ -416,7 +416,7 @@ table.visually-hidden { display: block; }
 .tshift__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 18px; }
 .tshift__play { background: var(--surface-2); font-size: 13px; }
 .tshift__scroll { overflow-x: auto; padding: 0 10px; scrollbar-width: thin; }
-.tshift__svg { display: block; width: 100%; height: auto; min-width: 720px; aspect-ratio: 1200 / 500; }
+.tshift__svg { display: block; width: 100%; height: auto; min-width: 720px; }
 .tshift__band { fill: var(--surface-2); }
 .tshift__zone--up { fill: var(--lime-deep); }
 .tshift__zone--down { fill: var(--live); }

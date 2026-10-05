@@ -5,7 +5,7 @@ import { useBadges } from './BadgeProvider'
 import { sizedImage } from '../lib/imageSize'
 
 // "Tabelforskydning": every club's place in the table after each round, as a
-// 1200×500 chart of logos joined by dotted lines in the club's colour. It plays
+// 1200×500 chart (1200×600 for a league of more than 12 clubs) of logos joined by dotted lines in the club's colour. It plays
 // round by round when it scrolls into view (the logos of a round pop in, the
 // lines grow to them); without JavaScript, or with reduced motion, it is
 // simply the finished chart. Tap a logo to follow a club. Data from
@@ -20,7 +20,8 @@ export interface TableShiftRow {
 }
 
 const W = 1200
-const H = 500
+/** The chart's height: 500, or 600 for a league of more than 12 clubs (Premier League, Bundesliga …) */
+const heightFor = (clubs: number) => (clubs > 12 ? 600 : 500)
 const LEFT = 52
 const RIGHT = 4
 const TOP = 46
@@ -115,6 +116,7 @@ function useLogoColors(rows: TableShiftRow[], urls: (string | undefined)[]) {
 
 export function TableShift({ league, rounds, rows, top, topLabel, bottom }: { league: string; rounds: number[]; rows: TableShiftRow[]; top: number; topLabel: string; bottom: number }) {
   const n = rows.length
+  const H = heightFor(n)
   const rowH = (H - TOP - BOTTOM) / n
   const colW = (W - LEFT - RIGHT) / rounds.length
   const size = Math.min(Math.round(rowH * 0.68), Math.round(colW * 0.6), 34)
@@ -192,6 +194,7 @@ export function TableShift({ league, rounds, rows, top, topLabel, bottom }: { le
         <svg
           className="tshift__svg"
           viewBox={`0 0 ${W} ${H}`}
+          style={{ aspectRatio: `${W} / ${H}` }}
           role="img"
           aria-label={`Tabelforskydning i ${league}: hver klubs placering efter runde ${rounds[0]} til ${lastRound}`}
         >
