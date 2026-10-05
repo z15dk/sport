@@ -256,8 +256,8 @@ export interface StandingRow {
   form: ('V' | 'U' | 'T')[]
 }
 
-/** Table for a division from every finished league match */
-export function standings(div: Division, _now?: number): StandingRow[] {
+/** Table for a division from every finished league match (or only those `only` lets through) */
+export function standings(div: Division, _now?: number, only?: (f: Fixture) => boolean): StandingRow[] {
   const { fixtures, realDivisions } = current()
   // The clubs that actually play in the league this season
   const clubs = realDivisions.has(div.id)
@@ -296,7 +296,7 @@ export function standings(div: Division, _now?: number): StandingRow[] {
     }
   }
   for (const f of fixtures) {
-    if (f.division !== div || !isFinished(f)) continue
+    if (f.division !== div || !isFinished(f) || (only && !only(f))) continue
     result(rows.get(f.home.id)!, f.score[0], f.score[1], f.extra)
     result(rows.get(f.away.id)!, f.score[1], f.score[0], f.extra)
   }
@@ -307,4 +307,31 @@ export function standings(div: Division, _now?: number): StandingRow[] {
       y.goalsFor - x.goalsFor ||
       x.club.name.localeCompare(y.club.name, 'da'),
   )
+}
+
+/** A round counts as played when at least this share of its matches is finished (a postponed match does not hold it back) */
+const ROUND_PLAYED = 0.75
+
+/**
+ * Each club's place in the table after each played round (the "tabelforskydning" chart): the
+ * table counted from the matches of round 1 up to that round, the same order as standings().
+ * The last `max` played rounds; clubs in today's table order.
+ */
+export function positionsByRound(div: Division, max = 16): { rounds: number[]; rows: { club: Club; pos: number[] }[] } {
+  const own = current().fixtures.filter((f) => f.division === div && f.round > 0)
+  const byRound = new Map<number, { all: number; done: number }>()
+  for (const f of own) {
+    const r = byRound.get(f.round) ?? { all: 0, done: 0 }
+    r.all++
+    if (isFinished(f)) r.done++
+    byRound.set(f.round, r)
+  }
+  const played = [...byRound].filter(([, r]) => r.done > 0 && r.done >= r.all * ROUND_PLAYED).map(([n]) => n).sort((a, b) => a - b)
+  const rounds = played.slice(-max)
+  const now = standings(div)
+  const at = new Map(now.map((r) => [r.club.id, [] as number[]]))
+  for (const n of rounds) {
+    standings(div, undefined, (f) => f.round <= n).forEach((r, i) => at.get(r.club.id)?.push(i + 1))
+  }
+  return { rounds, rows: now.map((r) => ({ club: r.club, pos: at.get(r.club.id) ?? [] })) }
 }

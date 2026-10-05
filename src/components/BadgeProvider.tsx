@@ -9,3 +9,6 @@ export function BadgeProvider({ badges, children }: { badges: Record<string, str
 }
 
 export const useBadge = (name: string) => useContext(BadgeContext)[name]
+
+/** Every logo by name (for a component that shows many clubs at once) */
+export const useBadges = () => useContext(BadgeContext)

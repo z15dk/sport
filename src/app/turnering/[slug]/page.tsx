@@ -3,7 +3,7 @@ import { forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
-import { allFixtures, clubInDivision, isFinished, standings, toMatch } from '../../../data/season'
+import { allFixtures, clubInDivision, isFinished, positionsByRound, standings, toMatch } from '../../../data/season'
 import { externalMatch, getMatches, isFriendly } from '../../../data/matches'
 import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
@@ -54,6 +54,7 @@ import { loadRealData } from '../../../lib/realdata'
 import { knownLeague } from '../../../lib/knownLeague'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { LeagueSubNav } from '../../../components/LeagueSubPage'
+import { TableShift } from '../../../components/TableShift'
 
 export const dynamic = 'force-dynamic'
 
@@ -353,6 +354,21 @@ async function LeaguePageInner({ params }: { params: Params }) {
         {leaders && <LeagueLeaders leaders={leaders} league={division.name} />}
         {useDbu && dbuScorers && <TopScorersList league={division.name} {...dbuScorers} />}
         </div>
+        {(() => {
+          // Tabelforskydning: each club's place round by round (only once a few rounds are played)
+          const shift = positionsByRound(division)
+          if (shift.rounds.length < 3) return null
+          return (
+            <TableShift
+              league={division.name}
+              rounds={shift.rounds}
+              rows={shift.rows.map((r) => ({ name: r.club.name, color: r.club.colors[0], pos: r.pos }))}
+              top={division.zones.top}
+              topLabel={division.zones.topLabel}
+              bottom={division.zones.bottom}
+            />
+          )
+        })()}
         {(() => {
           // Not on the Danish leagues' pages: their history in our data is too incomplete (and mixes in second teams)
           if (division.countryCode === 'DK') return null

@@ -412,6 +412,31 @@ table.visually-hidden { display: block; }
 /* Clubs page */
 .clubs { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1040px; margin-inline: auto; }
 .clubs__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Tabelforskydning: the clubs' places round by round (TableShift) */
+.tshift { padding-bottom: 6px; }
+.tshift__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 18px; }
+.tshift__play { background: var(--surface-2); font-size: 13px; }
+.tshift__scroll { overflow-x: auto; padding: 0 12px; scrollbar-width: thin; }
+.tshift__svg { display: block; width: 100%; height: auto; min-width: 720px; aspect-ratio: 1200 / 500; }
+.tshift__head-text { font-size: 17px; font-weight: 600; fill: var(--ink-2); }
+.tshift__head-text.is-last { fill: var(--ink); font-weight: 800; }
+.tshift__pos { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; fill: var(--ink); }
+.tshift__frame { fill: none; stroke: var(--ink); stroke-width: 1.2; opacity: 0.25; }
+.tshift__zone { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 6; opacity: 0.3; }
+.tshift__line { stroke-width: 2.2; stroke-dasharray: 2 5; stroke-linecap: round; opacity: 0; transition: opacity 0.35s, stroke-width 0.2s; }
+.tshift__line.is-on { opacity: 0.85; }
+.tshift__line.is-on.is-chosen { opacity: 1; stroke-width: 4.5; stroke-dasharray: none; }
+.tshift__line.is-on.is-dim { opacity: 0.12; }
+.tshift__club { cursor: pointer; outline: none; transition: opacity 0.2s; }
+.tshift__club.is-dim { opacity: 0.25; }
+.tshift__club:focus-visible .tshift__plate { stroke: var(--ink); stroke-width: 2; }
+.tshift__logo { opacity: 0; transform: scale(0.3); transform-box: fill-box; transform-origin: center; transition: opacity 0.25s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tshift__logo.is-on { opacity: 1; transform: none; }
+.tshift__plate { fill: #fff; }
+.tshift__plate.is-dark { fill: var(--ink); }
+.tshift__initials { font-size: 11px; font-weight: 700; fill: var(--ink-2); }
+.tshift__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 6px 18px 12px; margin: 0; font-size: 12px; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .tshift__logo, .tshift__line { transition: none; } }
 /* TV guide (/tv and /tv/<league>) */
 .tv-day { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; text-transform: uppercase; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .tv-day span { font-family: var(--body); font-style: normal; font-weight: 500; font-size: 13px; text-transform: none; color: var(--ink-3); }
