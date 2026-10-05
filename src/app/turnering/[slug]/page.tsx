@@ -1,4 +1,8 @@
 import type { Metadata } from 'next'
+import { leagueDeep } from '../../../lib/leagueDeep'
+import { leagueBrief } from '../../../data/leagueBrief'
+import { leagueStats } from '../../../data/stats'
+import { AttackDefenceBox, FormTableBox, LeagueBriefBox, LeagueHero, LeagueOutBox, LeaguePlayersBox } from '../../../components/league/LeagueDeepBoxes'
 import { forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { DIVISIONS, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
@@ -9,7 +13,6 @@ import { DivisionTabs } from '../../../components/DivisionTabs'
 import { MatchRow } from '../../../components/MatchRow'
 import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
-import { TeamBadge } from '../../../components/TeamBadge'
 import { NewsList } from '../../../components/NewsList'
 import { TaggedArticles } from '../../../components/TaggedArticles'
 import { articlesAbout } from '../../../lib/articleTopics'
@@ -255,7 +258,6 @@ async function LeaguePageInner({ params }: { params: Params }) {
   const now = Date.now()
   const rows = standings(division, now)
   const badges = await getBadges()
-  const rounds = Math.max(...rows.map((r) => r.played))
   const today = isoDate(now)
   const todays = getMatches(today, sportOf(division), now)
     .filter((m) => m.leagueSlug === division.slug)
@@ -275,8 +277,16 @@ async function LeaguePageInner({ params }: { params: Params }) {
     .map((f) => toMatch(f, now))
   // The matches by round, when the sources give round numbers (else the ten latest results)
   const byRound = roundsOf(division, now)
-  const [first, second] = rows
   const faq = leagueFaq(division, rows)
+  // The season at a glance, the players, who is out and where the season is (src/lib/leagueDeep.ts)
+  const deep = await leagueDeep(division, now)
+  const stats = leagueStats(division)
+  const top = leaders?.scorers[0]
+    ? { name: leaders.scorers[0].name, club: clubInDivision(division, leaders.scorers[0].team, getRealData()?.clubNames ?? {})?.name ?? leaders.scorers[0].team, goals: leaders.scorers[0].value }
+    : dbuScorers?.scorers[0]
+      ? { name: dbuScorers.scorers[0].name, club: dbuScorers.scorers[0].club ?? dbuScorers.scorers[0].team, goals: dbuScorers.scorers[0].goals }
+      : stats?.scorers[0] && { name: stats.scorers[0].player, club: stats.scorers[0].club.name, goals: stats.scorers[0].goals }
+  const brief = leagueBrief({ division, rows, stats, deep, topScorer: top })
 
   return (
     <div className="page">
@@ -290,24 +300,12 @@ async function LeaguePageInner({ params }: { params: Params }) {
       />
       <div className="clubs">
         <div className="clubs__head">
-          <h1 className="feed__title league-title">
-            <span className="league-title__row">
-              <TeamBadge link={false} name={division.name} label={division.short} colors={['#0f110c', '#c6f135']} size={56} />
-              {division.name}
-            </span>
-            <span>
-              Sæson {seasonOf(division)} · {rows.length} klubber
-            </span>
-          </h1>
+          <LeagueHero division={division} rows={rows} stats={stats} deep={deep} badge={badges[division.name]} />
           <DivisionTabs active={division.slug} />
           <LeagueSubNav division={division} active="stilling" />
         </div>
 
-        <p className="lead">
-          Efter {rounds} runder fører {first.club.name} {division.name} med {first.points} point,{' '}
-          {first.points - second.points === 0 ? 'lige med' : `${first.points - second.points} point foran`}{' '}
-          {second.club.name}. Nederst ligger {rows.at(-1)!.club.name} med {rows.at(-1)!.points} point.
-        </p>
+        <LeagueBriefBox items={brief} />
         <Updated at={now} />
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
         <LiveNow matches={todays} />
@@ -315,7 +313,7 @@ async function LeaguePageInner({ params }: { params: Params }) {
         {/* 1., 2. and 3. division: top scorers counted from the match pages, beside the table (no other source has them) */}
         <div className={leaders || useDbu ? 'table-duo' : 'table-solo'}>
         <div className="table-duo__main">
-        <section className="panel table-panel">
+        <section className="panel table-panel" id="stilling">
           <header className="table-panel__head">
             <h2 className="panel__title">Stilling</h2>
           </header>
@@ -329,6 +327,10 @@ async function LeaguePageInner({ params }: { params: Params }) {
           cta="Lav din tabel →"
         />
         <LeagueStats division={division} leaders={leaders} />
+        <FormTableBox rows={rows} />
+        <AttackDefenceBox rows={rows} />
+        <LeaguePlayersBox deep={deep} league={division.name} />
+        <LeagueOutBox deep={deep} />
         <TaggedArticles articles={articlesAbout({ division })} title={`Artikler om ${division.name}`} />
         <NewsList articles={newsFor({ league: division.id }, 10)} division={division} />
         {/* The rounds under the statistics, beside the players */}

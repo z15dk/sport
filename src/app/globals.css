@@ -2789,3 +2789,108 @@ body:has(> .adminbar) :is(.sidebar, .aside, .article-side, .table-duo > .leaders
 .mx-players__team li b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; white-space: nowrap; }
 .match-page__flow .mx-players { grid-template-columns: 1fr; }
 @media (max-width: 600px) { .mx-players { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------------------ the league page: top and deeper boxes (LeagueDeepBoxes) */
+.lx-hero {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius); color: #fff; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 4px;
+  background:
+    radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--lx-c) 55%, transparent) 0%, transparent 70%),
+    radial-gradient(60% 100% at 0% 100%, rgba(198, 241, 53, 0.16) 0%, transparent 70%),
+    linear-gradient(180deg, #171c0d 0%, #0b0d07 100%);
+}
+.lx-hero__m {
+  position: absolute; z-index: -1; right: -40px; bottom: -120px; pointer-events: none; font-family: var(--display); font-style: italic; font-weight: 800;
+  font-size: 460px; line-height: 0.8; color: transparent; -webkit-text-stroke: 2px rgba(198, 241, 53, 0.12);
+}
+.lx-hero__head { display: flex; align-items: center; gap: 14px; }
+.lx-hero__logo { width: 76px; height: 76px; flex: none; border-radius: 20px; display: grid; place-items: center; background: #fff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
+.lx-hero__kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lime); }
+.lx-hero__title { margin: 2px 0 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(34px, 6vw, 60px); line-height: 0.92; text-transform: uppercase; }
+.lx-hero__progress { display: grid; gap: 6px; max-width: 520px; }
+.lx-hero__progress span { font-size: 13px; color: rgba(255, 255, 255, 0.78); }
+.lx-hero__progress b { color: #fff; font-size: 15px; }
+.lx-hero__progress i { display: block; height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.lx-hero__progress em { display: block; height: 100%; border-radius: 999px; background: var(--lime); }
+.lx-hero__cards { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: 10px; }
+.lx-hero__leader { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: var(--radius-sm); background: #fff; color: var(--ink); min-width: 0; }
+.lx-hero__leader span { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.lx-hero__leader em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.lx-hero__leader b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-hero__leader strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 34px; line-height: 1; }
+.lx-hero__num { display: flex; flex-direction: column; justify-content: center; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.08); }
+.lx-hero__num strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; }
+.lx-hero__num span { font-size: 12px; color: rgba(255, 255, 255, 0.72); }
+.lx-hero__status { align-self: flex-start; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 13px; color: rgba(255, 255, 255, 0.9); }
+.lx-hero__status b { color: var(--lime); text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
+a.lx-hero__status:hover { background: rgba(255, 255, 255, 0.16); }
+.lx-hero__status.is-live { background: var(--live); color: #fff; font-weight: 700; }
+.lx-hero__status.is-live i { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: mx-pulse 1.6s ease-in-out infinite; }
+.lx-hero__status.is-break { background: rgba(198, 241, 53, 0.14); }
+@media (max-width: 760px) {
+  .lx-hero { padding: 16px 14px; gap: 14px; }
+  .lx-hero__logo { width: 60px; height: 60px; border-radius: 16px; }
+  .lx-hero__logo :is(img, svg, .badge) { width: 44px !important; height: 44px !important; }
+  .lx-hero__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lx-hero__leader { grid-column: 1 / -1; }
+  .lx-hero__num { padding: 8px 10px; }
+  .lx-hero__num strong { font-size: 24px; }
+  .lx-hero__status { border-radius: var(--radius-sm); }
+}
+.lx-box { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.lx-box > .panel__title { padding-inline: 0; padding-bottom: 0; }
+.lx-box > .muted { margin: 0; }
+
+/* Formtabellen */
+.lx-form { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lx-form li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 70px 26px; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border-radius: 12px; background: var(--surface-2); }
+.lx-form__pos { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16px; text-align: center; }
+.lx-form__club { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; }
+.lx-form__club span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-form__club:hover span { text-decoration: underline; }
+.lx-form__bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.lx-form__bar i { display: block; height: 100%; border-radius: 999px; background: var(--lime-deep); }
+.lx-form li > b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; text-align: right; }
+@media (max-width: 560px) { .lx-form li { grid-template-columns: 20px minmax(0, 1fr) auto 26px; } .lx-form__bar { display: none; } }
+
+/* Angreb og forsvar */
+.lx-ad__legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.lx-ad__legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lx-ad__legend i { width: 10px; height: 10px; border-radius: 3px; }
+.lx-ad { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.lx-ad li { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr); align-items: center; gap: 12px; }
+.lx-ad__club { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; font-size: 13px; }
+.lx-ad__club span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-ad__bars { display: grid; gap: 3px; }
+.lx-ad__bars > span { display: flex; align-items: center; gap: 6px; }
+.lx-ad__bars i { display: block; height: 8px; border-radius: 999px; min-width: 2px; }
+.lx-ad__bars b { font-size: 12px; font-variant-numeric: tabular-nums; }
+.lx-ad i.is-for, .lx-ad__legend i.is-for { background: var(--lime-deep); }
+.lx-ad i.is-against, .lx-ad__legend i.is-against { background: var(--ink); }
+@media (max-width: 560px) { .lx-ad li { grid-template-columns: minmax(0, 120px) minmax(0, 1fr); } }
+
+/* Spillerne i tal */
+.lx-players { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.lx-players__list h3 { margin: 0 0 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
+.lx-players__list ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lx-players__list li { display: grid; grid-template-columns: 16px 34px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 10px 5px 6px; border-radius: 12px; background: var(--surface-2); }
+.lx-players__list li:first-child { background: color-mix(in srgb, var(--lime) 35%, var(--surface-2)); }
+.lx-players__pos { font-family: var(--display); font-style: italic; font-weight: 800; text-align: center; }
+.lx-players__list .player-photo, .lx-players__list .badge { border-radius: 50%; background: #fff; object-fit: cover; }
+.lx-players__who { display: flex; flex-direction: column; min-width: 0; }
+.lx-players__who a { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-players__who a:hover { text-decoration: underline; }
+.lx-players__who em { font-style: normal; font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-players__list li > b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; }
+@media (max-width: 700px) { .lx-players { grid-template-columns: 1fr; } }
+
+/* Skader og karantæner */
+.lx-out { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.lx-out h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 14px; }
+.lx-out ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lx-out li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; border-radius: 12px; background: var(--surface-2); }
+.lx-out li span { display: flex; flex-direction: column; min-width: 0; }
+.lx-out li b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lx-out li em { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.lx-out li i { font-style: normal; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: var(--live); color: #fff; }
+.lx-out li i.is-doubt { background: var(--star); color: var(--ink); }
+.lx-out .player-photo, .lx-out .badge { border-radius: 50%; background: #fff; object-fit: cover; }

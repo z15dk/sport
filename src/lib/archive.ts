@@ -831,6 +831,48 @@ export function eventPlayers(eventId: string): PlayerGame[] {
   }
 }
 
+/** Every player's totals over a set of matches (a league's season), with the team he played the most for */
+export function leaguePlayerTotals(eventIds: string[]) {
+  const lib = sqlite()
+  if (!lib || !eventIds.length || !existsFile(archiveFile())) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return []
+  }
+  try {
+    const marks = eventIds.map(() => '?').join(',')
+    return db
+      .prepare(
+        `SELECT player_id, MAX(name) AS name, MAX(team) AS team, MAX(team_id) AS team_id, MAX(position) AS position, COUNT(*) AS apps,
+          SUM(COALESCE(minutes, 0)) AS minutes, SUM(goals) AS goals, SUM(assists) AS assists, AVG(rating) AS rating,
+          SUM(COALESCE(key_passes, 0)) AS key_passes, SUM(COALESCE(shots_on, 0)) AS shots_on, SUM(COALESCE(saves, 0)) AS saves
+        FROM player_games WHERE event_id IN (${marks}) GROUP BY player_id`,
+      )
+      .all(...eventIds)
+      .map((r) => ({
+        id: Number(r.player_id),
+        name: String(r.name ?? ''),
+        team: String(r.team ?? ''),
+        teamId: r.team_id === null ? undefined : Number(r.team_id),
+        position: (r.position ?? undefined) as string | undefined,
+        apps: Number(r.apps ?? 0),
+        minutes: Number(r.minutes ?? 0),
+        goals: Number(r.goals ?? 0),
+        assists: Number(r.assists ?? 0),
+        rating: r.rating === null ? undefined : Math.round(Number(r.rating) * 100) / 100,
+        keyPasses: Number(r.key_passes ?? 0),
+        shotsOn: Number(r.shots_on ?? 0),
+        saves: Number(r.saves ?? 0),
+      }))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
 /**
  * A team's players over a set of matches (a season in a league): appearances, minutes, goals, assists, average
  * rating and the rest, by the source's team id. The matches' ids use the primary key, so only those rows are read.
