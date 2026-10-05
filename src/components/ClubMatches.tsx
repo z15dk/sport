@@ -59,7 +59,7 @@ export function ClubMatches({ clubName, initialNow, matches: given }: { clubName
   }
 
   return (
-    <section className="panel club-matches" aria-labelledby="club-matches-title">
+    <section className="panel club-matches kh-target" id="kampe" aria-labelledby="club-matches-title">
       <header className="club-matches__head">
         <h2 id="club-matches-title" className="panel__title">
           Kampe

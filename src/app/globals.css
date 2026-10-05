@@ -627,6 +627,106 @@ h2.league__name { margin: 0; }
 .club-hero__eyebrow a:hover { text-decoration: underline; }
 .club-hero .badge { position: relative; z-index: 1; }
 .tiles--club { grid-template-columns: repeat(4, 1fr); }
+
+/* ---------------------------------------------------------------- Klubsidens header (KlubHeader), test
+   Tre lag: toppen (logo, liga og by, navn, to skrå striber i klubbens farve), klubbens række i stillingen
+   med form og næste kamp, og menuen til sidens sektioner. --kh-club, --kh-n og --kh-w sættes på .kh. */
+.kh {
+  --kh-lime: var(--lime); --kh-strip: #14170f; --kh-line: #33382a; --kh-muted: #a3a995; --kh-soft: #c9cdbd;
+  container: kh / inline-size; border-radius: var(--radius); overflow: hidden; background: var(--ink); color: #fff;
+}
+.kh a:focus-visible, .kh button:focus-visible { outline: 2px solid var(--kh-lime); outline-offset: 2px; }
+.kh-hero { position: relative; display: flex; align-items: center; gap: 28px; min-height: 240px; padding: 0 32px; overflow: hidden; border-bottom: 3px solid var(--kh-club); }
+/* The stripes: behind the content, full height, the wide one running out over the right edge */
+.kh-stripe { position: absolute; top: 0; bottom: 0; z-index: 0; background: var(--kh-club); transform: skewX(-14deg); transform-origin: 50% 100%; }
+.kh-stripe--wide { right: -40px; width: 230px; }
+.kh-stripe--thin { right: 212px; width: 4px; }
+.kh-logo { position: relative; z-index: 1; flex: none; height: 130px; width: auto; max-width: 150px; object-fit: contain; }
+.kh-id { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kh-league { margin: 0; color: var(--kh-lime); font-size: 16px; font-weight: 500; }
+.kh-league a:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* Text links with a touch area of 44px without moving the lines */
+.kh-league a, .kh-text a { display: inline-block; padding-block: 12px; margin-block: -12px; }
+/* The name on one line, as large as the room left of the stripes allows: the width that is left (the header less its
+   padding, the logo and the stripes) divided by the letters, a little under half an em each in this typeface */
+.kh-name {
+  margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; line-height: 0.9; white-space: nowrap;
+  font-size: clamp(40px, calc((100cqi - 472px) / (var(--kh-n) * 0.47)), 108px);
+}
+
+.kh-strip { display: flex; align-items: center; gap: 24px; min-height: 92px; padding: 14px 32px; background: var(--kh-strip); }
+.kh-row { display: flex; gap: 22px; margin: 0; }
+.kh-field { display: flex; flex-direction: column; gap: 4px; }
+.kh-label { margin: 0; font-size: 12px; color: var(--kh-muted); white-space: nowrap; }
+.kh-label abbr { text-decoration: none; }
+.kh-narrow { display: none; }
+.kh-value { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; }
+.kh-field--points .kh-value { color: var(--kh-lime); }
+.kh-extras { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 22px; padding-left: 24px; border-left: 1px solid var(--kh-line); min-height: 56px; }
+.kh-row + .kh-extras, .kh-extras:first-child { margin: 0; }
+.kh-extras:first-child { padding-left: 0; border-left: 0; }
+.kh-extra { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kh-form { display: flex; gap: 4px; }
+.kh-chip { display: grid; place-items: center; width: 26px; height: 26px; font-size: 13px; font-weight: 800; line-height: 1; }
+.kh-chip--V { background: var(--kh-lime); color: var(--ink); }
+.kh-chip--U { background: #3d4233; color: #fff; }
+.kh-chip--T { background: #c62f35; color: #fff; }
+.kh-note { font-size: 12px; color: var(--kh-soft); }
+.kh-text { font-size: 15px; font-weight: 600; color: #fff; white-space: nowrap; }
+.kh-text a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.kh-menu { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 56px; padding: 0 32px; border-top: 1px solid var(--kh-line); }
+.kh-nav { display: flex; gap: 26px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.kh-nav::-webkit-scrollbar { display: none; }
+.kh-nav a { display: inline-flex; align-items: center; height: 56px; border-bottom: 3px solid transparent; color: var(--kh-soft); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.kh-nav a:hover { color: #fff; }
+/* The section the address points at is the active one (no script); the first until then */
+html:not(:has(.kh-target:target)) .kh-nav a[data-kh='oversigt'],
+html:has(#oversigt:target) .kh-nav a[data-kh='oversigt'],
+html:has(#kampe:target) .kh-nav a[data-kh='kampe'],
+html:has(#stilling:target) .kh-nav a[data-kh='stilling'],
+html:has(#holdstatistik:target) .kh-nav a[data-kh='holdstatistik'],
+html:has(#indbyrdes-opgoer:target) .kh-nav a[data-kh='indbyrdes-opgoer'],
+html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { color: #fff; font-weight: 700; border-bottom-color: var(--kh-lime); }
+.kh-target, .kh { scroll-margin-top: 16px; }
+/* An anchor before a section that has no element of its own to carry the id */
+.kh-anchor { display: block; height: 0; margin-bottom: -16px; }
+.kh-actions { display: flex; align-items: center; gap: 20px; flex: none; }
+.kh-action { display: inline-flex; align-items: center; min-height: 44px; color: var(--kh-soft); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.kh-action:hover { color: #fff; }
+.kh-follow { height: 44px; padding: 0 22px; border: 2px solid var(--kh-lime); border-radius: 999px; background: var(--kh-lime); color: var(--ink); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.kh-follow.is-on { background: transparent; color: var(--kh-lime); }
+
+/* Between phone and full width: the form and the next match on their own line under the table row */
+@container kh (max-width: 900px) {
+  .kh-strip { flex-wrap: wrap; row-gap: 12px; }
+  .kh-extras { flex-basis: 100%; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--kh-line); min-height: 0; }
+}
+@media (max-width: 700px) {
+  .kh-hero { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 14px; min-height: 0; padding: 20px 16px 22px; }
+  .kh-logo { height: 80px; max-width: 100px; }
+  .kh-stripe--wide { right: -34px; width: 84px; }
+  .kh-stripe--thin { right: 62px; width: 3px; }
+  .kh-id { gap: 8px; max-width: calc(100% - 78px); }
+  .kh-league { font-size: 14px; }
+  /* Under the logo, in lines when it has to: sized by the longest word */
+  .kh-name { white-space: normal; overflow-wrap: anywhere; font-size: clamp(32px, calc((100cqi - 110px) / (var(--kh-w) * 0.5)), 76px); }
+  .kh-strip { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 12px 16px 4px; }
+  .kh-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding-bottom: 12px; }
+  .kh-wide { display: none; }
+  .kh-narrow { display: inline; }
+  .kh-value { font-size: 30px; }
+  .kh-extras { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; min-height: 0; padding: 0; border: 0; }
+  .kh-extra { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; min-height: 48px; padding: 10px 0; border-top: 1px solid var(--kh-line); }
+  .kh-note { flex-basis: 100%; }
+  .kh-text { white-space: normal; text-align: right; }
+  .kh-menu { flex-direction: column; align-items: stretch; gap: 0; padding: 0 16px; }
+  .kh-actions { order: 0; gap: 16px; padding: 12px 0; }
+  .kh-follow { order: -1; }
+  .kh-nav { order: 1; gap: 22px; margin: 0 -16px; padding: 0 16px; border-top: 1px solid var(--kh-line); }
+  .kh-nav a { height: 48px; }
+}
+
 .tile--form { background: var(--surface); }
 .club-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .club-grid .league__toggle { padding: 14px 16px 6px; }

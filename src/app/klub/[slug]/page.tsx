@@ -48,6 +48,10 @@ import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
+import { KlubHeader } from '../../../components/KlubHeader'
+import { klubfarve } from '../../../data/klubfarver'
+import { calendarLinks } from '../../../lib/calendar'
+import { getBadges } from '../../../lib/badges'
 import { FollowButton } from '../../../components/FollowButton'
 import { clubFaq, teamFaq } from '../../../lib/faq'
 import { formatLong, formatShortYear, isoDate } from '../../../lib/time'
@@ -57,6 +61,9 @@ import { sportById } from '../../../sports'
 export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
+
+/** The leagues (our division ids) whose clubs have the new header, KlubHeader; add a league here to give its clubs the header too */
+const NEW_HEADER_DIVISIONS = new Set(['superliga'])
 
 export function generateStaticParams() {
   return allTeams().map((t) => ({ slug: t.slug }))
@@ -118,6 +125,14 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const apiTeam = apiLeague ? apiTeamIdOf(apiLeague, clubNames(club)) : undefined
   const [teamStats, injuries] = apiLeague && apiTeam ? await Promise.all([apiTeamStats(apiLeague, apiTeam), apiInjuries(apiLeague)]) : [undefined, undefined]
   const absent = injuriesForTeam(injuries, apiTeam, now)
+  // The new header (KlubHeader): for the Superliga's clubs to begin with, the other clubs keep the old one.
+  // For it: the logo, the next match of the club itself, and which sections the page has
+  const newHeader = NEW_HEADER_DIVISIONS.has(division.id)
+  const logo = newHeader ? (await getBadges())[club.name] : undefined
+  const nextMatch = upcoming.find((m) => m.state === 'upcoming' && m.kickoff.getTime() > now)
+  const rivals = clubRivalries(club, division, now)
+  const pastSeasons = clubSeasons(club, sport)
+  const hasTeamStats = !!teamStats?.played.total || !!clubSeasonStats(club, division)
 
   return (
     <div className="page">
@@ -131,19 +146,45 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         ])}
       />
       <div className="clubs">
-        <header className="club-hero" style={{ '--club-bg': club.colors[0], '--club-fg': club.colors[1] } as React.CSSProperties}>
-          <BadgeWatermark name={club.name} />
-          <TeamBadge link={false} name={club.name} colors={club.colors} size={96} />
-          <div className="club-hero__text">
-            <span className="club-hero__eyebrow">
-              <Link href={paths.league(division.slug)}>{division.name}</Link>
-              {club.city && ` · ${club.city}`}
-            </span>
-            <h1>{club.name}</h1>
-            {isUnconfirmed(club, division.id) && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
-          </div>
-          <FollowButton slug={club.slug} name={club.name} />
-        </header>
+        {newHeader ? (
+          <KlubHeader
+            name={club.name}
+            slug={club.slug}
+            logo={logo}
+            league={{ name: division.name, href: paths.league(division.slug) }}
+            place={club.city}
+            color={klubfarve(club.slug, club.colors)}
+            row={{ position: stats.position, played: r.played, won: r.won, drawn: sport === 'soccer' ? r.drawn : undefined, lost: r.lost, points: r.points }}
+            form={r.form}
+            next={nextMatch && { opponent: nextMatch.home.name === club.name ? nextMatch.away.name : nextMatch.home.name, home: nextMatch.home.name === club.name, kickoff: nextMatch.kickoff, href: paths.match(nextMatch.slug) }}
+            sections={[
+              { id: 'oversigt', label: 'Oversigt' },
+              { id: 'kampe', label: 'Kampe' },
+              { id: 'stilling', label: 'Stilling' },
+              ...(hasTeamStats ? [{ id: 'holdstatistik', label: 'Holdstatistik' }] : []),
+              ...(rivals.length ? [{ id: 'indbyrdes-opgoer', label: 'Indbyrdes opgør' }] : []),
+              ...(pastSeasons.length ? [{ id: 'tidligere-saesoner', label: 'Tidligere sæsoner' }] : []),
+            ]}
+            calendarHref={calendarLinks('klub', club.slug).webcal}
+            ticketHref={clubTicketUrl(club.id) ? ticketClickPath({ klub: club.id }) : undefined}
+            note={isUnconfirmed(club, division.id) ? `Rækken for ${seasonOf(division)} er ikke bekræftet` : undefined}
+            now={now}
+          />
+        ) : (
+          <header className="club-hero" style={{ '--club-bg': club.colors[0], '--club-fg': club.colors[1] } as React.CSSProperties}>
+            <BadgeWatermark name={club.name} />
+            <TeamBadge link={false} name={club.name} colors={club.colors} size={96} />
+            <div className="club-hero__text">
+              <span className="club-hero__eyebrow">
+                <Link href={paths.league(division.slug)}>{division.name}</Link>
+                {club.city && ` · ${club.city}`}
+              </span>
+              <h1>{club.name}</h1>
+              {isUnconfirmed(club, division.id) && <span className="unverified">Rækken for {seasonOf(division)} er ikke bekræftet</span>}
+            </div>
+            <FollowButton slug={club.slug} name={club.name} />
+          </header>
+        )}
 
         <p className="lead">
           {club.name} ligger nr. {stats.position} i {division.name} med {r.points} point efter {counted(r.played, 'kamp', 'kampe')} ({counted(r.won, 'sejr', 'sejre')}
@@ -152,7 +193,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           {sport === 'basketball' ? ' samlet score' : ' målscore'} på {r.goalsFor}-{r.goalsAgainst}.
         </p>
         <Updated at={now} />
-        <CalendarButton kind="klub" slug={club.slug} name={club.name} />
+        {/* In the new header these are in the menu and the table row */}
+        {!newHeader && <CalendarButton kind="klub" slug={club.slug} name={club.name} />}
         {(() => {
           // "Billetter": the club's ticket shop, and its next home matches with a link each (src/lib/tickets.ts)
           if (!clubTicketUrl(club.id)) return null
@@ -194,32 +236,34 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           )
         })()}
 
-        <section className="tiles tiles--club" aria-label="Sæsonen i tal">
-          <div className="tile tile--lime">
-            <span className="tile__label">Placering</span>
-            <strong className="tile__value">{stats.position}.</strong>
-          </div>
-          <div className="tile tile--ink">
-            <span className="tile__label">Point</span>
-            <strong className="tile__value">{r.points}</strong>
-          </div>
-          <div className="tile tile--blush">
-            <span className="tile__label">{sport === 'basketball' ? 'Score' : 'Mål'}</span>
-            <strong className="tile__value">
-              {r.goalsFor}-{r.goalsAgainst}
-            </strong>
-          </div>
-          <div className="tile tile--form">
-            <span className="tile__label">Form</span>
-            <FormChips form={r.form} dots />
-          </div>
-        </section>
+        {!newHeader && (
+          <section className="tiles tiles--club" aria-label="Sæsonen i tal">
+            <div className="tile tile--lime">
+              <span className="tile__label">Placering</span>
+              <strong className="tile__value">{stats.position}.</strong>
+            </div>
+            <div className="tile tile--ink">
+              <span className="tile__label">Point</span>
+              <strong className="tile__value">{r.points}</strong>
+            </div>
+            <div className="tile tile--blush">
+              <span className="tile__label">{sport === 'basketball' ? 'Score' : 'Mål'}</span>
+              <strong className="tile__value">
+                {r.goalsFor}-{r.goalsAgainst}
+              </strong>
+            </div>
+            <div className="tile tile--form">
+              <span className="tile__label">Form</span>
+              <FormChips form={r.form} dots />
+            </div>
+          </section>
+        )}
 
         <MasonryFlow className="club-flow">
           <ClubMatches clubName={club.name} initialNow={now} />
           <div className="club-layout__side">
             <FormChart clubName={club.name} initialNow={now} />
-            <section className="panel table-panel">
+            <section className="panel table-panel kh-target" id="stilling">
               <header className="table-panel__head">
                 <h2 className="panel__title">Stilling · {division.name}</h2>
                 <Link className="text-btn" href={paths.league(division.slug)}>
@@ -239,17 +283,18 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
         </MasonryFlow>
 
         {/* The source's team statistics replace our own box where it has them */}
+        <span className="kh-target kh-anchor" id="holdstatistik" />
         {teamStats?.played.total ? <TeamStatsPanel stats={checkedTeamStats(teamStats, clubSeasonStats(club, division), apiTeamOwnGoals(apiLeague!, apiTeam!))} name={club.name} /> : <ClubSeasonStats club={club} division={division} />}
         <TaggedArticles articles={articlesAbout({ club })} title={`Artikler om ${club.name}`} />
         <NewsList articles={newsFor({ club: club.id })} division={division} club={club} />
         {/* Not for the Superliga's clubs */}
-        <ClubPastSeasons name={club.name} entries={clubSeasons(club, sport)} />
+        {pastSeasons.length > 0 && <span className="kh-target kh-anchor" id="tidligere-saesoner" />}
+        <ClubPastSeasons name={club.name} entries={pastSeasons} />
         {(() => {
           // The head-to-heads with the league's other clubs (src/lib/rivalry.ts)
-          const rivals = clubRivalries(club, division, now)
           if (!rivals.length) return null
           return (
-            <section className="panel">
+            <section className="panel kh-target" id="indbyrdes-opgoer">
               <h2 className="panel__title">Indbyrdes opgør</h2>
               <ul className="rivals">
                 {rivals.map((x) => (
