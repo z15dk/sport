@@ -209,7 +209,7 @@ export function leagueFaq(division: Division, rows: StandingRow[]): FaqItem[] {
   ]
 }
 
-export function teamFaq(team: TeamEntry, next?: Match, last?: Match): FaqItem[] {
+export function teamFaq(team: TeamEntry, next?: Match, last?: Match, extra?: ClubFaqExtra): FaqItem[] {
   // API-Sports' teams go by more than one name ("Brøndby IF" / "Brondby W")
   const names = team.names ?? [team.name]
   const home = (m: Match) => names.includes(m.home.name)
@@ -217,6 +217,8 @@ export function teamFaq(team: TeamEntry, next?: Match, last?: Match): FaqItem[] 
   if (next) {
     const opponent = home(next) ? next.away.name : next.home.name
     items.push({ q: `Hvornår spiller ${team.name} næste gang?`, a: `${team.name} møder ${opponent} ${when(next.kickoff)}.` })
+    if (extra?.channel)
+      items.push({ q: `Hvilken kanal viser ${genitive(team.name)} næste kamp?`, a: `Kampen mod ${opponent} ${when(next.kickoff)} vises på ${extra.channel}.` })
   }
   if (last) {
     const own = home(last) ? (last.home.score ?? 0) : (last.away.score ?? 0)
@@ -227,5 +229,20 @@ export function teamFaq(team: TeamEntry, next?: Match, last?: Match): FaqItem[] 
       a: `${own > other ? 'Sejr' : own < other ? 'Nederlag' : 'Uafgjort'} ${own}-${other} mod ${opponent} ${formatLong(last.kickoff)}.`,
     })
   }
+  // What the page with the new design knows more of: the top scorer and the ground
+  const top = extra?.scorers?.[0]
+  if (top) {
+    const level = extra!.scorers!.filter((s) => s.goals === top.goals)
+    items.push({
+      q: `Hvem er ${genitive(team.name)} topscorer?`,
+      a:
+        level.length === 1
+          ? `${top.name} er topscorer for ${team.name} i ${team.league} med ${top.goals} mål i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}.`
+          : level.length <= 3
+            ? `${level.map((s) => s.name).join(', ').replace(/, ([^,]*)$/, ' og $1')} deler førstepladsen med ${top.goals} mål hver i ${team.league}.`
+            : `${level.length} spillere deler førstepladsen med ${top.goals} mål hver i ${team.league}.`,
+    })
+  }
+  if (extra?.stadium) items.push({ q: `Hvor spiller ${team.name} hjemmekampe?`, a: `${team.name} spiller sine hjemmekampe på ${extra.stadium}.` })
   return items
 }

@@ -10,7 +10,7 @@ import { isUnconfirmed, standings } from '../../../data/season'
 import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubLeagues } from '../../../lib/clientData'
-import { clubStats, findClub } from '../../../data/matchInsights'
+import { clubStats } from '../../../data/matchInsights'
 import { ClubMatches } from '../../../components/ClubMatches'
 import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
@@ -49,8 +49,9 @@ import { clubSeasonStats } from '../../../data/stats'
 import { InjuryList } from '../../../components/InjuryList'
 import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
-import { dbuHomeGround, dbuMatchGround } from '../../../lib/channels'
-import { NEW_CLUB_PAGE_DIVISIONS } from '../../../data/nyKlubside'
+import { dbuHomeGround } from '../../../lib/channels'
+import { homeGround } from '../../../lib/ground'
+import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
 import { KlubHeader } from '../../../components/KlubHeader'
@@ -80,7 +81,22 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const sport = sportById(team.sport).label.toLowerCase()
     // A team with no games at all (coming or saved) is a thin page: kept out of the search results
     const names = new Set((team.names ?? [team.name]).map(normalize))
-    const empty = !teamGames(team, Date.now()).length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
+    const coming = teamGames(team, Date.now())
+    const empty = !coming.length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
+    if (team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer') {
+      // The new design: "kampprogram" in the title, the next match with day, time and channel in the description
+      const next = coming.find((m) => m.state === 'upcoming' && m.kickoff.getTime() > Date.now())
+      const home = !!next && names.has(normalize(next.home.name))
+      const channel = next ? channelsFor(next)[0]?.name : undefined
+      const when = next ? `Næste kamp: ${home ? 'hjemme' : 'ude'} mod ${home ? next.away.name : next.home.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)}${channel ? ` på ${channel}` : ''}.` : ''
+      const text = `${team.name} spiller i ${team.league}. ${when}`.trim()
+      return {
+        title: `${team.name}: kampprogram, resultater og stilling`,
+        description: text.length <= 130 ? `${text} Se kampprogram, resultater og stilling.` : text,
+        alternates: { canonical: paths.club(team.slug) },
+        ...(empty && { robots: { index: false, follow: true } }),
+      }
+    }
     return {
       title: `${team.name} – resultater og kampprogram`,
       description: `Seneste resultater og kommende kampe for ${team.name} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
@@ -110,12 +126,6 @@ export default async function ClubPage({ params }: { params: Params }) {
     notFound()
   }
   return team.season ? <LeagueClub {...team.season} /> : <TeamPage team={team} />
-}
-
-/** The home team's ground by DBU's name ("Brøndby Stadion"), for our own clubs */
-function homeGround(home: string, kickoff: Date): string | undefined {
-  const club = findClub(home)?.club
-  return club && dbuMatchGround(clubNames(club), kickoff)
 }
 
 /**
@@ -488,8 +498,26 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
   const results = teamResults(names, around, divisionIds, team.league, team.country)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
-  const faq = teamFaq(team, upcoming[0], lastMatch)
   const sport = sportById(team.sport)
+  // The new design (KlubHeader, the squad, the extra questions, the ad in the column) for chosen leagues, src/data/nyKlubside.ts
+  const newPage = !!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer'
+  const apiTeam = newPage && league ? apiTeamIdOf(league.id, names) : undefined
+  const squad = newPage && league && apiTeam ? apiTeamSquad(league.id, apiTeam) : []
+  const ground = newPage && league && apiTeam ? apiTeamStadium(league.id, apiTeam) : undefined
+  // The next match that has not been played (a match the data still calls coming after its time is not it)
+  const nextUp = upcoming.find((m) => m.kickoff.getTime() > now)
+  const faq = teamFaq(
+    team,
+    newPage ? nextUp : upcoming[0],
+    lastMatch,
+    newPage
+      ? {
+          channel: nextUp && channelsFor(nextUp)[0]?.name,
+          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.starts + p.subbedOn })),
+          stadium: ground,
+        }
+      : undefined,
+  )
   const goalWord = team.sport === 'soccer' || team.sport === 'ice_hockey' ? 'Mål' : 'Score'
 
   // The team's side of each result
@@ -549,7 +577,11 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
 
   return (
     <div className="page">
-      <JsonLd data={teamPageLd(team)} />
+      <JsonLd data={teamPageLd(team, newPage ? team.logo : undefined, squad.map((p) => ({ name: p.name, path: playerPath(p.id, p.name) })))} />
+      {newPage && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
+      {newPage && nextUp && (
+        <JsonLd data={matchLd(nextUp, (name) => teamByName(name, nextUp.leagueSlug)?.slug, undefined, undefined, own(nextUp.home.name) ? ground : undefined)} />
+      )}
       <JsonLd data={webPageLd(paths.club(team.slug), team.name, new Date(now))} />
       <JsonLd
         data={breadcrumbLd([
@@ -558,6 +590,28 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
         ])}
       />
       <div className="clubs">
+        {newPage ? (
+          <KlubHeader
+            name={team.name}
+            slug={team.slug}
+            logo={team.logo}
+            league={{ name: team.league, href: team.leagueSlug ? paths.league(team.leagueSlug) : undefined }}
+            place={team.country ? danishCountry(team.country) : undefined}
+            color={klubfarve(team.slug, team.colors)}
+            row={row ? { position: row.rank, played: row.played, won: row.won, drawn: row.drawn, lost: row.lost, points: row.points } : undefined}
+            form={form}
+            next={nextUp && { opponent: own(nextUp.home.name) ? nextUp.away.name : nextUp.home.name, home: own(nextUp.home.name), kickoff: nextUp.kickoff, href: nextUp.slug ? paths.match(nextUp.slug) : undefined, channel: channelsFor(nextUp)[0]?.name }}
+            sections={[
+              { id: 'oversigt', label: 'Oversigt' },
+              { id: 'kampe', label: 'Kampe' },
+              ...(nearby.length > 0 ? [{ id: 'stilling', label: 'Stilling' }] : []),
+              ...(n >= 3 ? [{ id: 'holdstatistik', label: 'Holdstatistik' }] : []),
+              ...(squad.length ? [{ id: 'trup', label: 'Trup' }] : []),
+            ]}
+            calendarHref={calendarLinks('klub', team.slug).webcal}
+            now={now}
+          />
+        ) : (
         <header className="club-hero" style={team.colors ? ({ '--club-bg': team.colors[0], '--club-fg': team.colors[1] } as React.CSSProperties) : undefined}>
           <BadgeWatermark name={team.name} src={team.logo} />
           <TeamBadge link={false} name={team.name} src={team.logo} colors={team.colors ?? ['#c6f135', '#0f110c']} size={96} />
@@ -571,6 +625,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>
+        )}
 
         <p className="lead">
           {team.name} spiller i {team.league}
@@ -582,9 +637,9 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           {!live[0] && next && ` Næste kamp er mod ${own(next.home.name) ? next.away.name : next.home.name} ${formatLong(next.kickoff)}.`}
         </p>
         <Updated at={now} />
-        <CalendarButton kind="klub" slug={team.slug} name={team.name} />
+        {!newPage && <CalendarButton kind="klub" slug={team.slug} name={team.name} />}
 
-        {(row || n > 0) && (
+        {!newPage && (row || n > 0) && (
           <section className="tiles tiles--club" aria-label="Nøgletal">
             {row ? (
               <div className="tile tile--lime">
@@ -616,10 +671,10 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
 
         {/* The same layout as our clubs' pages: the match list, with the table beside it */}
         <MasonryFlow className="club-flow">
-          <ClubMatches clubName={team.name} initialNow={now} matches={matches} />
+          <ClubMatches clubName={team.name} initialNow={now} matches={matches} showTv={newPage} fill={newPage} />
           <div className="club-layout__side">
             {nearby.length > 0 && (
-              <section className="panel table-panel">
+              <section className={newPage ? 'panel table-panel kh-target' : 'panel table-panel'} id={newPage ? 'stilling' : undefined}>
                 <header className="table-panel__head">
                   <h2 className="panel__title">Stilling · {team.league}</h2>
                   {team.leagueSlug && (
@@ -664,11 +719,13 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
                 {!fromApi && <p className="muted small history__note">Stillingen er beregnet af Matchly (se hele stillingen for grundlaget).</p>}
               </section>
             )}
+            {/* With the new design the match list's slim banner stands here, in the shorter column, and the two columns end level */}
+            {newPage && <AdSlot placement="feed" className="ad--panel" />}
           </div>
         </MasonryFlow>
 
         {n >= 3 && (
-          <section className="panel stats-panel">
+          <section className={newPage ? 'panel stats-panel kh-target' : 'panel stats-panel'} id={newPage ? 'holdstatistik' : undefined}>
             <header className="table-panel__head">
               <h2 className="panel__title">Statistik</h2>
             </header>
@@ -735,6 +792,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           const clubId = womenOf(team)
           return clubId ? <NewsList articles={newsFor({ club: clubId, women: true })} team={team} /> : null
         })()}
+        <ClubSquad name={team.name} league={team.league} players={squad} id="trup" />
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>

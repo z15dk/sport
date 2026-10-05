@@ -2448,11 +2448,16 @@ export function apiTeamSquad(leagueId: string, teamId: number, season = SEASON.s
 }
 
 // Every team of the league in one pass (a player who has changed club is known then), kept until the games change
-let squadsMemo: { key: string; games: ExternalGame[]; teams: Map<number, Map<number, SquadPlayer>> } | undefined
+let squadsMemo: { key: string; games: ExternalGame[]; mtime: number; teams: Map<number, Map<number, SquadPlayer>> } | undefined
 function leagueSquads(leagueId: string, season: string): Map<number, Map<number, SquadPlayer>> {
-  const all = seasonGames()
+  load()
+  const base = seasonGames()
   const key = `${leagueId}|${season}`
-  if (squadsMemo?.key === key && squadsMemo.games === all) return squadsMemo.teams
+  if (squadsMemo?.key === key && squadsMemo.games === base && squadsMemo.mtime === mem.mtime) return squadsMemo.teams
+  // Our leagues' whole season, and for a league outside ours (Liga Profesional Argentina) the games of the days kept
+  const byId = new Map(base.map((g) => [g.id, g]))
+  for (const d of Object.values(mem.store.football?.days ?? {})) for (const g of d.games) if (String(g.league.id) === String(leagueId)) byId.set(g.id, g)
+  const all = [...byId.values()]
   const store = extrasStore()
   const teams = new Map<number, Map<number, SquadPlayer>>()
   const teamNames = new Map<number, string>()
@@ -2510,7 +2515,7 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
       // The source has a photo of every player under his id
       row.photo = proxyImage(`https://media.api-sports.io/football/players/${row.id}.png`)
     }
-  squadsMemo = { key, games: all, teams }
+  squadsMemo = { key, games: base, mtime: mem.mtime, teams }
   return teams
 }
 

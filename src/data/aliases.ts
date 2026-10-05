@@ -130,8 +130,11 @@ const distinctWords = (name: string) => {
   return words
 }
 
-/** Names that only ever match exactly: their one long word is another club's ("AB Copenhagen" is not FC Copenhagen) */
-const EXACT_ONLY = new Set(['AB Copenhagen', 'AB Gladsaxe'].map((n) => fold(n)))
+/**
+ * Names that only ever match exactly: their one long word is another club's ("AB Copenhagen" is not FC Copenhagen), or
+ * the start of it ("Plate" in "River Plate" and "Platense", "Independ." in "Independiente" and "Independ. Rivadavia")
+ */
+const EXACT_ONLY = new Set(['AB Copenhagen', 'AB Gladsaxe', 'River Plate', 'Platense', 'Independiente', 'Independ. Rivadavia'].map((n) => fold(n)))
 
 export function alike(names: string[], other: string) {
   const otherFold = fold(other)

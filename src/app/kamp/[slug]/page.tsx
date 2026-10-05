@@ -20,9 +20,7 @@ import { savedSubs, apiGameFor, apiHeadToHead, apiInjuries, apiMatchEvents, apiM
 import type { PastMatch } from '../../../data/matchInsights'
 import type { H2hSource } from '../../../components/MatchView'
 import { clubStats, findClub } from '../../../data/matchInsights'
-import { clubNames } from '../../../data/aliases'
-import { NEW_CLUB_PAGE_DIVISIONS } from '../../../data/nyKlubside'
-import { dbuMatchGround } from '../../../lib/channels'
+import { homeGround } from '../../../lib/ground'
 import { archiveGameExtras, pastGameIndexable, pastMeetings, realHeadToHead, withMatchLinks, type PastGame } from '../../../lib/history'
 import { eventPlayers } from '../../../lib/archive'
 import { matchReport } from '../../../data/matchStory'
@@ -40,12 +38,6 @@ import { paths } from '../../../lib/site'
 import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
 
 export const dynamic = 'force-dynamic'
-
-/** The ground of a club at home in a league with the new club page, by DBU's name ("Brøndby Stadion"), for the match's data for search engines */
-function ownGround(home: string, kickoff: Date): string | undefined {
-  const found = findClub(home)
-  return found && NEW_CLUB_PAGE_DIVISIONS.has(found.division.id) ? dbuMatchGround(clubNames(found.club), kickoff) : undefined
-}
 
 type Params = Promise<{ slug: string }>
 
@@ -246,7 +238,7 @@ async function MatchPageInner({ params }: { params: Params }) {
 
   return (
     <div className="page">
-      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined), ticketUrl, ownGround(match.home.name, match.kickoff))} />
+      <JsonLd data={matchLd(match, clubSlug, summary(match, homeStats, awayStats, extra?.table?.source === 'api-sports' ? extra.table.rows : undefined), ticketUrl, homeGround(match.home.name, match.kickoff))} />
       <JsonLd
         data={breadcrumbLd([
           { name: 'Kampe', path: '/' },

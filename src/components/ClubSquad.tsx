@@ -17,7 +17,7 @@ const GROUPS: { pos: string; title: string }[] = [
 ]
 const matchesOf = (p: SquadPlayer) => p.starts + p.subbedOn
 
-export function ClubSquad({ name, league, season, players, id }: { name: string; league: string; season: string; players: SquadPlayer[]; id?: string }) {
+export function ClubSquad({ name, league, season, players, id }: { name: string; league: string; season?: string; players: SquadPlayer[]; id?: string }) {
   if (!players.length) return null
   const scorers = players.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || matchesOf(a) - matchesOf(b) || a.name.localeCompare(b.name, 'da')).slice(0, 3)
   // A player the line-ups give no position stands last, under "Øvrige", so everyone counted is shown
@@ -34,7 +34,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
         </span>
         <h2 className="squad__title">Trup og topscorere</h2>
         <p className="squad__sub">
-          {name} i {league} {season}, {players.length} spillere brugt
+          {name} i {league}{season ? ` ${season}` : ''}, {players.length} spillere brugt
         </p>
         {scorers.length > 0 && (
           <>

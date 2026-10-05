@@ -178,7 +178,7 @@ export function organizationLd() {
   }
 }
 
-export function teamPageLd(team: TeamEntry) {
+export function teamPageLd(team: TeamEntry, logo?: string, athletes?: { name: string; path: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsTeam',
@@ -186,7 +186,9 @@ export function teamPageLd(team: TeamEntry) {
     sport: sportById(team.sport).label,
     url: `${SITE_URL}${paths.club(team.slug)}`,
     memberOf: { '@type': 'SportsOrganization', name: team.league },
+    ...(logo && { logo: absoluteImage(logo), image: absoluteImage(logo) }),
     ...(team.country && { location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressCountry: team.country } } }),
+    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, url: `${SITE_URL}${a.path}` })) }),
   }
 }
 
