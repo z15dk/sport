@@ -2298,28 +2298,41 @@ a.player-games__match:hover { text-decoration: underline; }
 .rivalry__facts { margin: 0; padding: 4px 18px 20px 38px; display: grid; gap: 8px; }
 .h2h__all { margin: 10px 0 0; font-weight: 600; }
 /* The club page's "Indbyrdes opgør": one card per opponent, with the club's wins, draws and defeats against it */
-/* The club page's squad box: top scorers and the players by position */
-.squad { padding: 0 18px 18px; }
-.squad .panel__title { padding: 18px 0 6px; }
-.squad__sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); }
-.squad__head { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
-.squad__scorers { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
-.squad__scorer { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px 8px 8px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
-.squad__scorer:hover, .squad__scorer:focus-visible { border-color: var(--lime); background: var(--surface); }
-.squad__goals { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; width: 44px; height: 44px; border-radius: 10px; background: var(--ink); line-height: 1; }
-.squad__goals strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; color: var(--lime); }
-.squad__goals span { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
-.squad__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The club page's squad box: a dark Matchly band with the club's top scorers, then the players by position as cards */
+.squad { overflow: hidden; }
+.squad__top { position: relative; padding: 20px 18px 18px; background: var(--ink); color: #fff; border-bottom: 3px solid var(--lime); }
+.squad__title { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1; text-transform: uppercase; }
+.squad__sub { margin: 6px 0 0; font-size: 13px; color: rgba(255, 255, 255, 0.7); }
+.squad__brand { position: absolute; top: 18px; right: 18px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; line-height: 1; text-transform: uppercase; color: #fff; }
+.squad__brand i { font-style: inherit; color: var(--lime); }
+.squad__label { margin: 18px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lime); }
+.squad__scorers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.squad__scorer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 76px; padding: 10px 14px 10px 10px; border: 2px solid transparent; border-radius: var(--radius-sm); background: #1c2015; color: #fff; text-decoration: none; transition: border-color 0.15s; }
+.squad__scorer:hover, .squad__scorer:focus-visible { border-color: var(--lime); }
+.squad__scorer .player-photo, .squad__scorer .badge { background: #fff; }
+.squad__text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .squad__name { font-size: 15px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-.squad__meta { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
-.squad__groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px 24px; }
-.squad__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.squad__player { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px 4px 4px; border-radius: var(--radius-sm); color: inherit; text-decoration: none; }
-.squad__player:hover, .squad__player:focus-visible { background: var(--surface-2); }
-.squad__player:hover .squad__name { text-decoration: underline; text-underline-offset: 3px; }
-.squad__player .squad__name { font-size: 14px; font-weight: 600; }
-.squad__no { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
-.squad__player:hover .squad__no { background: var(--lime); }
+.squad__meta { font-size: 12px; color: var(--ink-3); }
+.squad__scorer .squad__meta { color: rgba(255, 255, 255, 0.65); }
+.squad__goals { display: flex; align-items: baseline; gap: 4px; font-family: var(--display); font-style: italic; font-weight: 800; line-height: 1; color: var(--lime); }
+.squad__goals strong { font-size: 40px; }
+.squad__goals span { font-size: 14px; text-transform: uppercase; }
+.squad__body { padding: 4px 18px 18px; }
+.squad__head { display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; line-height: 1; text-transform: uppercase; }
+.squad__head::before { content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--lime); }
+.squad__head span { font-family: var(--body); font-style: normal; font-weight: 600; font-size: 12px; text-transform: none; color: var(--ink-3); }
+.squad__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 8px; }
+.squad__player { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 60px; padding: 8px 10px 8px 8px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
+.squad__player:hover, .squad__player:focus-visible { border-color: var(--lime); background: var(--surface); }
+.squad__face { position: relative; display: flex; flex: none; }
+.squad__no { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 6px; background: var(--ink); color: var(--lime); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 13px; line-height: 1; font-variant-numeric: tabular-nums; }
+.squad__pill { padding: 4px 8px; border-radius: 999px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 700; white-space: nowrap; }
+@media (max-width: 700px) {
+  .squad__scorers { grid-template-columns: minmax(0, 1fr); }
+  .squad__scorer { min-height: 64px; }
+  .squad__goals strong { font-size: 32px; }
+  .squad__list { grid-template-columns: minmax(0, 1fr); }
+}
 
 .rivals-panel { padding: 0 18px 18px; }
 .rivals-panel .panel__title { padding: 18px 0 6px; }

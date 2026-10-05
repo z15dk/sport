@@ -2406,6 +2406,8 @@ export interface SquadPlayer {
   /** API-Sports' player id (the player's page) */
   id: number
   name: string
+  /** The player's photo through our own domain */
+  photo?: string
   number?: number
   /** G, D, M or F */
   pos?: string
@@ -2474,6 +2476,8 @@ export function apiTeamSquad(leagueId: string, teamId: number, season = SEASON.s
   for (const row of players.values()) {
     const full = store.entries[`football|player|${row.id}`]?.player?.name
     if (full && !/\.\s/.test(full)) row.name = full
+    // The source has a photo of every player under his id
+    row.photo = proxyImage(`https://media.api-sports.io/football/players/${row.id}.png`)
   }
   return [...players.values()]
 }
