@@ -152,6 +152,18 @@ const SCHEMA = `
     PRIMARY KEY (match_key, seq)
   );
 
+  -- A match's cards and substitutions (kind yellow, red or sub; name2 is the player who went off in a sub)
+  CREATE TABLE IF NOT EXISTS match_events (
+    match_key TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    club_id TEXT NOT NULL,
+    minute INTEGER,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    name2 TEXT,
+    PRIMARY KEY (match_key, seq)
+  );
+
   CREATE TABLE IF NOT EXISTS shares (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token_hash TEXT UNIQUE NOT NULL,
@@ -220,6 +232,16 @@ export function openPhotoDb(file: string): Db {
     'ALTER TABLE matches ADD COLUMN kickoff TEXT',
     'ALTER TABLE matches ADD COLUMN venue TEXT',
     'ALTER TABLE matches ADD COLUMN tv TEXT',
+    // Cards, substitutions, referee, pitch, ground address and coaches from DBU's match page (has_details = they have been read)
+    'ALTER TABLE matches ADD COLUMN has_details INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE matches ADD COLUMN referee TEXT',
+    'ALTER TABLE matches ADD COLUMN assistants TEXT',
+    'ALTER TABLE matches ADD COLUMN pitch TEXT',
+    'ALTER TABLE matches ADD COLUMN venue_address TEXT',
+    'ALTER TABLE matches ADD COLUMN home_coach TEXT',
+    'ALTER TABLE matches ADD COLUMN away_coach TEXT',
+    'ALTER TABLE matches ADD COLUMN home_trainers TEXT',
+    'ALTER TABLE matches ADD COLUMN away_trainers TEXT',
   ]) {
     try {
       db.exec(sql)

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseProgram, parseResult, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
+import { parseEvents, parseInfo, parseProgram, parseResult, parseSheet, parseTeams } from '../../src/lib/photos/dbu.ts'
 
 // Small made-up pages in dbu.dk's structure (no real contact details)
 const teams = `<div class="sr--pool--team-list--team" onclick="window.location.href = '/resultater/hold/9351_508656/'">
@@ -92,4 +92,64 @@ test('nye billeder fra en ukendt kamp: netop den kampside hentes', async () => {
   assert.equal(await fetchMatchesForQueue(db, 0), 0)
   db.close()
   rmSync(dir, { recursive: true, force: true })
+})
+
+const EVENTS = (rows: string) => `<div class="sr--match--live-score--eventlist">${rows}</div>`
+const EVENT = (minute: number, side: 'home' | 'away', icon: string, who: string) =>
+  `<div class="sr--match--live-score--event"><div class="sr--match--live-score--event--minute">&#x27;${minute}</div><div class="sr--match--live-score--event--${side}"><div class="sr--match--live-score--event--icon"><img src="/Content/Gfx/SR/livescorev2/icon_sr_${icon}.svg" /></div><div class="sr--match--live-score--event--player">${who}</div></div></div>`
+const SUB = (minute: number, side: 'home' | 'away', on: string, off: string) =>
+  `<div class="sr--match--live-score--event"><div class="sr--match--live-score--event--minute">&#x27;${minute}</div><div class="sr--match--live-score--event--${side}"><div class="sr--match--live-score--event--icon"><img src="/Content/Gfx/SR/livescorev2/icon_sr_sub${side === 'home' ? 'Home' : 'Away'}.svg" /></div><div class="sr--match--live-score--event--player"><div class="sr--match--live-score--event--sub"> ${on} <div class="sr--match--live-score--event--player2">${off}</div></div></div></div></div>`
+
+test('kort og udskiftninger fra kampsiden, ældste først', () => {
+  const html = EVENTS(
+    // the page lists the newest first
+    EVENT(94, 'home', 'yellow', 'William Kold Jensen') +
+      SUB(79, 'home', 'William Kold Jensen', 'Markus Andersen') +
+      EVENT(78, 'away', 'goal', 'Gustav Holm') +
+      EVENT(60, 'away', 'red', 'Robin Jørgensen') +
+      EVENT(30, 'away', 'yellowred', 'Ole Hansen') +
+      SUB(12, 'away', 'Tom Nielsen', 'Per Olsen'),
+  )
+  assert.deepEqual(parseEvents(html), {
+    cards: [
+      { side: 'away', minute: 30, kind: 'red', name: 'Ole Hansen' },
+      { side: 'away', minute: 60, kind: 'red', name: 'Robin Jørgensen' },
+      { side: 'home', minute: 94, kind: 'yellow', name: 'William Kold Jensen' },
+    ],
+    // the player coming on is named first
+    subs: [
+      { side: 'away', minute: 12, on: 'Tom Nielsen', off: 'Per Olsen' },
+      { side: 'home', minute: 79, on: 'William Kold Jensen', off: 'Markus Andersen' },
+    ],
+  })
+  assert.deepEqual(parseEvents('<h2>Kampinfo</h2>'), { cards: [], subs: [] })
+})
+
+test('dommer, bane, spillested og trænere fra kampsiden', () => {
+  const html = `
+    <div class="col-pad"><label>Spillested</label><div><a class="link" href="/resultater/stadium/958">Holdsport Arena (ASA Grounds) </a></div><div></div><div>8000 Aarhus C</div><div>Tlf: 8613 6289</div></div>
+    <div class="col-pad"><label>Bane</label><div>Kunst 1 Holdsport Arena-ASA</div></div>
+    <div class="col-pad"><label>Dommer</label><span>Simon Fenger</span></div>
+    <div class="col-pad"><label>Liniedommer 1</label><span>Lasse Clausen</span></div>
+    <div class="col-pad"><label>Liniedommer 2</label><span>J&#xF3;n Johannesen</span></div>
+    <div class="x">Holdopstillinger</div>
+    <table class="dbu-data-table home-team"><thead><tr><th><span>Officials</span></th></tr></thead>
+      <tr class="official-tr"><td><span class=" p-role">Tr&#xE6;ner</span> <span class="p-name">Birger Fosdal</span></td></tr>
+      <tr class="official-tr"><td><span class=" p-role">Cheftr&#xE6;ner</span> <span class="p-name">Lennart Lindsted</span></td></tr></table>
+    <table class="dbu-data-table away-team"><thead><tr><th><span>Officials</span></th></tr></thead>
+      <tr class="official-tr"><td><span class=" p-role">Tr&#xE6;ner</span> <span class="p-name">Thomas Loran</span></td></tr>
+      <tr class="official-tr"><td><span class=" p-role">Fysisk tr&#xE6;ner</span> <span class="p-name">Icare Gnenzeko</span></td></tr>
+      <tr class="official-tr"><td><span class=" p-role">Tr&#xE6;ner</span> <span class="p-name">Tommy Jeppesen</span></td></tr></table>`
+  assert.deepEqual(parseInfo(html), {
+    referee: 'Simon Fenger',
+    assistants: ['Lasse Clausen', 'Jón Johannesen'],
+    pitch: 'Kunst 1 Holdsport Arena-ASA',
+    venue: 'Holdsport Arena (ASA Grounds)',
+    address: '8000 Aarhus C',
+    homeCoach: 'Lennart Lindsted',
+    // no head coach named: the coach is one of the "Træner"s (not the physical trainer)
+    homeTrainers: ['Birger Fosdal'],
+    awayTrainers: ['Thomas Loran', 'Tommy Jeppesen'],
+  })
+  assert.deepEqual(parseInfo('<h2>Kampinfo</h2>'), { assistants: [], homeTrainers: [], awayTrainers: [] })
 })

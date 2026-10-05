@@ -42,7 +42,7 @@ import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { externalLeagueKey } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
-import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
+import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamCoach, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
 import { checkedTeamStats } from '../../../data/teamStats'
 import { clubSeasonStats } from '../../../data/stats'
@@ -51,7 +51,7 @@ import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { dbuHomeGround } from '../../../lib/channels'
 import { homeGround } from '../../../lib/ground'
-import { dbuClubSquad } from '../../../lib/dbuSquad'
+import { dbuClubCoach, dbuClubSquad } from '../../../lib/dbuSquad'
 import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
@@ -180,6 +180,10 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   // From API-Sports' line-ups; for the divisions it has only the coach for (3. division), from the team sheets on DBU's match pages
   const apiSquad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
   const squad = apiSquad.length || !newHeader ? apiSquad : dbuClubSquad(clubNames(club))
+  // The head coach: DBU's match pages name him (API-Sports' short name settles which "Træner" where they name no head coach)
+  const coach = newHeader ? dbuClubCoach(clubNames(club), apiLeague && apiTeam ? apiTeamCoach(apiLeague, apiTeam) : undefined) : undefined
+  const cardTotals = squad.reduce((t, p) => ({ yellow: t.yellow + (p.yellow ?? 0), red: t.red + (p.red ?? 0) }), { yellow: 0, red: 0 })
+  const mostCards = [...squad].filter((p) => (p.yellow ?? 0) + (p.red ?? 0) > 0).sort((a, b) => (b.yellow ?? 0) + (b.red ?? 0) - (a.yellow ?? 0) - (a.red ?? 0) || (b.red ?? 0) - (a.red ?? 0))[0]
   // The questions people search for; with the new header also the channel, the top scorer, the ground and the tickets
   const faq = clubFaq(
     club,
@@ -192,6 +196,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           channel: upcoming[0] && channelsFor(upcoming[0])[0]?.name,
           scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.dbu ? 0 : p.starts + p.subbedOn })),
           stadium: dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
+          coach,
+          cards: cardTotals.yellow + cardTotals.red > 0 ? { ...cardTotals, most: mostCards && { name: mostCards.name, yellow: mostCards.yellow ?? 0, red: mostCards.red ?? 0 } } : undefined,
           tickets: !!clubTicketUrl(club.id),
         }
       : undefined,
@@ -236,6 +242,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
             ]}
             calendarHref={calendarLinks('klub', club.slug).webcal}
             ticketHref={clubTicketUrl(club.id) ? ticketClickPath({ klub: club.id }) : undefined}
+            coach={coach}
             note={isUnconfirmed(club, division.id) ? `Rækken for ${seasonOf(division)} er ikke bekræftet` : undefined}
             now={now}
           />

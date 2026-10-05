@@ -123,6 +123,96 @@ export function parseResult(html: string): { home: number; away: number; goals: 
   return { home, away, goals: goals.reverse() }
 }
 
+export interface DbuCard {
+  side: 'home' | 'away'
+  minute: number | null
+  kind: 'yellow' | 'red'
+  name: string
+}
+export interface DbuSub {
+  side: 'home' | 'away'
+  minute: number | null
+  /** The player who came on, and the one who went off */
+  on: string
+  off: string
+}
+
+/**
+ * The cards and substitutions of a match page's event list (the live-score block), oldest first. A second yellow card
+ * counts as red. In a substitution DBU writes the player coming on first and the one going off second.
+ */
+export function parseEvents(html: string): { cards: DbuCard[]; subs: DbuSub[] } {
+  const cards: DbuCard[] = []
+  const subs: DbuSub[] = []
+  for (const ev of html.split('class="sr--match--live-score--event"').slice(1)) {
+    const side = /live-score--event--(home|away)"/.exec(ev)?.[1] as 'home' | 'away' | undefined
+    const icon = /icon_sr_(yellow|red|yellowred|secondyellow|sub(?:Home|Away))\.svg/i.exec(ev)?.[1]?.toLowerCase()
+    if (!side || !icon) continue
+    const minute = /event--minute">\s*(?:&#x27;|')?\s*(\d+)/.exec(ev)
+    const at = minute ? Number(minute[1]) : null
+    if (icon.startsWith('sub')) {
+      const on = /event--sub">\s*([^<]*?)\s*<div/.exec(ev)?.[1]
+      const off = /event--player2">([\s\S]*?)<\/div>/.exec(ev)?.[1]
+      if (on && off && text(on) && text(off)) subs.push({ side, minute: at, on: text(on), off: text(off) })
+    } else {
+      const player = /event--player">([\s\S]*?)<\/div>/.exec(ev)
+      if (player && text(player[1])) cards.push({ side, minute: at, kind: icon === 'yellow' ? 'yellow' : 'red', name: text(player[1]) })
+    }
+  }
+  // The page lists the newest event first
+  return { cards: cards.reverse(), subs: subs.reverse() }
+}
+
+export interface DbuInfo {
+  referee?: string
+  assistants: string[]
+  /** The pitch ("Kunst 1 Holdsport Arena-ASA") and the ground with its address */
+  pitch?: string
+  venue?: string
+  address?: string
+  /** The head coach of each team ("Cheftræner" in the officials), where the page names one */
+  homeCoach?: string
+  awayCoach?: string
+  /** Every "Træner" of each team: where there is no head coach, the coach is one of them */
+  homeTrainers: string[]
+  awayTrainers: string[]
+}
+
+/** The facts of a match page: referee and assistants, pitch and ground, and each team's head coach */
+export function parseInfo(html: string): DbuInfo {
+  const info: DbuInfo = { assistants: [], homeTrainers: [], awayTrainers: [] }
+  const span = (label: string) => {
+    const b = new RegExp(`<label>${label}</label>\\s*<span>([\\s\\S]*?)</span>`).exec(html)?.[1]
+    return b ? text(b) || undefined : undefined
+  }
+  const referee = span('Dommer')
+  if (referee) info.referee = referee
+  for (const n of ['1', '2']) {
+    const a = span(`Liniedommer ${n}`)
+    if (a) info.assistants.push(a)
+  }
+  const pitch = /<label>Bane<\/label>\s*<div>([\s\S]*?)<\/div>/.exec(html)?.[1]
+  if (pitch && text(pitch)) info.pitch = text(pitch)
+  const venue = /<label>Spillested<\/label>([\s\S]*?)<\/div>\s*<div class="col-pad">/.exec(html)?.[1]
+  if (venue) {
+    const lines = [...venue.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/g)].map((m) => text(m[1])).filter(Boolean)
+    // The first line is the ground, the next the postcode and town; the phone number is left out
+    info.venue = lines[0]
+    info.address = lines.find((l, i) => i > 0 && /^\d{4}\s/.test(l))
+  }
+  const officials = html.indexOf('Officials')
+  if (officials >= 0) {
+    for (const t of html.slice(officials - 600).matchAll(/<table class="[^"]*\b(home|away)-team\b[^"]*">([\s\S]*?)<\/table>/g)) {
+      if (!/Officials/.test(t[2].split('</thead>')[0])) continue
+      const roles = [...t[2].matchAll(/p-role">([\s\S]*?)<\/span>\s*<span class="p-name">([\s\S]*?)<\/span>/g)].map((m) => ({ role: text(m[1]).toLowerCase(), name: text(m[2]) }))
+      const coach = roles.find((r) => r.role === 'cheftræner')?.name
+      if (coach) info[t[1] === 'home' ? 'homeCoach' : 'awayCoach'] = coach
+      info[t[1] === 'home' ? 'homeTrainers' : 'awayTrainers'] = roles.filter((r) => r.role === 'træner').map((r) => r.name)
+    }
+  }
+  return info
+}
+
 async function get(path: string): Promise<string> {
   const res = await fetch(BASE + path, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30_000) })
   if (!res.ok) throw new Error(`DBU ${path}: ${res.status}`)
@@ -166,7 +256,7 @@ export async function syncDbu(db: Db, pools: string[], pauseMs: number, log: (s:
       }
       // Played matches without a sheet or result, not tried in the last 12 hours
       const due = db
-        .prepare(`SELECT match_key, url, home_id, away_id, has_lineups FROM matches WHERE source = 'dbu' AND (has_lineups = 0 OR has_events = 0) AND date <= ? AND match_key LIKE ? AND (fetched_at IS NULL OR fetched_at < ?) ORDER BY date`)
+        .prepare(`SELECT match_key, url, home_id, away_id, has_lineups FROM matches WHERE source = 'dbu' AND (has_lineups = 0 OR has_events = 0 OR has_details = 0) AND date <= ? AND match_key LIKE ? AND (fetched_at IS NULL OR fetched_at < ?) ORDER BY date`)
         .all(today, `dbu:%_${pool}`, new Date(Date.now() - 12 * 3600_000).toISOString())
       for (const m of due) {
         try {
@@ -190,15 +280,37 @@ async function fetchMatch(db: Db, m: Row): Promise<boolean> {
   const html = await get(String(m.url))
   const sheet = parseSheet(html)
   const result = parseResult(html)
+  // Cards, substitutions, referee, pitch and coaches: only once the match has a result (the page says nothing before)
+  const events = result ? parseEvents(html) : undefined
+  const info = result ? parseInfo(html) : undefined
   transaction(db, () => {
-    db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ?, has_events = ?, home_score = ?, away_score = ? WHERE match_key = ?').run(
+    db.prepare('UPDATE matches SET fetched_at = ?, has_lineups = ?, has_events = ?, home_score = ?, away_score = ?, has_details = ? WHERE match_key = ?').run(
       nowIso(),
       sheet || m.has_lineups ? 1 : 0,
       result ? 1 : 0,
       result?.home ?? null,
       result?.away ?? null,
+      result ? 1 : 0,
       m.match_key,
     )
+    if (info && events) {
+      db.prepare('UPDATE matches SET referee = ?, assistants = ?, pitch = ?, venue_address = ?, home_coach = ?, away_coach = ?, home_trainers = ?, away_trainers = ? WHERE match_key = ?').run(
+        info.referee ?? null,
+        info.assistants.length ? JSON.stringify(info.assistants) : null,
+        info.pitch ?? null,
+        info.address ?? null,
+        info.homeCoach ?? null,
+        info.awayCoach ?? null,
+        info.homeTrainers.length ? JSON.stringify(info.homeTrainers) : null,
+        info.awayTrainers.length ? JSON.stringify(info.awayTrainers) : null,
+        m.match_key,
+      )
+      db.prepare('DELETE FROM match_events WHERE match_key = ?').run(m.match_key)
+      const ev = db.prepare('INSERT INTO match_events (match_key, seq, club_id, minute, kind, name, name2) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      let seq = 0
+      for (const c of events.cards) ev.run(m.match_key, seq++, c.side === 'home' ? m.home_id : m.away_id, c.minute, c.kind, c.name, null)
+      for (const x of events.subs) ev.run(m.match_key, seq++, x.side === 'home' ? m.home_id : m.away_id, x.minute, 'sub', x.on, x.off)
+    }
     if (sheet) {
       db.prepare('DELETE FROM lineups WHERE match_key = ?').run(m.match_key)
       const ins = db.prepare('INSERT OR IGNORE INTO lineups (match_key, club_id, number, name, reserve) VALUES (?, ?, ?, ?, ?)')

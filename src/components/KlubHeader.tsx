@@ -38,6 +38,8 @@ export interface KlubHeaderProps {
   sections: { id: string; label: string }[]
   calendarHref?: string
   ticketHref?: string
+  /** The head coach ("Cheftræner"), where we know the name */
+  coach?: string
   /** A short note under the name (the club's league this season is not confirmed) */
   note?: string
   now: number
@@ -53,14 +55,14 @@ const FIELDS: { key: keyof KlubHeaderRow; label: string; short: string }[] = [
 ]
 const RESULT: Record<'V' | 'U' | 'T', string> = { V: 'Vundet', U: 'Uafgjort', T: 'Tabt' }
 
-export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, note, now }: KlubHeaderProps) {
+export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, now }: KlubHeaderProps) {
   const fields = FIELDS.filter((f) => row?.[f.key] !== undefined)
   const latest = (form ?? []).slice(-5)
   // Unbeaten in every match of the season so far
   const unbeaten = row?.lost === 0 && (row.played ?? 0) > 0 ? row.played : undefined
   // The name's length sets its size, so a long name ("FC Nordsjælland") stops short of the stripes (see .kh-name)
   const style = { '--kh-club': color, '--kh-n': Math.max(3, name.length) } as CSSProperties
-  const hasStrip = fields.length > 0 || latest.length > 0 || !!next
+  const hasStrip = fields.length > 0 || latest.length > 0 || !!next || !!coach
   return (
     <header className="kh" id="oversigt" style={style}>
       <div className="kh-hero">
@@ -97,7 +99,7 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
               ))}
             </dl>
           )}
-          {(latest.length > 0 || next) && (
+          {(latest.length > 0 || next || coach) && (
             <div className="kh-extras">
               {latest.length > 0 && (
                 <div className="kh-extra">
@@ -142,6 +144,12 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
                 </div>
               )}
               {next && <KlubCountdown kickoff={next.kickoff.getTime()} initialNow={now} />}
+              {coach && (
+                <div className="kh-extra">
+                  <span className="kh-label">Cheftræner</span>
+                  <span className="kh-text">{coach}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

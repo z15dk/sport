@@ -31,6 +31,8 @@ import { Faq } from '../../../components/Faq'
 import { AdSlot } from '../../../components/AdSlot'
 import { WidgetPromo } from '../../../components/WidgetPromo'
 import { dbuGoals, dbuLineups } from '../../../lib/dbuLineups'
+import { dbuMatchDetails, dbuMatchLineups } from '../../../lib/dbuSquad'
+import { clubNames } from '../../../data/aliases'
 import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
@@ -175,7 +177,10 @@ async function MatchPageInner({ params }: { params: Params }) {
   // No source gives the goals: the ones seen from the score changing (approximate minutes)
   // 1.–3. division: the goals and scorers from DBU's match page (read every five minutes while it is played)
   const dbu = !fromEvents?.some((e) => e.player) && !match.incidents?.some((e) => e.player) ? dbuGoals(match) : undefined
-  const events = dbu?.length ? dbu : fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // 1.–3. division: the referee, the pitch, the cards and the substitutions from DBU's match page (read by the photo job, src/lib/dbuSquad.ts)
+  const details = dbuMatchDetails([match.home.name, ...(homeClub ? clubNames(homeClub) : [])], [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], match.kickoff)
+  const goalEvents = dbu?.length ? dbu : fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  const events = details?.cards.length ? [...(goalEvents ?? []), ...details.cards.filter((c) => !goalEvents?.some((e) => e.kind === c.kind && e.player === c.player && e.minute === c.minute))].sort((a, b) => a.minute - b.minute) : goalEvents
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
   // Our own table has API-Sports' team names but no logos: from the games they have sent
@@ -184,7 +189,16 @@ async function MatchPageInner({ params }: { params: Params }) {
   // A cup has rounds, not a table
   const cup = !!(external && cupOfGame(external))
   // Our match database's cup games: at least the round (API-Sports' games bring more facts)
-  const facts = fromApi ?? (external?.round ? { facts: [{ label: 'Runde', value: danishRound(external.round)! }] } : undefined)
+  const baseFacts = fromApi ?? (external?.round ? { facts: [{ label: 'Runde', value: danishRound(external.round)! }] } : undefined)
+  // DBU's referee and pitch where the page has them (and the source has no referee of its own)
+  const dbuFacts = details
+    ? [
+        details.referee && !baseFacts?.facts.some((f) => f.label === 'Dommer') && { label: 'Dommer', value: details.referee },
+        details.pitch && { label: 'Bane', value: details.pitch },
+        details.address && !baseFacts?.facts.some((f) => f.label === 'Spillested' && f.value.includes(details.address!)) && { label: 'Adresse', value: details.address },
+      ].filter((f): f is { label: string; value: string } => !!f)
+    : []
+  const facts = baseFacts ? { ...baseFacts, facts: [...baseFacts.facts, ...dbuFacts] } : dbuFacts.length ? { facts: dbuFacts } : undefined
   const extra = facts && {
     ...facts,
     form: facts.form ?? saved?.form,
@@ -261,7 +275,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         // Both clubs' leagues in full: the table, the form and the clubs' other matches
         leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : dbuLineups(match))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={game ? savedSubs(game.id) : undefined} absent={absent} related={related} promo={
+      <MatchView slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

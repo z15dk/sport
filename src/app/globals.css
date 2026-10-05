@@ -2366,6 +2366,14 @@ a.player-games__match:hover { text-decoration: underline; }
 .squad__player:hover, .squad__player:focus-visible { border-color: var(--lime); background: var(--surface); }
 .squad__face { position: relative; display: flex; flex: none; }
 .squad__no { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 6px; background: var(--ink); color: var(--lime); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 13px; line-height: 1; font-variant-numeric: tabular-nums; }
+.squad__tags { display: flex; align-items: center; gap: 4px; }
+.squad__card { display: grid; place-items: center; min-width: 20px; height: 24px; padding: 0 5px; border-radius: 4px; font-size: 12px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.squad__card--yellow { background: #ffd200; color: var(--ink); }
+.squad__card--red { background: #d7263d; color: #fff; }
+.squad__discipline { margin-top: 8px; }
+.squad__sub--dark { margin: 0 0 10px; color: var(--ink-3); }
+.squad__carded { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 8px; }
+.squad__carded-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 8px 12px; border: 2px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: inherit; text-decoration: none; }
 .squad__pill { padding: 4px 8px; border-radius: 999px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 700; white-space: nowrap; }
 @media (max-width: 700px) {
   .squad__scorers { grid-template-columns: minmax(0, 1fr); }

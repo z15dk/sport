@@ -1,4 +1,4 @@
-import { genitive } from './words'
+import { counted, genitive } from './words'
 import type { Match } from '../types'
 import { danishTier, seasonOf, type Club, type Division } from '../data/leagues'
 import type { StandingRow } from '../data/season'
@@ -95,6 +95,10 @@ export interface ClubFaqExtra {
   scorers?: { name: string; goals: number; matches: number }[]
   /** The ground the club plays its home matches at */
   stadium?: string
+  /** The club's head coach */
+  coach?: string
+  /** The club's cards this season, with the player who has most (DBU's match pages) */
+  cards?: { yellow: number; red: number; most?: { name: string; yellow: number; red: number } }
   /** The club sells tickets through a link on the page */
   tickets?: boolean
 }
@@ -156,6 +160,14 @@ export function clubFaq(
       q: `Hvor mange mål har ${club.name} scoret?`,
       a: `${club.name} har scoret ${r.goalsFor} mål og lukket ${r.goalsAgainst} ind i ${r.played} ${r.played === 1 ? 'kamp' : 'kampe'} i ${division.name} ${seasonOf(division)}.`,
     })
+  if (extra?.coach) items.push({ q: `Hvem er ${genitive(club.name)} træner?`, a: `${extra.coach} er cheftræner for ${club.name}.` })
+  if (extra?.cards && extra.cards.yellow + extra.cards.red > 0) {
+    const m = extra.cards.most
+    items.push({
+      q: `Hvem har fået flest kort for ${club.name}?`,
+      a: `${club.name} har fået ${counted(extra.cards.yellow, 'gult kort', 'gule kort')} og ${counted(extra.cards.red, 'rødt kort', 'røde kort')} i ${division.name} ${seasonOf(division)}.${m ? ` Flest har ${m.name} med ${[m.yellow > 0 && counted(m.yellow, 'gult', 'gule'), m.red > 0 && counted(m.red, 'rødt', 'røde')].filter(Boolean).join(' og ')}.` : ''}`,
+    })
+  }
   if (extra?.stadium)
     items.push({
       q: `Hvor spiller ${club.name} hjemmekampe?`,

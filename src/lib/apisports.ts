@@ -2425,9 +2425,13 @@ export interface SquadPlayer {
   starts: number
   subbedOn: number
   goals: number
-  /** From DBU's team sheets (src/lib/dbuSquad.ts): matches on the bench are counted, not matches come on in */
+  /** From DBU's team sheets (src/lib/dbuSquad.ts): matches on the bench are counted; cards and minutes where the match pages have been read */
   bench?: number
   dbu?: boolean
+  yellow?: number
+  red?: number
+  /** Minutes played (from the substitutions) */
+  minutes?: number
 }
 
 const plainName = (n: string) => n.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -2450,8 +2454,14 @@ export function apiTeamSquad(leagueId: string, teamId: number, season = SEASON.s
   return [...(leagueSquads(leagueId, season).get(teamId)?.values() ?? [])]
 }
 
+/** The coach API-Sports names in the team's newest saved line-up ("T. Jeppesen"; also where it has no players), if any */
+export function apiTeamCoach(leagueId: string, teamId: number, season = SEASON.slice(0, 4)): string | undefined {
+  leagueSquads(leagueId, season)
+  return squadsMemo?.coaches.get(teamId)
+}
+
 // Every team of the league in one pass (a player who has changed club is known then), kept until the games change
-let squadsMemo: { key: string; games: ExternalGame[]; mtime: number; teams: Map<number, Map<number, SquadPlayer>> } | undefined
+let squadsMemo: { key: string; games: ExternalGame[]; mtime: number; teams: Map<number, Map<number, SquadPlayer>>; coaches: Map<number, string> } | undefined
 function leagueSquads(leagueId: string, season: string): Map<number, Map<number, SquadPlayer>> {
   load()
   const base = seasonGames()
@@ -2463,6 +2473,7 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
   const all = [...byId.values()]
   const store = extrasStore()
   const teams = new Map<number, Map<number, SquadPlayer>>()
+  const coaches = new Map<number, string>()
   const teamNames = new Map<number, string>()
   const games = all
     .filter((g) => g.state === 'finished' && String(g.league.id) === String(leagueId) && String(g.league.season ?? season) === season)
@@ -2478,6 +2489,8 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
       const players = teams.get(team.id) ?? teams.set(team.id, new Map()).get(team.id)!
       // By the team's name, else in the source's order (home first)
       const lineup = lineups.find((l) => l.team.toLowerCase() === team.name.toLowerCase()) ?? lineups[side === 'home' ? 0 : 1]
+      // The newest match's coach (the games are in the order they were played)
+      if (lineup.coach) coaches.set(team.id, lineup.coach)
       const subs = allSubs.filter((x) => x.side === side)
       const goals = (g.incidents ?? []).filter((i) => i.side === side && i.player && (i.kind === 'goal' || i.kind === 'penalty'))
       const seen = (p: LineupPlayer, started: boolean) => {
@@ -2518,7 +2531,7 @@ function leagueSquads(leagueId: string, season: string): Map<number, Map<number,
       // The source has a photo of every player under his id
       row.photo = proxyImage(`https://media.api-sports.io/football/players/${row.id}.png`)
     }
-  squadsMemo = { key, games: base, mtime: mem.mtime, teams }
+  squadsMemo = { key, games: base, mtime: mem.mtime, teams, coaches }
   return teams
 }
 

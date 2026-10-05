@@ -17,13 +17,19 @@ const GROUPS: { pos: string; title: string }[] = [
   { pos: 'F', title: 'Angreb' },
 ]
 const matchesOf = (p: SquadPlayer) => p.starts + p.subbedOn
-/** "9 kampe", for a squad from DBU's sheets "9 fra start, 4 på bænken" (they do not say who came on) */
+/**
+ * "9 kampe", for a squad from DBU's sheets "9 kampe · 720 min." once the match pages' substitutions are read (the minutes
+ * come from them), before that "9 fra start, 4 på bænken" (the sheets do not say who came on)
+ */
 const metaOf = (p: SquadPlayer) =>
-  p.dbu
+  p.dbu && p.minutes === undefined
     ? [p.starts > 0 && `${p.starts} fra start`, (p.bench ?? 0) > 0 && `${p.bench} på bænken`].filter(Boolean).join(', ') || 'På bænken'
     : matchesOf(p) > 0
-      ? counted(matchesOf(p), 'kamp', 'kampe')
-      : 'På bænken'
+      ? `${counted(matchesOf(p), 'kamp', 'kampe')}${p.minutes ? ` · ${p.minutes} min.` : ''}`
+      : p.dbu && (p.bench ?? 0) > 0
+        ? `${p.bench} på bænken`
+        : 'På bænken'
+const cardsOf = (p: SquadPlayer) => (p.yellow ?? 0) + (p.red ?? 0)
 const linkOf = (p: SquadPlayer) => (p.id ? playerPath(p.id, p.name) : undefined)
 
 /** The player's photo; a drawn person where we have none (DBU's sheets have names and numbers only) */
@@ -61,6 +67,15 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
     ...g,
     players: players.filter((p) => (g.pos ? p.pos === g.pos : !p.pos || !known.has(p.pos))).sort((a, b) => matchesOf(b) - matchesOf(a) || b.starts - a.starts || (a.number ?? 99) - (b.number ?? 99)),
   })).filter((g) => g.players.length)
+  // The team's cards and the players with most, where the match pages have been read for them (DBU's)
+  const carded = players.filter((p) => cardsOf(p) > 0)
+  const discipline = carded.length
+    ? {
+        yellow: players.reduce((n, p) => n + (p.yellow ?? 0), 0),
+        red: players.reduce((n, p) => n + (p.red ?? 0), 0),
+        most: [...carded].sort((a, b) => cardsOf(b) - cardsOf(a) || (b.red ?? 0) - (a.red ?? 0) || a.name.localeCompare(b.name, 'da')).slice(0, 5),
+      }
+    : undefined
   return (
     <section className="panel squad kh-target" id={id}>
       <div className="squad__top">
@@ -117,13 +132,51 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
                       <span className="squad__name">{p.name}</span>
                       <span className="squad__meta">{metaOf(p)}</span>
                     </span>
-                    {p.goals > 0 && <span className="squad__pill">{p.goals} mål</span>}
+                    {(p.goals > 0 || cardsOf(p) > 0) && (
+                      <span className="squad__tags">
+                        {p.goals > 0 && <span className="squad__pill">{p.goals} mål</span>}
+                        {(p.yellow ?? 0) > 0 && (
+                          <span className="squad__card squad__card--yellow" title={`${p.yellow} gule kort`}>
+                            {p.yellow}
+                            <span className="visually-hidden"> gule kort</span>
+                          </span>
+                        )}
+                        {(p.red ?? 0) > 0 && (
+                          <span className="squad__card squad__card--red" title={`${p.red} røde kort`}>
+                            {p.red}
+                            <span className="visually-hidden"> røde kort</span>
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </Wrap>
                 </li>
               ))}
             </ul>
           </div>
         ))}
+        {discipline && (
+          <div className="squad__discipline">
+            <h3 className="squad__head">Disciplin</h3>
+            <p className="squad__sub squad__sub--dark">
+              {name} har fået {counted(discipline.yellow, 'gult kort', 'gule kort')} og {counted(discipline.red, 'rødt kort', 'røde kort')} i {league}
+              {season ? ` ${season}` : ''}.
+            </p>
+            <ol className="squad__carded">
+              {discipline.most.map((p) => (
+                <li key={p.id ?? p.name}>
+                  <Wrap className="squad__carded-row" href={linkOf(p)}>
+                    <span className="squad__name">{p.name}</span>
+                    <span className="squad__tags">
+                      {(p.yellow ?? 0) > 0 && <span className="squad__card squad__card--yellow">{p.yellow}<span className="visually-hidden"> gule kort</span></span>}
+                      {(p.red ?? 0) > 0 && <span className="squad__card squad__card--red">{p.red}<span className="visually-hidden"> røde kort</span></span>}
+                    </span>
+                  </Wrap>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </section>
   )
