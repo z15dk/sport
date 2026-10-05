@@ -5,4 +5,4 @@ export const NEW_CLUB_PAGE_DIVISIONS = new Set(['superliga', '1div', 'bundesliga
 
 // The same for the leagues we do not cover with our own clubs but have the matches of (API-Sports' leagues, the clubs'
 // page of src/app/klub/[slug]/page.tsx, TeamPage): by the league's key in addresses (externalLeagueKey).
-export const NEW_CLUB_PAGE_EXTERNAL_LEAGUES = new Set(['x-argentina-liga-profesional-argentina'])
+export const NEW_CLUB_PAGE_EXTERNAL_LEAGUES = new Set(['x-argentina-liga-profesional-argentina', 'x-italy-serie-a'])
