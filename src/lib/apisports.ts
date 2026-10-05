@@ -2413,8 +2413,8 @@ export function apiTeamStadium(leagueId: string, teamId: number, season = SEASON
 }
 
 export interface SquadPlayer {
-  /** API-Sports' player id (the player's page) */
-  id: number
+  /** API-Sports' player id (the player's page); none for a squad from DBU's team sheets */
+  id?: number
   name: string
   /** The player's photo through our own domain */
   photo?: string
@@ -2425,6 +2425,9 @@ export interface SquadPlayer {
   starts: number
   subbedOn: number
   goals: number
+  /** From DBU's team sheets (src/lib/dbuSquad.ts): matches on the bench are counted, not matches come on in */
+  bench?: number
+  dbu?: boolean
 }
 
 const plainName = (n: string) => n.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()

@@ -78,7 +78,7 @@ export function matchLd(match: Match, clubSlug: (name: string) => string | undef
 }
 
 /** `athletes`: the club's players with their pages, where the page shows the squad */
-export function clubLd(club: Club, division: Division, logo?: string, athletes?: { name: string; path: string }[]) {
+export function clubLd(club: Club, division: Division, logo?: string, athletes?: { name: string; path?: string }[]) {
   return {
     '@context': 'https://schema.org',
     ...teamLd(club.name, club.slug, sportById(division.sport ?? 'soccer').label),
@@ -86,7 +86,7 @@ export function clubLd(club: Club, division: Division, logo?: string, athletes?:
     ...(logo && { logo: absoluteImage(logo), image: absoluteImage(logo) }),
     location: { '@type': 'Place', name: club.city, address: { '@type': 'PostalAddress', addressLocality: club.city, addressCountry: division.countryCode } },
     memberOf: { '@type': 'SportsOrganization', name: division.name, url: `${SITE_URL}${paths.league(division.slug)}` },
-    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, url: `${SITE_URL}${a.path}` })) }),
+    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, ...(a.path && { url: `${SITE_URL}${a.path}` }) })) }),
   }
 }
 
@@ -178,7 +178,7 @@ export function organizationLd() {
   }
 }
 
-export function teamPageLd(team: TeamEntry, logo?: string, athletes?: { name: string; path: string }[]) {
+export function teamPageLd(team: TeamEntry, logo?: string, athletes?: { name: string; path?: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsTeam',
@@ -188,7 +188,7 @@ export function teamPageLd(team: TeamEntry, logo?: string, athletes?: { name: st
     memberOf: { '@type': 'SportsOrganization', name: team.league },
     ...(logo && { logo: absoluteImage(logo), image: absoluteImage(logo) }),
     ...(team.country && { location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressCountry: team.country } } }),
-    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, url: `${SITE_URL}${a.path}` })) }),
+    ...(athletes?.length && { athlete: athletes.map((a) => ({ '@type': 'Person', name: a.name, ...(a.path && { url: `${SITE_URL}${a.path}` }) })) }),
   }
 }
 

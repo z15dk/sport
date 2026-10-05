@@ -51,6 +51,7 @@ import { Updated } from '../../../components/Updated'
 import { CalendarButton } from '../../../components/CalendarButton'
 import { dbuHomeGround } from '../../../lib/channels'
 import { homeGround } from '../../../lib/ground'
+import { dbuClubSquad } from '../../../lib/dbuSquad'
 import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
@@ -176,7 +177,9 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   // Our own articles tagged with the club: with the new header they have their own place in the menu and stand above the statistics
   const articles = articlesAbout({ club })
   // The players the club has used this season, from the saved line-ups (no request); with the new header to begin with
-  const squad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
+  // From API-Sports' line-ups; for the divisions it has only the coach for (3. division), from the team sheets on DBU's match pages
+  const apiSquad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
+  const squad = apiSquad.length || !newHeader ? apiSquad : dbuClubSquad(clubNames(club))
   // The questions people search for; with the new header also the channel, the top scorer, the ground and the tickets
   const faq = clubFaq(
     club,
@@ -187,7 +190,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
     newHeader
       ? {
           channel: upcoming[0] && channelsFor(upcoming[0])[0]?.name,
-          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.starts + p.subbedOn })),
+          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.dbu ? 0 : p.starts + p.subbedOn })),
           stadium: dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
           tickets: !!clubTicketUrl(club.id),
         }
@@ -197,7 +200,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   return (
     <div className="page">
       <RealDataExtra games={clubExternalGames(club.name)} leagues={clubLeagues([club.id])} />
-      <JsonLd data={clubLd(club, division, logo, squad.map((p) => ({ name: p.name, path: playerPath(p.id, p.name) })))} />
+      <JsonLd data={clubLd(club, division, logo, squad.map((p) => ({ name: p.name, path: p.id ? playerPath(p.id, p.name) : undefined })))} />
       {/* The questions the page answers at its foot, for search engines and AI answers (with the new header to begin with) */}
       {newHeader && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
       {/* The club's next match as an event, so a search for the club can show day, time and place */}
@@ -513,7 +516,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
     newPage
       ? {
           channel: nextUp && channelsFor(nextUp)[0]?.name,
-          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.starts + p.subbedOn })),
+          scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.dbu ? 0 : p.starts + p.subbedOn })),
           stadium: ground,
         }
       : undefined,
@@ -577,7 +580,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
 
   return (
     <div className="page">
-      <JsonLd data={teamPageLd(team, newPage ? team.logo : undefined, squad.map((p) => ({ name: p.name, path: playerPath(p.id, p.name) })))} />
+      <JsonLd data={teamPageLd(team, newPage ? team.logo : undefined, squad.map((p) => ({ name: p.name, path: p.id ? playerPath(p.id, p.name) : undefined })))} />
       {newPage && faqLd(faq) && <JsonLd data={faqLd(faq)!} />}
       {newPage && nextUp && (
         <JsonLd data={matchLd(nextUp, (name) => teamByName(name, nextUp.leagueSlug)?.slug, undefined, undefined, own(nextUp.home.name) ? ground : undefined)} />

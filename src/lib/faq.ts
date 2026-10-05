@@ -145,7 +145,7 @@ export function clubFaq(
       q: `Hvem er ${genitive(club.name)} topscorer?`,
       a:
         level.length === 1
-          ? `${top.name} er topscorer for ${club.name} i ${division.name} ${seasonOf(division)} med ${top.goals} mål i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}.`
+          ? `${top.name} er topscorer for ${club.name} i ${division.name} ${seasonOf(division)} med ${top.goals} mål${top.matches ? ` i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}` : ''}.`
           : level.length <= 3
             ? `${level.map((s) => s.name).join(', ').replace(/, ([^,]*)$/, ' og $1')} deler førstepladsen med ${top.goals} mål hver i ${division.name} ${seasonOf(division)}.`
             : `${level.length} spillere deler førstepladsen med ${top.goals} mål hver i ${division.name} ${seasonOf(division)}.`,
@@ -237,7 +237,7 @@ export function teamFaq(team: TeamEntry, next?: Match, last?: Match, extra?: Clu
       q: `Hvem er ${genitive(team.name)} topscorer?`,
       a:
         level.length === 1
-          ? `${top.name} er topscorer for ${team.name} i ${team.league} med ${top.goals} mål i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}.`
+          ? `${top.name} er topscorer for ${team.name} i ${team.league} med ${top.goals} mål${top.matches ? ` i ${top.matches} ${top.matches === 1 ? 'kamp' : 'kampe'}` : ''}.`
           : level.length <= 3
             ? `${level.map((s) => s.name).join(', ').replace(/, ([^,]*)$/, ' og $1')} deler førstepladsen med ${top.goals} mål hver i ${team.league}.`
             : `${level.length} spillere deler førstepladsen med ${top.goals} mål hver i ${team.league}.`,
