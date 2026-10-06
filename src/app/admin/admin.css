@@ -587,3 +587,10 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .growth-check__who--dig { background: var(--lime); color: var(--ink); }
 .growth-check li.is-claude input:disabled { cursor: default; }
 .growth-check li.is-claude.is-done label { cursor: default; }
+
+/* Index Now (the button in the admin bar and the editor, the form on /admin/vaekst) */
+.indexnow-btn { display: inline-flex; flex-direction: column; gap: 2px; }
+.indexnow-btn small { font-size: 11px; }
+.indexnow-form textarea { width: 100%; padding: 10px 12px; font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); resize: vertical; }
+.indexnow-form__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.growth-indexnow .growth-history { padding-top: 12px; }

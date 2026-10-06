@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { GrowthChecklist } from '../../../components/admin/GrowthChecklist'
+import { IndexNowForm } from '../../../components/admin/IndexNowButton'
+import { indexNowLog } from '../../../lib/indexnow'
 import { isAdmin } from '../../../lib/admin'
 import { GOAL_PER_DAY, growthTasks, searchConsole, siteViews } from '../../../lib/growth'
 import { formatNumeric, formatTime } from '../../../lib/time'
@@ -254,6 +256,34 @@ export default async function GrowthPage() {
             </section>
           </div>
         )}
+
+        <section className="panel dash-card growth-indexnow">
+          <h2 className="panel__title">⚡ Index Now</h2>
+          <p className="muted small pad">
+            Fortæl Bing, Yandex m.fl. om nye eller ændrede sider med det samme – én adresse pr. linje (højst 100). Google er ikke med i IndexNow; der
+            bruges &quot;Anmod om indeksering&quot; i Search Console. Knappen findes også i admin-bjælken på hver side og i artikeleditoren.
+          </p>
+          <div className="pad">
+            <IndexNowForm />
+          </div>
+          {indexNowLog().length > 0 && (
+            <ul className="growth-history pad">
+              {indexNowLog()
+                .slice(0, 6)
+                .map((l) => (
+                  <li key={l.at}>
+                    <span className={`growth-history__mark${l.status === 200 || l.status === 202 ? ' is-done' : ''}`}>{l.status === 200 || l.status === 202 ? '✓' : '!'}</span>
+                    <span>
+                      <b>
+                        {formatNumeric(new Date(l.at))} kl. {formatTime(new Date(l.at))} · {l.count} {l.count === 1 ? 'side' : 'sider'} · svar {l.status ?? 'ingen'}
+                      </b>
+                      <small>{l.paths.slice(0, 4).join(' · ')}{l.paths.length > 4 ? ' …' : ''}</small>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </section>
 
         {earlier.length > 0 && (
           <section className="panel dash-card">

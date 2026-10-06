@@ -1,5 +1,6 @@
 'use client'
 
+import { IndexNowButton } from './IndexNowButton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
@@ -325,6 +326,8 @@ export function ArticleEditor({
           {a.id && published && !future && (
             <ActionButton body={{ action: 'shareArticle', id: a.id }} label="Del på sociale medier" busyLabel="Deler …" confirm="Del artiklen på sociale medier nu?" />
           )}
+          {/* Tell Bing and the other IndexNow engines about the article at once */}
+          {a.id && a.slug && published && !future && <IndexNowButton paths={[`/artikler/${a.slug}`, '/artikler']} />}
           {a.id && (
             <button type="button" className="text-btn ed-delete" onClick={remove}>
               Flyt til papirkurven

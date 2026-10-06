@@ -100,6 +100,65 @@ async function submit(paths: string[]): Promise<{ count: number; status?: number
   }
 }
 
+// ---------------------------------------------------------------- the "Index Now" button
+
+export interface IndexNowSend {
+  at: number
+  count: number
+  status?: number
+  paths: string[]
+}
+
+const logFile = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'indexnow-log.json')
+
+/** The last sends by hand ("Index Now"), newest first */
+export function indexNowLog(): IndexNowSend[] {
+  try {
+    return JSON.parse(readFileSync(logFile(), 'utf8')) as IndexNowSend[]
+  } catch {
+    return []
+  }
+}
+
+/** Our own page from an address or a path ("https://matchly.dk/klub/x" or "/klub/x"); not admin or API pages */
+function ownPath(input: string): string | undefined {
+  let p = input.trim()
+  if (!p) return undefined
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      const u = new URL(p)
+      if (u.host.replace(/^www\./, '') !== new URL(SITE_URL).host.replace(/^www\./, '')) return undefined
+      p = u.pathname + u.search
+    } catch {
+      return undefined
+    }
+  }
+  if (!p.startsWith('/') || p.startsWith('//') || /^\/(admin|api)(\/|$)/.test(p)) return undefined
+  return p
+}
+
+/**
+ * "Index Now" as in Rank Math: tells Bing, Yandex and the other IndexNow engines (and through Bing,
+ * Copilot and ChatGPT search) about these pages right away. Google does not take part in IndexNow.
+ */
+export async function indexNowByHand(inputs: string[]): Promise<{ count?: number; status?: number; skipped?: number; error?: string }> {
+  if (!indexNowEnabled()) return { error: 'Siden er ikke synlig for søgemaskiner – slå det til under Søgemaskiner først' }
+  const paths = [...new Set(inputs.map(ownPath).filter((p): p is string => !!p))].slice(0, 100)
+  if (!paths.length) return { error: 'Ingen gyldige adresser på matchly.dk' }
+  const { count, status } = await submit(paths)
+  const entry: IndexNowSend = { at: Date.now(), count, status, paths: paths.slice(0, 20) }
+  try {
+    mkdirSync(path.dirname(logFile()), { recursive: true })
+    writeFileSync(`${logFile()}.tmp`, JSON.stringify([entry, ...indexNowLog()].slice(0, 30)))
+    renameSync(`${logFile()}.tmp`, logFile())
+  } catch {
+    // the log is a nicety; the send happened
+  }
+  if (!status) return { error: 'IndexNow kunne ikke nås – prøv igen om lidt' }
+  if (status !== 200 && status !== 202) return { count, status, error: `IndexNow svarede ${status}` }
+  return { count, status, skipped: inputs.filter((x) => x.trim()).length - paths.length }
+}
+
 /** Today's and yesterday's finished matches, every sport (a late match ends after midnight) */
 function finishedMatches(now: number) {
   const bySlug = new Map<string, ReturnType<typeof getMatches>[number]>()

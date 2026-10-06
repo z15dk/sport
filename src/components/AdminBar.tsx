@@ -1,5 +1,6 @@
 'use client'
 
+import { IndexNowButton } from './admin/IndexNowButton'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -236,6 +237,7 @@ export function AdminBar() {
             </Link>
           ),
         )}
+        {!onAdmin && <IndexNowButton key={`ix${path}`} paths={[path]} className="adminbar__item" compact />}
         {!onAdmin &&
           bar.edit.map((e) => (
             <Link key={e.href + e.label} className="adminbar__item is-edit" href={e.href}>
