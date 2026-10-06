@@ -56,7 +56,7 @@ function Wrap({ className, href, children }: { className: string; href?: string;
   )
 }
 
-export function ClubSquad({ name, league, season, players, id }: { name: string; league: string; season?: string; players: SquadPlayer[]; id?: string }) {
+export function ClubSquad({ name, league, season, players, id, national }: { name: string; league: string; season?: string; players: SquadPlayer[]; id?: string; national?: boolean }) {
   if (!players.length) return null
   const scorers = players.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || matchesOf(a) - matchesOf(b) || a.name.localeCompare(b.name, 'da')).slice(0, 3)
   // A player the line-ups give no position stands last, under "Øvrige", so everyone counted is shown
@@ -88,7 +88,7 @@ export function ClubSquad({ name, league, season, players, id }: { name: string;
         </p>
         {scorers.length > 0 && (
           <>
-            <h3 className="squad__label">Klubbens topscorere</h3>
+            <h3 className="squad__label">{national ? 'Holdets topscorere' : 'Klubbens topscorere'}</h3>
             <ol className="squad__scorers">
               {scorers.map((p) => (
                 <li key={p.id ?? p.name}>

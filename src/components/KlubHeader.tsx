@@ -42,6 +42,10 @@ export interface KlubHeaderProps {
   coach?: string
   /** A short note under the name (the club's league this season is not confirmed) */
   note?: string
+  /** A line under the name that is part of the heading ("Danmarks landshold – kampe, resultater og stilling") */
+  subtitle?: string
+  /** A national team: "Følg holdet", not "Følg klubben" */
+  national?: boolean
   now: number
 }
 
@@ -55,7 +59,7 @@ const FIELDS: { key: keyof KlubHeaderRow; label: string; short: string }[] = [
 ]
 const RESULT: Record<'V' | 'U' | 'T', string> = { V: 'Vundet', U: 'Uafgjort', T: 'Tabt' }
 
-export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, now }: KlubHeaderProps) {
+export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, subtitle, national, now }: KlubHeaderProps) {
   const fields = FIELDS.filter((f) => row?.[f.key] !== undefined)
   const latest = (form ?? []).slice(-5)
   // Unbeaten in every match of the season so far
@@ -77,7 +81,15 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
             {league.href ? <Link href={league.href}>{league.name}</Link> : league.name}
             {place && ` · ${place}`}
           </p>
-          <h1 className="kh-name">{name}</h1>
+          {subtitle ? (
+            <h1 className="kh-name">
+              {name}
+              <span className="sr-only">: </span>
+              <span className="kh-sub">{subtitle}</span>
+            </h1>
+          ) : (
+            <h1 className="kh-name">{name}</h1>
+          )}
           {note && <p className="kh-note">{note}</p>}
         </div>
       </div>
@@ -174,7 +186,7 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
               Billetter
             </a>
           )}
-          <KlubFollow slug={slug} name={name} />
+          <KlubFollow slug={slug} name={name} what={national ? 'holdet' : 'klubben'} />
         </div>
       </div>
     </header>

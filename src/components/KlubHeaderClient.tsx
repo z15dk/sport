@@ -7,12 +7,12 @@ import { useNow } from '../hooks/useNow'
 // the follow button (the visitor's own teams, kept in the browser) and the countdown.
 
 /** "Følg klubben": the same teams as "Mine hold" and the follow buttons elsewhere (useFavoriteTeams) */
-export function KlubFollow({ slug, name }: { slug: string; name: string }) {
+export function KlubFollow({ slug, name, what = 'klubben' }: { slug: string; name: string; what?: 'klubben' | 'holdet' }) {
   const { follows, toggle, loaded } = useFavoriteTeams()
   const on = loaded && follows(slug)
   return (
-    <button type="button" className={`kh-follow${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggle(slug)} title={on ? `Følg ikke længere ${name}` : `Følg ${name}, så står klubben øverst på forsiden`}>
-      {on ? 'Følger' : 'Følg klubben'}
+    <button type="button" className={`kh-follow${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggle(slug)} title={on ? `Følg ikke længere ${name}` : `Følg ${name}, så står ${what} øverst på forsiden`}>
+      {on ? 'Følger' : `Følg ${what}`}
     </button>
   )
 }

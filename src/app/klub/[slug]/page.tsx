@@ -90,8 +90,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const empty = !coming.length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
     if (isNationalSide(team)) {
       return {
-        title: `${genitive(team.name)} fodboldlandshold – kampe, resultater og stilling`,
-        description: `${genitive(team.name)} fodboldlandshold: seneste resultater, kommende kampe og stillingen i ${team.league}.`,
+        title: `${genitive(team.name)} landshold – kampe, resultater og stilling`,
+        description: `${genitive(team.name)} landshold: seneste resultater, kommende kampe og stillingen i ${team.league}.`,
         alternates: { canonical: paths.club(team.slug) },
         ...(empty && { robots: { index: false, follow: true } }),
       }
@@ -522,7 +522,8 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const sport = sportById(team.sport)
   // The new design (KlubHeader, the squad, the extra questions, the ad in the column) for chosen leagues, src/data/nyKlubside.ts
-  const newPage = !!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer'
+  const national = isNationalSide(team)
+  const newPage = national || (!!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer')
   const apiTeam = newPage && league ? apiTeamIdOf(league.id, names) : undefined
   // The whole squad with this season's statistics from API-Sports' player list, else the players of the saved line-ups (the days kept)
   const lineupSquad = newPage && league && apiTeam ? apiTeamSquad(league.id, apiTeam) : []
@@ -619,9 +620,11 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           <KlubHeader
             name={team.name}
             slug={team.slug}
-            logo={team.logo}
+            logo={team.logo ?? (national ? nationalTeams()[team.name] : undefined)}
+            national={national}
             league={{ name: team.league, href: team.leagueSlug ? paths.league(team.leagueSlug) : undefined }}
-            place={team.country ? danishCountry(team.country) : undefined}
+            place={team.country && !national ? danishCountry(team.country) : undefined}
+            subtitle={national ? `${genitive(team.name)} landshold – kampe, resultater og stilling` : undefined}
             color={klubfarve(team.slug, team.colors)}
             row={row ? { position: row.rank, played: row.played, won: row.won, drawn: row.drawn, lost: row.lost, points: row.points } : undefined}
             form={form}
@@ -646,17 +649,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
               {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
               {team.country && ` · ${danishCountry(team.country)}`}
             </span>
-            <h1>
-              {isNationalSide(team) ? (
-                <>
-                  {genitive(team.name)} fodboldlandshold
-                  <span className="sr-only"> – </span>
-                  <span className="club-hero__sub">Kampe, resultater og stilling</span>
-                </>
-              ) : (
-                team.name
-              )}
-            </h1>
+            <h1>{team.name}</h1>
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>
@@ -827,7 +820,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           const clubId = womenOf(team)
           return clubId ? <NewsList articles={newsFor({ club: clubId, women: true })} team={team} /> : null
         })()}
-        <ClubSquad name={team.name} league={team.league} players={squad} id="trup" />
+        <ClubSquad name={team.name} league={team.league} players={squad} id="trup" national={national} />
         <AdSlot placement="content" />
         <Faq items={faq} />
       </div>
