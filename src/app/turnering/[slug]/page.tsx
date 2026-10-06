@@ -56,7 +56,8 @@ import { customLogoUrl } from '../../../lib/customLogos'
 import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishLeagueName, danishRound, externalLeagueKey } from '../../../data/external'
-import { danishCountry, shownTeam } from '../../../data/countries'
+import { danishCountry, isInternational, shownTeam } from '../../../data/countries'
+import type { LeaderRow } from '../../../data/matchExtra'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
@@ -192,7 +193,10 @@ async function externalLeaguePage(slug: string) {
     const round = rounds.find((r) => r.name === name) ?? (rounds.push({ name, matches: [] }), rounds.at(-1)!)
     round.matches.push(externalMatch(g))
   }
-  const leaders = found.api.startsWith('football') && found.id && found.id !== 'db' ? await apiLeagueLeaders(found.id).catch(() => undefined) : undefined
+  const apiLeaders = found.api.startsWith('football') && found.id && found.id !== 'db' ? await apiLeagueLeaders(found.id).catch(() => undefined) : undefined
+  // Between national teams: the players' teams under their Danish names ("Spain" -> "Spanien")
+  const shownLeaders = (rows: LeaderRow[]) => rows.map((r) => ({ ...r, team: shownTeam(r.team, found.country) }))
+  const leaders = apiLeaders && isInternational(found.country) ? { scorers: shownLeaders(apiLeaders.scorers), assists: shownLeaders(apiLeaders.assists), yellow: shownLeaders(apiLeaders.yellow), red: shownLeaders(apiLeaders.red) } : apiLeaders
   const firstKept = played.at(-1) ? Date.parse(played.at(-1)!.kickoff) - 86_400_000 : Infinity
   // The season's statistics: the statistics bank's matches (with their goals and cards), and the fetched days' games on top
   const archived = divisionIds.length ? archiveSeasonGames(divisionIds) : []
@@ -300,8 +304,12 @@ async function externalLeaguePage(slug: string) {
   const groups = fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: r.logo ?? logoFor(r.name) }))])
   // A league with one table: the same top and boxes as our own leagues (src/lib/leagueDeep.ts)
   let view: ExternalLeagueView | undefined
-  if (!tournament && !knockout && groups.length === 1 && groups[0].length > 3) {
-    const table = groups[0]
+  // A football tournament with groups of three or more (Nations League): the same top and boxes over all its teams, the groups kept
+  const groupStage = !cup && !friendly && !knockout && found.sport === 'soccer' && groups.length > 1 && groups.every((g) => g.length >= 3)
+  if ((!tournament && !knockout && groups.length === 1 && groups[0].length > 3) || groupStage) {
+    const table = groupStage
+      ? groups.flat().sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.for ?? 0) - (b.against ?? 0) - ((a.for ?? 0) - (a.against ?? 0)) || (b.for ?? 0) - (a.for ?? 0))
+      : groups[0]
     // Each team's results in the order they were played, from the season's games (for the form)
     const results = new Map<string, ('V' | 'U' | 'T')[]>()
     const add = (name: string, r: 'V' | 'U' | 'T') => results.set(normalize(name), [...(results.get(normalize(name)) ?? []), r])
@@ -325,10 +333,12 @@ async function externalLeaguePage(slug: string) {
         form: formOf(r.name),
       }
     })
-    const deep = await externalLeagueDeep(found, games, { teams: table.length, played: Math.max(...table.map((r) => r.played)) }, now)
+    // A group's rounds: home and away against the others in the group
+    const teams = groupStage ? Math.max(...groups.map((g) => g.length)) : table.length
+    const deep = await externalLeagueDeep(found, games, { teams, played: Math.max(...table.map((r) => r.played)) }, now)
     const scorer = leaders?.scorers[0]
     const topScorer = scorer ? { name: scorer.name, club: scorer.team, goals: scorer.value, photo: scorer.photo } : undefined
-    view = { rows: boxRows, deep, topScorer, brief: leagueBrief({ name: league.name, rows: boxRows, stats, deep, topScorer }) }
+    view = { rows: boxRows, deep, topScorer, groups: groupStage, brief: leagueBrief({ name: league.name, rows: boxRows, stats, deep, topScorer, groups: groupStage, bottom: !groupStage }) }
   }
   return (
     <ExternalLeaguePage

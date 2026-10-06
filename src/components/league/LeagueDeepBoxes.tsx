@@ -63,7 +63,10 @@ export function LeagueHero({
   goalWord = 'mål',
   deep,
   topScorer,
+  leaderLabel = 'Fører',
 }: {
+  /** "Flest point" in a tournament with groups, where no one leads the whole tournament */
+  leaderLabel?: string
   title: string
   kicker: string
   logo?: string
@@ -107,7 +110,7 @@ export function LeagueHero({
           <ClubLink row={leader} className="lx-hero__leader">
             <TeamBadge link={false} name={leader.name} src={leader.logo} colors={leader.colors} size={40} />
             <span>
-              <em>Fører</em>
+              <em>{leaderLabel}</em>
               <b>{leader.name}</b>
             </span>
             <strong>{leader.points}</strong>

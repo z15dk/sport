@@ -34,6 +34,8 @@ export interface ExternalLeagueView {
   deep: LeagueDeep
   topScorer?: { name: string; club: string; goals: number; photo?: string }
   brief: string[]
+  /** A tournament with groups: the top's best team has "Flest point", it does not lead */
+  groups?: boolean
 }
 
 interface Props {
@@ -189,6 +191,7 @@ export function ExternalLeaguePage({ view, league, groups, source, matches, sinc
             goalWord={league.sport === 'basketball' ? 'point' : 'mål'}
             deep={view.deep}
             topScorer={view.topScorer}
+            leaderLabel={view.groups ? 'Flest point' : undefined}
           />
         ) : (
         <div className="clubs__head">

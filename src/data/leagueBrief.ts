@@ -7,7 +7,7 @@ import { counted } from '../lib/words'
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
 
-export function leagueBrief(input: { name: string; rows: LeagueRow[]; stats?: LeagueStats; deep: LeagueDeep; topScorer?: { name: string; club: string; goals: number }; bottom?: boolean }): string[] {
+export function leagueBrief(input: { name: string; rows: LeagueRow[]; stats?: LeagueStats; deep: LeagueDeep; topScorer?: { name: string; club: string; goals: number }; bottom?: boolean; groups?: boolean }): string[] {
   const { name, rows, stats, deep } = input
   const out: string[] = []
   const [first, second] = rows
@@ -15,7 +15,10 @@ export function leagueBrief(input: { name: string; rows: LeagueRow[]; stats?: Le
   const played = deep.round.played
 
   out.push(
-    first.points === second.points
+    // A tournament with groups (Nations League): the most points of all, not a leader of the whole tournament
+    input.groups
+      ? `${first.name} har flest point i ${name} med ${counted(first.points, 'point', 'point')} efter ${counted(first.played, 'kamp', 'kampe')}.`
+      : first.points === second.points
       ? `${first.name} og ${second.name} deler førstepladsen med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}.`
       : `${first.name} fører ${name} med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}, ${counted(first.points - second.points, 'point', 'point')} foran ${second.name}.`,
   )

@@ -1483,10 +1483,12 @@ function readTable(response: Raw[]): TableRow[][] {
   )
 }
 
-/** A group's name in Danish ("Group A" -> "Gruppe A", "League B, Group 2" -> "Liga B, gruppe 2") */
+/** A group's name in Danish ("Group A" -> "Gruppe A", "League B, Group 2" / "League B - Group 2" -> "Liga B, gruppe 2") */
 function danishGroup(name: string) {
+  // The Nations League's leagues each have groups A-D: "League A - Group A" keeps its league ("Liga A, gruppe A")
+  const league = /\bLeague ([A-Z])\b/.exec(name)?.[1]
   const s = name.replace(/^.*\s-\s(?=.*\bGroup\b)/, '').replace(/\bLeague ([A-Z])\b/g, 'Liga $1').replace(/\bGroup\b/g, 'Gruppe').trim()
-  return s.replace(/,\s*Gruppe/, ', gruppe')
+  return (league && !/\bLiga [A-Z]\b/.test(s) ? `Liga ${league}, ${s}` : s).replace(/,\s*Gruppe/, ', gruppe')
 }
 
 /** API-Sports' round names in Danish ("Regular Season - 7" -> "7. runde") */
