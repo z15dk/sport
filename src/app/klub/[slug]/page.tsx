@@ -16,7 +16,7 @@ import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { danishCountry, isInternational, shownTeam } from '../../../data/countries'
+import { danishCountry, isInternational, isNationalTeam, shownTeam } from '../../../data/countries'
 import { nationalTeams } from '../../../lib/nationalTeams'
 import { fifaRank } from '../../../data/fifaRanking'
 import { counted, genitive } from '../../../lib/words'
@@ -67,6 +67,9 @@ import { formatDayMonth, formatLong, formatShortYear, formatTime, isoDate } from
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 
+/** A men's football national team ("Luxembourg"), not a youth or women's team ("Danmark U19", "Danmark (K)") */
+const seniorNationalTeam = (name: string, sport?: string) => sport === 'soccer' && isNationalTeam(name) && !/\b(u\d{2}|w)$|\(k\)$/i.test(name.trim())
+
 export const dynamic = 'force-dynamic'
 
 type Params = Promise<{ slug: string }>
@@ -107,6 +110,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       return {
         title: `${team.name}: kampprogram, resultater og stilling`,
         description: text.length <= 130 ? `${text} Se kampprogram, resultater og stilling.` : text,
+        alternates: { canonical: paths.club(team.slug) },
+        ...(empty && { robots: { index: false, follow: true } }),
+      }
+    }
+    // A men's national team: "Luxembourgs landshold" (never "fodboldlandshold")
+    if (seniorNationalTeam(team.name, team.sport)) {
+      return {
+        title: `${genitive(team.name)} landshold – kampe, resultater og stilling`,
+        description: `${genitive(team.name)} landshold: seneste resultater, kommende landskampe og stillingen i ${team.league}.`,
         alternates: { canonical: paths.club(team.slug) },
         ...(empty && { robots: { index: false, follow: true } }),
       }
@@ -667,7 +679,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
               {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
               {team.country && ` · ${danishCountry(team.country)}`}
             </span>
-            <h1>{team.name}</h1>
+            <h1>{seniorNationalTeam(team.name, team.sport) ? `${genitive(team.name)} landshold` : team.name}</h1>
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>

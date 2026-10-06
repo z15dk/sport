@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import type { ExternalLeagueView } from '../../../components/ExternalLeaguePage'
+import type { LeagueRow } from '../../../data/leagueDeep'
 import { playerFaces } from '../../../lib/playerPhotos'
-import { leagueDeep } from '../../../lib/leagueDeep'
+import { externalLeagueDeep, leagueDeep } from '../../../lib/leagueDeep'
 import { leagueBrief } from '../../../data/leagueBrief'
 import { leagueStats } from '../../../data/stats'
 import { AttackDefenceBox, FormTableBox, LeagueBriefBox, LeagueHero, LeagueOutBox, LeaguePlayersBox } from '../../../components/league/LeagueDeepBoxes'
@@ -21,7 +23,7 @@ import { CUP_INFO } from '../../../data/cupInfo'
 import { TaggedArticles } from '../../../components/TaggedArticles'
 import { articlesAbout } from '../../../lib/articleTopics'
 import { newsFor, newsMentioning } from '../../../lib/news'
-import { allTeams, womenOf } from '../../../data/teams'
+import { allTeams, teamInLeague, womenOf } from '../../../data/teams'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { WidgetPromo } from '../../../components/WidgetPromo'
 import { TopScorersList } from '../../../components/TopScorersList'
@@ -54,7 +56,7 @@ import { customLogoUrl } from '../../../lib/customLogos'
 import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishLeagueName, danishRound, externalLeagueKey } from '../../../data/external'
-import { shownTeam } from '../../../data/countries'
+import { danishCountry, shownTeam } from '../../../data/countries'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
@@ -82,8 +84,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? danishLeagueName(league.name, league.country) ?? league.name
     const friendly = isFriendly(`${league.name} ${league.title ?? ''}`)
     const season = leagueSeason(slug, league)
+    // "stillinger" is the word people search for ("segunda división stillinger"); the country tells same-named leagues apart
+    const country = league.country && league.country !== 'World' ? danishCountry(league.country) : undefined
+    const where = country && !name.toLowerCase().includes(country.toLowerCase()) ? ` (${country})` : ''
     return {
-      title: cup ? `${name} – resultater og kampprogram runde for runde` : friendly || !season ? `${name} – stilling, resultater og kampprogram` : `${name} stillinger ${season} – tabel, resultater og kampprogram`,
+      title: cup
+        ? `${name} – resultater og kampprogram runde for runde`
+        : friendly
+          ? `${name} – stilling, resultater og kampprogram`
+          : `${name} stillinger${season ? ` ${season}` : ''}${where} – tabel, resultater og kampprogram`,
       description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
       alternates: { canonical: paths.league(slug) },
     }
@@ -288,13 +297,47 @@ async function externalLeaguePage(slug: string) {
       return t ? [[`${a.feed}|${a.id}`, { name: t.name, logo: t.logo ?? logoFor(t.name), colors: t.colors }]] : []
     }),
   )
+  const groups = fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: r.logo ?? logoFor(r.name) }))])
+  // A league with one table: the same top and boxes as our own leagues (src/lib/leagueDeep.ts)
+  let view: ExternalLeagueView | undefined
+  if (!tournament && !knockout && groups.length === 1 && groups[0].length > 3) {
+    const table = groups[0]
+    // Each team's results in the order they were played, from the season's games (for the form)
+    const results = new Map<string, ('V' | 'U' | 'T')[]>()
+    const add = (name: string, r: 'V' | 'U' | 'T') => results.set(normalize(name), [...(results.get(normalize(name)) ?? []), r])
+    for (const g of [...statGames.values()].sort((x, y) => x.kickoff.getTime() - y.kickoff.getTime())) {
+      const [h, a] = g.score
+      add(g.home.name, h > a ? 'V' : h < a ? 'T' : 'U')
+      add(g.away.name, a > h ? 'V' : a < h ? 'T' : 'U')
+    }
+    const formOf = (name: string) => results.get(normalize(name)) ?? [...results.entries()].find(([k]) => alike([name], k))?.[1] ?? []
+    const boxRows: LeagueRow[] = table.map((r) => {
+      const team = teamInLeague(league.key, r.name, league.sport)
+      return {
+        key: `${r.rank}-${r.name}`,
+        name: team?.season ? team.name : r.name,
+        href: team ? paths.club(team.slug) : undefined,
+        logo: r.logo ?? team?.logo,
+        played: r.played,
+        goalsFor: r.for ?? 0,
+        goalsAgainst: r.against ?? 0,
+        points: r.points ?? 0,
+        form: formOf(r.name),
+      }
+    })
+    const deep = await externalLeagueDeep(found, games, { teams: table.length, played: Math.max(...table.map((r) => r.played)) }, now)
+    const scorer = leaders?.scorers[0]
+    const topScorer = scorer ? { name: scorer.name, club: scorer.team, goals: scorer.value, photo: scorer.photo } : undefined
+    view = { rows: boxRows, deep, topScorer, brief: leagueBrief({ name: league.name, rows: boxRows, stats, deep, topScorer }) }
+  }
   return (
     <ExternalLeaguePage
+      view={view}
       league={league}
       rounds={tournament ? rounds : knockout ? [] : undefined}
       bracket={bracket}
       leaders={leaders}
-      groups={fromApi ?? (tournament || knockout ? [] : [own.rows.map((r) => ({ ...r, name: shownTeam(r.name, league.country), logo: r.logo ?? logoFor(r.name) }))])}
+      groups={groups}
       source={fromApi ? 'api-sports' : 'scoreline'}
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
@@ -345,7 +388,19 @@ async function LeaguePageInner({ params }: { params: Params }) {
     : dbuScorers?.scorers[0]
       ? { name: dbuScorers.scorers[0].name, club: dbuScorers.scorers[0].club ?? dbuScorers.scorers[0].team, goals: dbuScorers.scorers[0].goals }
       : stats?.scorers[0] && { name: stats.scorers[0].player, club: stats.scorers[0].club.name, goals: stats.scorers[0].goals }
-  const brief = leagueBrief({ division, rows, stats, deep, topScorer: top })
+  // The clubs as the league boxes take them (the same for the source's leagues)
+  const boxRows: LeagueRow[] = rows.map((r) => ({
+    key: r.club.id,
+    name: r.club.name,
+    href: paths.club(r.club.slug),
+    colors: r.club.colors,
+    played: r.played,
+    goalsFor: r.goalsFor,
+    goalsAgainst: r.goalsAgainst,
+    points: r.points,
+    form: r.form,
+  }))
+  const brief = leagueBrief({ name: division.name, rows: boxRows, stats, deep, topScorer: top, bottom: division.zones.bottom > 0 })
   // The top scorer's photo for the top: the league's player list has it, else by name in the statistics bank (football)
   const topPhoto = leaders?.scorers[0]?.photo ?? (top && sportOf(division) === 'soccer' ? playerFaces([{ name: top.name, team: top.club }])[0]?.photo : undefined)
 
@@ -361,7 +416,17 @@ async function LeaguePageInner({ params }: { params: Params }) {
       />
       <div className="clubs">
         <div className="clubs__head">
-          <LeagueHero division={division} rows={rows} stats={stats} deep={deep} badge={badges[division.name]} topScorer={top ? { ...top, photo: topPhoto } : undefined} />
+          <LeagueHero
+            title={division.name}
+            kicker={`${division.country} · Sæson ${seasonOf(division)}`}
+            logo={badges[division.name]}
+            logoLabel={division.short}
+            rows={boxRows}
+            stats={stats}
+            goalWord={sportOf(division) === 'basketball' ? 'point' : 'mål'}
+            deep={deep}
+            topScorer={top ? { ...top, photo: topPhoto } : undefined}
+          />
           <DivisionTabs active={division.slug} />
           <LeagueSubNav division={division} active="stilling" />
         </div>
@@ -387,8 +452,8 @@ async function LeaguePageInner({ params }: { params: Params }) {
           cta="Lav din tabel →"
         />
         <LeagueStats division={division} leaders={leaders} />
-        <FormTableBox rows={rows} />
-        <AttackDefenceBox rows={rows} />
+        <FormTableBox rows={boxRows} />
+        <AttackDefenceBox rows={boxRows} />
         <LeaguePlayersBox deep={deep} league={division.name} />
         <LeagueOutBox deep={deep} />
         <TaggedArticles articles={articlesAbout({ division })} title={`Artikler om ${division.name}`} />

@@ -516,13 +516,40 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .own-post__result input:not([type='checkbox']) { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-width: 420px; }
 
 /* /admin/vaekst: the goal, the numbers and the week's task as a checklist */
-.growth-goal__row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; padding: 0 18px; }
-.growth-goal__row strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 56px; line-height: 1; }
-.growth-goal__row span { color: var(--ink-2); font-size: 14px; }
-.growth-goal__row em { font-style: normal; font-weight: 700; color: var(--lime-deep); }
-.growth-goal__bar { height: 12px; margin: 12px 18px 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.growth-goal__bar i { display: block; height: 100%; border-radius: 999px; background: var(--lime-deep); }
-.growth-goal .dash-bars { margin: 10px 18px 18px; }
+.gh {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius); color: #fff; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;
+  background:
+    radial-gradient(60% 110% at 100% 0%, rgba(198, 241, 53, 0.2) 0%, transparent 70%),
+    radial-gradient(55% 90% at 0% 100%, rgba(44, 58, 12, 0.85) 0%, transparent 72%),
+    linear-gradient(180deg, #171c0d 0%, #0b0d07 100%);
+}
+.gh__m { position: absolute; z-index: -1; right: -30px; bottom: -110px; pointer-events: none; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 420px; line-height: 0.8; color: transparent; -webkit-text-stroke: 2px rgba(198, 241, 53, 0.12); }
+.gh__kicker { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.gh__kicker > span + span::before { content: '·'; margin-right: 10px; color: rgba(255, 255, 255, 0.4); }
+.gh__logo { font-family: var(--display); font-style: italic; font-size: 20px; letter-spacing: 0; color: #fff; }
+.gh__logo b { color: var(--live); }
+.gh__main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: end; }
+.gh__now { display: flex; align-items: flex-end; gap: 14px; }
+.gh__now strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 96px; line-height: 0.82; }
+.gh__now span { display: flex; flex-direction: column; font-size: 16px; font-weight: 600; padding-bottom: 6px; }
+.gh__now small { font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.65); }
+.gh__next { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.08); }
+.gh__next b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1; }
+.gh__next small { font-size: 12px; color: rgba(255, 255, 255, 0.7); }
+.gh__label { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.gh__bar { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.gh__bar i { display: block; height: 100%; border-radius: 999px; background: var(--lime); }
+.gh__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.gh__steps li { position: relative; display: flex; justify-content: center; padding: 8px 0; border-radius: 999px; background: rgba(255, 255, 255, 0.06); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 17px; color: rgba(255, 255, 255, 0.45); }
+.gh__steps li.is-done { background: var(--lime-deep); color: #fff; }
+.gh__steps li.is-next { background: rgba(198, 241, 53, 0.14); color: var(--lime); box-shadow: inset 0 0 0 1.5px var(--lime); }
+.gh__days { display: flex; flex-direction: column; gap: 8px; }
+.gh__chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+.gh__chart span { flex: 1; max-width: 64px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.gh__chart i { display: block; width: 100%; border-radius: 6px 6px 2px 2px; background: var(--lime); opacity: 0.9; }
+.gh__chart span:last-child i { opacity: 0.45; }
+.gh__chart em { font-style: normal; font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+@media (max-width: 760px) { .gh__main { grid-template-columns: minmax(0, 1fr); } .gh__now strong { font-size: 72px; } .gh__steps li { font-size: 14px; } .gh__m { font-size: 300px; bottom: -70px; } }
 .growth-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 900px) { .growth-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .growth-task__body { padding: 0 18px 18px; }
@@ -549,3 +576,14 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .growth-history small { color: var(--ink-2); }
 .growth-history__mark { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-weight: 800; }
 .growth-history__mark.is-done { background: var(--lime-deep); color: #fff; }
+.growth-task__sum { margin: 0 18px 12px; font-size: 14px; color: var(--ink-2); }
+.growth-task__sum b { color: var(--ink); font-size: 16px; }
+.growth-task__body + .growth-task__body { margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--line); }
+.growth-task__body.is-complete > p, .growth-task__body.is-complete .growth-task__facts { opacity: 0.6; }
+.growth-task__ok { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 8px; border-radius: 50%; background: var(--lime-deep); color: #fff; font-size: 15px; font-style: normal; vertical-align: 3px; }
+.growth-task__carry { margin-left: 10px; padding: 3px 8px; border-radius: 999px; background: var(--star); color: var(--ink); font-family: var(--body); font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; vertical-align: 5px; }
+.growth-check__who { margin-left: auto; flex: none; align-self: center; padding: 2px 8px; border-radius: 999px; font-style: normal; font-size: 11px; font-weight: 700; }
+.growth-check__who--claude { background: var(--ink); color: var(--lime); }
+.growth-check__who--dig { background: var(--lime); color: var(--ink); }
+.growth-check li.is-claude input:disabled { cursor: default; }
+.growth-check li.is-claude.is-done label { cursor: default; }

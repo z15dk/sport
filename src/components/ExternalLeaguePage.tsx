@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import type { LeagueDeep, LeagueRow } from '../data/leagueDeep'
+import { AttackDefenceBox, FormTableBox, LeagueBriefBox, LeagueHero, LeagueOutBox, LeaguePlayersBox } from './league/LeagueDeepBoxes'
 import Link from 'next/link'
 import { MasonryFlow } from './MasonryFlow'
 import type { ExternalLeague } from '../lib/apisports'
@@ -26,7 +28,16 @@ import { SITE_URL } from '../lib/site'
 import type { Baseline } from '../data/baselines'
 import { teamInLeague } from '../data/teams'
 
+/** A league with one table: the same top and boxes as our own leagues (src/lib/leagueDeep.ts) */
+export interface ExternalLeagueView {
+  rows: LeagueRow[]
+  deep: LeagueDeep
+  topScorer?: { name: string; club: string; goals: number; photo?: string }
+  brief: string[]
+}
+
 interface Props {
+  view?: ExternalLeagueView
   league: ExternalLeague
   /** API-Sports' table (all groups), or ours from the statistics bank */
   groups: TableRow[][]
@@ -58,7 +69,7 @@ const FOLD_ROWS = 12
 /** UEFA's tournaments with a league phase of 36 teams (the source's ids): Champions League, Europa League, Conference League */
 const UEFA_LEAGUE_PHASE = new Set(['2', '3', '848'])
 
-export function ExternalLeaguePage({ league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, bracket, leaders, stats, news }: Props) {
+export function ExternalLeaguePage({ view, league, groups, source, matches, since, recent, upcoming, now, baseline, rounds, bracket, leaders, stats, news }: Props) {
   const sport = sportById(league.sport).label
   const path = paths.league(league.key)
   const rows = groups.flat()
@@ -167,17 +178,31 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
       <JsonLd data={webPageLd(path, league.name, new Date(now))} />
       <JsonLd data={breadcrumbLd([{ name: 'Kampe', path: '/' }, { name: league.name, path }])} />
       <div className="clubs">
+        {view ? (
+          <LeagueHero
+            title={league.name}
+            // The source gives only the season's first year ("2026" for 2026/27): left out rather than shown wrong
+            kicker={`${danishCountry(league.country)} · ${sport}`}
+            logo={league.logo}
+            rows={view.rows}
+            stats={stats}
+            goalWord={league.sport === 'basketball' ? 'point' : 'mål'}
+            deep={view.deep}
+            topScorer={view.topScorer}
+          />
+        ) : (
         <div className="clubs__head">
-          <h1 className="feed__title league-title">
-            <span className="league-title__row">
-              <TeamBadge link={false} name={league.name} src={league.logo} colors={['#0f110c', '#c6f135']} size={56} />
-              {league.name}
-            </span>
-            <span>
-              {sport} · {danishCountry(league.country)}
-            </span>
-          </h1>
-        </div>
+            <h1 className="feed__title league-title">
+              <span className="league-title__row">
+                <TeamBadge link={false} name={league.name} src={league.logo} colors={['#0f110c', '#c6f135']} size={56} />
+                {league.name}
+              </span>
+              <span>
+                {sport} · {danishCountry(league.country)}
+              </span>
+            </h1>
+          </div>
+        )}
         {rounds && (
           <p className="lead">
             {rounds.length
@@ -186,7 +211,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
             {upcoming[0] && ` Næste kamp: ${upcoming[0].home.name} – ${upcoming[0].away.name}.`}
           </p>
         )}
-        {!rounds && leader && (
+        {!rounds && leader && !view && (
           <p className="lead">
             {leader.name} fører {league.name} efter {leader.played} kampe
             {hasPoints ? ` med ${leader.points} point` : ` med ${leader.won} sejre`}.
@@ -204,6 +229,10 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           {/* A tournament shows API-Sports' own table (its groups), never one of ours */}
           <LeagueStats stats={stats} sport={league.sport} leaders={leaders} />
           {leaders && <LeagueLeaders leaders={leaders} league={league.name} />}
+          {view && <FormTableBox rows={view.rows} />}
+          {view && <AttackDefenceBox rows={view.rows} />}
+          {view && <LeaguePlayersBox deep={view.deep} league={league.name} />}
+          {view && <LeagueOutBox deep={view.deep} />}
           {rounds?.map((r) => (
             <section key={r.name} className="league">
               <header className="league__header">
@@ -250,6 +279,7 @@ export function ExternalLeaguePage({ league, groups, source, matches, since, rec
           )}
           {news}
         </MasonryFlow>
+        {view && <LeagueBriefBox items={view.brief} title={`${league.name} kort fortalt`} />}
         <AdSlot placement="feed" />
         <p className="muted small">
           <Link href="/">Se alle dagens kampe</Link>.

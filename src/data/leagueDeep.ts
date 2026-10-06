@@ -42,3 +42,26 @@ export interface LeagueDeep {
   players?: { rating: LeaguePlayer[]; chances: LeaguePlayer[]; saves: LeaguePlayer[]; shotsOn: LeaguePlayer[] }
   out?: LeagueOut[]
 }
+
+/** A club in the league page's boxes, from our table or a source's: the same for both kinds of league */
+export interface LeagueRow {
+  key: string
+  name: string
+  /** The club's page */
+  href?: string
+  logo?: string
+  colors?: [string, string]
+  played: number
+  goalsFor: number
+  goalsAgainst: number
+  points: number
+  /** Results in the order they were played (the last five count) */
+  form: ('V' | 'U' | 'T')[]
+}
+
+/** Points in the last five matches */
+export const formPoints = (form: ('V' | 'U' | 'T')[]) => form.slice(-5).reduce((t, f) => t + (f === 'V' ? 3 : f === 'U' ? 1 : 0), 0)
+
+/** The club in the best form: the most points in the last five (once a few rounds are played) */
+export const inForm = (rows: LeagueRow[]) =>
+  Math.max(0, ...rows.map((r) => r.form.length)) >= 3 ? [...rows].sort((a, b) => formPoints(b.form) - formPoints(a.form) || b.points - a.points)[0] : undefined

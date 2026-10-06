@@ -215,7 +215,11 @@ const NATIONS: Record<string, string> = {
 }
 
 /** "Saint Lucia" and "St. Lucia" are the same country */
+/** Countries whose Danish name is the same as the English one ("Luxembourg", "Wales", "Portugal"), so NATIONS leaves them out – still national teams */
+const SAME_NAME = new Set(['andorra', 'angola', 'argentina', 'bolivia', 'canada', 'chile', 'colombia', 'costa rica', 'ecuador', 'el salvador', 'england', 'finland', 'gabon', 'gambia', 'ghana', 'gibraltar', 'guatemala', 'guinea', 'haiti', 'honduras', 'iran', 'israel', 'jamaica', 'japan', 'kenya', 'kosovo', 'liechtenstein', 'luxembourg', 'mali', 'malta', 'moldova', 'montenegro', 'namibia', 'nicaragua', 'niger', 'nigeria', 'oman', 'pakistan', 'panama', 'paraguay', 'peru', 'portugal', 'qatar', 'rwanda', 'san marino', 'senegal', 'sudan', 'togo', 'uganda', 'ukraine', 'uruguay', 'venezuela', 'wales', 'zambia', 'zimbabwe'])
 const nation = (folded: string) => NATIONS[folded] ?? NATIONS[folded.replace(/^saint /, 'st. ')] ?? NATIONS[folded.replace(/^st\.? /, 'saint ')]
+/** The country's Danish name for an English one, also when the two are the same */
+const nationOrSame = (folded: string) => nation(folded) ?? (SAME_NAME.has(folded) ? folded : undefined)
 
 /** Danish name (folded) -> the source's English one (folded), for finding a flag from the name we show */
 const ENGLISH = new Map<string, string>()
@@ -292,5 +296,5 @@ export function isNationalTeam(name: string): boolean {
   let base = name.trim()
   for (let m = KINDS.exec(base); m; m = KINDS.exec(base)) base = base.slice(0, m.index)
   const folded = foldCountry(base)
-  return !!base && (!!nation(folded) || !!englishNation(folded))
+  return !!base && (!!nationOrSame(folded) || !!englishNation(folded))
 }
