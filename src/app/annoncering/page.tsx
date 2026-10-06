@@ -124,6 +124,11 @@ const WHERE: Record<
     text: "Lige under topbjælken på alle sider – forsiden, kampe, klubber og turneringer. Det første, læseren ser.",
     draw: "is-top",
   },
+  match: {
+    title: "Toppen af kampsiden",
+    text: "Øverst på hver kampside, lige over kampen – før stilling, opstillinger og statistik. Her er læseren, når kampen nærmer sig.",
+    draw: "is-match",
+  },
   feed: {
     title: "Kamplisten",
     text: `Inde i forsidens kampliste: første banner efter ca. ${FEED_AD_FIRST_ROWS} kampe, derefter for hver ca. ${FEED_AD_EVERY_ROWS}. Flere bannere pr. side.`,

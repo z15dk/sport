@@ -96,7 +96,7 @@ async function PastMatchPageInner({ game: g, match: original }: { game: PastGame
           { name: title, path: paths.match(g.slug) },
         ])}
       />
-      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} subs={partnerId ? savedSubs(partnerId) : undefined} />
+      <PastMatchView match={match} season={g.season} spectators={g.spectators} teamPath={teamPath} report={report} h2h={h2h} players={players} stats={stats} lineups={lineups} subs={partnerId ? savedSubs(partnerId) : undefined} topAd={<AdSlot placement="match" />} />
       <div className="match-page match-page--after">
         <AdSlot placement="content" />
       </div>
@@ -279,7 +279,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         // Both clubs' leagues in full: the table, the form and the clubs' other matches
         leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView deep={deep} slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
+      <MatchView topAd={<AdSlot placement="match" />} deep={deep} slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}

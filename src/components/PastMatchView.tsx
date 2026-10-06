@@ -19,6 +19,8 @@ import type { Substitution } from '../data/matchExtra'
 
 interface Props {
   match: Match
+  /** The advertising space at the top of the page (AdSlot 'match', rendered on the server) */
+  topAd?: React.ReactNode
   season: string
   spectators?: number
   /** Team pages by name (only teams in our register) */
@@ -47,7 +49,7 @@ function Side({ team, href }: { team: Match['home']; href?: string }) {
   )
 }
 
-export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players, stats, lineups, subs }: Props) {
+export function PastMatchView({ match, season, spectators, teamPath, report, h2h, players, stats, lineups, subs, topAd }: Props) {
   const { home, away } = match
   const sides = (['home', 'away'] as const).map((side) => ({
     side,
@@ -65,6 +67,7 @@ export function PastMatchView({ match, season, spectators, teamPath, report, h2h
           {home.name} – {away.name}
         </span>
       </nav>
+      {topAd}
 
       <header className="duel">
         <Side team={home} href={teamPath[home.name]} />

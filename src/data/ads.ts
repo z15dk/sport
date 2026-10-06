@@ -8,7 +8,7 @@
 //   creative: { src: '/ads/top.jpg', href: 'https://annoncør.dk', alt: 'Annoncør' }
 // Mark gambling ads with `gambling: true` so the responsible-gambling line is shown.
 
-export type AdPlacementId = 'top' | 'feed' | 'side' | 'content' | 'scroll'
+export type AdPlacementId = 'top' | 'match' | 'feed' | 'side' | 'content' | 'scroll'
 
 export interface AdSize {
   width: number
@@ -104,7 +104,7 @@ export function adTurnCss(): string {
  * so a banner keeps its number when more of the list is drawn and none of them meet early.
  */
 export function bannerNumber(placement: string, index = 0, nthOfKind = 0): number {
-  if (placement === 'top') return 0
+  if (placement === 'top' || placement === 'match') return 0
   if (placement === 'feed') return Math.max(1, index)
   return (placement === 'side' ? -1 : placement === 'content' ? -2 : -3) - 3 * Math.max(0, nthOfKind)
 }
@@ -131,11 +131,13 @@ export interface AdsConfig {
   adsTxt?: string
 }
 
-export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'feed', 'side', 'content', 'scroll']
+export const AD_PLACEMENT_IDS: AdPlacementId[] = ['top', 'match', 'feed', 'side', 'content', 'scroll']
 
 export const AD_PLACEMENTS: Record<AdPlacementId, AdPlacement> = {
   // Under the header on every page
   top: { id: 'top', name: 'Topbanner', desktop: { width: 970, height: 90 }, mobile: { width: 320, height: 100 }, mobileBelow: 999 },
+  // At the top of every match page, between the breadcrumbs and the match box (sold apart from the site-wide top banner)
+  match: { id: 'match', name: 'Kampside top', desktop: { width: 970, height: 90 }, mobile: { width: 320, height: 100 }, mobileBelow: 999 },
   // Between the leagues on the front page and in the content on other pages
   feed: { id: 'feed', name: 'Kampliste', desktop: { width: 728, height: 90 }, mobile: { width: 320, height: 100 } },
   // Right-hand column on the front page, sticky with the column

@@ -10,6 +10,7 @@ import { MAX_CREATIVES, creativesOf, type AdBanner, type AdPlacement, type AdPla
 
 const WHERE: Record<AdPlacementId, string> = {
   top: 'Under topbjælken på alle sider',
+  match: 'Øverst på alle kampsider, mellem brødkrummerne og kampboksen',
   feed: 'Mellem ligaerne på forsiden og inde i indholdet på liga- og turneringssider',
   side: 'Højre kolonne på forsiden (følger med ned). Vises ikke på mobil',
   content: 'På kamp-, klub-, liga-, spiller- og artikelsider',
