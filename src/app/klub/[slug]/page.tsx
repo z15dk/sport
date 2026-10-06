@@ -16,7 +16,8 @@ import { FormChart } from '../../../components/FormChart'
 import { FormChips } from '../../../components/FormChips'
 import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
-import { danishCountry, shownTeam } from '../../../data/countries'
+import { danishCountry, isInternational, shownTeam } from '../../../data/countries'
+import { nationalTeams } from '../../../lib/nationalTeams'
 import { counted, genitive } from '../../../lib/words'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, matchLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
@@ -75,6 +76,9 @@ export function generateStaticParams() {
   return allTeams().map((t) => ({ slug: t.slug }))
 }
 
+/** A men's senior national team in a tournament between countries ("Danmark", "Wales"), not a youth or women's team */
+const isNationalSide = (team: { sport: string; country?: string; name: string }) => team.sport === 'soccer' && isInternational(team.country) && team.name in nationalTeams()
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const team = teamBySlug((await params).slug)
   if (!team) return { title: 'Klubben findes ikke' }
@@ -84,6 +88,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const names = new Set((team.names ?? [team.name]).map(normalize))
     const coming = teamGames(team, Date.now())
     const empty = !coming.length && !readArchive().some((a) => names.has(normalize(a.homeName)) || names.has(normalize(a.awayName)))
+    if (isNationalSide(team)) {
+      return {
+        title: `${genitive(team.name)} fodboldlandshold – kampe, resultater og stilling`,
+        description: `${genitive(team.name)} fodboldlandshold: seneste resultater, kommende kampe og stillingen i ${team.league}.`,
+        alternates: { canonical: paths.club(team.slug) },
+        ...(empty && { robots: { index: false, follow: true } }),
+      }
+    }
     if (team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer') {
       // The new design: "kampprogram" in the title, the next match with day, time and channel in the description
       const next = coming.find((m) => m.state === 'upcoming' && m.kickoff.getTime() > Date.now())
@@ -634,7 +646,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
               {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
               {team.country && ` · ${danishCountry(team.country)}`}
             </span>
-            <h1>{team.name}</h1>
+            <h1>{isNationalSide(team) ? `${genitive(team.name)} fodboldlandshold – kampe, resultater og stilling` : team.name}</h1>
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>

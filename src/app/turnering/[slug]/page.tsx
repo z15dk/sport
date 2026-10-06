@@ -47,7 +47,7 @@ import { buildBracket, isKnockout, type BracketGame } from '../../../lib/bracket
 import { matchSlug } from '../../../lib/slug'
 import { apiLeagueIdOf, apiLeagueLeaders, apiLeagueTable, externalLeague, teamLogos } from '../../../lib/apisports'
 import { archiveLeagueTable, archiveSeasonGames } from '../../../lib/history'
-import { archiveIncidents } from '../../../lib/archive'
+import { archiveIncidents, readArchive } from '../../../lib/archive'
 import { gameStats, type StatGame, type StatTeam } from '../../../data/stats'
 import { BASELINES, sameLeagueKeys } from '../../../data/baselines'
 import { customLogoUrl } from '../../../lib/customLogos'
@@ -80,8 +80,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const names = loadRealData()?.leagueNames
     const cup = cupOfGame({ sport: league.sport, league })
     const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? danishLeagueName(league.name, league.country) ?? league.name
+    const friendly = isFriendly(`${league.name} ${league.title ?? ''}`)
+    const season = leagueSeason(slug, league)
     return {
-      title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} – stilling, resultater og kampprogram`,
+      title: cup ? `${name} – resultater og kampprogram runde for runde` : friendly || !season ? `${name} – stilling, resultater og kampprogram` : `${name} stillinger ${season} – tabel, resultater og kampprogram`,
       description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
       alternates: { canonical: paths.league(slug) },
     }
@@ -97,6 +99,28 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     description: `${tier ? `${division.name} er Danmarks ${tier.words} fodboldrække. ` : ''}Stillingen i ${division.name} ${seasonOf(division)} efter ${rounds} runder: ${leader.club.name} fører med ${leader.points} point. Alle ${division.clubs.length} klubber, resultater, kampprogram og topscorere.`,
     alternates: { canonical: paths.league(division.slug) },
   }
+}
+
+/** Countries whose football leagues play in calendar years (spring to autumn) */
+const CALENDAR_YEAR = /^(sweden|norway|finland|iceland|ireland|faroe-islands|estonia|latvia|lithuania|belarus|kazakhstan|georgia|brazil|argentina|chile|uruguay|paraguay|peru|ecuador|colombia|bolivia|venezuela|usa|canada|mexico|japan|south-korea|china)$/i
+
+/**
+ * A foreign league's season as we write it: "2026/27" for a season over New Year, "2026" for a calendar-year league
+ * (Allsvenskan, Argentina). API-Sports gives the starting year; the saved games of that season show whether it
+ * crosses New Year (a game in the next year, or one before the summer), else the league's country decides.
+ */
+function leagueSeason(slug: string, league: { season?: string; country?: string }): string | undefined {
+  const keys = sameLeagueKeys(slug)
+  const games = ((loadRealData() ?? getRealData())?.external ?? []).filter((g) => keys.includes(externalLeagueKey(g.league)))
+  const year = Number(league.season ?? games.map((g) => g.league.season).find(Boolean))
+  if (!year) return undefined
+  const ids = new Set([knownLeague(slug), ...keys.map(externalLeague)].filter((l) => !!l?.id && l.id !== 'db').map((l) => `ext-${l!.api.split('-')[0]}-${l!.id}`))
+  const dates = [
+    ...readArchive().filter((a) => ids.has(a.divisionId) && Number(a.season.slice(0, 4)) === year).map((a) => a.date),
+    ...games.filter((g) => Number(g.league.season) === year).map((g) => new Date(g.kickoff)),
+  ]
+  const crosses = dates.some((d) => d.getFullYear() > year) ? true : dates.some((d) => d.getFullYear() === year && d.getMonth() < 5) ? false : !CALENDAR_YEAR.test(league.country ?? '')
+  return crosses ? `${year}/${String(year + 1).slice(2)}` : String(year)
 }
 
 /** A page for one of API-Sports' other leagues: their table when the plan allows it, else ours from the statistics bank */
