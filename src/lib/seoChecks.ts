@@ -1,13 +1,47 @@
-import { slugify } from './slug'
+import { slugify } from './slug.ts'
 
 // The editor's SEO checklist (like Yoast): each check is good, ok or bad, with
 // a Danish explanation. Worked out in the browser as the article is written.
+// Two groups: SEO (search words, title, links) and "Læsbarhed" – whether the
+// text reads like a person wrote it (sentence length, stiff stock phrases,
+// sources, paragraphs), which is also what Google rewards as
+// helpful content written from real knowledge.
 
 export interface SeoCheck {
   id: string
   level: 'good' | 'ok' | 'bad'
   text: string
+  group: 'seo' | 'read'
 }
+
+/** Stock phrases that make a text read like a template or a machine; each is fine once in a while, many is not */
+export const STIFF_PHRASES = [
+  'det er værd at bemærke',
+  'værd at nævne',
+  'i en verden',
+  'ikke kun',
+  'når alt kommer til alt',
+  'i sidste ende',
+  'dykke ned i',
+  'dykker ned i',
+  'kan ikke undervurderes',
+  'uden tvivl',
+  'summa summarum',
+  'med andre ord',
+  'på mange måder',
+  'et vidnesbyrd om',
+  'spændende kamp',
+  'spændende opgør',
+  'byder på',
+  'lover godt',
+  'alt er muligt',
+  'tid vil vise',
+  'det bliver spændende',
+  'fremadrettet',
+  'i bund og grund',
+  'kort sagt',
+  'afslutningsvis',
+]
 
 interface Input {
   title: string
@@ -33,7 +67,7 @@ const count = (hay: string, needle: string) => (needle ? fold(hay).split(fold(ne
 
 export function seoChecks(a: Input): SeoCheck[] {
   const out: SeoCheck[] = []
-  const add = (id: string, level: SeoCheck['level'], t: string) => out.push({ id, level, text: t })
+  const add = (id: string, level: SeoCheck['level'], t: string, group: SeoCheck['group'] = 'seo') => out.push({ id, level, text: t, group })
   const kw = (a.focusKeyword ?? '').trim()
   const body = text(a.content)
   const words = body ? body.split(' ').length : 0
@@ -64,11 +98,60 @@ export function seoChecks(a: Input): SeoCheck[] {
   add('seo-title', seoTitle.length > 0 && seoTitle.length <= 60 ? 'good' : seoTitle.length > 60 ? 'ok' : 'bad', seoTitle.length > 60 ? `SEO-titlen er ${seoTitle.length} tegn – Google skærer ved ca. 60.` : seoTitle ? 'SEO-titlen har en god længde.' : 'Skriv en titel.')
   add('desc', desc.length >= 120 && desc.length <= 160 ? 'good' : desc.length ? 'ok' : 'bad', desc.length ? `Metabeskrivelsen er ${desc.length} tegn (bedst 120–160).` : 'Skriv en metabeskrivelse eller et uddrag.')
   add('headings', headings.length ? 'good' : 'ok', headings.length ? `${headings.length} mellemrubrikker gør teksten let at skimme.` : 'Del teksten op med mellemrubrikker.')
-  add('internal', internal.length ? 'good' : 'ok', internal.length ? `${internal.length} interne links (fx til klub-, kamp- og turneringssider).` : 'Link til mindst én side på Matchly (klub, kamp eller turnering).')
+  add(
+    'internal',
+    internal.length >= 3 ? 'good' : 'ok',
+    internal.length >= 3 ? `${internal.length} interne links (fx til klub-, kamp- og turneringssider).` : `${internal.length} interne links – link til mindst 3 sider på Matchly (klubberne, kampen, turneringen).`,
+  )
+  const questions = headings.filter((h) => h.trim().endsWith('?'))
+  add(
+    'questions',
+    questions.length >= 2 ? 'good' : 'ok',
+    questions.length >= 2 ? `${questions.length} mellemrubrikker er spørgsmål – det er dem, Google og AI-svar citerer.` : 'Skriv 2–4 mellemrubrikker som spørgsmål, folk søger på (fx "Hvor kan jeg se kampen i TV?"), med svaret i første sætning.',
+  )
   add('image', a.featuredImage ? (a.featuredAlt?.trim() ? 'good' : 'ok') : 'bad', a.featuredImage ? (a.featuredAlt?.trim() ? 'Udvalgt billede med alt-tekst.' : 'Giv det udvalgte billede en alt-tekst.') : 'Vælg et udvalgt billede – det vises i delinger og på Google.')
   if (images.length) {
     const missing = images.filter((i) => !/alt="[^"]+"/.test(i)).length
     add('alts', missing ? 'ok' : 'good', missing ? `${missing} billeder i teksten mangler alt-tekst.` : 'Alle billeder i teksten har alt-tekst.')
   }
+
+  // Læsbarhed: does it read like a person wrote it?
+  const paragraphs = [...a.content.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map((m) => text(m[1])).filter(Boolean)
+  const sentences = paragraphs.flatMap((p) => p.split(/(?<=[.!?])\s+(?=[A-ZÆØÅ"„«])/)).filter((x) => x.split(' ').length >= 3)
+  if (sentences.length >= 5) {
+    const long = sentences.filter((x) => x.split(' ').length > 25).length
+    const share = long / sentences.length
+    add(
+      'sentences',
+      share <= 0.15 ? 'good' : share <= 0.3 ? 'ok' : 'bad',
+      share <= 0.15 ? 'Sætningerne har en god længde.' : `${long} af ${sentences.length} sætninger er over 25 ord – del dem op, så teksten er let at læse.`,
+      'read',
+    )
+    const firsts = sentences.map((x) => fold(x.split(' ')[0].replace(/[^\p{L}\d]/gu, '')))
+    let run = 1
+    let worst = 1
+    let word = ''
+    for (let i = 1; i < firsts.length; i++) {
+      run = firsts[i] && firsts[i] === firsts[i - 1] ? run + 1 : 1
+      if (run > worst) ((worst = run), (word = sentences[i].split(' ')[0]))
+    }
+    add('openers', worst >= 3 ? 'ok' : 'good', worst >= 3 ? `${worst} sætninger i træk begynder med "${word}" – varier starten.` : 'Sætningerne begynder forskelligt.', 'read')
+  }
+  const stiff = STIFF_PHRASES.filter((p) => count(body, p))
+  add(
+    'phrases',
+    stiff.length === 0 ? 'good' : stiff.length <= 2 ? 'ok' : 'bad',
+    stiff.length ? `Stive vendinger: ${stiff.map((p) => `"${p}"`).join(', ')} – skriv det, som du ville sige det.` : 'Ingen stive standardvendinger.',
+    'read',
+  )
+  const longParagraphs = paragraphs.filter((p) => p.split(' ').length > 90).length
+  add('paragraphs', longParagraphs ? 'ok' : 'good', longParagraphs ? `${longParagraphs} afsnit er over 90 ord – korte afsnit læses bedre på mobilen.` : 'Afsnittene er korte nok til mobilen.', 'read')
+  const external = links.filter((h) => /^https?:\/\//.test(h) && !/^https?:\/\/(www\.)?matchly\.dk/.test(h))
+  add(
+    'sources',
+    external.length ? 'good' : 'ok',
+    external.length ? `${external.length} links til kilder uden for Matchly.` : 'Link til dine kilder (klubbens side, DBU, lokalavisen) – det viser læseren og Google, hvor fakta kommer fra.',
+    'read',
+  )
   return out
 }

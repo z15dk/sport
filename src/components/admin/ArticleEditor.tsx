@@ -476,13 +476,25 @@ export function ArticleEditor({
             <span className="ed-google__title">{(seoTitle || 'Titel').slice(0, 60)} | Matchly</span>
             <span className="ed-google__desc">{description.slice(0, 160) || 'Skriv en metabeskrivelse …'}</span>
           </div>
-          <ul className="ed-checks">
-            {checks.map((c) => (
-              <li key={c.id}>
-                <span aria-hidden="true">{CHECK_ICON[c.level]}</span> {c.text}
-              </li>
-            ))}
-          </ul>
+          {(
+            [
+              ['seo', 'SEO'],
+              ['read', 'Læsbarhed – lyder det som et menneske?'],
+            ] as const
+          ).map(([group, title]) => (
+            <div key={group}>
+              <h4 className="ed-checks__title">{title}</h4>
+              <ul className="ed-checks">
+                {checks
+                  .filter((c) => c.group === group)
+                  .map((c) => (
+                    <li key={c.id}>
+                      <span aria-hidden="true">{CHECK_ICON[c.level]}</span> {c.text}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
         </Box>
       </aside>
       {photoFlow?.kind === 'meta' && (
