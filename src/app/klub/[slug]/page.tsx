@@ -646,7 +646,17 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
               {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
               {team.country && ` · ${danishCountry(team.country)}`}
             </span>
-            <h1>{isNationalSide(team) ? `${genitive(team.name)} fodboldlandshold – kampe, resultater og stilling` : team.name}</h1>
+            <h1>
+              {isNationalSide(team) ? (
+                <>
+                  {genitive(team.name)} fodboldlandshold
+                  <span className="sr-only"> – </span>
+                  <span className="club-hero__sub">Kampe, resultater og stilling</span>
+                </>
+              ) : (
+                team.name
+              )}
+            </h1>
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>
