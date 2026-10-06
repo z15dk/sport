@@ -17,6 +17,7 @@ import {
 import { connectMeta, connectThreads, connectX, testPlatform } from '../../../../lib/socialPlatforms'
 import { approve, createOwnPost, deleteOwnPost, ownTemplate, scheduleProgrammeResults, shareArticle, planDay, publishOne, renderOne, setCaption, skip, socialTick, unskip } from '../../../../lib/socialEngine'
 import { sendMail } from '../../../../lib/mail'
+import { sendArticleApprovalMail } from '../../../../lib/articleApproval'
 import { danishTime, isValidIsoDate } from '../../../../lib/time'
 import { focusCandidates } from '../../../../lib/social'
 
@@ -236,6 +237,11 @@ async function act(b: Body): Promise<{ message?: string; data?: unknown }> {
     case 'shareArticle': {
       const post = await shareArticle(int(b.id, 0, 0, 1e9))
       return { message: post ? `${STATUS_NAMES[post.status]}: ${Object.values(post.results).map((r) => (r.status === 'error' ? `fejl – ${r.error}` : r.status === 'dry' ? 'tør-kørt' : 'sendt')).join(', ')}` : 'Delt' }
+    }
+    case 'mailArticle': {
+      // A draft mailed with a link for reading and publishing it on the phone
+      const r = await sendArticleApprovalMail([int(b.id, 0, 0, 1e9)])
+      return { message: `Sendt til ${r.to}` }
     }
     case 'focusMatches': {
       // The matches to pick a focus match from (the day and the next three)

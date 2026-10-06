@@ -179,6 +179,7 @@ export default async function AdminArticles({ searchParams }: { searchParams: Pr
                     <a className="text-btn" href={paths.article(a.slug)} target="_blank" rel="noopener">
                       {st === 'udgivet' ? 'Se ↗' : 'Forhåndsvis ↗'}
                     </a>
+                    {st === 'kladde' && <ActionButton body={{ action: 'mailArticle', id: a.id }} label="Send til mobilen" busyLabel="Sender …" />}
                     {st === 'udgivet' && (
                       <ActionButton body={{ action: 'shareArticle', id: a.id }} label="Del" busyLabel="Deler …" confirm={`Del "${a.title}" på sociale medier nu?`} />
                     )}
