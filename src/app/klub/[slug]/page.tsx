@@ -7,7 +7,7 @@ import { seasonOf, sportOf, type Club, type Division } from '../../../data/leagu
 import { channelsFor } from '../../../data/channels'
 import { allTeams, movedTeamSlug, teamByName, teamBySlug, womenOf, type TeamEntry } from '../../../data/teams'
 import { isUnconfirmed, standings } from '../../../data/season'
-import { clubExternalGames, clubMatches, teamGames } from '../../../data/matches'
+import { clubExternalGames, clubMatches, externalMatch, teamGames } from '../../../data/matches'
 import { RealDataExtra } from '../../../components/RealDataExtra'
 import { clubLeagues } from '../../../lib/clientData'
 import { clubStats } from '../../../data/matchInsights'
@@ -485,6 +485,17 @@ function teamResults(names: string[], around: Match[], divisionIds: string[], le
   return [...fromMatches, ...saved].sort((a, b) => b.date.getTime() - a.date.getTime())
 }
 
+/** A national team's other international games (fetched days) next to those of its page's own tournament, by kick-off */
+function withNationalGames(base: Match[], names: string[]): Match[] {
+  const keys = new Set(names.map(normalize))
+  const seen = new Set(base.map((m) => m.slug))
+  const extra = (getRealData()?.external ?? [])
+    .filter((g) => g.sport === 'soccer' && isInternational(g.league.country) && (keys.has(normalize(g.home.name)) || keys.has(normalize(g.away.name))))
+    .map(externalMatch)
+    .filter((m) => !seen.has(m.slug))
+  return [...base, ...extra].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())
+}
+
 /** Page for any other team: built from its matches, the games we have saved and its league's table */
 async function TeamPageInner({ team }: { team: TeamEntry }) {
   const now = Date.now()
@@ -515,14 +526,19 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const hasPoints = table.some((r) => r.points !== undefined)
 
   // Its league's games around today, and its games in the cups and the Champions League
-  const around = teamGames(team, now)
+  const national = isNationalSide(team)
+  // A national team: its matches in every tournament between countries (Nations League, qualifiers, friendlies), not only this page's
+  const around = national ? withNationalGames(teamGames(team, now), names) : teamGames(team, now)
   const live = around.filter((m) => m.state === 'live')
   const upcoming = around.filter((m) => m.state === 'upcoming').slice(0, 6)
-  const results = teamResults(names, around, divisionIds, team.league, team.country)
+  // A national team's saved results from every international tournament it has played in
+  const resultIds = national
+    ? [...new Set(readArchive().filter((a) => a.divisionId.startsWith('ext-') && (keys.has(normalize(a.homeName)) || keys.has(normalize(a.awayName)))).map((a) => a.divisionId))]
+    : divisionIds
+  const results = teamResults(names, around, resultIds, team.league, team.country)
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const sport = sportById(team.sport)
   // The new design (KlubHeader, the squad, the extra questions, the ad in the column) for chosen leagues, src/data/nyKlubside.ts
-  const national = isNationalSide(team)
   const newPage = national || (!!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer')
   const apiTeam = newPage && league ? apiTeamIdOf(league.id, names) : undefined
   // The whole squad with this season's statistics from API-Sports' player list, else the players of the saved line-ups (the days kept)
