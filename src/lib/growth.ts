@@ -134,7 +134,14 @@ export function searchConsole(): GscSummary | undefined {
   if (age > CACHE_MS && !refreshing && existsSync(keyFile())) {
     refreshing = fetchGsc()
       .then((s) => writeJson(file, s))
-      .catch((e: unknown) => writeJson(file, { ...(saved ?? emptyGsc()), fetchedAt: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }))
+      .catch((e: unknown) => {
+        // The failure is shown on the page; a folder that cannot be written to is only logged (never an unhandled rejection)
+        try {
+          writeJson(file, { ...(saved ?? emptyGsc()), fetchedAt: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) })
+        } catch (err) {
+          console.warn('[vaekst] Google-tallene kunne ikke gemmes', err)
+        }
+      })
       .finally(() => (refreshing = undefined))
   }
   return saved
