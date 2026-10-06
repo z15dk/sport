@@ -105,3 +105,17 @@ export function articleStats(list: Article[]): Map<number, ArticleStat> {
   }
   return out
 }
+
+/**
+ * The most read of the given articles (the article list's top): by views the last 7 days, then the last
+ * 35; only articles someone has read. Empty when nobody has read any (then the list shows the newest).
+ */
+export function mostRead(list: Article[], n = 3): { article: Article; views: number }[] {
+  const visits = pathStats(list.map((a) => paths.article(a.slug)))
+  return list
+    .map((article) => ({ article, week: visits.get(paths.article(article.slug))?.week ?? 0, views: visits.get(paths.article(article.slug))?.views ?? 0 }))
+    .filter((x) => x.views > 0)
+    .sort((a, b) => b.week - a.week || b.views - a.views)
+    .slice(0, n)
+    .map(({ article, views }) => ({ article, views }))
+}

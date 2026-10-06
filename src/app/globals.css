@@ -1974,6 +1974,70 @@ a.player-games__match:hover { text-decoration: underline; }
 .article-tags a { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--surface-2); font-size: 13px; font-weight: 600; color: inherit; text-decoration: none; }
 .article-tags a:hover { background: var(--lime); }
 .article-tags-cloud { margin-top: 24px; }
+/* Article list pages (/artikler, /artikler/kategori/…, /artikler/tag/…) in Matchly's look: the dark top with the outlined M as the league and match pages */
+.ah {
+  position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius); color: #fff; padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 12px;
+  background:
+    radial-gradient(60% 110% at 100% 0%, rgba(198, 241, 53, 0.2) 0%, transparent 70%),
+    radial-gradient(55% 90% at 0% 100%, rgba(44, 58, 12, 0.85) 0%, transparent 72%),
+    linear-gradient(180deg, #171c0d 0%, #0b0d07 100%);
+}
+.ah__m {
+  position: absolute; z-index: -1; right: -30px; bottom: -110px; pointer-events: none; font-family: var(--display); font-style: italic; font-weight: 800;
+  font-size: 440px; line-height: 0.8; color: transparent; -webkit-text-stroke: 2px rgba(198, 241, 53, 0.13);
+}
+.ah__kicker { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.ah__kicker > span + span::before { content: '·'; margin-right: 10px; color: rgba(255, 255, 255, 0.4); }
+.ah__logo { font-family: var(--display); font-style: italic; font-size: 20px; letter-spacing: 0; color: #fff; }
+.ah__logo b { color: var(--live); }
+.ah__back { margin-left: auto; color: rgba(255, 255, 255, 0.75); letter-spacing: 0.04em; }
+.ah__back:hover { color: #fff; }
+.ah__title { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(42px, 8vw, 84px); line-height: 0.9; text-transform: uppercase; overflow-wrap: anywhere; }
+.ah__lead { margin: 0; max-width: 62ch; font-size: 15px; line-height: 1.55; color: rgba(255, 255, 255, 0.82); }
+.ah__lead a { color: var(--lime); text-decoration: underline; text-underline-offset: 3px; }
+.ah__cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ah__cat { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: #fff; font-weight: 600; font-size: 14px; }
+.ah__cat span { font-size: 11px; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.ah__cat:hover { background: rgba(255, 255, 255, 0.16); }
+.ah__cat.is-active { background: var(--lime); color: var(--ink); }
+.ah__cat.is-active span { opacity: 0.7; }
+.ah__picks { margin-top: 6px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.ah__picks-title { margin: 0 0 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.ah__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ah__pick {
+  display: flex; align-items: center; gap: 12px; height: 100%; padding: 10px 10px 10px 14px; border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.08); color: #fff; transition: background 0.15s, border-color 0.15s;
+}
+.ah__pick:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(198, 241, 53, 0.45); }
+.ah__rank { flex: none; width: 30px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 46px; line-height: 0.8; color: transparent; -webkit-text-stroke: 1.5px var(--lime); }
+.ah__pick-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.ah__pick-text em { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.ah__pick-text b { font-size: 14px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ah__thumb { flex: none; width: 64px; height: 48px; border-radius: 10px; object-fit: cover; }
+@media (max-width: 900px) { .ah__list { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .ah { padding: 18px; } .ah__m { font-size: 300px; bottom: -70px; } }
+/* The cards: category as a lime chip, a lift on hover; the newest article big and dark as the top */
+.articles-page .article-card a { transition: transform 0.15s, box-shadow 0.15s; }
+.articles-page .article-card a:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15, 17, 12, 0.12); }
+.articles-page .article-card a:hover .article-card__title { text-decoration: none; }
+.articles-page .article-card__cat { align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: var(--lime); color: var(--ink); font-size: 10px; letter-spacing: 0.08em; }
+.articles-page .article-card--lead a { background: #0f110c; color: #fff; }
+.articles-page .article-card--lead .article-card__excerpt { color: rgba(255, 255, 255, 0.78); -webkit-line-clamp: 4; font-size: 15px; }
+.articles-page .article-card--lead .article-card__date { color: rgba(255, 255, 255, 0.55); }
+.articles-page .article-card--lead .article-card__title { font-size: clamp(28px, 3.6vw, 42px); line-height: 0.98; }
+.articles-page .article-card--lead .article-card__text { position: relative; }
+.articles-page .article-card--lead .article-card__text::before { content: 'Seneste'; align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+/* On a phone the top story is picture over text: the picture keeps 16:9 instead of filling the card's height */
+@media (max-width: 700px) { .article-cards .article-card--lead .article-card__media { height: auto; } .article-cards .article-card--lead .article-card__img { height: auto; } }
+.articles-page .pager .pill { background: var(--surface); }
+.articles-page .pager .pill:hover { background: var(--ink); color: #fff; }
+/* Topics as chips */
+.article-topics { padding-bottom: 18px; }
+.article-topics__list { list-style: none; margin: 0; padding: 0 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+.article-topics__list a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); font-size: 13px; font-weight: 600; }
+.article-topics__list a span { font-size: 11px; color: var(--ink-3); }
+.article-topics__list a:hover, .article-topics__list a.is-active { background: var(--ink); color: #fff; }
+.article-topics__list a:hover span, .article-topics__list a.is-active span { color: rgba(255, 255, 255, 0.6); }
 
 /* An article: a dark top with the M, the text beside a living side column (the league's table and next matches) */
 .article-page { gap: 16px; }

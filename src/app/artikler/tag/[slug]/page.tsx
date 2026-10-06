@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { allTags, categories, publishedArticles } from '../../../../lib/articles'
-import { ArticleCards, Pager } from '../../../../components/ArticleList'
+import { ArticleCards, ArticlesHero, ArticleTopics, Pager } from '../../../../components/ArticleList'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../../../lib/jsonld'
 import { paths } from '../../../../lib/site'
 import { feedPath } from '../../../../lib/articleFeed'
+import { mostRead } from '../../../../lib/articleStats'
 
 export const dynamic = 'force-dynamic'
-const PER_PAGE = 12
+/** The top story and twelve cards: four full rows of three */
+const PER_PAGE = 13
 const KIND = 'tag' as 'kategori' | 'tag'
 
 type Params = Promise<{ slug: string }>
@@ -36,20 +37,36 @@ export default async function ArticleGroup({ params, searchParams }: { params: P
   const name = nameOf(slug)
   if (!name) notFound()
   const { articles, total } = publishedArticles({ [KIND === 'kategori' ? 'category' : 'tag']: slug, limit: PER_PAGE, offset: (page - 1) * PER_PAGE })
-  const cats = categories()
+  const cats = categories().map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total })).filter((c) => c.count > 0)
+  const tags = allTags().slice(0, 24)
+  const names = new Map(cats.map((c) => [c.slug, c.name]))
+  // The top's three: the most read in this group, else its newest after the top story
+  const group = publishedArticles({ [KIND === 'kategori' ? 'category' : 'tag']: slug }).articles
+  const read = mostRead(group)
+  const picks = (read.length ? read.map((r) => r.article) : group.slice(1, 4)).map((a) => ({
+    slug: a.slug,
+    title: a.title,
+    category: a.category ? names.get(a.category) : undefined,
+    image: a.featuredImage,
+  }))
   return (
     <div className="page">
       <JsonLd data={webPageLd(pathOf(slug, page), name, new Date())} />
       <JsonLd data={breadcrumbLd([{ name: 'Artikler', path: paths.articles() }, { name, path: pathOf(slug) }])} />
       <div className="clubs articles-page">
-        <p className="small">
-          <Link className="text-btn" href={paths.articles()}>
-            ← Alle artikler
-          </Link>
-        </p>
-        <h1 className="feed__title">{KIND === 'kategori' ? name : `# ${name}`}</h1>
-        {articles.length ? <ArticleCards articles={articles} categoryNames={new Map(cats.map((c) => [c.slug, c.name]))} /> : <p className="muted">Ingen artikler endnu.</p>}
+        <ArticlesHero
+          back
+          kicker={KIND === 'kategori' ? 'Kategori' : 'Emne'}
+          title={KIND === 'kategori' ? name : `# ${name}`}
+          lead={`${total} ${total === 1 ? 'artikel' : 'artikler'} ${KIND === 'kategori' ? 'i kategorien' : 'om'} ${name} på Matchly – nyeste først.`}
+          categories={cats}
+          active={KIND === 'kategori' ? slug : undefined}
+          picks={picks}
+          picksLabel={read.length ? 'Mest læste' : 'Nyeste'}
+        />
+        {articles.length ? <ArticleCards articles={articles} categoryNames={names} /> : <p className="muted">Ingen artikler endnu.</p>}
         <Pager page={page} pages={Math.ceil(total / PER_PAGE)} href={(p) => pathOf(slug, p)} />
+        <ArticleTopics tags={tags} active={KIND === 'tag' ? slug : undefined} />
       </div>
     </div>
   )
