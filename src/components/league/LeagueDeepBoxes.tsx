@@ -24,6 +24,7 @@ function StatusLine({ deep }: { deep: LeagueDeep }) {
       </span>
     )
   if (s.kind === 'over') return <span className="lx-hero__status">Grundspillet er færdigt</span>
+  if (s.kind === 'pause') return null
   if (s.breakUntil) {
     const b = s.breakUntil
     const same = isoDate(new Date(b.from)) === isoDate(new Date(b.to))

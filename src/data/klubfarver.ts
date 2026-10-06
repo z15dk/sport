@@ -57,6 +57,18 @@ export const KLUBFARVER: Record<string, string> = {
   'vejgaard-bk': '#00843d',
   'naesby-bk': '#5c6157',
 
+  // A-Ligaen (kvinder): herreklubbens farve
+  'agf-a-liga': '#ffffff',
+  'asa-aarhus-a-liga': '#0057b8',
+  'broendby-if-a-liga': '#ffd500',
+  'f-c-koebenhavn-a-liga': '#ffffff',
+  'fc-midtjylland-a-liga': '#e30613',
+  'fc-nordsjaelland-a-liga': '#e30613',
+  'fortuna-hjoerring': '#0057b8',
+  'hb-koege-women-a-liga': '#ffffff',
+  'kolding-if-a-liga': '#ffffff',
+  'ob-q': '#0057b8',
+
   // Landshold (adressen er kildens engelske navn: /klub/denmark)
   'denmark': '#c8102e',
   'england': '#ffffff',

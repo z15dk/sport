@@ -30,6 +30,8 @@ export type LeagueStatus =
       breakUntil?: { from: string; to: string; round?: number; international: boolean }
     }
   | { kind: 'over' }
+  /** No game in the days we have, but the season is not over (an international break): no status line */
+  | { kind: 'pause' }
 
 export interface LeagueOut {
   club: string

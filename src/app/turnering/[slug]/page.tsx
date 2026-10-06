@@ -8,7 +8,7 @@ import { leagueStats } from '../../../data/stats'
 import { AttackDefenceBox, FormTableBox, LeagueBriefBox, LeagueHero, LeagueOutBox, LeaguePlayersBox } from '../../../components/league/LeagueDeepBoxes'
 import { forVisitor } from '../../../lib/visitorBudget'
 import { notFound, permanentRedirect } from 'next/navigation'
-import { DIVISIONS, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
+import { DIVISIONS, SEASON, danishTier, divisionBySlug, seasonOf, sportOf } from '../../../data/leagues'
 import { hasRealData } from '../../../data/real'
 import { allFixtures, clubInDivision, isFinished, positionsByRound, standings, toMatch } from '../../../data/season'
 import { externalMatch, getMatches, isFriendly } from '../../../data/matches'
@@ -122,9 +122,12 @@ const CALENDAR_YEAR = /^(sweden|norway|finland|iceland|ireland|faroe-islands|est
 function leagueSeason(slug: string, league: { season?: string; country?: string }): string | undefined {
   const keys = sameLeagueKeys(slug)
   const games = ((loadRealData() ?? getRealData())?.external ?? []).filter((g) => keys.includes(externalLeagueKey(g.league)))
-  const year = Number(league.season ?? games.map((g) => g.league.season).find(Boolean))
-  if (!year) return undefined
   const ids = new Set([knownLeague(slug), ...keys.map(externalLeague)].filter((l) => !!l?.id && l.id !== 'db').map((l) => `ext-${l!.api.split('-')[0]}-${l!.id}`))
+  // The source's season, else the newest one saved for the league (the A-Liga between the days we fetch)
+  const saved = Math.max(0, ...readArchive().filter((a) => ids.has(a.divisionId)).map((a) => Number(a.season.slice(0, 4)) || 0))
+  const year = Number(league.season ?? games.map((g) => g.league.season).find(Boolean)) || saved
+  // A Danish league the sources say nothing about (the A-Liga from its starting table): our own season
+  if (!year) return league.country === 'Denmark' ? SEASON : undefined
   const dates = [
     ...readArchive().filter((a) => ids.has(a.divisionId) && Number(a.season.slice(0, 4)) === year).map((a) => a.date),
     ...games.filter((g) => Number(g.league.season) === year).map((g) => new Date(g.kickoff)),

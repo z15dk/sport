@@ -104,9 +104,11 @@ export async function externalLeagueDeep(
   table: { teams: number; played: number },
   now: number,
 ): Promise<LeagueDeep> {
-  // Where the season is
+  // A league where everyone meets twice: the regular season's length
+  const total = table.teams >= 4 ? (table.teams - 1) * 2 : 0
+  // Where the season is: over only when every round is played (no game in the days we have can be a break)
   const live = games.filter((g) => g.state === 'live').length
-  let state: LeagueStatus = { kind: 'over' }
+  let state: LeagueStatus = total && table.played < total ? { kind: 'pause' } : { kind: 'over' }
   if (live) state = { kind: 'live', count: live }
   else {
     const next = games.filter((g) => g.state === 'upcoming' && Date.parse(g.kickoff) > now).sort((a, b) => a.kickoff.localeCompare(b.kickoff))[0]
@@ -131,8 +133,6 @@ export async function externalLeagueDeep(
       }
     }
   }
-  // A league where everyone meets twice: the regular season's length
-  const total = table.teams >= 4 ? (table.teams - 1) * 2 : 0
   const deep: LeagueDeep = { status: state, round: { played: table.played, total: table.played <= total ? total : 0 } }
   if (!league.api.startsWith('football') || !league.id || league.id === 'db') return deep
 
