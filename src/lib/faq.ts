@@ -126,6 +126,8 @@ export interface ClubFaqExtra {
   stadium?: string
   /** The club's head coach */
   coach?: string
+  /** He leads the team until a new head coach is named */
+  coachActing?: boolean
   /** The club's cards this season, with the player who has most (DBU's match pages) */
   cards?: { yellow: number; red: number; most?: { name: string; yellow: number; red: number } }
   /** The club sells tickets through a link on the page */
@@ -189,7 +191,7 @@ export function clubFaq(
       q: `Hvor mange mål har ${club.name} scoret?`,
       a: `${club.name} har scoret ${r.goalsFor} mål og lukket ${r.goalsAgainst} ind i ${r.played} ${r.played === 1 ? 'kamp' : 'kampe'} i ${division.name} ${seasonOf(division)}.`,
     })
-  if (extra?.coach) items.push({ q: `Hvem er ${genitive(club.name)} træner?`, a: `${extra.coach} er cheftræner for ${club.name}.` })
+  if (extra?.coach) items.push({ q: `Hvem er ${genitive(club.name)} træner?`, a: `${extra.coach} er ${extra.coachActing ? 'konstitueret cheftræner' : 'cheftræner'} for ${club.name}.` })
   if (extra?.cards && extra.cards.yellow + extra.cards.red > 0) {
     const m = extra.cards.most
     items.push({

@@ -54,6 +54,7 @@ import { CalendarButton } from '../../../components/CalendarButton'
 import { dbuHomeGround } from '../../../lib/channels'
 import { homeGround } from '../../../lib/ground'
 import { dbuClubCoach, dbuClubSquad } from '../../../lib/dbuSquad'
+import { knownCoach } from '../../../data/coaches'
 import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
@@ -205,8 +206,11 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   // From API-Sports' line-ups; for the divisions it has only the coach for (3. division), from the team sheets on DBU's match pages
   const apiSquad = newHeader && apiLeague && apiTeam ? apiTeamSquad(apiLeague, apiTeam) : []
   const squad = apiSquad.length || !newHeader ? apiSquad : dbuClubSquad(clubNames(club))
-  // The head coach: DBU's match pages name him (API-Sports' short name settles which "Træner" where they name no head coach)
-  const coach = newHeader ? dbuClubCoach(clubNames(club), apiLeague && apiTeam ? apiTeamCoach(apiLeague, apiTeam) : undefined) : undefined
+  // The head coach: our own list first (a new coach before his first match, reports that name the wrong person), then
+  // DBU's match pages (API-Sports' short name settles which "Træner" where they name no head coach)
+  const known = knownCoach(club.slug)
+  const coach = newHeader ? (known?.name ?? dbuClubCoach(clubNames(club), apiLeague && apiTeam ? apiTeamCoach(apiLeague, apiTeam) : undefined)) : undefined
+  const coachActing = !!known?.acting
   const cardTotals = squad.reduce((t, p) => ({ yellow: t.yellow + (p.yellow ?? 0), red: t.red + (p.red ?? 0) }), { yellow: 0, red: 0 })
   const mostCards = [...squad].filter((p) => (p.yellow ?? 0) + (p.red ?? 0) > 0).sort((a, b) => (b.yellow ?? 0) + (b.red ?? 0) - (a.yellow ?? 0) - (a.red ?? 0) || (b.red ?? 0) - (a.red ?? 0))[0]
   // The questions people search for; with the new header also the channel, the top scorer, the ground and the tickets
@@ -222,6 +226,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.dbu ? 0 : p.starts + p.subbedOn })),
           stadium: dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
           coach,
+          coachActing,
           cards: cardTotals.yellow + cardTotals.red > 0 ? { ...cardTotals, most: mostCards && { name: mostCards.name, yellow: mostCards.yellow ?? 0, red: mostCards.red ?? 0 } } : undefined,
           tickets: !!clubTicketUrl(club.id),
         }
@@ -268,6 +273,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
             calendarHref={calendarLinks('klub', club.slug).webcal}
             ticketHref={clubTicketUrl(club.id) ? ticketClickPath({ klub: club.id }) : undefined}
             coach={coach}
+            coachActing={coachActing}
             note={isUnconfirmed(club, division.id) ? `Rækken for ${seasonOf(division)} er ikke bekræftet` : undefined}
             now={now}
           />

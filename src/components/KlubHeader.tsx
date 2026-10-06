@@ -40,6 +40,8 @@ export interface KlubHeaderProps {
   ticketHref?: string
   /** The head coach ("Cheftræner"), where we know the name */
   coach?: string
+  /** The coach leads the team until a new head coach is named */
+  coachActing?: boolean
   /** A short note under the name (the club's league this season is not confirmed) */
   note?: string
   /** A line under the name that is part of the heading ("Danmarks landshold – kampe, resultater og stilling") */
@@ -61,7 +63,7 @@ const FIELDS: { key: keyof KlubHeaderRow; label: string; short: string }[] = [
 ]
 const RESULT: Record<'V' | 'U' | 'T', string> = { V: 'Vundet', U: 'Uafgjort', T: 'Tabt' }
 
-export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, subtitle, national, fifaRank, now }: KlubHeaderProps) {
+export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, coachActing, note, subtitle, national, fifaRank, now }: KlubHeaderProps) {
   const fields = FIELDS.filter((f) => row?.[f.key] !== undefined)
   const latest = (form ?? []).slice(-5)
   // Unbeaten in every match of the season so far
@@ -166,7 +168,7 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
               {next && <KlubCountdown kickoff={next.kickoff.getTime()} initialNow={now} />}
               {coach && (
                 <div className="kh-extra">
-                  <span className="kh-label">Cheftræner</span>
+                  <span className="kh-label">{coachActing ? 'Konstitueret cheftræner' : 'Cheftræner'}</span>
                   <span className="kh-text">{coach}</span>
                 </div>
               )}
