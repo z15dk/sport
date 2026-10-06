@@ -173,7 +173,7 @@ async function externalLeaguePage(slug: string) {
   const own = archiveLeagueTable(divisionIds, baseline)
   // A team's logo from API-Sports' games, also when the table uses another name ("F.C. København" is "FC Copenhagen W")
   const logos = teamLogos()
-  const women = (n: string) => n.replace(/\b(w|women|q)\b\.?/gi, '').trim()
+  const women = (n: string) => n.replace(/\b(w|women|q)\b\.?|\(k\)/gi, '').trim()
   const logoFor = (name: string) => {
     const names = [name, ...(baseline?.rows.find((r) => r.name === name)?.aliases ?? [])]
     for (const n of names) if (logos.has(n)) return logos.get(n)
@@ -204,7 +204,8 @@ async function externalLeaguePage(slug: string) {
   // The season's statistics: the statistics bank's matches (with their goals and cards), and the fetched days' games on top
   const archived = divisionIds.length ? archiveSeasonGames(divisionIds) : []
   const archivedIncidents = archiveIncidents(archived.map((a) => a.id))
-  const team = (name: string, logo?: string): StatTeam => ({ id: normalize(name) || name, name, logo: logo ?? logoFor(name) })
+  // Shown as on the rest of the site ("FC Copenhagen (K)", not "FC Copenhagen W"), known by the source's name
+  const team = (name: string, logo?: string): StatTeam => ({ id: normalize(name) || name, name: shownTeam(name, found.country), logo: logo ?? logoFor(name) })
   const statGames = new Map<string, StatGame>()
   for (const a of archived) {
     statGames.set(a.id, { home: team(a.homeName), away: team(a.awayName), score: [a.homeScore, a.awayScore], ht: a.ht, incidents: archivedIncidents.get(a.id), spectators: a.spectators, kickoff: a.date })
@@ -315,13 +316,25 @@ async function externalLeaguePage(slug: string) {
       : groups[0]
     // Each team's results in the order they were played, from the season's games (for the form)
     const results = new Map<string, ('V' | 'U' | 'T')[]>()
-    const add = (name: string, r: 'V' | 'U' | 'T') => results.set(normalize(name), [...(results.get(normalize(name)) ?? []), r])
+    // Under the plain name too ("Odense Q W" and "Odense Q (K)" are "odense"), so the table's names and aliases find it
+    const plain = (n: string) => normalize(women(n))
+    const add = (name: string, r: 'V' | 'U' | 'T') => {
+      for (const k of new Set([normalize(name), plain(name)])) results.set(k, [...(results.get(k) ?? []), r])
+    }
     for (const g of [...statGames.values()].sort((x, y) => x.kickoff.getTime() - y.kickoff.getTime())) {
       const [h, a] = g.score
       add(g.home.name, h > a ? 'V' : h < a ? 'T' : 'U')
       add(g.away.name, a > h ? 'V' : a < h ? 'T' : 'U')
     }
-    const formOf = (name: string) => results.get(normalize(name)) ?? [...results.entries()].find(([k]) => alike([name], k))?.[1] ?? []
+    const formOf = (name: string) => {
+      // The table's name, then its other names in the starting table ("OB Q" is "Odense", "F.C. København" is "FC Copenhagen")
+      const names = [name, ...(baseline?.rows.find((b) => b.name === name)?.aliases ?? [])]
+      for (const n of names) {
+        const found = results.get(normalize(n)) ?? results.get(plain(n))
+        if (found) return found
+      }
+      return [...results.entries()].find(([k]) => alike([name], k))?.[1] ?? []
+    }
     const boxRows: LeagueRow[] = table.map((r) => {
       const team = teamInLeague(league.key, r.name, league.sport)
       return {
