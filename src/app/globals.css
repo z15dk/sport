@@ -2001,12 +2001,21 @@ a.player-games__match:hover { text-decoration: underline; }
 .ah__cat:hover { background: rgba(255, 255, 255, 0.16); }
 .ah__cat.is-active { background: var(--lime); color: var(--ink); }
 .ah__cat.is-active span { opacity: 0.7; }
-.ah__stats { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 6px 0 0; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
-.ah__stats div { display: flex; flex-direction: column-reverse; }
-.ah__stats dt { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
-.ah__stats dd { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; }
-.ah__stats dd::first-letter { text-transform: uppercase; }
-@media (max-width: 600px) { .ah { padding: 18px; } .ah__m { font-size: 300px; bottom: -70px; } .ah__stats dd { font-size: 22px; } }
+.ah__picks { margin-top: 6px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.ah__picks-title { margin: 0 0 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.ah__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ah__pick {
+  display: flex; align-items: center; gap: 12px; height: 100%; padding: 10px 10px 10px 14px; border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.08); color: #fff; transition: background 0.15s, border-color 0.15s;
+}
+.ah__pick:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(198, 241, 53, 0.45); }
+.ah__rank { flex: none; width: 30px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 46px; line-height: 0.8; color: transparent; -webkit-text-stroke: 1.5px var(--lime); }
+.ah__pick-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.ah__pick-text em { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.ah__pick-text b { font-size: 14px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ah__thumb { flex: none; width: 64px; height: 48px; border-radius: 10px; object-fit: cover; }
+@media (max-width: 900px) { .ah__list { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .ah { padding: 18px; } .ah__m { font-size: 300px; bottom: -70px; } }
 /* The cards: category as a lime chip, a lift on hover; the newest article big and dark as the top */
 .articles-page .article-card a { transition: transform 0.15s, box-shadow 0.15s; }
 .articles-page .article-card a:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15, 17, 12, 0.12); }

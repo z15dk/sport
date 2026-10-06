@@ -63,9 +63,18 @@ export function Pager({ page, pages, href }: { page: number; pages: number; href
   )
 }
 
+/** One article in the top's list: its number, category, title and picture */
+export interface HeroPick {
+  slug: string
+  title: string
+  category?: string
+  image?: string
+}
+
 /**
  * The dark Matchly top of the article pages (as the league and match pages): the kicker with the
- * logo, a big title, a line under it, the categories as pills and a few numbers; Matchly's outlined M behind
+ * logo, a big title, a line under it, the categories as pills, and at the bottom the three most read
+ * articles (or the newest) as numbered cards; Matchly's outlined M behind
  */
 export function ArticlesHero({
   kicker,
@@ -73,7 +82,8 @@ export function ArticlesHero({
   lead,
   categories,
   active,
-  stats,
+  picks,
+  picksLabel,
   back,
 }: {
   kicker: string
@@ -81,7 +91,8 @@ export function ArticlesHero({
   lead: ReactNode
   categories: { slug: string; name: string; count: number }[]
   active?: string
-  stats: { value: string | number; label: string }[]
+  picks: HeroPick[]
+  picksLabel: string
   back?: boolean
 }) {
   return (
@@ -114,14 +125,30 @@ export function ArticlesHero({
           ))}
         </nav>
       )}
-      <dl className="ah__stats">
-        {stats.filter((s) => s.value !== 0).map((s) => (
-          <div key={s.label}>
-            <dt>{s.label}</dt>
-            <dd>{s.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {picks.length > 0 && (
+        <section className="ah__picks" aria-label={picksLabel}>
+          <h2 className="ah__picks-title">{picksLabel}</h2>
+          <ol className="ah__list">
+            {picks.map((p, i) => (
+              <li key={p.slug}>
+                <Link className="ah__pick" href={paths.article(p.slug)}>
+                  <span className="ah__rank" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <span className="ah__pick-text">
+                    {p.category && <em>{p.category}</em>}
+                    <b>{p.title}</b>
+                  </span>
+                  {p.image && (
+                    // eslint-disable-next-line @next/next/no-img-element -- an upload of our own, shown small
+                    <img className="ah__thumb" src={p.image} alt="" loading="lazy" />
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </header>
   )
 }

@@ -4,10 +4,11 @@ import { ArticleCards, ArticlesHero, ArticleTopics, Pager } from '../../componen
 import { JsonLd, breadcrumbLd, webPageLd } from '../../lib/jsonld'
 import { SITE_NAME, paths } from '../../lib/site'
 import { feedPath } from '../../lib/articleFeed'
-import { formatLong } from '../../lib/time'
+import { mostRead } from '../../lib/articleStats'
 
 export const dynamic = 'force-dynamic'
-const PER_PAGE = 12
+/** The top story and twelve cards: four full rows of three */
+const PER_PAGE = 13
 
 type SearchParams = Promise<{ side?: string }>
 
@@ -25,7 +26,16 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Sea
   const { articles, total } = publishedArticles({ limit: PER_PAGE, offset: (page - 1) * PER_PAGE })
   const cats = categories().map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total })).filter((c) => c.count > 0)
   const tags = allTags().slice(0, 24)
-  const newest = publishedArticles({ limit: 1 }).articles[0]
+  const names = new Map(cats.map((c) => [c.slug, c.name]))
+  // The top's three: the most read this week, else the newest after the top story
+  const all = publishedArticles().articles
+  const read = mostRead(all)
+  const picks = (read.length ? read.map((r) => r.article) : all.slice(1, 4)).map((a) => ({
+    slug: a.slug,
+    title: a.title,
+    category: a.category ? names.get(a.category) : undefined,
+    image: a.featuredImage,
+  }))
   return (
     <div className="page">
       <JsonLd data={webPageLd(paths.articles(page), 'Artikler', new Date())} />
@@ -41,14 +51,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Sea
             </>
           }
           categories={cats}
-          stats={[
-            { value: total, label: 'Artikler' },
-            { value: cats.length, label: 'Kategorier' },
-            { value: tags.length, label: 'Emner' },
-            ...(newest?.publishedAt ? [{ value: formatLong(new Date(newest.publishedAt)), label: 'Seneste' }] : []),
-          ]}
+          picks={picks}
+          picksLabel={read.length ? 'Mest læst lige nu' : 'Nyt på Matchly'}
         />
-        {articles.length ? <ArticleCards articles={articles} categoryNames={new Map(cats.map((c) => [c.slug, c.name]))} lead={page === 1} /> : <p className="muted">Der er ingen artikler endnu.</p>}
+        {articles.length ? <ArticleCards articles={articles} categoryNames={names} lead={page === 1} /> : <p className="muted">Der er ingen artikler endnu.</p>}
         <Pager page={page} pages={Math.ceil(total / PER_PAGE)} href={paths.articles} />
         <ArticleTopics tags={tags} />
       </div>
