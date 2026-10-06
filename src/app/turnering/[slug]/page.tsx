@@ -54,7 +54,7 @@ import { customLogoUrl } from '../../../lib/customLogos'
 import { alike, normalize } from '../../../data/aliases'
 import { getRealData } from '../../../data/real'
 import { danishLeagueName, danishRound, externalLeagueKey } from '../../../data/external'
-import { shownTeam } from '../../../data/countries'
+import { danishCountry, shownTeam } from '../../../data/countries'
 import { cupOfGame, wholeSeason } from '../../../data/cups'
 import type { Match } from '../../../types'
 import { loadRealData } from '../../../lib/realdata'
@@ -80,8 +80,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const names = loadRealData()?.leagueNames
     const cup = cupOfGame({ sport: league.sport, league })
     const name = sameLeagueKeys(slug).map((k) => names?.[k]).find(Boolean) ?? league.title ?? cup?.name ?? danishLeagueName(league.name, league.country) ?? league.name
+    // "stillinger" is the word people search for ("segunda división stillinger"); the country tells same-named leagues apart
+    const country = league.country && league.country !== 'World' ? danishCountry(league.country) : undefined
+    const where = country && !name.toLowerCase().includes(country.toLowerCase()) ? ` (${country})` : ''
     return {
-      title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} – stilling, resultater og kampprogram`,
+      title: cup ? `${name} – resultater og kampprogram runde for runde` : `${name} stillinger${where} – tabel, resultater og kampprogram`,
       description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
       alternates: { canonical: paths.league(slug) },
     }
