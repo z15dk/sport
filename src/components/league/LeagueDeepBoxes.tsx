@@ -1,14 +1,11 @@
 import Link from 'next/link'
-import type { Division } from '../../data/club'
-import type { StandingRow } from '../../data/season'
 import type { LeagueStats } from '../../data/stats'
-import type { LeagueDeep, LeaguePlayer } from '../../data/leagueDeep'
+import { formPoints, inForm, type LeagueDeep, type LeaguePlayer, type LeagueRow } from '../../data/leagueDeep'
 import { paths } from '../../lib/site'
 import { formatTime, isoDate, formatDayMonth, formatWeekday } from '../../lib/time'
 import { counted } from '../../lib/words'
 import { playerPath } from '../../data/player'
 import { TeamBadge } from '../TeamBadge'
-import { sportOf } from '../../data/leagues'
 import { PlayerPhoto } from '../PlayerPhoto'
 import { FormChips } from '../FormChips'
 
@@ -16,8 +13,6 @@ import { FormChips } from '../FormChips'
 // "Kort fortalt", the clubs in form, attack against defence, the players in numbers and who is out.
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
-/** Points in the last five matches */
-const formPoints = (form: ('V' | 'U' | 'T')[]) => form.slice(-5).reduce((t, f) => t + (f === 'V' ? 3 : f === 'U' ? 1 : 0), 0)
 const dayText = (iso: string) => `${formatWeekday(isoDate(new Date(iso)))} ${formatDayMonth(isoDate(new Date(iso)))}`
 
 function StatusLine({ deep }: { deep: LeagueDeep }) {
@@ -48,44 +43,56 @@ function StatusLine({ deep }: { deep: LeagueDeep }) {
   )
 }
 
+/** A club's name, linked to its page when it has one */
+const ClubLink = ({ row, className, children }: { row: LeagueRow; className?: string; children: React.ReactNode }) =>
+  row.href ? (
+    <Link className={className} href={row.href}>
+      {children}
+    </Link>
+  ) : (
+    <span className={className}>{children}</span>
+  )
+
 export function LeagueHero({
-  division,
+  title,
+  kicker,
+  logo,
+  logoLabel,
   rows,
   stats,
+  goalWord = 'mål',
   deep,
-  badge,
   topScorer,
 }: {
-  division: Division
-  rows: StandingRow[]
+  title: string
+  kicker: string
+  logo?: string
+  logoLabel?: string
+  rows: LeagueRow[]
   stats?: LeagueStats
+  goalWord?: string
   deep: LeagueDeep
-  badge?: string
   topScorer?: { name: string; club: string; goals: number; photo?: string }
 }) {
-  // In form: the most points in the last five (only once a few rounds are played)
-  const hot = Math.max(0, ...rows.map((r) => r.form.length)) >= 3 ? [...rows].sort((a, b) => formPoints(b.form) - formPoints(a.form) || b.points - a.points)[0] : undefined
-  const goalWord = sportOf(division) === 'basketball' ? 'point' : 'mål'
   const leader = rows[0]
+  const hot = inForm(rows)
   const { played, total } = deep.round
   const pct = total ? Math.min(100, Math.round((played / total) * 100)) : 0
   return (
-    <header className="lx-hero" style={{ '--lx-c': leader?.club.colors[0] ?? '#2c3a0c' } as React.CSSProperties}>
+    <header className="lx-hero" style={{ '--lx-c': leader?.colors?.[0] ?? '#2c3a0c' } as React.CSSProperties}>
       <span className="lx-hero__m" aria-hidden>
         M
       </span>
       <div className="lx-hero__head">
         <span className="lx-hero__logo">
-          <TeamBadge link={false} name={division.name} src={badge} label={division.short} colors={['#0f110c', '#c6f135']} size={60} />
+          <TeamBadge link={false} name={title} src={logo} label={logoLabel} colors={['#0f110c', '#c6f135']} size={60} />
         </span>
         <div>
-          <span className="lx-hero__kicker">
-            {division.country} · Sæson {division.seasonLabel ?? '2026/27'}
-          </span>
-          <h1 className="lx-hero__title">{division.name}</h1>
+          <span className="lx-hero__kicker">{kicker}</span>
+          <h1 className="lx-hero__title">{title}</h1>
         </div>
       </div>
-      {total > 0 && (
+      {total > 0 && played > 0 && (
         <div className="lx-hero__progress" aria-label={`Runde ${played} af ${total}`}>
           <span>
             Runde <b>{played}</b> af {total}
@@ -97,14 +104,14 @@ export function LeagueHero({
       )}
       <div className="lx-hero__cards">
         {leader && (
-          <Link className="lx-hero__leader" href={paths.club(leader.club.slug)}>
-            <TeamBadge link={false} name={leader.club.name} colors={leader.club.colors} size={40} />
+          <ClubLink row={leader} className="lx-hero__leader">
+            <TeamBadge link={false} name={leader.name} src={leader.logo} colors={leader.colors} size={40} />
             <span>
               <em>Fører</em>
-              <b>{leader.club.name}</b>
+              <b>{leader.name}</b>
             </span>
             <strong>{leader.points}</strong>
-          </Link>
+          </ClubLink>
         )}
         {stats && (
           <div className="lx-hero__num">
@@ -113,15 +120,15 @@ export function LeagueHero({
           </div>
         )}
         {hot && (
-          <Link className="lx-hero__card" href={paths.club(hot.club.slug)}>
-            <TeamBadge link={false} name={hot.club.name} colors={hot.club.colors} size={34} />
+          <ClubLink row={hot} className="lx-hero__card">
+            <TeamBadge link={false} name={hot.name} src={hot.logo} colors={hot.colors} size={34} />
             <span>
               <em>Bedste form</em>
-              <b>{hot.club.name}</b>
+              <b>{hot.name}</b>
               <FormChips form={hot.form} />
             </span>
             <strong>{formPoints(hot.form)}</strong>
-          </Link>
+          </ClubLink>
         )}
         {topScorer && (
           <div className="lx-hero__card">
@@ -158,7 +165,7 @@ export function LeagueBriefBox({ items, title = 'Kort fortalt' }: { items: strin
 
 
 /** The clubs by points in their last five matches */
-export function FormTableBox({ rows }: { rows: StandingRow[] }) {
+export function FormTableBox({ rows }: { rows: LeagueRow[] }) {
   if (Math.max(0, ...rows.map((r) => r.form.length)) < 3) return null
   const sorted = [...rows].sort((a, b) => formPoints(b.form) - formPoints(a.form) || b.points - a.points)
   const max = Math.max(1, Math.min(5, Math.max(...rows.map((r) => r.form.length))) * 3)
@@ -170,12 +177,12 @@ export function FormTableBox({ rows }: { rows: StandingRow[] }) {
       <p className="muted small">Point i de seneste fem kampe.</p>
       <ol className="lx-form">
         {sorted.map((r, i) => (
-          <li key={r.club.id}>
+          <li key={r.key}>
             <span className="lx-form__pos">{i + 1}</span>
-            <Link href={paths.club(r.club.slug)} className="lx-form__club">
-              <TeamBadge link={false} name={r.club.name} colors={r.club.colors} size={22} />
-              <span>{r.club.name}</span>
-            </Link>
+            <ClubLink row={r} className="lx-form__club">
+              <TeamBadge link={false} name={r.name} src={r.logo} colors={r.colors} size={22} />
+              <span>{r.name}</span>
+            </ClubLink>
             <FormChips form={r.form} />
             <span className="lx-form__bar">
               <i style={{ width: `${(formPoints(r.form) / max) * 100}%` }} />
@@ -189,7 +196,8 @@ export function FormTableBox({ rows }: { rows: StandingRow[] }) {
 }
 
 /** Goals for and against for every club, in the table's order */
-export function AttackDefenceBox({ rows }: { rows: StandingRow[] }) {
+export function AttackDefenceBox({ rows }: { rows: LeagueRow[] }) {
+  if (rows.length < 2 || !rows.some((r) => r.goalsFor || r.goalsAgainst)) return null
   const max = Math.max(1, ...rows.flatMap((r) => [r.goalsFor, r.goalsAgainst]))
   return (
     <section className="panel lx-box" aria-labelledby="lx-ad-title">
@@ -206,10 +214,10 @@ export function AttackDefenceBox({ rows }: { rows: StandingRow[] }) {
       </div>
       <ul className="lx-ad">
         {rows.map((r) => (
-          <li key={r.club.id}>
+          <li key={r.key}>
             <span className="lx-ad__club">
-              <TeamBadge link={false} name={r.club.name} colors={r.club.colors} size={20} />
-              <span>{r.club.name}</span>
+              <TeamBadge link={false} name={r.name} src={r.logo} colors={r.colors} size={20} />
+              <span>{r.name}</span>
             </span>
             <span className="lx-ad__bars">
               <span>

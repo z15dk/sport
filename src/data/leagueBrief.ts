@@ -1,17 +1,14 @@
-import type { Division } from './club'
-import type { StandingRow } from './season'
 import type { LeagueStats } from './stats'
-import type { LeagueDeep } from './leagueDeep'
+import { formPoints, type LeagueDeep, type LeagueRow } from './leagueDeep'
 import { counted } from '../lib/words'
 
 // "Kort fortalt" on the league page: the season in a few short sentences that stand on their own, each with its
 // own numbers – for readers and for answer engines. Only facts the data shows.
 
 const one = (n: number) => n.toLocaleString('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
-const formPoints = (form: ('V' | 'U' | 'T')[]) => form.slice(-5).reduce((t, f) => t + (f === 'V' ? 3 : f === 'U' ? 1 : 0), 0)
 
-export function leagueBrief(input: { division: Division; rows: StandingRow[]; stats?: LeagueStats; deep: LeagueDeep; topScorer?: { name: string; club: string; goals: number } }): string[] {
-  const { division, rows, stats, deep } = input
+export function leagueBrief(input: { name: string; rows: LeagueRow[]; stats?: LeagueStats; deep: LeagueDeep; topScorer?: { name: string; club: string; goals: number }; bottom?: boolean }): string[] {
+  const { name, rows, stats, deep } = input
   const out: string[] = []
   const [first, second] = rows
   if (!first || !second) return out
@@ -19,15 +16,15 @@ export function leagueBrief(input: { division: Division; rows: StandingRow[]; st
 
   out.push(
     first.points === second.points
-      ? `${first.club.name} og ${second.club.name} deler førstepladsen med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}.`
-      : `${first.club.name} fører ${division.name} med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}, ${counted(first.points - second.points, 'point', 'point')} foran ${second.club.name}.`,
+      ? `${first.name} og ${second.name} deler førstepladsen med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}.`
+      : `${first.name} fører ${name} med ${counted(first.points, 'point', 'point')} efter ${counted(played, 'runde', 'runder')}, ${counted(first.points - second.points, 'point', 'point')} foran ${second.name}.`,
   )
   if (input.topScorer?.goals) out.push(`Topscorer er ${input.topScorer.name} (${input.topScorer.club}) med ${counted(input.topScorer.goals, 'mål', 'mål')}.`)
 
   // In form: the most points in the last five
   if (played >= 5) {
     const hot = [...rows].sort((a, b) => formPoints(b.form) - formPoints(a.form) || b.points - a.points)[0]
-    if (hot && hot !== first) out.push(`${hot.club.name} er ligaens hold i form med ${counted(formPoints(hot.form), 'point', 'point')} i de seneste fem kampe.`)
+    if (hot && hot !== first) out.push(`${hot.name} er ligaens hold i form med ${counted(formPoints(hot.form), 'point', 'point')} i de seneste fem kampe.`)
   }
 
   // The best attack and the best defence
@@ -36,8 +33,8 @@ export function leagueBrief(input: { division: Division; rows: StandingRow[]; st
   if (attack && defence && played >= 3) {
     out.push(
       attack === defence
-        ? `${attack.club.name} har både scoret flest mål (${attack.goalsFor}) og lukket færrest ind (${attack.goalsAgainst}).`
-        : `${attack.club.name} har scoret flest mål (${attack.goalsFor}), og ${defence.club.name} har lukket færrest ind (${defence.goalsAgainst}).`,
+        ? `${attack.name} har både scoret flest mål (${attack.goalsFor}) og lukket færrest ind (${attack.goalsAgainst}).`
+        : `${attack.name} har scoret flest mål (${attack.goalsFor}), og ${defence.name} har lukket færrest ind (${defence.goalsAgainst}).`,
     )
   }
 
@@ -51,7 +48,7 @@ export function leagueBrief(input: { division: Division; rows: StandingRow[]; st
 
   // At the bottom
   const last = rows.at(-1)!
-  if (division.zones.bottom > 0) out.push(`Nederst ligger ${last.club.name} med ${counted(last.points, 'point', 'point')}.`)
+  if (input.bottom !== false) out.push(`Nederst ligger ${last.name} med ${counted(last.points, 'point', 'point')}.`)
 
   // The next round after a break
   const s = deep.status
