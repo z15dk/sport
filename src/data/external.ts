@@ -75,6 +75,12 @@ export function danishRound(round?: string | number): string | undefined {
   const stages: Record<string, string> = { 'regular season': '', 'league stage': 'Ligafase, ', 'group stage': 'Gruppespil, ', qualifying: 'Kvalifikation, ' }
   if (stage && stage[1].toLowerCase() in stages) return `${stages[stage[1].toLowerCase()]}${stage[2]}. runde`
   const lower = r.toLowerCase()
+  // The EFL Trophy's regional groups: "Group North - 3" -> "Gruppe Nord 3"
+  const regional = /^group\s+(north|south)\s*-\s*(\d+)$/i.exec(r)
+  if (regional) return `Gruppe ${/north/i.test(regional[1]) ? 'Nord' : 'Syd'} ${regional[2]}`
+  // A round's replays (the FA Cup's qualifying rounds): the round's name with "omkampe"
+  if (/replays?$/.test(lower)) return `${danishRound(r.replace(/\s*replays?$/i, ''))}, omkampe`
+  if (/extra preliminary/.test(lower)) return 'Ekstra indledende runde'
   // The qualifying rounds before the tournament proper: "1st Qualifying Round", "2nd Qualifying Round - Semi-finals", "Qualifying Round 2"
   if (/qualif/.test(lower)) {
     const nr = /(\d+)(?:st|nd|rd|th)?\b/.exec(lower)?.[1]

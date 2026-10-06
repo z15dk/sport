@@ -20,9 +20,18 @@ export interface Cup {
   match: RegExp
   /** Its name in our addresses, the same whatever the sponsor: /turnering/x-<country>-<key> */
   key: string
+  /** The new cup page (src/components/cup/CupPage.tsx) instead of the plain list of rounds */
+  newPage?: boolean
+  /** A group stage first, its tables from the source (the EFL Trophy: a draw goes to penalties for an extra point) */
+  groups?: boolean
 }
 
-export const CUPS: Cup[] = [{ name: 'Betano Pokalen', sport: 'soccer', country: 'Denmark', match: /pokal|dbu cup|danish cup|landspokal/i, key: 'Pokalen' }]
+export const CUPS: Cup[] = [
+  { name: 'Betano Pokalen', sport: 'soccer', country: 'Denmark', match: /pokal|dbu cup|danish cup|landspokal/i, key: 'Pokalen' },
+  // England's cups: the FA Cup (not the FA Trophy or Vase), and the EFL Trophy under whatever sponsor it has
+  { name: 'FA Cup', sport: 'soccer', country: 'England', match: /^(the\s+)?(emirates\s+)?fa\s+cup$/i, key: 'FA Cup', newPage: true },
+  { name: 'EFL Trophy', sport: 'soccer', country: 'England', match: /^(efl|vertu|papa john'?s|bristol street motors|football league)\s+trophy$/i, key: 'EFL Trophy', newPage: true, groups: true },
+]
 
 const NOT_SENIOR = /women|kvinde|dame|u\s?\d{2}|youth|junior|futsal/i
 

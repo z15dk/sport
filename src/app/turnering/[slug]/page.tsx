@@ -15,6 +15,9 @@ import { MatchRow } from '../../../components/MatchRow'
 import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { NewsList } from '../../../components/NewsList'
+import { CupPage } from '../../../components/cup/CupPage'
+import { cupView } from '../../../lib/cupView'
+import { CUP_INFO } from '../../../data/cupInfo'
 import { TaggedArticles } from '../../../components/TaggedArticles'
 import { articlesAbout } from '../../../lib/articleTopics'
 import { newsFor, newsMentioning } from '../../../lib/news'
@@ -208,6 +211,33 @@ async function externalLeaguePage(slug: string) {
       finished: g.state === 'finished',
       slug: externalMatch(g).slug,
     })
+  }
+  // Our new cup page (FA Cup, EFL Trophy): the season at a glance, the groups, the bracket of the last rounds, the facts
+  if (cup?.newPage) {
+    const view = cupView({ games, toMatch: externalMatch, statGames: [...statGames.values()], now })
+    // The bracket from the rounds proper that fit one (32 ties or fewer, no groups or qualifying rounds, no replays)
+    const proper = [...bracketGames.values()].filter((g) => g.round && !/group|qualif|preliminary|replay/i.test(g.round))
+    const tiesIn = new Map<string, number>()
+    for (const g of proper) tiesIn.set(g.round!, (tiesIn.get(g.round!) ?? 0) + 1)
+    const small = proper.filter((g) => (tiesIn.get(g.round!) ?? 0) <= 32)
+    const cupBracket = small.length && new Set(small.map((g) => g.round)).size >= 2 ? buildBracket(small) : undefined
+    const cupGroups = cup.groups && found.id && found.id !== 'db' ? await apiLeagueTable(found) : undefined
+    const cupStats = statGames.size >= 5 ? gameStats([...statGames.values()]) : undefined
+    const cupNews = newsMentioning({ names: [league.name, found.name, cup.name, cup.key], women: false })
+    return (
+      <CupPage
+        league={league}
+        view={view}
+        info={CUP_INFO[cup.key]}
+        groups={cupGroups}
+        bracket={cupBracket}
+        stats={cupStats}
+        leaders={leaders}
+        upcoming={upcoming}
+        now={now}
+        news={cupNews.length ? <NewsList articles={cupNews} fallback={{ name: league.name, logo: league.logo }} /> : undefined}
+      />
+    )
   }
   const knockout = !cup && !friendly && !wholeSeason({ sport: found.sport, league: found }) && !fromApi && isKnockout([...bracketGames.values()].map((g) => g.round))
   const bracket = knockout ? buildBracket([...bracketGames.values()]) : undefined
