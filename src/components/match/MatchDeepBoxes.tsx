@@ -73,7 +73,7 @@ export function WinChanceBox({ match, chance, id }: { match: Match; chance: WinC
         </div>
       </dl>
       <p className="muted small">
-        Beregnet af Matchly ud fra de {chance.games} spillede kampe i sæsonen: holdenes mål hjemme og ude mod ligaens gennemsnit. Det er en beregning, ikke odds eller en
+        Beregnet af Matchly ud fra de data, vi har: holdenes mål hjemme og ude mod ligaens gennemsnit. Det er en beregning, ikke odds eller en
         forudsigelse.
       </p>
     </section>
