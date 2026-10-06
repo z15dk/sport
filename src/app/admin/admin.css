@@ -594,3 +594,46 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .indexnow-form textarea { width: 100%; padding: 10px 12px; font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); resize: vertical; }
 .indexnow-form__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
 .growth-indexnow .growth-history { padding-top: 12px; }
+
+/* /admin/artikler as an overview: tiles, tabs with counts and a search, then one compact row per article */
+.arts-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arts-tiles a.dash-tile { color: inherit; text-decoration: none; }
+.arts-tiles a.dash-tile:hover { box-shadow: 0 0 0 2px var(--ink); }
+@media (max-width: 760px) { .arts-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.arts-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.arts-search { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.arts-search input, .arts-search select { padding: 8px 12px; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.arts-search input { min-width: 220px; }
+.arts-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.arts-row {
+  display: grid; grid-template-columns: 152px minmax(0, 1fr) 220px 128px; grid-template-areas: 'img main nums actions' 'img more more more';
+  align-items: center; gap: 4px 18px; padding: 10px 14px 10px 10px; border-radius: var(--radius-sm); background: var(--surface); border-left: 4px solid var(--lime-deep);
+}
+.arts-row.is-draft { border-left-color: var(--ink-3); }
+.arts-row.is-planned { border-left-color: #f5c518; }
+.arts-row__img { grid-area: img; align-self: start; display: grid; place-items: center; aspect-ratio: 1200 / 630; border-radius: 8px; overflow: hidden; background: var(--surface-2); font-size: 11px; color: var(--ink-3); }
+.arts-row__img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.arts-row__main { grid-area: main; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.arts-row__title { font-weight: 700; font-size: 15px; line-height: 1.3; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.arts-row__title:hover { text-decoration: underline; }
+.arts-row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--ink-3); }
+.arts-row__checks { display: flex; flex-wrap: wrap; gap: 4px; }
+.arts-row__checks i { font-style: normal; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; }
+.arts-row__checks i.is-ok { background: var(--surface-2); color: var(--ink-3); }
+.arts-row__checks i.is-miss { background: var(--live-soft); color: #b2341a; }
+.arts-row__nums { grid-area: nums; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; text-align: right; }
+.arts-row__nums dt { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.arts-row__nums dd { margin: 2px 0 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.arts-row__actions { grid-area: actions; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.arts-row__actions .pill { white-space: nowrap; }
+.pill__count { margin-left: 4px; font-size: 11px; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.arts-row__more { grid-area: more; font-size: 12px; }
+.arts-row__more summary { cursor: pointer; color: var(--ink-3); font-weight: 600; width: max-content; }
+.arts-row__more[open] .admin-article__facts { margin-top: 8px; }
+@media (max-width: 900px) {
+  .arts-row { grid-template-columns: 120px minmax(0, 1fr); grid-template-areas: 'img main' 'nums nums' 'actions actions' 'more more'; }
+  .arts-row__nums { max-width: 320px; text-align: left; }
+  /* Only what is missing on a phone – the green marks take too much room */
+  .arts-row__checks i.is-ok { display: none; }
+  .arts-row__actions { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
+}
