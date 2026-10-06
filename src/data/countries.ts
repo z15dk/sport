@@ -259,6 +259,9 @@ const DANISH_WORD = new RegExp(`(?<![\\p{L}\\d])(${Object.keys(DANISH_SPELLING).
 /** A Danish name with its Danish letters back ("HB Koge" -> "HB Køge") */
 export const danishSpelling = (name: string) => name.replace(DANISH_WORD, (w) => DANISH_SPELLING[w] ?? w)
 const DENMARK = /^(denmark|danmark)$/i
+/** Danish clubs the sources (and a-liga.dk) name otherwise, by the name we show: "FC Copenhagen W" -> "FC København (K)" */
+const DANISH_CLUBS: Record<string, string> = { 'FC Copenhagen': 'FC København', 'F.C. København': 'FC København' }
+const DANISH_CLUB = new RegExp(`^(${Object.keys(DANISH_CLUBS).map((k) => k.replace(/\./g, '\\.')).join('|')})(?=\\s|$)`)
 
 /** What follows a team's name in the sources: youth ("U21"), women ("W"), Olympic and B teams */
 const KINDS = /\s+(u-?\s?\d{2}|w|women|olympics?|b)$/i
@@ -274,6 +277,8 @@ const WOMEN_KIND = /^w(omen)?$/i
 export function shownTeam(name: string, leagueCountry?: string): string {
   // In a Danish league: the Danish letters the source leaves out
   if (leagueCountry && DENMARK.test(leagueCountry.trim())) name = danishSpelling(name)
+  // A Danish club under its Danish name in every tournament (the women's Champions League too)
+  name = name.replace(DANISH_CLUB, (m) => DANISH_CLUBS[m] ?? m)
   let base = name.trim()
   const kinds: string[] = []
   for (let m = KINDS.exec(base); m; m = KINDS.exec(base)) {
