@@ -346,7 +346,8 @@ export async function publishOne(id: string, again = false) {
           const text = t.surface === 'story' ? '' : platformCaption(t.platform, post.caption, post.link, cfg.hashtags)
           // Facebook also gets the text without the link and the link as a comment, for Make to post the link in the comments
           const fb = t.platform === 'facebook' && t.surface !== 'story' && post.link ? facebookLinkComment(post.caption, post.link, cfg.hashtags, post.article !== undefined) : undefined
-          const r = await publishTo(t.platform, t.surface, files, text, fb && { link: post.link, textNoLink: fb.text, comment: fb.comment })
+          const ig = t.platform === 'facebook' && t.surface !== 'story' ? platformCaption('instagram', post.caption, post.link, cfg.hashtags) : undefined
+          const r = await publishTo(t.platform, t.surface, files, text, ig ? { link: post.link, textNoLink: fb?.text, comment: fb?.comment, textInstagram: ig } : undefined)
           result = { platform: t.platform, surface: t.surface, status: 'ok', id: r.id, url: r.url, at: Date.now() }
         } catch (e) {
           result = { platform: t.platform, surface: t.surface, status: 'error', error: e instanceof Error ? e.message : String(e), at: Date.now() }

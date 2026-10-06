@@ -153,6 +153,8 @@ export interface FacebookExtra {
   textNoLink?: string
   /** The first comment, with the link */
   comment?: string
+  /** The same post's text for Instagram (no link; "link i profilen"), for a route in the Make scenario that posts it there too */
+  textInstagram?: string
 }
 
 /**
@@ -169,6 +171,7 @@ const makePayload = (type: 'post' | 'test', caption: string, files: string[], ex
     textNoLink: extra.textNoLink ?? caption,
     link: extra.link ?? '',
     comment: extra.comment ?? '',
+    textInstagram: extra.textInstagram ?? '',
     image: images[0],
     imageCount: images.length,
     images,
@@ -506,7 +509,15 @@ export async function testPlatform(platform: Platform): Promise<string> {
         // A sample post marked "test", for Make to learn the data's structure (the scenario's filter keeps it from being posted);
         // two pictures, so Make sees photos as a list and the whole list is mapped – not just the first
         const sample = facebookLinkComment('Test fra Matchly – dette opslag skal ikke postes.', `${SITE_URL}/artikler`, '', true)
-        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg'], { link: `${SITE_URL}/artikler`, textNoLink: sample.text, comment: sample.comment }))
+        await makeHook(
+          s,
+          makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg'], {
+            link: `${SITE_URL}/artikler`,
+            textNoLink: sample.text,
+            comment: sample.comment,
+            textInstagram: platformCaption('instagram', 'Test fra Matchly – dette opslag skal ikke postes.', '', ''),
+          }),
+        )
         return 'Eksemplet er sendt til Make'
       }
       if (!s.meta.pageToken) throw new ApiError('Ikke forbundet')
