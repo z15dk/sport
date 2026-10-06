@@ -52,7 +52,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Sea
           }
           categories={cats}
           picks={picks}
-          picksLabel={read.length ? 'Mest læst lige nu' : 'Nyt på Matchly'}
+          picksLabel={read.length ? 'Mest læste lige nu' : 'Nyt på Matchly'}
         />
         {articles.length ? <ArticleCards articles={articles} categoryNames={names} lead={page === 1} /> : <p className="muted">Der er ingen artikler endnu.</p>}
         <Pager page={page} pages={Math.ceil(total / PER_PAGE)} href={paths.articles} />

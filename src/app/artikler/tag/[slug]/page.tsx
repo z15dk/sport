@@ -62,7 +62,7 @@ export default async function ArticleGroup({ params, searchParams }: { params: P
           categories={cats}
           active={KIND === 'kategori' ? slug : undefined}
           picks={picks}
-          picksLabel={read.length ? 'Mest læst' : 'Nyeste'}
+          picksLabel={read.length ? 'Mest læste' : 'Nyeste'}
         />
         {articles.length ? <ArticleCards articles={articles} categoryNames={names} /> : <p className="muted">Ingen artikler endnu.</p>}
         <Pager page={page} pages={Math.ceil(total / PER_PAGE)} href={(p) => pathOf(slug, p)} />
