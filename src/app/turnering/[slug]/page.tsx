@@ -16,7 +16,7 @@ import { LiveNow } from '../../../components/LiveNow'
 import { RoundResults, roundsOf } from '../../../components/RoundResults'
 import { NewsList } from '../../../components/NewsList'
 import { CupPage } from '../../../components/cup/CupPage'
-import { cupView } from '../../../lib/cupView'
+import { cupGroups as groupTables, cupView } from '../../../lib/cupView'
 import { CUP_INFO } from '../../../data/cupInfo'
 import { TaggedArticles } from '../../../components/TaggedArticles'
 import { articlesAbout } from '../../../lib/articleTopics'
@@ -221,7 +221,10 @@ async function externalLeaguePage(slug: string) {
     for (const g of proper) tiesIn.set(g.round!, (tiesIn.get(g.round!) ?? 0) + 1)
     const small = proper.filter((g) => (tiesIn.get(g.round!) ?? 0) <= 32)
     const cupBracket = small.length && new Set(small.map((g) => g.round)).size >= 2 ? buildBracket(small) : undefined
-    const cupGroups = cup.groups && found.id && found.id !== 'db' ? await apiLeagueTable(found) : undefined
+    // The groups from the source's table, else our own from the group games (the EFL Trophy: the source has none)
+    const fromSource = cup.groups && found.id && found.id !== 'db' ? await apiLeagueTable(found) : undefined
+    const own = cup.groups && !fromSource ? groupTables(games, (name, logo) => logo ?? logoFor(name)) : undefined
+    const cupGroups = fromSource ?? own?.groups
     const cupStats = statGames.size >= 5 ? gameStats([...statGames.values()]) : undefined
     const cupNews = newsMentioning({ names: [league.name, found.name, cup.name, cup.key], women: false })
     return (
@@ -230,6 +233,7 @@ async function externalLeaguePage(slug: string) {
         view={view}
         info={CUP_INFO[cup.key]}
         groups={cupGroups}
+        groupsUnsure={own?.unsure}
         bracket={cupBracket}
         stats={cupStats}
         leaders={leaders}

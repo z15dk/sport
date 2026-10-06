@@ -2,6 +2,7 @@ import type { ExternalGame } from '../data/external'
 import { danishRound } from '../data/external'
 import type { StatGame } from '../data/stats'
 import type { Match } from '../types'
+import type { TableRow } from '../data/matchExtra'
 
 // A cup's season from its games (src/components/cup/CupPage.tsx): the rounds in the order they are played,
 // where the cup has got to, who scores the goals, the biggest wins. From the games we have, nothing guessed.
@@ -122,4 +123,47 @@ export function cupView({ games, toMatch, statGames, now }: { games: ExternalGam
   }
   const scorers = [...tally.values()].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name, 'da')).slice(0, 10)
   return { rounds, current, teamsInRound, status, scorers, biggestWin: biggestWin && biggestWin.score[0] !== biggestWin.score[1] ? biggestWin : undefined, mostGoals, played: statGames.length, goals }
+}
+
+/**
+ * The group tables from the group games (the EFL Trophy, where the source has no table): 3 points for a win, 1 each
+ * for a draw and 1 more for winning the penalty shoot-out after it. Ordered by points, goal difference, goals scored.
+ * `unsure` when a drawn game has no shoot-out score yet (its extra point is missing).
+ */
+export function cupGroups(games: ExternalGame[], logoFor: (name: string, logo?: string) => string | undefined): { groups: TableRow[][]; unsure: boolean } {
+  const groups = new Map<string, Map<string, TableRow>>()
+  let unsure = false
+  for (const g of games) {
+    if (!g.round || !GROUP.test(g.round) || g.state === 'postponed') continue
+    const name = danishRound(g.round) ?? g.round
+    const table = groups.get(name) ?? groups.set(name, new Map()).get(name)!
+    const row = (team: ExternalGame['home']) =>
+      table.get(team.name) ?? table.set(team.name, { rank: 0, name: team.name, logo: logoFor(team.name, team.logo), played: 0, won: 0, drawn: 0, lost: 0, for: 0, against: 0, points: 0, group: name }).get(team.name)!
+    const home = row(g.home)
+    const away = row(g.away)
+    if (g.state !== 'finished' || g.homeScore === undefined || g.awayScore === undefined) continue
+    for (const [r, f, a] of [
+      [home, g.homeScore, g.awayScore],
+      [away, g.awayScore, g.homeScore],
+    ] as const) {
+      r.played++
+      r.for! += f
+      r.against! += a
+      if (f > a) (r.won++, (r.points! += 3))
+      else if (f < a) r.lost++
+      else (r.drawn!++, (r.points! += 1))
+    }
+    if (g.homeScore === g.awayScore) {
+      if (g.pens) (g.pens[0] > g.pens[1] ? home : away).points! += 1
+      else unsure = true
+    }
+  }
+  const out = [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'da', { numeric: true }))
+    .map(([, t]) =>
+      [...t.values()]
+        .sort((a, b) => b.points! - a.points! || b.for! - b.against! - (a.for! - a.against!) || b.for! - a.for! || a.name.localeCompare(b.name, 'da'))
+        .map((r, i) => ({ ...r, rank: i + 1 })),
+    )
+  return { groups: out, unsure }
 }

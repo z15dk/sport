@@ -40,6 +40,8 @@ export interface ExternalGame {
   referee?: string
   /** Half-time score */
   ht?: [number, number]
+  /** The penalty shoot-out's score, when the game went to one (football) */
+  pens?: [number, number]
   /** Goals and cards, when the source has them */
   incidents?: Incident[]
   /** The score of each set, period, half or quarter (volleyball, ice hockey, handball, basketball) */

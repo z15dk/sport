@@ -40,6 +40,8 @@ interface Props {
   info?: CupInfo
   /** The group tables (EFL Trophy), from the source */
   groups?: TableRow[][]
+  /** Our own group tables lack a shoot-out's extra point somewhere (its score has not come yet) */
+  groupsUnsure?: boolean
   bracket?: BracketRound[]
   stats?: LeagueStatsData
   leaders?: Leaders
@@ -245,7 +247,7 @@ function RoundSection({ name, matches, sub, open }: { name: string; matches: Mat
   )
 }
 
-export function CupPage({ league, view, info, groups, bracket, stats, leaders, upcoming, now, news }: Props) {
+export function CupPage({ league, view, info, groups, groupsUnsure, bracket, stats, leaders, upcoming, now, news }: Props) {
   const path = paths.league(league.key)
   const current = view.current
   const earlier = view.rounds.filter((r) => r !== current && r.played > 0).reverse()
@@ -321,7 +323,10 @@ export function CupPage({ league, view, info, groups, bracket, stats, leaders, u
                 <header className="table-panel__head">
                   <h2 className="panel__title">Grupperne</h2>
                 </header>
-                <p className="muted small cx-groups__note">Nr. 1 og 2 går videre. Uafgjort afgøres på straffespark, og vinderen får et ekstra point.</p>
+                <p className="muted small cx-groups__note">
+                  Nr. 1 og 2 går videre. Uafgjort afgøres på straffespark, og vinderen får et ekstra point.
+                  {groupsUnsure && ' Enkelte straffesparkskonkurrencer mangler endnu i vores data, så et ekstra point kan mangle.'}
+                </p>
                 <div className="cx-groups__grid">
                   {groups.map((g, i) => (
                     <GroupTable key={g[0]?.group ?? i} rows={g} />

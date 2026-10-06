@@ -184,6 +184,8 @@ const APIS: Record<Api, ApiDef> = {
         round: r.league?.round ?? undefined,
         referee: r.fixture.referee ?? undefined,
         ht: r.score?.halftime?.home != null && r.score?.halftime?.away != null ? [Number(r.score.halftime.home), Number(r.score.halftime.away)] : undefined,
+        // A penalty shoot-out after the game (cups; the EFL Trophy's groups give the winner an extra point)
+        pens: r.score?.penalty?.home != null && r.score?.penalty?.away != null ? [Number(r.score.penalty.home), Number(r.score.penalty.away)] : undefined,
       }
     },
     keep: (g) =>
