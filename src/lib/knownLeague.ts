@@ -11,6 +11,6 @@ export function knownLeague(slug: string): (ExternalLeague & { title?: string })
   const b = BASELINES[slug]
   // A cup: under its own key from the games (API-Sports and our match database)
   const g = (loadRealData() ?? getRealData())?.external?.find((x) => cupOfGame(x) && externalLeagueKey(x.league) === slug)
-  if (g) return { key: slug, api: g.id.split('-')[0], id: g.league.id, name: g.league.originalName ?? g.league.name, title: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, lastSeen: 0 }
+  if (g) return { key: slug, api: g.id.split('-')[0], id: g.league.id, name: g.league.originalName ?? g.league.name, title: g.league.name, country: g.league.country, sport: g.sport, logo: g.league.logo, season: g.league.season ?? externalLeague(slug)?.season, lastSeen: 0 }
   return externalLeague(slug) ?? (b && { key: slug, api: 'football', id: '', name: b.league.name, country: b.league.country, sport: b.league.sport, lastSeen: 0 })
 }
