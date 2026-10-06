@@ -123,6 +123,8 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             )}
           </div>
           <small className="muted">Billedet gøres mørkere bag logoerne, så de står tydeligt.</small>
+          {/* The graphic is credited "Matchly.dk", so a photo behind it must be one we may use without naming anyone else */}
+          <small className="vsd__rights">Brug kun billeder, I selv har taget eller har købt ret til. Grafikken krediteres Matchly.dk, så fotografen bliver ikke nævnt – klubbers og mediers billeder må ikke bruges her.</small>
         </div>
         <div className={`vsd__preview${loading ? ' is-loading' : ''}`}>
           {preview ? (

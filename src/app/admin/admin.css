@@ -639,3 +639,6 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .arts-row__checks i.is-ok { display: none; }
   .arts-row__actions { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
 }
+
+/* The VS dialog: whose photos may stand behind the logos */
+.vsd__rights { display: block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #b2341a; }
