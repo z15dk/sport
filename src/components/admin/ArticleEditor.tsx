@@ -6,6 +6,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
+import { TableKit } from '@tiptap/extension-table'
 import { slugify } from '../../lib/slug'
 import { seoChecks, type SeoCheck } from '../../lib/seoChecks'
 import { ArchivePicker, PhotoMetaDialog } from './ArticlePhotos'
@@ -178,6 +179,8 @@ export function ArticleEditor({
       StarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false, autolink: true } }),
       Image.configure({ inline: false }),
       Placeholder.configure({ placeholder: 'Skriv din artikel her …' }),
+      // Tables (from the preview robots or pasted) must survive a save in the editor
+      TableKit.configure({ table: { resizable: false } }),
     ],
     content: initial.content,
     immediatelyRender: false,
