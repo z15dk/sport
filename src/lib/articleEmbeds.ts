@@ -59,3 +59,43 @@ export function markNumberColumns(html: string): string {
     return `<div class="table-scroll"><table>${marked}</table></div>`
   })
 }
+
+// ---------------------------------------------------------------- the questions at the end
+
+/** The heading that starts an article's questions ("Ofte stillede spørgsmål …", "FAQ") */
+const FAQ_HEADING = /<h2([^>]*)>((?:(?!<\/h2>)[\s\S])*?(?:spørgsmål|faq|ofte stillede)(?:(?!<\/h2>)[\s\S])*?)<\/h2>/i
+/** A closing paragraph all in italics (where the article's sources and last update are told) */
+const SOURCE_NOTE = /<p[^>]*>\s*<em>((?:(?!<\/p>)[\s\S])*)<\/em>\s*<\/p>\s*$/i
+
+/** The article's questions and answers (h3 + what follows it), and the closing note after them if there is one */
+export function articleFaq(html: string): { before: string; title: string; items: { q: string; a: string }[]; note?: string; after: string } | undefined {
+  const start = FAQ_HEADING.exec(html)
+  if (!start) return undefined
+  const rest = html.slice(start.index + start[0].length)
+  const next = rest.search(/<h2[\s>]/i)
+  let section = next < 0 ? rest : rest.slice(0, next)
+  const after = next < 0 ? '' : rest.slice(next)
+  const note = SOURCE_NOTE.exec(section)
+  if (note) section = section.slice(0, note.index)
+  const items = [...section.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3[\s>]|$)/gi)].map((m) => ({ q: m[1].trim(), a: m[2].trim() })).filter((x) => text(x.q) && text(x.a))
+  if (!items.length) return undefined
+  return { before: html.slice(0, start.index), title: start[2].trim(), items, note: note?.[1].trim(), after }
+}
+
+/**
+ * The questions at the end of an article as their own dark box: each question a numbered row that
+ * opens to its answer (the first open), and the sources under it as a quiet note. The saved text is
+ * untouched; it is drawn this way when the article is shown.
+ */
+export function styleFaq(html: string): string {
+  const faq = articleFaq(html)
+  if (!faq) return html
+  const rows = faq.items
+    .map(
+      (it, i) =>
+        `<details class="art-faq__item"${i === 0 ? ' open' : ''}><summary><span class="art-faq__n">${String(i + 1).padStart(2, '0')}</span><span class="art-faq__q">${it.q}</span><span class="art-faq__icon" aria-hidden="true"></span></summary><div class="art-faq__a">${it.a}</div></details>`,
+    )
+    .join('')
+  const note = faq.note ? `<p class="art-source">${faq.note}</p>` : ''
+  return `${faq.before}<section class="art-faq" aria-labelledby="ofte-stillede-spoergsmaal"><p class="art-faq__kicker">Spørgsmål og svar</p><h2 id="ofte-stillede-spoergsmaal">${faq.title}</h2><div class="art-faq__list">${rows}</div></section>${note}${faq.after}`
+}

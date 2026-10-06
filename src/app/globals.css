@@ -2063,6 +2063,36 @@ a.player-games__match:hover { text-decoration: underline; }
 .article-body hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
 .article-body > p:first-child { font-size: 20px; line-height: 1.6; }
 .article-body figure { margin: 1.4em 0; }
+/* The questions at the end of an article (styleFaq in src/lib/articleEmbeds.ts): a dark box, each question a numbered row that opens */
+.article-body .art-faq { margin-top: 2.4em; padding: 26px 26px 14px; background: var(--ink); color: #fff; border-radius: var(--radius); position: relative; overflow: hidden; }
+.article-body .art-faq::before { content: ''; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(198, 241, 53, 0.22), transparent 70%); pointer-events: none; }
+.article-body .art-faq__kicker { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.article-body .art-faq h2 { margin: 6px 0 14px; color: #fff; font-size: 28px; }
+.article-body .art-faq__list { display: flex; flex-direction: column; }
+.article-body .art-faq__item { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.article-body .art-faq__item summary { display: flex; align-items: center; gap: 14px; padding: 16px 0; cursor: pointer; list-style: none; font-size: 17px; font-weight: 700; line-height: 1.35; }
+.article-body .art-faq__item summary::-webkit-details-marker { display: none; }
+.article-body .art-faq__item summary:hover .art-faq__q { color: var(--lime); }
+.article-body .art-faq__item summary:focus-visible { outline: 2px solid var(--lime); outline-offset: 4px; border-radius: 6px; }
+.article-body .art-faq__n { flex: 0 0 auto; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; color: var(--lime); min-width: 30px; }
+.article-body .art-faq__q { flex: 1 1 auto; transition: color 0.15s; }
+.article-body .art-faq__icon { flex: 0 0 auto; position: relative; width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); transition: background 0.2s, transform 0.2s; }
+.article-body .art-faq__icon::before, .article-body .art-faq__icon::after { content: ''; position: absolute; left: 50%; top: 50%; width: 12px; height: 2px; margin: -1px 0 0 -6px; background: currentColor; border-radius: 1px; }
+.article-body .art-faq__icon::after { transform: rotate(90deg); transition: transform 0.2s; }
+.article-body .art-faq__item[open] .art-faq__icon { background: var(--lime); color: var(--ink); }
+.article-body .art-faq__item[open] .art-faq__icon::after { transform: rotate(0deg); }
+.article-body .art-faq__a { padding: 0 42px 18px 44px; font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, 0.78); }
+.article-body .art-faq__a > * + * { margin-top: 0.6em; }
+.article-body .art-faq__a p { margin: 0; }
+.article-body .art-faq__a a { text-decoration-color: var(--lime); }
+/* The sources and last update under the questions */
+.article-body .art-source { margin-top: 14px; padding-left: 14px; border-left: 3px solid var(--lime); font-size: 13px; line-height: 1.5; color: var(--ink-3); }
+@media (max-width: 560px) {
+  .article-body .art-faq { padding: 20px 16px 8px; margin-left: -4px; margin-right: -4px; }
+  .article-body .art-faq h2 { font-size: 24px; }
+  .article-body .art-faq__item summary { gap: 10px; font-size: 16px; }
+  .article-body .art-faq__a { padding: 0 0 16px 40px; font-size: 15px; }
+}
 /* The photographer in the bottom right corner of pictures from the photo archive (articles, cards, hero) */
 .photo-credit-wrap { position: relative; display: block; margin: 0; }
 .photo-credit-wrap > img { display: block; }

@@ -1,4 +1,5 @@
 import { genitive } from './words'
+import { articleFaq } from './articleEmbeds'
 import { sizedImage } from './imageSize'
 import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
@@ -236,13 +237,7 @@ export function faqLd(items: { q: string; a: string }[]) {
  * after it (until the next h3 or h2) the answer. Nothing without at least one pair.
  */
 export function articleFaqLd(html: string) {
-  const start = /<h2[^>]*>[^<]*(spørgsmål|faq|ofte stillede)[^<]*<\/h2>/i.exec(html)
-  if (!start) return undefined
-  const rest = html.slice(start.index + start[0].length)
-  const section = rest.split(/<h2[\s>]/i)[0]
-  const items = [...section.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3[\s>]|$)/gi)]
-    .map((m) => ({ q: textOf(m[1]), a: textOf(m[2]) }))
-    .filter((x) => x.q && x.a)
+  const items = (articleFaq(html)?.items ?? []).map((x) => ({ q: textOf(x.q), a: textOf(x.a) })).filter((x) => x.q && x.a)
   if (!items.length) return undefined
   return {
     '@context': 'https://schema.org',
