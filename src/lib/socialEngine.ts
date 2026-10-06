@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { loadFocusHeadToHead, pickMatches, picksFor } from './social'
 import { captionFor, captionList, captionVariants, contentFor, linkFor, titleFor, type PostSpec } from './socialContent'
 import { renderPost, renderSpec } from './socialRender'
-import { connected, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
+import { connected, facebookLinkComment, fetchMetrics, imageUrl, platformCaption, publishTo, refreshThreadsToken, storyOk } from './socialPlatforms'
 import { mailReady, sendMail } from './mail'
 import {
   KIND_NAMES,
@@ -344,7 +344,9 @@ export async function publishOne(id: string, again = false) {
       else {
         try {
           const text = t.surface === 'story' ? '' : platformCaption(t.platform, post.caption, post.link, cfg.hashtags)
-          const r = await publishTo(t.platform, t.surface, files, text)
+          // Facebook also gets the text without the link and the link as a comment, for Make to post the link in the comments
+          const fb = t.platform === 'facebook' && t.surface !== 'story' && post.link ? facebookLinkComment(post.caption, post.link, cfg.hashtags, post.article !== undefined) : undefined
+          const r = await publishTo(t.platform, t.surface, files, text, fb && { link: post.link, textNoLink: fb.text, comment: fb.comment })
           result = { platform: t.platform, surface: t.surface, status: 'ok', id: r.id, url: r.url, at: Date.now() }
         } catch (e) {
           result = { platform: t.platform, surface: t.surface, status: 'error', error: e instanceof Error ? e.message : String(e), at: Date.now() }
