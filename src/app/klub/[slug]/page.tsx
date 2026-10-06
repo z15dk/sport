@@ -42,7 +42,7 @@ import type { Match } from '../../../types'
 import { BASELINES, mainLeagueKey, sameLeagueKeys } from '../../../data/baselines'
 import { getRealData } from '../../../data/real'
 import { divisionOfGame } from '../../../data/ourLeagues'
-import { externalLeagueKey } from '../../../data/external'
+import { WOMEN_TEAM, externalLeagueKey, isWomenLeague } from '../../../data/external'
 import { cupOfGame } from '../../../data/cups'
 import { apiInjuries, apiLeagueIdOf, apiLeagueTable, apiTeamIdOf, apiTeamOwnGoals, apiTeamCoach, apiTeamPlayers, apiTeamSquad, apiTeamStadium, apiTeamStats, externalLeague, injuriesForTeam, teamLogos } from '../../../lib/apisports'
 import { TeamStatsPanel } from '../../../components/TeamStatsPanel'
@@ -84,6 +84,10 @@ export function generateStaticParams() {
 /** A men's senior national team in a tournament between countries ("Danmark", "Wales"), not a youth or women's team */
 const isNationalSide = (team: { sport: string; country?: string; name: string }) => team.sport === 'soccer' && isInternational(team.country) && team.name in nationalTeams()
 
+/** A women's team in a women's league under its name with "(K)", where the name does not already say so ("Brøndby IF (K)"; "HB Køge (K)" and "OB Q" are kept) */
+const shownName = (team: { name: string; league: string; country?: string }) =>
+  isWomenLeague(team.league, team.country) && !WOMEN_TEAM.test(team.name) && !/\sQ$/.test(team.name) ? `${team.name} (K)` : team.name
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const team = teamBySlug((await params).slug)
   if (!team) return { title: 'Klubben findes ikke' }
@@ -107,9 +111,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       const home = !!next && names.has(normalize(next.home.name))
       const channel = next ? channelsFor(next)[0]?.name : undefined
       const when = next ? `Næste kamp: ${home ? 'hjemme' : 'ude'} mod ${home ? next.away.name : next.home.name} ${formatLong(next.kickoff)} kl. ${formatTime(next.kickoff)}${channel ? ` på ${channel}` : ''}.` : ''
-      const text = `${team.name} spiller i ${team.league}. ${when}`.trim()
+      const text = `${shownName(team)} spiller i ${team.league}. ${when}`.trim()
       return {
-        title: `${team.name}: kampprogram, resultater og stilling`,
+        title: `${shownName(team)}: kampprogram, resultater og stilling`,
         description: text.length <= 130 ? `${text} Se kampprogram, resultater og stilling.` : text,
         alternates: { canonical: paths.club(team.slug) },
         ...(empty && { robots: { index: false, follow: true } }),
@@ -125,8 +129,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       }
     }
     return {
-      title: `${team.name} – resultater og kampprogram`,
-      description: `Seneste resultater og kommende kampe for ${team.name} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
+      title: `${shownName(team)} – resultater og kampprogram`,
+      description: `Seneste resultater og kommende kampe for ${shownName(team)} i ${team.league} (${sport}${team.country ? `, ${team.country}` : ''}).`,
       alternates: { canonical: paths.club(team.slug) },
       ...(empty && { robots: { index: false, follow: true } }),
     }
@@ -653,7 +657,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
       <div className="clubs">
         {newPage ? (
           <KlubHeader
-            name={team.name}
+            name={shownName(team)}
             slug={team.slug}
             logo={team.logo ?? (national ? nationalTeams()[team.name] : undefined)}
             national={national}
@@ -685,7 +689,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
               {team.leagueSlug ? <Link href={paths.league(team.leagueSlug)}>{team.league}</Link> : team.league}
               {team.country && ` · ${danishCountry(team.country)}`}
             </span>
-            <h1>{seniorNationalTeam(team.name, team.sport) ? `${genitive(team.name)} landshold` : team.name}</h1>
+            <h1>{seniorNationalTeam(team.name, team.sport) ? `${genitive(team.name)} landshold` : shownName(team)}</h1>
           </div>
           <FollowButton slug={team.slug} name={team.name} />
         </header>
