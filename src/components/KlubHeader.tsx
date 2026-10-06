@@ -46,6 +46,8 @@ export interface KlubHeaderProps {
   subtitle?: string
   /** A national team: "Følg holdet", not "Følg klubben" */
   national?: boolean
+  /** A national team's place on FIFA's world ranking (src/data/fifaRanking.ts) */
+  fifaRank?: number
   now: number
 }
 
@@ -59,14 +61,14 @@ const FIELDS: { key: keyof KlubHeaderRow; label: string; short: string }[] = [
 ]
 const RESULT: Record<'V' | 'U' | 'T', string> = { V: 'Vundet', U: 'Uafgjort', T: 'Tabt' }
 
-export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, subtitle, national, now }: KlubHeaderProps) {
+export function KlubHeader({ name, slug, logo, league, place, color, row, form, next, sections, calendarHref, ticketHref, coach, note, subtitle, national, fifaRank, now }: KlubHeaderProps) {
   const fields = FIELDS.filter((f) => row?.[f.key] !== undefined)
   const latest = (form ?? []).slice(-5)
   // Unbeaten in every match of the season so far
   const unbeaten = row?.lost === 0 && (row.played ?? 0) > 0 ? row.played : undefined
   // The name's length sets its size, so a long name ("FC Nordsjælland") stops short of the stripes (see .kh-name)
   const style = { '--kh-club': color, '--kh-n': Math.max(3, name.length) } as CSSProperties
-  const hasStrip = fields.length > 0 || latest.length > 0 || !!next || !!coach
+  const hasStrip = fields.length > 0 || latest.length > 0 || !!next || !!coach || !!fifaRank
   return (
     <header className="kh" id="oversigt" style={style}>
       <div className="kh-hero">
@@ -111,8 +113,14 @@ export function KlubHeader({ name, slug, logo, league, place, color, row, form, 
               ))}
             </dl>
           )}
-          {(latest.length > 0 || next || coach) && (
+          {(latest.length > 0 || next || coach || fifaRank) && (
             <div className="kh-extras">
+              {fifaRank && (
+                <div className="kh-extra">
+                  <span className="kh-label">FIFA-rangliste</span>
+                  <span className="kh-text">Nr. {fifaRank}</span>
+                </div>
+              )}
               {latest.length > 0 && (
                 <div className="kh-extra">
                   <span className="kh-label">Seneste {latest.length === 5 ? 'fem' : latest.length}</span>

@@ -18,6 +18,7 @@ import { StandingsTable } from '../../../components/StandingsTable'
 import { TeamBadge } from '../../../components/TeamBadge'
 import { danishCountry, isInternational, shownTeam } from '../../../data/countries'
 import { nationalTeams } from '../../../lib/nationalTeams'
+import { fifaRank } from '../../../data/fifaRanking'
 import { counted, genitive } from '../../../lib/words'
 import { BadgeWatermark } from '../../../components/BadgeWatermark'
 import { JsonLd, breadcrumbLd, clubLd, faqLd, matchLd, teamPageLd, webPageLd } from '../../../lib/jsonld'
@@ -638,6 +639,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
             slug={team.slug}
             logo={team.logo ?? (national ? nationalTeams()[team.name] : undefined)}
             national={national}
+            fifaRank={national ? fifaRank(names) : undefined}
             league={{ name: team.league, href: team.leagueSlug ? paths.league(team.leagueSlug) : undefined }}
             place={team.country && !national ? danishCountry(team.country) : undefined}
             subtitle={national ? `${genitive(team.name)} landshold – kampe, resultater og stilling` : undefined}
