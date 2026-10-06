@@ -68,6 +68,20 @@ export function platformCaption(platform: Platform, raw: string, link: string, h
   }
 }
 
+/**
+ * Facebook with the link in the comments (a post with a link in its text reaches fewer people): the text ends with a
+ * pointer to the comments instead of the link, and the comment carries the link. Make posts the text and then
+ * comments on its own post (see makePayload).
+ */
+export function facebookLinkComment(raw: string, link: string, hashtags: string, article: boolean): { text: string; comment: string } {
+  const tags = hashtags.trim()
+  const caption = withTags('facebook', raw)
+  return {
+    text: [caption, 'Link i kommentarerne 👇', tags].filter(Boolean).join('\n\n'),
+    comment: `${article ? 'Læs hele artiklen her' : 'Se det hele på Matchly'} 👉 ${link}`,
+  }
+}
+
 const LETTER = 'A-Za-z0-9ÆØÅæøåÄÖÜäöüÉéÁáÍíÓóÚúÑñÇç'
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -132,17 +146,42 @@ async function makeHook(s: SocialSecrets, payload: Record<string, unknown>) {
   }
 }
 
-const makePayload = (type: 'post' | 'test', caption: string, files: string[]) => {
+/** What Facebook gets besides the text: the post's link, and the text and comment for putting the link in the comments */
+export interface FacebookExtra {
+  link?: string
+  /** The text without the link, ending with "Link i kommentarerne 👇" */
+  textNoLink?: string
+  /** The first comment, with the link */
+  comment?: string
+}
+
+/**
+ * The data Make gets. `text` is the text with the link in it (as before); `textNoLink` and `comment` are for posting
+ * the link as the first comment instead: the scenario maps `textNoLink` as the caption and adds a "Create a Comment"
+ * module on the new post with `comment` as its message.
+ */
+const makePayload = (type: 'post' | 'test', caption: string, files: string[], extra: FacebookExtra = {}) => {
   const images = files.map((f) => imageUrl(f))
-  return { type, platform: 'facebook', text: caption, image: images[0], imageCount: images.length, images, photos: images.map((url) => ({ type: 'url', url })) }
+  return {
+    type,
+    platform: 'facebook',
+    text: caption,
+    textNoLink: extra.textNoLink ?? caption,
+    link: extra.link ?? '',
+    comment: extra.comment ?? '',
+    image: images[0],
+    imageCount: images.length,
+    images,
+    photos: images.map((url) => ({ type: 'url', url })),
+  }
 }
 
 // ---------------------------------------------------------------- Facebook
 
-async function facebook(s: SocialSecrets, surface: Surface, files: string[], caption: string) {
+async function facebook(s: SocialSecrets, surface: Surface, files: string[], caption: string, extra?: FacebookExtra) {
   if (viaMake(s)) {
     if (surface === 'story') throw new ApiError('Stories kan ikke postes gennem Make')
-    return makeHook(s, makePayload('post', caption, files))
+    return makeHook(s, makePayload('post', caption, files, extra))
   }
   const { pageId, pageToken } = s.meta
   if (!pageId || !pageToken) throw new ApiError('Facebook-siden er ikke forbundet')
@@ -295,12 +334,12 @@ async function x(s: SocialSecrets, files: string[], caption: string) {
 // ---------------------------------------------------------------- posting
 
 /** Posts the pictures with the text on one platform; stories only on Facebook and Instagram */
-export async function publishTo(platform: Platform, surface: Surface, files: string[], caption: string): Promise<{ id: string; url?: string }> {
+export async function publishTo(platform: Platform, surface: Surface, files: string[], caption: string, extra?: FacebookExtra): Promise<{ id: string; url?: string }> {
   const s = socialSecrets()
   if (!files.length) throw new ApiError('Ingen billeder')
   switch (platform) {
     case 'facebook':
-      return facebook(s, surface, files, caption)
+      return facebook(s, surface, files, caption, extra)
     case 'instagram':
       return instagram(s, surface, files, caption)
     case 'threads':
@@ -466,7 +505,8 @@ export async function testPlatform(platform: Platform): Promise<string> {
       if (viaMake(s)) {
         // A sample post marked "test", for Make to learn the data's structure (the scenario's filter keeps it from being posted);
         // two pictures, so Make sees photos as a list and the whole list is mapped – not just the first
-        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg']))
+        const sample = facebookLinkComment('Test fra Matchly – dette opslag skal ikke postes.', `${SITE_URL}/artikler`, '', true)
+        await makeHook(s, makePayload('test', 'Test fra Matchly – dette opslag skal ikke postes.', ['test-eksempel.jpg', 'test-eksempel.jpg'], { link: `${SITE_URL}/artikler`, textNoLink: sample.text, comment: sample.comment }))
         return 'Eksemplet er sendt til Make'
       }
       if (!s.meta.pageToken) throw new ApiError('Ikke forbundet')
