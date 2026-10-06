@@ -55,12 +55,15 @@ export interface CupView {
 }
 
 const GROUP = /^group\b/i
+const REPLAY = /\s*replays?$/i
 
 export function cupView({ games, toMatch, statGames, now }: { games: ExternalGame[]; toMatch: (g: ExternalGame) => Match; statGames: StatGame[]; now: number }): CupView {
+  // A round's replays (the FA Cup's qualifying rounds) belong to the round itself, not a round of their own
   const byRound = new Map<string, ExternalGame[]>()
   for (const g of games) {
     if (!g.round || g.state === 'postponed') continue
-    ;(byRound.get(g.round) ?? byRound.set(g.round, []).get(g.round)!).push(g)
+    const round = g.round.replace(REPLAY, '')
+    ;(byRound.get(round) ?? byRound.set(round, []).get(round)!).push(g)
   }
   // The group stage's groups (EFL Trophy: "Group North - 1" … "Group South - 8") as one stage
   const rounds: CupRound[] = []
@@ -93,7 +96,7 @@ export function cupView({ games, toMatch, statGames, now }: { games: ExternalGam
     : next
       ? (() => {
           const m = toMatch(next)
-          return { kind: 'next', home: m.home.name, away: m.away.name, kickoff: next.kickoff, slug: m.slug, round: GROUP.test(next.round ?? '') ? 'Gruppespil' : (danishRound(next.round) ?? '') }
+          return { kind: 'next', home: m.home.name, away: m.away.name, kickoff: next.kickoff, slug: m.slug, round: GROUP.test(next.round ?? '') ? 'Gruppespil' : `${danishRound((next.round ?? '').replace(REPLAY, '')) ?? ''}${REPLAY.test(next.round ?? '') ? ' (omkamp)' : ''}` }
         })()
       : { kind: 'waiting', after: current?.name ?? '' }
 

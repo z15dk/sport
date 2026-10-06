@@ -88,8 +88,14 @@ function CupHero({ league, view, info, stats }: Pick<Props, 'league' | 'view' | 
             <span>
               <em>{current.played === current.total ? 'Seneste runde' : 'Runden nu'}</em>
               <b>{current.name}</b>
+              <small>
+                {current.played} af {counted(current.total, 'kamp', 'kampe')} spillet
+              </small>
             </span>
-            <strong>{view.teamsInRound}</strong>
+            <strong className="cx-hero__teams">
+              {view.teamsInRound}
+              <small>hold</small>
+            </strong>
           </div>
         )}
         {stats && (

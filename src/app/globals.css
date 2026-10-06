@@ -859,7 +859,7 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 /* Every tournament, sport by sport: the countries in even columns, each with its tournaments under it */
 .footer__all { margin-top: 16px; }
 .footer__all .footer__sport { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-.footer__all .footer__sport span { font-family: var(--body, inherit); font-style: normal; font-weight: 600; font-size: 11px; color: #fff; opacity: 0.5; }
+.footer__all .footer__sport span { font-family: var(--body); font-style: normal; font-weight: 600; font-size: 11px; color: #fff; opacity: 0.5; }
 .footer__countries { columns: 190px; column-gap: 24px; }
 .footer__country { break-inside: avoid; padding: 0 0 12px; }
 .footer__countryname { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 2px; }
@@ -1440,7 +1440,7 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 @media (prefers-reduced-motion: reduce) { .featured__teams { animation: none; } }
 .history__sub { padding: 14px 18px 4px; margin: 0; }
 .history__missing td { color: var(--ink-3); font-style: italic; }
-.history__partial { font-family: var(--body, inherit); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); }
+.history__partial { font-family: var(--body); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-3); }
 .history__missing-cell { color: var(--ink-3); font-style: italic; }
 
 /* Match page: two columns that fill evenly, wide sections below */
@@ -3013,3 +3013,6 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
   .cx-plan__list li { grid-template-columns: minmax(0, 1fr) auto; }
   .cx-plan__count { grid-column: 1 / -1; text-align: left; margin-top: -4px; }
 }
+.cx-hero .lx-hero__leader small { font-size: 12px; color: var(--ink-3); }
+.cx-hero__teams { display: flex; flex-direction: column; align-items: flex-end; }
+.cx-hero__teams small { font-family: var(--body); font-style: normal; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
