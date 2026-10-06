@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 // The week's task as a checklist on /admin/vaekst: each tick is saved at once (src/lib/growth.ts)
 
-export function GrowthChecklist({ task, steps, done }: { task: string; steps: { id: string; text: string }[]; done: Record<string, string> }) {
+export function GrowthChecklist({ task, steps, done }: { task: string; steps: { id: string; text: string; by?: 'claude' | 'dig'; done?: string }[]; done: Record<string, string> }) {
   const [ticks, setTicks] = useState(done)
   const [error, setError] = useState<string>()
 
@@ -32,10 +32,12 @@ export function GrowthChecklist({ task, steps, done }: { task: string; steps: { 
       </div>
       <ul>
         {steps.map((s) => (
-          <li key={s.id} className={ticks[s.id] ? 'is-done' : undefined}>
+          <li key={s.id} className={`${ticks[s.id] ? 'is-done' : ''}${s.by === 'claude' ? ' is-claude' : ''}`}>
             <label>
-              <input type="checkbox" checked={!!ticks[s.id]} onChange={() => void toggle(s.id)} />
+              {/* A step Claude has done stays done (it is in the task file, not the admin's ticks) */}
+              <input type="checkbox" checked={!!ticks[s.id]} disabled={s.by === 'claude' && !!s.done} onChange={() => void toggle(s.id)} />
               <span>{s.text}</span>
+              <em className={`growth-check__who growth-check__who--${s.by === 'claude' ? 'claude' : 'dig'}`}>{s.by === 'claude' ? 'Claude' : 'Dig'}</em>
             </label>
           </li>
         ))}

@@ -9,9 +9,10 @@ import { visitStats } from './visits'
 // - Google: Search Console read with the service account (the same key as the photo system, read-only
 //   scope), kept in data/vaekst/gsc.json for six hours so the page never waits on Google more than once.
 // - The site's own page views (src/lib/visits.ts).
-// - The week's tasks as a checklist: Claude's Monday report writes one file per week to
-//   data/vaekst/opgaver/<year>-<week>.json (never touched by the site); the ticks are the admin's,
-//   kept in data/vaekst/state.json. The report reads them back to follow up.
+// - The week's tasks as checklists: Claude's Monday report writes one file per task to
+//   data/vaekst/opgaver/<year>-<week>[-<n>].json (never touched by the site). Steps Claude does itself
+//   come marked done in the file; the admin's own ticks are kept in data/vaekst/state.json.
+//   The report reads them back to follow up.
 
 export const GOAL_PER_DAY = 10_000
 
@@ -173,7 +174,8 @@ export interface GrowthTask {
   goal: string
   /** The numbers measured when the task was given */
   before: string
-  steps: { id: string; text: string }[]
+  /** `by: 'claude'` is a step Claude does itself; `done` is when it was done (set in the file by Claude, not by the admin) */
+  steps: { id: string; text: string; by?: 'claude' | 'dig'; done?: string }[]
   /** Measured by the report 2 and 4 weeks later */
   after2?: string
   after4?: string
@@ -205,7 +207,7 @@ export function growthTasks(): (GrowthTask & { done: Record<string, string>; com
   const tasksDir = path.join(dir(), 'opgaver')
   let files: string[] = []
   try {
-    files = readdirSync(tasksDir).filter((f) => /^\d{4}-\d{1,2}\.json$/.test(f))
+    files = readdirSync(tasksDir).filter((f) => /^\d{4}-\d{1,2}(-[a-z0-9]+)?\.json$/.test(f))
   } catch {
     return []
   }
@@ -220,7 +222,8 @@ export function growthTasks(): (GrowthTask & { done: Record<string, string>; com
     })
     .filter((t): t is GrowthTask => !!t && Array.isArray(t.steps))
     .map((t) => {
-      const done = state[t.id]?.steps ?? {}
+      // Ticked by the admin, or done by Claude (written in the task file)
+      const done = { ...Object.fromEntries(t.steps.filter((s) => s.done).map((s) => [s.id, s.done!])), ...(state[t.id]?.steps ?? {}) }
       return { ...t, done, complete: t.steps.length > 0 && t.steps.every((s) => done[s.id]) }
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))

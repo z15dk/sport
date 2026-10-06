@@ -24,7 +24,12 @@ export default async function GrowthPage() {
   const views = siteViews()
   const gsc = searchConsole()
   const tasks = growthTasks()
-  const [current, ...earlier] = tasks
+  // This week's tasks and any earlier ones not done yet are the checklists; the rest is history
+  const week = tasks[0]?.week
+  const open = tasks.filter((t) => t.week === week || !t.complete).sort((a, b) => Number(a.complete) - Number(b.complete) || a.createdAt.localeCompare(b.createdAt))
+  const earlier = tasks.filter((t) => !open.includes(t))
+  const left = open.reduce((n, t) => n + t.steps.filter((s) => !t.done[s.id] && s.by !== 'claude').length, 0)
+  const byClaude = open.reduce((n, t) => n + t.steps.filter((s) => s.by === 'claude' && t.done[s.id]).length, 0)
   const perDay = views?.perDay ?? 0
   const google = views?.refs.find((r) => r.ref === 'Google')?.visitors ?? 0
   // The milestones on the way to the goal, and the next one not reached
@@ -118,37 +123,48 @@ export default async function GrowthPage() {
         </div>
 
         <section className="panel dash-card growth-task">
-          <h2 className="panel__title">Ugens opgave{current ? ` · uge ${current.week}` : ''}</h2>
-          {current ? (
-            <div className="growth-task__body">
-              <h3>{current.title}</h3>
-              <p>{current.why}</p>
-              <GrowthChecklist task={current.id} steps={current.steps} done={current.done} />
-              <dl className="growth-task__facts">
-                <div>
-                  <dt>Før</dt>
-                  <dd>{current.before}</dd>
-                </div>
-                <div>
-                  <dt>Mål</dt>
-                  <dd>{current.goal}</dd>
-                </div>
-                {current.after2 && (
+          <h2 className="panel__title">Ugens opgaver{week ? ` · uge ${week}` : ''}</h2>
+          {open.length > 0 && (
+            <p className="growth-task__sum">
+              <b>{left}</b> {left === 1 ? 'trin' : 'trin'} til dig · <b>{byClaude}</b> løst af Claude · {open.filter((t) => t.complete).length} af {open.length} opgaver klaret
+            </p>
+          )}
+          {open.length ? (
+            open.map((t) => (
+              <div key={t.id} className={`growth-task__body${t.complete ? ' is-complete' : ''}`}>
+                <h3>
+                  {t.complete && <span className="growth-task__ok">✓</span>}
+                  {t.title}
+                  {t.week !== week && <span className="growth-task__carry">fra uge {t.week}</span>}
+                </h3>
+                <p>{t.why}</p>
+                <GrowthChecklist task={t.id} steps={t.steps} done={t.done} />
+                <dl className="growth-task__facts">
                   <div>
-                    <dt>Efter 2 uger</dt>
-                    <dd>{current.after2}</dd>
+                    <dt>Før</dt>
+                    <dd>{t.before}</dd>
                   </div>
-                )}
-                {current.after4 && (
                   <div>
-                    <dt>Efter 4 uger</dt>
-                    <dd>{current.after4}</dd>
+                    <dt>Mål</dt>
+                    <dd>{t.goal}</dd>
                   </div>
-                )}
-              </dl>
-            </div>
+                  {t.after2 && (
+                    <div>
+                      <dt>Efter 2 uger</dt>
+                      <dd>{t.after2}</dd>
+                    </div>
+                  )}
+                  {t.after4 && (
+                    <div>
+                      <dt>Efter 4 uger</dt>
+                      <dd>{t.after4}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            ))
           ) : (
-            <p className="muted pad">Ingen opgave endnu – den kommer med Claudes rapport mandag morgen.</p>
+            <p className="muted pad">Ingen opgaver endnu – de kommer med Claudes rapport mandag morgen.</p>
           )}
         </section>
 
