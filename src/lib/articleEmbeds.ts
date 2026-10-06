@@ -97,5 +97,5 @@ export function styleFaq(html: string): string {
     )
     .join('')
   const note = faq.note ? `<p class="art-source">${faq.note}</p>` : ''
-  return `${faq.before}<section class="art-faq" aria-labelledby="ofte-stillede-spoergsmaal"><p class="art-faq__kicker">Spørgsmål og svar</p><h2 id="ofte-stillede-spoergsmaal">${faq.title}</h2><div class="art-faq__list">${rows}</div></section>${note}${faq.after}`
+  return `${faq.before}<section class="art-faq" aria-labelledby="ofte-stillede-spoergsmaal"><span class="art-faq__m" aria-hidden="true">M</span><p class="art-faq__kicker"><span class="art-faq__logo">Matchly<span class="logo__dot">.</span></span><span>Spørgsmål og svar</span></p><h2 id="ofte-stillede-spoergsmaal">${faq.title}</h2><div class="art-faq__list">${rows}</div><p class="art-faq__foot">Svarene er skrevet af Matchly<span class="logo__dot">.</span></p></section>${note}${faq.after}`
 }
