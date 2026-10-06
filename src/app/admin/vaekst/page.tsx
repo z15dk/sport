@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
-import { Bars } from '../../../components/admin/DashBars'
 import { GrowthChecklist } from '../../../components/admin/GrowthChecklist'
 import { isAdmin } from '../../../lib/admin'
 import { GOAL_PER_DAY, growthTasks, searchConsole, siteViews } from '../../../lib/growth'
@@ -11,6 +10,8 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Vækst · Admin', robots: { index: false, follow: false } }
 
 const num = (n: number) => n.toLocaleString('da-DK')
+/** Milestones on the way to 10,000 a day, so the progress is something you can see */
+const MILESTONES = [100, 250, 500, 1000, 2500, 5000, 10000]
 /** "+35 %" or "–12 %" against the week before; nothing to compare with gives "" */
 const change = (now: number, before: number) => (before > 0 ? `${now >= before ? '+' : '–'}${Math.abs(Math.round(((now - before) / before) * 100))} % mod ugen før` : '')
 
@@ -26,30 +27,67 @@ export default async function GrowthPage() {
   const [current, ...earlier] = tasks
   const perDay = views?.perDay ?? 0
   const google = views?.refs.find((r) => r.ref === 'Google')?.visitors ?? 0
+  // The milestones on the way to the goal, and the next one not reached
+  const next = MILESTONES.find((m) => m > perDay) ?? GOAL_PER_DAY
+  // The days since the count began (the first day with views), today last
+  const firstDay = views?.days.findIndex((d) => d.views > 0) ?? -1
+  const counted = firstDay >= 0 ? views!.days.slice(firstDay) : []
+  const maxDay = Math.max(1, ...counted.map((d) => d.views))
 
   return (
     <div className="page">
       <div className="clubs admin dash">
         <AdminNav current="/admin/vaekst" />
-        <div className="dash-head">
-          <h1 className="feed__title">Vækst</h1>
-          <p className="muted small">Vejen til {num(GOAL_PER_DAY)} sidevisninger om dagen · ugens opgave fra Claudes mandagsrapport · Google-tal fra Search Console</p>
-        </div>
-
-        <section className="panel dash-card growth-goal">
-          <h2 className="panel__title">Målet</h2>
-          <div className="growth-goal__row">
-            <strong>{num(perDay)}</strong>
-            <span>
-              sidevisninger om dagen (snit sidste 7 dage) · mål {num(GOAL_PER_DAY)}
-              {views && views.prev7 > 0 && <em> · {change(views.last7, views.prev7)}</em>}
+        {/* The top: the number, the next milestone on the way and the days counted so far */}
+        <header className="gh">
+          <span className="gh__m" aria-hidden="true">
+            M
+          </span>
+          <p className="gh__kicker">
+            <span className="gh__logo">
+              MATCHLY<b>.</b>
             </span>
+            <span>Vækst</span>
+            <span>Mål {num(GOAL_PER_DAY)} sidevisninger om dagen</span>
+          </p>
+          <div className="gh__main">
+            <div className="gh__now">
+              <strong>{num(perDay)}</strong>
+              <span>
+                sidevisninger om dagen
+                <small>snit sidste 7 dage{views && views.prev7 > 0 ? ` · ${change(views.last7, views.prev7)}` : ''}</small>
+              </span>
+            </div>
+            <div className="gh__next">
+              <span className="gh__label">Næste delmål</span>
+              <b>{num(next)} om dagen</b>
+              <div className="gh__bar" aria-label={`${Math.round((perDay / next) * 100)} % af delmålet`}>
+                <i style={{ width: `${Math.max(2, Math.min(100, (perDay / next) * 100))}%` }} />
+              </div>
+              <small>{perDay >= next ? 'Nået!' : `${num(next - perDay)} mangler · ${Math.round((perDay / next) * 100)} % af vejen`}</small>
+            </div>
           </div>
-          <div className="growth-goal__bar" aria-label={`${Math.round((perDay / GOAL_PER_DAY) * 1000) / 10} % af målet`}>
-            <i style={{ width: `${Math.max(0.5, Math.min(100, (perDay / GOAL_PER_DAY) * 100))}%` }} />
-          </div>
-          {views && <Bars values={views.days.map((d) => d.views)} labels={views.days.map((d) => d.day)} unit="sidevisninger" />}
-        </section>
+          <ol className="gh__steps" aria-label="Delmål på vejen">
+            {MILESTONES.map((m) => (
+              <li key={m} className={perDay >= m ? 'is-done' : m === next ? 'is-next' : undefined}>
+                <span>{m >= 1000 ? `${m / 1000}k` : m}</span>
+              </li>
+            ))}
+          </ol>
+          {counted.length > 0 && (
+            <div className="gh__days">
+              <span className="gh__label">Sidevisninger pr. dag, siden tællingen startede</span>
+              <div className="gh__chart">
+                {counted.map((d) => (
+                  <span key={d.day} title={`${d.day}: ${num(d.views)} sidevisninger`}>
+                    <i style={{ height: `${Math.max(3, (d.views / maxDay) * 100)}%` }} />
+                    <em>{Number(d.day.slice(8))}/{Number(d.day.slice(5, 7))}</em>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </header>
 
         <div className="dash-tiles growth-tiles">
           <div className="dash-tile">
@@ -114,7 +152,18 @@ export default async function GrowthPage() {
           )}
         </section>
 
-        {gsc && (gsc.almostPage1.length > 0 || gsc.noClicks.length > 0) && (
+        {/* Without Google's numbers yet the three boxes still stand, saying they are on their way */}
+        {!gsc && (
+          <div className="dash-grid growth-grid">
+            {['Tæt på side 1', 'Mest søgt', 'Set, men ikke klikket'].map((t) => (
+              <section key={t} className="panel dash-card">
+                <h2 className="panel__title">{t}</h2>
+                <p className="muted small pad">Google-tallene hentes – genindlæs siden om et øjeblik.</p>
+              </section>
+            ))}
+          </div>
+        )}
+        {gsc && (
           <div className="dash-grid growth-grid">
             <section className="panel dash-card">
               <h2 className="panel__title">Tæt på side 1</h2>
