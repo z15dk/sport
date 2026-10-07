@@ -37,8 +37,8 @@ const DANISH = new Set(['superliga', '1div', '2div', '3div'])
 
 /** What the datavagt holds up against what, every night */
 const CHECKS: { what: string; how: string }[] = [
-  { what: 'Træner', how: 'DBU ↔ datapartner' },
-  { what: 'Stadion', how: 'DBU ↔ datapartner' },
+  { what: 'Træner', how: 'to uafhængige kilder holdt op mod hinanden' },
+  { what: 'Stadion', how: 'to uafhængige kilder holdt op mod hinanden' },
   { what: 'Tabel', how: 'vores kampe ↔ officiel stilling' },
   { what: 'TV-kanal', how: 'ugens Superliga- og 1. divisionskampe' },
   { what: 'Kampstatus', how: 'kampe, der ikke er afsluttet' },
@@ -94,7 +94,7 @@ export default async function AboutPage() {
 
   const faq: FaqItem[] = [
     { q: 'Er Matchly gratis?', a: 'Ja. Resultater, tabeller, statistik og artikler er gratis for alle. Siden betales af annoncer.' },
-    { q: 'Hvor kommer resultaterne fra?', a: 'Fra vores datapartnere og DBU. De kontrolleres automatisk, før de vises, og hver nat holder datavagten vores tal op mod flere kilder.' },
+    { q: 'Kan man stole på resultaterne?', a: 'Resultaterne kontrolleres automatisk, før de vises, og hver nat holder datavagten vores tal op mod flere uafhængige kilder. Finder du alligevel en fejl, så skriv til os, så retter vi den.' },
     { q: 'Hvilke ligaer dækker Matchly?', a: `${divisions.map((d) => d.name).join(', ')}${danish.length ? ` og ${danish.map((t) => t.name).join(', ')}` : ''} – i alt ${number(tournaments)} turneringer i sæson ${SEASON}.` },
     { q: 'Hvordan kommer min klub med på Matchly?', a: `Alle klubber i de ligaer, vi følger, har deres egen side automatisk. Spiller jeres klub i en række, vi ikke dækker endnu, så skriv til ${CONTACT_EMAIL}.` },
     { q: 'Kan vi vise Matchlys tabel på vores egen hjemmeside?', a: 'Ja. Under "Tabel til din side" kan en klub eller et fanmedie hente en gratis tabel eller kampoversigt, der opdaterer sig selv.' },
@@ -203,7 +203,7 @@ export default async function AboutPage() {
             </p>
             {lastRun && (
               <p className="about-vagt__status">
-                <i aria-hidden="true" /> Seneste tjek: <b>{lastRun}</b>
+                Seneste tjek: <b>{lastRun}</b>
               </p>
             )}
           </div>
@@ -229,7 +229,7 @@ export default async function AboutPage() {
             I <Link href={paths.articles()}>artiklerne</Link> skriver vi nyheder, optakter og analyser om især dansk fodbold – også de rækker og kvindeligaer, som de store medier sjældent dækker.
           </p>
           <p>
-            Hver artikel bygger på navngivne kilder: klubbernes egne meddelelser, DBU, forbundene og danske og udenlandske medier. Fakta om personer, stadioner og TV-kanaler tjekker vi i mindst to kilder, og tal fra vores egne kampdata kontrolleres, før de bruges. Kilderne står nederst i artiklen.
+            Hver artikel bygger på navngivne kilder: klubbernes egne meddelelser, forbundene og danske og udenlandske medier. Fakta om personer, stadioner og TV-kanaler tjekker vi i mindst to kilder, og tal fra vores egne kampdata kontrolleres, før de bruges. Kilderne står nederst i artiklen.
           </p>
           <p>
             Vi bringer ikke citater, vi ikke selv har fået, og vi gætter ikke på det, vi ikke ved. Alle artikler læses og godkendes af redaktionen, før de udgives.

@@ -3149,10 +3149,8 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .about-vagt__intro { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .about-vagt__title { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(30px, 4.4vw, 48px); line-height: 0.95; text-transform: uppercase; }
 .about-vagt__intro p { margin: 0; line-height: 1.6; color: rgba(255, 255, 255, 0.8); max-width: 52ch; }
-.about-vagt__status { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 7px 14px; border-radius: 999px; background: rgba(198, 241, 53, 0.12); font-size: 14px; color: #fff !important; }
+.about-vagt__status { font-size: 14px; color: rgba(255, 255, 255, 0.8) !important; }
 .about-vagt__status b { color: var(--lime); }
-.about-vagt__status i { width: 9px; height: 9px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 0 rgba(198, 241, 53, 0.6); animation: vagt-ping 2s ease-out infinite; }
-@keyframes vagt-ping { 0% { box-shadow: 0 0 0 0 rgba(198, 241, 53, 0.6); } 80%, 100% { box-shadow: 0 0 0 10px rgba(198, 241, 53, 0); } }
 .about-vagt__checks { position: relative; overflow: hidden; list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; border-radius: var(--radius-sm); }
 /* The scan line sweeping down the list */
 .about-vagt__checks::after {
@@ -3167,7 +3165,7 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .about-vagt__checks span:last-child { font-size: 13px; color: rgba(255, 255, 255, 0.72); }
 .about-vagt__strip { grid-column: 1 / -1; margin: 0; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; color: rgba(255, 255, 255, 0.7); }
 .about-vagt__strip b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; color: var(--lime); }
-@media (prefers-reduced-motion: reduce) { .about-vagt__checks::after, .about-vagt__status i { animation: none; } .about-vagt__checks::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .about-vagt__checks::after { display: none; } }
 .about-clubs { padding-bottom: 18px; }
 .about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .about-clubs__card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
