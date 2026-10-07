@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# The Claude writer's only way to the site (deploy/claude-editor): it talks to Matchly's editor API on this
+# server and nowhere else, so the writer needs no curl and never sees the keys in its environment.
+#   matchly-api kladder              the new automatic drafts with their fact sheets (JSON)
+#   matchly-api alle                 also the drafts already read
+#   matchly-api gem <id> <fil.json>  saves the article in the file (in the writer's own folder) for draft <id>
+set -euo pipefail
+: "${SITE:?}" "${EDITOR_TOKEN:?}"
+case "${1:-}" in
+  kladder) exec curl -sS -H "Authorization: Bearer ${EDITOR_TOKEN}" "${SITE}/api/redaktor/kladder" ;;
+  alle) exec curl -sS -H "Authorization: Bearer ${EDITOR_TOKEN}" "${SITE}/api/redaktor/kladder?alle=1" ;;
+  gem)
+    id="${2:-}"; file="${3:-}"
+    [[ "$id" =~ ^[0-9]+$ ]] || { echo "Brug: matchly-api gem <id> <fil.json>" >&2; exit 2; }
+    # Only a plain file in the writer's own folder
+    [[ "$file" =~ ^[A-Za-z0-9._-]+\.json$ && -f "$file" ]] || { echo "Filen skal være en .json-fil i din egen mappe" >&2; exit 2; }
+    exec curl -sS -w '\nHTTP %{http_code}\n' -X POST -H "Authorization: Bearer ${EDITOR_TOKEN}" -H 'content-type: application/json' "${SITE}/api/redaktor/kladder/${id}" --data-binary "@${file}"
+    ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json>" >&2; exit 2 ;;
+esac

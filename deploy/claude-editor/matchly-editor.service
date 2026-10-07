@@ -1,6 +1,6 @@
-# Claude som redaktør (matchly-editor.timer): læser de automatiske optakter og referater igennem, tjekker fakta
-# på nettet og skriver en vurdering. Egen bruger uden adgang til sitets data og hemmeligheder; kun curl mod
-# sitets redaktør-API og websøgning. Lav prioritet og loft over hukommelse, så siden altid går forud.
+# Claude som skribent (matchly-editor.timer): skriver de automatiske optakter og referater om, tjekker fakta på
+# nettet og skriver en vurdering. Egen bruger uden adgang til sitets data og hemmeligheder; kun matchly-api mod
+# sitets redaktør-API, websøgning og egen mappe. Lav prioritet og loft over hukommelse, så siden altid går forud.
 [Unit]
 Description=Matchly: Claude læser de automatiske kladder igennem
 After=network-online.target scoreline.service
@@ -14,7 +14,7 @@ WorkingDirectory=/var/lib/matchly-editor
 EnvironmentFile=/etc/matchly-editor.env
 Environment=HOME=/var/lib/matchly-editor
 # The newest script and prompt from the live release, copied as root into the editor's own folder before each run
-ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/bin /opt/scoreline/current/deploy/claude-editor/run.sh /opt/scoreline/current/deploy/claude-editor/PROMPT.md
+ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/bin /opt/scoreline/current/deploy/claude-editor/run.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/PROMPT.md
 ExecStart=/var/lib/matchly-editor/bin/run.sh
 Nice=15
 CPUQuota=50%
