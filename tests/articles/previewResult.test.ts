@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hasResult, previewMatchSlug, withResult } from '../../src/lib/previewResultText.ts'
+import { hasResult, isRoundUp, previewMatchSlug, withResult, withoutResult } from '../../src/lib/previewResultText.ts'
 
 const html = '<p>Lørdag møder <a href="/klub/esbjerg-fb">Esbjerg</a> AaB. Følg den på <a href="/kamp/esbjerg-fb-aab-2026-10-10">kampsiden</a> og <a href="/kamp/kolding-if-ab-2026-10-24">næste kamp</a>.</p>'
 
@@ -26,4 +26,12 @@ test('the result is drawn as a box', async () => {
   assert.ok(out.includes('href="/kamp/esbjerg-fb-aab-2026-10-10"'))
   assert.ok(out.endsWith(html))
   assert.equal(styleResult(html), html)
+})
+
+test('a round-up of the day gets no result, and loses one put there by mistake', () => {
+  const roundUp = '<p><a href="/kamp/croatia-spain-2026-10-06">a</a> <a href="/kamp/england-czechia-2026-10-06">b</a></p>'
+  assert.ok(isRoundUp(roundUp))
+  assert.ok(!isRoundUp(html))
+  const wrong = withResult(roundUp, { slug: 'croatia-spain-2026-10-06', home: 'Kroatien', away: 'Spanien', hs: 1, as: 2 })
+  assert.equal(withoutResult(wrong), roundUp)
 })
