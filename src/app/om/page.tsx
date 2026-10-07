@@ -35,13 +35,13 @@ export const metadata: Metadata = {
 
 const DANISH = new Set(['superliga', '1div', '2div', '3div'])
 
-/** What the datavagt holds up against what, every night, each with its icon (24×24 strokes) */
-const CHECKS: { what: string; how: string; icon: string }[] = [
-  { what: 'Træner', how: 'minimum 2 kilder målt op mod hinanden', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c.8-4 4-6 8-6s7.2 2 8 6' },
-  { what: 'Stadion', how: 'minimum 2 kilder målt op mod hinanden', icon: 'M3 9c0-2 4-4 9-4s9 2 9 4v6c0 2-4 4-9 4s-9-2-9-4V9ZM3 9c0 2 4 4 9 4s9-2 9-4M12 13v6' },
-  { what: 'Tabel', how: 'vores kampe ↔ officiel stilling', icon: 'M4 5h16M4 10h16M4 15h16M4 20h16M8 5v15' },
-  { what: 'TV-kanal', how: 'ugens Superliga- og 1. divisionskampe', icon: 'M3 7h18v11H3zM8 21h8M9 3l3 4 3-4' },
-  { what: 'Kampstatus', how: 'kampe, der ikke er afsluttet', icon: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM12 9v4l3 2M10 2h4' },
+/** What the datavagt holds up against what, every night */
+const CHECKS: { what: string; how: string }[] = [
+  { what: 'Træner', how: 'Minimum 2 kilder målt op mod hinanden' },
+  { what: 'Stadion', how: 'Minimum 2 kilder målt op mod hinanden' },
+  { what: 'Tabel', how: 'Vores kampe mod den officielle stilling' },
+  { what: 'TV-kanal', how: 'Ugens Superliga- og 1. divisionskampe' },
+  { what: 'Kampstatus', how: 'Kampe, der ikke er afsluttet timer efter kampstart' },
 ]
 
 /** When the datavagt last ran, as a person says it: "i nat kl. 03.12", "i dag kl. 11.20", "i går kl. 03.10" */
@@ -192,50 +192,41 @@ export default async function AboutPage() {
           {others > danish.length && <p className="about-cover__more">Plus {number(others - danish.length)} turneringer mere i hele verden – se dem alle nederst på siden.</p>}
         </section>
 
-        <section className="panel about-vagt" id="datavagten" aria-labelledby="about-vagt">
-          <div className="about-vagt__top">
-            <div className="about-vagt__intro">
-              <h2 id="about-vagt" className="about-vagt__title">
-                Vi tjekker os selv. Hver nat.
-              </h2>
-              <p>
-                Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i minimum 2 uafhængige kilder og rettes, før du ser det.
-              </p>
-              {lastRun && (
-                <p className="about-vagt__status">
-                  Seneste tjek: <b>{lastRun}</b>
-                </p>
-              )}
-            </div>
-            <dl className="about-vagt__big">
-              <div>
-                <dt>{number(checkedClubs)}</dt>
-                <dd>danske klubber</dd>
-              </div>
-              <div>
-                <dt>{CHECKS.length}</dt>
-                <dd>tjek pr. klub</dd>
-              </div>
-              <div>
-                <dt>2+</dt>
-                <dd>kilder pr. fakta</dd>
-              </div>
-            </dl>
+        <section className="panel prose__section about-vagt" id="datavagten">
+          <h2 className="panel__title">Vi tjekker os selv hver nat</h2>
+          <p>
+            Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i minimum 2 uafhængige kilder og rettes, før du ser det.
+          </p>
+          <div className="about-vagt__table">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="num">#</th>
+                  <th>Tjek</th>
+                  <th>Sådan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CHECKS.map((c, i) => (
+                  <tr key={c.what} className="zone--up">
+                    <td className="num pos">{i + 1}</td>
+                    <td>
+                      <b>{c.what}</b>
+                    </td>
+                    <td className="about-vagt__how">{c.how}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <ul className="about-vagt__checks" aria-label="Det tjekker datavagten">
-            {CHECKS.map((c, i) => (
-              <li key={c.what} style={{ '--i': i } as CSSProperties}>
-                <span className="about-vagt__tick" aria-hidden="true">
-                  ✓
-                </span>
-                <svg className="about-vagt__icon" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
-                  <path d={c.icon} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <b>{c.what}</b>
-                <span>{c.how}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="about-vagt__status">
+            {lastRun && (
+              <>
+                Seneste tjek: <b>{lastRun}</b> ·{' '}
+              </>
+            )}
+            {number(checkedClubs)} danske klubber
+          </p>
         </section>
 
         <section className="panel prose__section" id="artikler">
