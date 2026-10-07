@@ -3085,33 +3085,35 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .cx-hero__teams { display: flex; flex-direction: column; align-items: flex-end; }
 .cx-hero__teams small { font-family: var(--body); font-style: normal; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 
-/* A preview's result once the match is played (styleResult in src/lib/articleEmbeds.ts): the questions box's look */
+/* A preview's result once the match is played (styleResult in src/lib/articleEmbeds.ts): the questions box's look, kept low */
 .article-body .art-result {
-  margin: 0 0 2em; padding: 24px 26px 18px; color: #fff; border-radius: var(--radius); position: relative; overflow: hidden; isolation: isolate;
+  margin: 0 0 2em; padding: 16px 22px 14px; color: #fff; border-radius: var(--radius); position: relative; overflow: hidden; isolation: isolate;
   background:
     radial-gradient(55% 85% at 0% 20%, rgba(44, 58, 12, 0.85) 0%, transparent 72%),
     radial-gradient(55% 85% at 100% 80%, rgba(198, 241, 53, 0.16) 0%, transparent 72%),
     linear-gradient(180deg, #171c0d 0%, #0b0d07 100%);
 }
 .article-body .art-result p { margin: 0; }
-.article-body .art-result .art-faq__m { font-size: 300px; right: -30px; }
-.article-body .art-result__title { margin: 6px 0 14px !important; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1.05; text-transform: uppercase; color: #fff; }
-.article-body .art-result__score {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 22px;
-  padding: 18px 0; border-top: 1px solid rgba(255, 255, 255, 0.12); border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-.article-body .art-result__score strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 64px; line-height: 0.9; color: var(--lime); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.article-body .art-result .art-faq__m { font-size: 220px; right: -24px; }
+.article-body .art-result__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.article-body .art-result__score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 20px; padding: 10px 0 4px; }
+.article-body .art-result__score strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 52px; line-height: 0.9; color: var(--lime); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .article-body .art-result__dash { margin: 0 6px; color: rgba(255, 255, 255, 0.35); }
-.article-body .art-result__team { font-weight: 700; font-size: 20px; line-height: 1.2; }
+.article-body .art-result__team { font-weight: 700; font-size: 19px; line-height: 1.2; }
 .article-body .art-result__team:first-child { text-align: right; }
-.article-body .art-result__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
-.article-body .art-result__link { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--lime); color: var(--ink); text-decoration: none; letter-spacing: 0.04em; }
+.article-body .art-result__foot { text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.article-body .art-result__link { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; }
 .article-body .art-result__link:hover { background: #fff; }
 @media (max-width: 600px) {
-  .article-body .art-result { padding: 20px 16px 16px; margin-left: -4px; margin-right: -4px; }
-  .article-body .art-result__title { font-size: 24px; }
+  .article-body .art-result { padding: 14px 14px 12px; margin-left: -4px; margin-right: -4px; }
+  .article-body .art-result .art-faq__kicker { font-size: 10px; gap: 6px; letter-spacing: 0.08em; white-space: nowrap; }
+  .article-body .art-result .art-faq__kicker > span + span::before { margin-right: 6px; }
+  .article-body .art-result .art-faq__logo { font-size: 15px; }
+  .article-body .art-result__link { padding: 5px 10px; font-size: 11px; }
+  .article-body .art-result__foot { font-size: 10px; letter-spacing: 0.04em; }
   .article-body .art-result__score { gap: 12px; }
-  .article-body .art-result__score strong { font-size: 46px; }
+  .article-body .art-result__score strong { font-size: 42px; }
   .article-body .art-result__team { font-size: 15px; }
 }
+
 

@@ -103,14 +103,14 @@ export function styleFaq(html: string): string {
 /**
  * The result a preview gets once the match is played ("Kampen er spillet: A – B 1-1." first in the text,
  * src/lib/previewResults.ts) drawn in the look of the questions box (styleFaq): the dark green ground with
- * Matchly's outlined M, the kicker, the two clubs with the score big between them, and the way to the match
- * page. The saved text is untouched.
+ * Matchly's outlined M, the kicker with the way to the match page beside it, and the two clubs with the score big
+ * between them – as low as a plain result line allows. The saved text is untouched.
  */
 export function styleResult(html: string): string {
   const m = /^<p><strong>Kampen er spillet: (.+?) – (.+?) (\d+)-(\d+)\.<\/strong>\s*([\s\S]*?)<\/p>/.exec(html)
   if (!m) return html
   const [whole, home, away, hs, as, rest] = m
   const href = /href="(\/kamp\/[^"]+)"/.exec(rest)?.[1]
-  const link = href ? `<a class="art-result__link" href="${href}">Se målene og statistikken <span aria-hidden="true">→</span></a>` : ''
-  return `<aside class="art-result" aria-label="Resultat"><span class="art-faq__m" aria-hidden="true">M</span><p class="art-faq__kicker"><span class="art-faq__logo">Matchly<span class="logo__dot">.</span></span><span>Kampen er spillet</span></p><p class="art-result__title">Slutresultat</p><div class="art-result__score"><span class="art-result__team">${home}</span><strong>${hs}<span class="art-result__dash">–</span>${as}</strong><span class="art-result__team">${away}</span></div><div class="art-result__foot"><span>Optakten herunder er skrevet før kampen</span>${link}</div></aside>${html.slice(whole.length)}`
+  const link = href ? `<a class="art-result__link" href="${href}">Se kampen <span aria-hidden="true">→</span></a>` : ''
+  return `<aside class="art-result" aria-label="Resultat"><span class="art-faq__m" aria-hidden="true">M</span><div class="art-result__top"><p class="art-faq__kicker"><span class="art-faq__logo">Matchly<span class="logo__dot">.</span></span><span>Kampen er spillet</span></p>${link}</div><div class="art-result__score"><span class="art-result__team">${home}</span><strong>${hs}<span class="art-result__dash">–</span>${as}</strong><span class="art-result__team">${away}</span></div><p class="art-result__foot">Optakten herunder er skrevet før kampen</p></aside>${html.slice(whole.length)}`
 }
