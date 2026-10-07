@@ -175,7 +175,7 @@ export function websiteLd() {
 export function organizationLd() {
   return {
     '@context': 'https://schema.org',
-    // A news site (Google News): who is behind it, how to reach the editors, and how the articles are made and corrected (/om)
+    // A news site (Google News): how to reach the editors, and how the articles are made and corrected (/om)
     '@type': 'NewsMediaOrganization',
     name: SITE_NAME,
     url: SITE_URL,
@@ -183,7 +183,6 @@ export function organizationLd() {
     description: 'Resultater, kampprogram, stillinger, statistik og nyheder om fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
     email: CONTACT_EMAIL,
     contactPoint: { '@type': 'ContactPoint', contactType: 'Redaktionen', email: CONTACT_EMAIL, availableLanguage: 'da' },
-    parentOrganization: { '@type': 'Organization', name: 'Z-15' },
     publishingPrinciples: `${SITE_URL}${paths.about()}#artikler`,
     correctionsPolicy: `${SITE_URL}${paths.about()}#rettelser`,
     areaServed: ['DK', 'DE', 'GB', 'ES', 'PT', 'SE', 'NO'],

@@ -266,9 +266,9 @@ export default async function AboutPage() {
         </section>
 
         <section className="panel prose__section" id="redaktionen">
-          <h2 className="panel__title">Hvem står bag Matchly?</h2>
+          <h2 className="panel__title">Kontakt redaktionen</h2>
           <p>
-            Matchly.dk er en del af Z-15. Du kan skrive til redaktionen på <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> – også med tips, ønsker til nye ligaer og henvendelser fra klubber.
+            Matchly.dk er et dansk sportsmedie. Du kan skrive til redaktionen på <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> – også med tips, ønsker til nye ligaer og henvendelser fra klubber.
           </p>
           <p>Klubnavne og logoer tilhører klubberne. Vi bruger dem kun til at vise, hvilke hold der spiller.</p>
         </section>
