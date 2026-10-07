@@ -184,6 +184,17 @@ export function dbuClubCoach(names: string[], apiCoach?: string): string | undef
   return undefined
 }
 
+/** The head coach DBU's newest match report names for a club, with the day of that match (the datavagt) */
+export function dbuClubCoachLatest(names: string[]): { name: string; date: string } | undefined {
+  const { matches } = read()
+  const own = clubTest(names, matches.flatMap((m) => [m.hn, m.an]))
+  const m = matches
+    .filter((x) => x.details && (own(x.hn) ? x.hc : own(x.an) ? x.ac : undefined))
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
+  const name = m ? (own(m.hn) ? m.hc : m.ac) : undefined
+  return m && name ? { name, date: m.date } : undefined
+}
+
 export interface DbuMatchDetails {
   referee?: string
   assistants: string[]

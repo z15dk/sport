@@ -5,7 +5,7 @@ import { clubNames } from '../data/aliases'
 import { shownDivisions } from '../data/leagues'
 import { NEW_CLUB_PAGE_DIVISIONS } from '../data/nyKlubside'
 import { apiLeagueIdOf, apiTeamCoach, apiTeamIdOf } from './apisports'
-import { dbuClubCoach } from './dbuSquad'
+import { dbuClubCoach, dbuClubCoachLatest } from './dbuSquad'
 import { autoPreviewStatus } from './autoPreviews'
 import { mailReady, sendMail } from './mail'
 import { knownCoach, readRettelser } from './rettelser'
@@ -57,11 +57,13 @@ export function runDatavagt(): Report {
       const api = apiLeague && apiTeam ? apiTeamCoach(apiLeague, apiTeam) : undefined
       const dbu = dbuClubCoach(clubNames(c), api)
       const fix = knownCoach(c.slug)
+      let latest: { name: string; date: string } | undefined
       const base = { slug: c.slug, club: c.name }
       if (fix && !fix.acting && dbu && samePerson(dbu, fix.name))
         findings.push({ ...base, id: `coach-fix-done:${c.slug}`, kind: 'coach-fix-done', text: `DBU's kamprapporter nævner nu selv ${dbu} som træner – vores rettelse kan fjernes.`, suggestion: { action: 'removeCoach' } })
-      else if (fix?.acting && dbu && !samePerson(dbu, fix.name))
-        findings.push({ ...base, id: `coach-acting-replaced:${c.slug}`, kind: 'coach-acting-replaced', text: `Vi viser ${fix.name} som konstitueret, men DBU's seneste kamprapport nævner ${dbu}. Er der en ny cheftræner?`, suggestion: { action: 'setCoach', name: dbu } })
+      // Only a report from a match after the correction was set can tell of a new coach
+      else if (fix?.acting && (latest = dbuClubCoachLatest(clubNames(c))) && latest.date > new Date(fix.at).toISOString().slice(0, 10) && !samePerson(latest.name, fix.name))
+        findings.push({ ...base, id: `coach-acting-replaced:${c.slug}`, kind: 'coach-acting-replaced', text: `Vi viser ${fix.name} som konstitueret, men DBU's kamprapport fra ${latest.date} nævner ${latest.name}. Er der en ny cheftræner?`, suggestion: { action: 'setCoach', name: latest.name } })
       else if (!fix && dbu && api && !samePerson(dbu, api))
         findings.push({ ...base, id: `coach-conflict:${c.slug}`, kind: 'coach-conflict', text: `DBU nævner ${dbu}, API-Sports nævner ${api} som træner. Vi viser ${dbu}.` })
       else if (!fix && !dbu && !api)
