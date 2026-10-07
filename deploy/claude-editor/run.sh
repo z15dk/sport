@@ -7,7 +7,7 @@ set -euo pipefail
 PROMPT="$(dirname "$(readlink -f "$0")")/PROMPT.md"
 # Claude works in its own folder (the release is read-only for it)
 cd /var/lib/matchly-editor
-: "${SITE:=http://127.0.0.1:3000}"
+: "${SITE:?SITE mangler i /etc/matchly-editor.env (sitets egen port, PORT i /opt/scoreline/env)}"
 export SITE
 # Nothing to read: no Claude run at all
 count=$(curl -fsS -H "Authorization: Bearer ${EDITOR_TOKEN}" "$SITE/api/redaktor/kladder" | grep -o '"id":' | wc -l || echo 0)

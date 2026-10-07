@@ -11,6 +11,7 @@ id matchly-editor >/dev/null 2>&1 || useradd --system --home-dir /var/lib/matchl
 install -d -o matchly-editor -g matchly-editor -m 700 /var/lib/matchly-editor
 # Claude Code (global npm package, same node as the site)
 command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code
+# The site's own port (PORT in /opt/scoreline/env – other apps run on the same server)
 if [ ! -f /etc/matchly-editor.env ]; then
   token=$(openssl rand -hex 32)
   umask 077
@@ -18,7 +19,7 @@ if [ ! -f /etc/matchly-editor.env ]; then
 # Claude-redaktøren (deploy/claude-editor). CLAUDE_CODE_OAUTH_TOKEN: kør \`claude setup-token\` på din egen Mac og indsæt værdien.
 CLAUDE_CODE_OAUTH_TOKEN=
 EDITOR_TOKEN=$token
-SITE=http://127.0.0.1:3000
+SITE=http://127.0.0.1:$(grep -oP '^PORT=\K[0-9]+' /opt/scoreline/env || echo 3000)
 ENV
   chown root:matchly-editor /etc/matchly-editor.env
   chmod 640 /etc/matchly-editor.env
