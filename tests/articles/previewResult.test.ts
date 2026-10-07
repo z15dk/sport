@@ -22,7 +22,7 @@ test('the result is drawn as a box', async () => {
   const { styleResult } = await import('../../src/lib/articleEmbeds.ts')
   const out = styleResult(withResult(html, { slug: 'esbjerg-fb-aab-2026-10-10', home: 'Esbjerg fB', away: 'AaB', hs: 2, as: 1 }))
   assert.ok(out.startsWith('<aside class="art-result"'))
-  assert.ok(out.includes('<strong>2–1</strong>'))
+  assert.ok(out.includes('<strong>2<span class="art-result__dash">–</span>1</strong>'))
   assert.ok(out.includes('href="/kamp/esbjerg-fb-aab-2026-10-10"'))
   assert.ok(out.endsWith(html))
   assert.equal(styleResult(html), html)
