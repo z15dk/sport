@@ -1,9 +1,10 @@
 import { adminDenied } from '../../../../lib/admin'
-import { readDatavagt, runDatavagt } from '../../../../lib/datavagt'
+import { readDatavagt, runDatavagt, sendDatavagtMail } from '../../../../lib/datavagt'
+import { mailErrorText } from '../../../../lib/mail'
 import { readRettelser, setCoach } from '../../../../lib/rettelser'
 
 // The datavagt's list and the corrections, for /admin/datavagt and for Claude's morning run:
-// GET → { report, rettelser }; POST { action: 'run' } runs the checks now,
+// GET → { report, rettelser }; POST { action: 'run' } runs the checks now, { action: 'mail' } sends the morning mail now,
 // { action: 'setCoach', slug, name, acting?, why, by? } and { action: 'removeCoach', slug, by? } change the coach list.
 
 export async function GET(request: Request) {
@@ -22,6 +23,13 @@ export async function POST(request: Request) {
   switch (b.action) {
     case 'run':
       return Response.json({ report: runDatavagt() })
+    case 'mail':
+      // The morning mail now (also with nothing to tell, to see how it looks)
+      try {
+        return Response.json({ result: await sendDatavagtMail(true) })
+      } catch (e) {
+        return Response.json({ error: mailErrorText(e) }, { status: 400 })
+      }
     case 'setCoach': {
       const name = str(b.name, 80)
       const why = str(b.why, 300)

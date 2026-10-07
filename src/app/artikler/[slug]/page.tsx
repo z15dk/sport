@@ -14,7 +14,7 @@ import { ArticleSide, articleSubject } from '../../../components/ArticleSide'
 import { ShareRow } from '../../../components/ShareRow'
 import { loadRealData } from '../../../lib/realdata'
 import { isAdmin } from '../../../lib/admin'
-import { expandWidgets, markNumberColumns, styleFaq } from '../../../lib/articleEmbeds'
+import { expandWidgets, markNumberColumns, styleFaq, styleResult } from '../../../lib/articleEmbeds'
 import Script from 'next/script'
 
 export const dynamic = 'force-dynamic'
@@ -73,7 +73,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const category = categoryName(a.category)
   // The photographer stands in the bottom right corner of every picture from the photo archive
   // Our league table widget where the text has a [tabel …] code, and number columns centred
-  const { html: body, used: hasWidget } = expandWidgets(markNumberColumns(withPhotoCredits(cleanHtml(a.content))))
+  const { html: body, used: hasWidget } = expandWidgets(markNumberColumns(withPhotoCredits(styleResult(cleanHtml(a.content)))))
   // The questions at the end as their own box (the search engines get them as FAQPage from the plain text)
   const html = styleFaq(body)
   const faqLd = articleFaqLd(body)

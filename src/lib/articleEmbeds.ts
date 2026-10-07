@@ -99,3 +99,15 @@ export function styleFaq(html: string): string {
   const note = faq.note ? `<p class="art-source">${faq.note}</p>` : ''
   return `${faq.before}<section class="art-faq" aria-labelledby="ofte-stillede-spoergsmaal"><span class="art-faq__m" aria-hidden="true">M</span><p class="art-faq__kicker"><span class="art-faq__logo">Matchly<span class="logo__dot">.</span></span><span>Spørgsmål og svar</span></p><h2 id="ofte-stillede-spoergsmaal">${faq.title}</h2><div class="art-faq__list">${rows}</div><p class="art-faq__foot">Svarene er skrevet af Matchly<span class="logo__dot">.</span></p></section>${note}${faq.after}`
 }
+
+/**
+ * The result a preview gets once the match is played ("Kampen er spillet: A – B 1-1." first in the text,
+ * src/lib/previewResults.ts) drawn as a dark result box: the score big, the two clubs and the way to the
+ * match page. The saved text is untouched.
+ */
+export function styleResult(html: string): string {
+  const m = /^<p><strong>Kampen er spillet: (.+?) – (.+?) (\d+)-(\d+)\.<\/strong>\s*([\s\S]*?)<\/p>/.exec(html)
+  if (!m) return html
+  const [whole, home, away, hs, as, rest] = m
+  return `<aside class="art-result" aria-label="Resultat"><p class="art-result__kicker">Kampen er spillet</p><p class="art-result__score"><span class="art-result__team">${home}</span><strong>${hs}–${as}</strong><span class="art-result__team">${away}</span></p><p class="art-result__more">${rest}</p></aside>${html.slice(whole.length)}`
+}

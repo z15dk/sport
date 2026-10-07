@@ -6,7 +6,10 @@ import { shownDivisions } from '../data/leagues'
 import { NEW_CLUB_PAGE_DIVISIONS } from '../data/nyKlubside'
 import { apiLeagueIdOf, apiTeamCoach, apiTeamIdOf } from './apisports'
 import { dbuClubCoach } from './dbuSquad'
-import { knownCoach } from './rettelser'
+import { autoPreviewStatus } from './autoPreviews'
+import { mailReady, sendMail } from './mail'
+import { knownCoach, readRettelser } from './rettelser'
+import { SITE_URL } from './site'
 import { samePerson } from './samePerson'
 import { cacheDir } from './tsdb'
 
@@ -28,6 +31,8 @@ export interface Finding {
 interface Report {
   at: number
   findings: Finding[]
+  /** The Danish day the morning mail went out */
+  mailedOn?: string
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'datavagt.json')
@@ -63,14 +68,53 @@ export function runDatavagt(): Report {
         findings.push({ ...base, id: `coach-missing:${c.slug}`, kind: 'coach-missing', text: 'Ingen træner på klubsiden – hverken DBU eller API-Sports nævner én.' })
     }
   }
-  const report = { at: Date.now(), findings }
+  const report: Report = { at: Date.now(), findings, mailedOn: readDatavagt().mailedOn }
+  writeReport(report)
+  return report
+}
+
+function writeReport(r: Report) {
   try {
     mkdirSync(path.dirname(file()), { recursive: true })
-    writeFileSync(file(), JSON.stringify(report, null, 2))
+    writeFileSync(file(), JSON.stringify(r, null, 2))
   } catch {
     // shown from memory until next time
   }
-  return report
+}
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const danishDay = (ms = Date.now()) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Copenhagen' }).format(new Date(ms))
+
+/**
+ * The morning mail (09.00, after Claude's run at 07): what Claude fixed in the last day, what is still wrong
+ * (checked again just before), and background jobs that failed. Nothing to tell, no mail.
+ */
+export async function sendDatavagtMail(force = false): Promise<'sent' | 'nothing' | 'no-mail'> {
+  if (!mailReady()) return 'no-mail'
+  const now = Date.now()
+  const open = runDatavagt().findings.filter((f) => f.kind !== 'coach-missing')
+  const fixed = readRettelser().log.filter((l) => now - l.at < 24 * 3600_000)
+  const jobs: string[] = []
+  const previews = autoPreviewStatus()
+  if (previews.error && previews.at && now - previews.at < 24 * 3600_000) jobs.push(`Torsdagens optakter fejlede: ${previews.error}`)
+  if (!force && !open.length && !fixed.length && !jobs.length) return 'nothing'
+  const section = (title: string, color: string, items: string[]) =>
+    items.length
+      ? `<h3 style="margin:22px 0 8px;font-size:16px">${title}</h3><ul style="margin:0;padding:0;list-style:none">${items
+          .map((t) => `<li style="margin:0 0 8px;padding:10px 12px;border-radius:8px;background:#f4f5f1;border-left:4px solid ${color}">${t}</li>`)
+          .join('')}</ul>`
+      : ''
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#16181a">
+<h2 style="margin:0 0 6px">Datavagten ${danishDay(now)}</h2>
+<p style="margin:0 0 4px;color:#555">${fixed.length} rettet · ${open.length} venter på dig${jobs.length ? ` · ${jobs.length} job fejlede` : ''}</p>
+${section('Rettet af Claude', '#7bb33a', fixed.map((l) => esc(l.text)))}
+${section('Venter på dig', '#f5c518', open.map((f) => `<strong>${esc(f.club)}</strong> – ${esc(f.text)}`))}
+${section('Fejl i de automatiske job', '#c0341d', jobs.map(esc))}
+<p style="margin:24px 0 0"><a href="${SITE_URL}/admin/datavagt" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Åbn datavagten</a></p>
+<p style="color:#777;font-size:12px;margin-top:20px">Claude tjekker listen hver morgen kl. 7 og retter det, to kilder er enige om. Resten står her.</p></div>`
+  const text = [`Datavagten ${danishDay(now)}`, '', 'Rettet af Claude:', ...fixed.map((l) => `- ${l.text}`), '', 'Venter på dig:', ...open.map((f) => `- ${f.club}: ${f.text}`), ...(jobs.length ? ['', 'Fejl i job:', ...jobs.map((j) => `- ${j}`)] : []), '', `${SITE_URL}/admin/datavagt`].join('\n')
+  await sendMail(`Matchly datavagt: ${fixed.length} rettet, ${open.length} venter på dig`, html, text)
+  return 'sent'
 }
 
 let started = false
@@ -79,7 +123,7 @@ let started = false
 export function startDatavagt() {
   if (started || process.env.DATAVAGT === 'off') return
   started = true
-  const tick = () => {
+  const tick = async () => {
     const last = readDatavagt().at
     const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Copenhagen', hour: '2-digit', hourCycle: 'h23' }).format(new Date()))
     if (Date.now() - last > 20 * 3600_000 && (hour >= 3 || !last)) {
@@ -89,7 +133,17 @@ export function startDatavagt() {
         // next hour
       }
     }
+    // The mail at 09.00, once a day
+    const today = danishDay()
+    if (hour >= 9 && readDatavagt().mailedOn !== today) {
+      writeReport({ ...readDatavagt(), mailedOn: today })
+      try {
+        await sendDatavagtMail()
+      } catch {
+        // tomorrow
+      }
+    }
   }
-  setTimeout(tick, 60 * 60_000).unref?.()
-  setInterval(tick, 60 * 60_000).unref?.()
+  setTimeout(() => void tick(), 60 * 60_000).unref?.()
+  setInterval(() => void tick(), 30 * 60_000).unref?.()
 }
