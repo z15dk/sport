@@ -80,3 +80,20 @@ test('vinklen: sejrsstime, top mod bund og indbyrdes greb', () => {
   assert.equal(angle(h2h), 'Klub A har vundet fire af de seneste fire indbyrdes opgør.')
 })
 
+
+test('omskrivning: opfundne tal, fremmede links og datakilder fanges', async () => {
+  const { previewFacts, checkRewrite } = await import('../../src/lib/previews/facts.ts')
+  const i = mk('a', 'b')
+  const p = buildPreview(i)
+  const links = [{ label: 'Klub A', href: '/klub/a' }, { label: 'Klub B', href: '/klub/b' }, { label: '3. division', href: '/turnering/3-division' }]
+  const f = previewFacts(i, links, p.focusKeyword)
+  // The built text links the league page (on the list); the writer adds the two club pages
+  const good = { ...p, content: `${p.content}<p>Følg <a href="/klub/a">værterne</a> og <a href="/klub/b">gæsterne</a> resten af sæsonen.</p>` }
+  assert.deepEqual(checkRewrite(f, good).problems, [])
+  const bad = { ...good, content: `${good.content}<p>Hele 4512 tilskuere ventes. Læs mere på <a href="https://dbu.dk">DBU</a> og <a href="/klub/x">X</a>.</p>` }
+  const probs = checkRewrite(f, bad).problems.join(' | ')
+  assert.match(probs, /4512/)
+  assert.match(probs, /Eksternt link/)
+  assert.match(probs, /\/klub\/x/)
+  assert.match(probs, /datakilde/)
+})

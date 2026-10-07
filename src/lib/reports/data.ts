@@ -3,7 +3,8 @@ import { addCategory, allArticles, saveArticle } from '../articles'
 import { saveQuality } from '../articleQuality'
 import { withPhotoDb } from '../photos/server'
 import { checkReport, type Quality } from '../previews/quality'
-import { leagueOfKey, ourClubName, type PreviewLeague } from '../previews/data'
+import { clubSlugOf, leagueOfKey, matchLinks, ourClubName, type PreviewLeague } from '../previews/data'
+import { reportFacts, type FactLink } from '../previews/facts'
 import { knownCoach } from '../rettelser'
 import { shownDivisions } from '../../data/leagues'
 import { clubKey } from '../photos/paths'
@@ -35,9 +36,17 @@ function ourClub(name: string): { page?: string; slug?: string } {
 
 type Row = Record<string, unknown>
 
+/** The slug of a club by Matchly's own name */
+function clubSlugOfOurs(name: string): string | undefined {
+  for (const d of shownDivisions()) for (const c of d.clubs) if (c.name === name) return c.slug
+  return clubSlugOf(name)
+}
+
 export interface ReportItem {
   key: string
   league: PreviewLeague
+  /** The internal links that exist for the match (for the Claude writer) */
+  links: FactLink[]
   input: ReportInput
   report: Report
   quality: Quality
@@ -111,7 +120,18 @@ export function reportFor(key: string): Omit<ReportItem, 'quality'> | undefined 
     // Matchly's preview of the match, when it is live
     const preview = allArticles().find((a) => a.status === 'published' && a.slug.startsWith('optakt-') && a.slug.endsWith(date) && a.tags.includes(input.match.home.name) && a.tags.includes(input.match.away.name))
     if (preview) input.preview = { title: preview.title, path: `/artikler/${preview.slug}` }
-    return { key, league, input, report: buildReport(input), sheets }
+    const links = matchLinks(String(m.hn ?? ''), String(m.an ?? ''), date, league)
+    if (input.preview) links.push({ label: `Optakten: ${input.preview.title}`, href: input.preview.path })
+    // Each club's next match page
+    for (const [id, n] of Object.entries(next)) {
+      if (!n) continue
+      const self = names[id]
+      const [hn, an] = n.home ? [self, n.opponent] : [n.opponent, self]
+      const hs = hn && clubSlugOfOurs(hn)
+      const as = an && clubSlugOfOurs(an)
+      if (hs && as) links.push({ label: `${hn} – ${an} (næste kamp)`, href: `/kamp/${hs}-${as}-${n.date}` })
+    }
+    return { key, league, links, input, report: buildReport(input), sheets }
   })
 }
 
@@ -130,6 +150,6 @@ export function saveReportDraft(item: ReportItem): { id?: number; skipped?: stri
   addCategory('Referater')
   const r = saveArticle({ id: existing?.id, ...item.report, category: 'Referater', author: 'Matchly', status: 'draft' })
   if (r.error || !r.article) return { skipped: r.error }
-  saveQuality(r.article.id, { ...item.quality, kind: 'report', league: item.league.id })
+  saveQuality(r.article.id, { ...item.quality, kind: 'report', league: item.league.id, facts: reportFacts(item.input, item.links, item.report.focusKeyword) })
   return { id: r.article.id }
 }

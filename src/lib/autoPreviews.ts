@@ -172,8 +172,18 @@ export async function checkWaitingPreviews(now = Date.now()): Promise<string[]> 
       }
       continue
     }
-    // Edited by hand after the automatic version: never overwritten, only pointed out when the facts moved
+    // Written by the Claude writer: never put back to the template. When the match's time, ground or TV moved
+    // since it wrote, a waiting preview is held back for the owner (or the writer's next run) to fix
     const mark = qualityOf(a.id)
+    if (mark?.rewritten) {
+      const was = (mark.facts?.data as { kamp?: { tid?: string | null; stadion?: string | null; tv?: string | null } } | undefined)?.kamp
+      if (was && (was.tid !== (fx.time ?? null) || was.stadion !== (fx.venue ?? null) || was.tv !== (fx.tv ?? null))) {
+        if (a.status === 'published') saveArticle({ ...a, status: 'draft', publishedAt: undefined })
+        lines.push(`Holdt tilbage: "${a.title}" – tidspunkt, stadion eller TV er ændret, efter Claude skrev den (nu: ${[fx.time, fx.venue, fx.tv].filter(Boolean).join(', ')}). Ret den, før den udgives.`)
+      }
+      continue
+    }
+    // Edited by hand after the automatic version: never overwritten, only pointed out when the facts moved
     const edited = !mark || Date.parse(a.updatedAt) > mark.at + 60_000
     const item = previewBatch([fx.key])[0]
     if (!item) continue

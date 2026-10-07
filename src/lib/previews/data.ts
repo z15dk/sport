@@ -7,6 +7,7 @@ import { withPhotoDb } from '../photos/server'
 import { clubKey } from '../photos/paths'
 import { buildPreview, type Fixture, type Goal, type League, type Meeting, type Preview, type PreviewInput, type Result } from './build'
 import { checkPreview, type Quality } from './quality'
+import { previewFacts, type FactLink } from './facts'
 import { saveQuality } from '../articleQuality'
 import { readDatavagt } from '../datavagt'
 import { dbuTvChannel } from '../channels'
@@ -67,6 +68,31 @@ export function ourClubName(name: string): string {
   const key = clubKey(name)
   for (const d of shownDivisions()) for (const c of d.clubs) if (clubKey(c.name) === key || clubKey(c.originalName ?? '') === key) return c.name
   return name
+}
+
+/** Matchly's club slug for a DBU club name */
+export function clubSlugOf(name: string): string | undefined {
+  const key = clubKey(name)
+  for (const d of shownDivisions()) for (const c of d.clubs) if (clubKey(c.name) === key || clubKey(c.originalName ?? '') === key) return c.slug
+  return undefined
+}
+
+/**
+ * The internal links that exist for a match (for the Claude writer, who may use these only): both club pages, the
+ * league, the match page and the clubs' head-to-head page. Our match pages are /kamp/<home>-<away>-<date> by
+ * the clubs' own slugs.
+ */
+export function matchLinks(homeDbu: string, awayDbu: string, date: string, league: PreviewLeague): FactLink[] {
+  const h = clubSlugOf(homeDbu)
+  const a = clubSlugOf(awayDbu)
+  const out: FactLink[] = [{ label: league.name, href: league.page }]
+  if (h) out.push({ label: ourClubName(homeDbu), href: `/klub/${h}` })
+  if (a) out.push({ label: ourClubName(awayDbu), href: `/klub/${a}` })
+  if (h && a) {
+    out.push({ label: `${ourClubName(homeDbu)} – ${ourClubName(awayDbu)} (kampsiden)`, href: `/kamp/${h}-${a}-${date}` })
+    out.push({ label: `Alle opgør mellem ${ourClubName(homeDbu)} og ${ourClubName(awayDbu)}`, href: `/opgoer/${h}-mod-${a}` })
+  }
+  return out
 }
 
 /** Matchly's club page for a DBU club name */
@@ -232,6 +258,7 @@ export function savePreviewDraft(key: string, item?: PreviewItem): { id?: number
     status: 'draft',
   })
   if (r.error || !r.article) return { error: r.error ?? 'Kladden kunne ikke gemmes' }
-  saveQuality(r.article.id, { ...p.quality, kind: 'preview', league: p.fixture.league.id })
+  const links = matchLinks(p.fixture.home.dbu ?? p.fixture.home.name, p.fixture.away.dbu ?? p.fixture.away.name, p.fixture.date, p.fixture.league)
+  saveQuality(r.article.id, { ...p.quality, kind: 'preview', league: p.fixture.league.id, facts: previewFacts(p.input, links, p.preview.focusKeyword) })
   return { id: r.article.id, slug: r.article.slug, quality: p.quality }
 }
