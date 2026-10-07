@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHmac } from 'node:crypto'
 import { articleById, saveArticle, type Article } from './articles'
+import { qualityLine, qualityOf } from './articleQuality'
 import { sendMail } from './mail'
 import { SITE_URL } from './site'
 import { socialSecrets } from './socialStore'
@@ -53,25 +54,36 @@ export function publishDraft(id: number, when: 'now' | 'morning'): { article?: A
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** Mails the drafts with a "Læs og udgiv" link each (to the address on /admin/sociale/indstillinger) */
-export async function sendArticleApprovalMail(ids: number[]) {
+/**
+ * Mails the drafts with a "Læs og udgiv" link each (to the address on /admin/sociale/indstillinger). An automatic
+ * article shows its quality mark (src/lib/articleQuality.ts); "Udgiv alle" then takes only the green ones, and
+ * `notes` (a league paused for too many yellow ones, drafts not made) stand at the top.
+ */
+export async function sendArticleApprovalMail(ids: number[], opts: { notes?: string[]; publishAll?: number[] } = {}) {
   const drafts = ids.map((id) => articleById(id)).filter((a): a is Article => !!a && a.status === 'draft')
   if (!drafts.length) throw new Error('Ingen kladder at sende')
   const n = drafts.length
+  const marks = Object.fromEntries(drafts.map((a) => [a.id, qualityOf(a.id)]))
+  // Without marks every draft can go with "Udgiv alle", as before; with marks only the green ones (or the given list)
+  const all = (opts.publishAll ?? drafts.filter((a) => !marks[a.id] || marks[a.id]!.level === 'green').map((a) => a.id)).filter((id) => drafts.some((a) => a.id === id))
   const items = drafts
     .map((a) => {
       const img = a.featuredImage ? `<img src="${esc(a.featuredImage.startsWith('/') ? SITE_URL + a.featuredImage : a.featuredImage)}" alt="" width="560" style="display:block;width:100%;max-width:560px;border-radius:10px;margin:0 0 10px">` : ''
-      return `<div style="margin:0 0 28px">${img}<h3 style="margin:0 0 6px;font-size:18px">${esc(a.title)}</h3>${a.excerpt ? `<p style="margin:0 0 12px;color:#444">${esc(a.excerpt)}</p>` : ''}<a href="${articleApprovalLink(a.id)}" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Læs og udgiv</a></div>`
+      const m = marks[a.id]
+      const badge = m ? `<p style="margin:0 0 10px;padding:6px 10px;border-radius:6px;font-size:13px;background:${m.level === 'green' ? '#e9f7d4' : '#fff4cc'}">${esc(qualityLine(m))}</p>` : ''
+      return `<div style="margin:0 0 28px">${img}<h3 style="margin:0 0 6px;font-size:18px">${esc(a.title)}</h3>${a.excerpt ? `<p style="margin:0 0 12px;color:#444">${esc(a.excerpt)}</p>` : ''}${badge}<a href="${articleApprovalLink(a.id)}" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Læs og udgiv</a></div>`
     })
     .join('')
-  const all =
-    n > 1
-      ? `<p style="margin:0 0 24px"><a href="${articlesApprovalLink(drafts.map((a) => a.id))}" style="display:inline-block;background:#c6f135;color:#16181a;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Se alle ${n} og udgiv dem samlet</a></p>`
+  const greenOnly = all.length < n
+  const allButton =
+    all.length > 1 || (greenOnly && all.length === 1)
+      ? `<p style="margin:0 0 24px"><a href="${articlesApprovalLink(all)}" style="display:inline-block;background:#c6f135;color:#16181a;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">${greenOnly ? `Se de ${all.length} grønne og udgiv dem samlet` : `Se alle ${n} og udgiv dem samlet`}</a></p>`
       : ''
+  const notes = opts.notes?.length ? `<div style="margin:0 0 20px;padding:10px 12px;border-radius:8px;background:#fff4cc">${opts.notes.map((t) => `<p style="margin:0 0 6px">${esc(t)}</p>`).join('')}</div>` : ''
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px">
 <h2 style="margin:0 0 16px">${n === 1 ? 'En artikel er klar' : `${n} artikler er klar`} til at blive udgivet</h2>
-${all}${items}
+${notes}${allButton}${items}
 <p style="color:#777;font-size:13px">Udgivne artikler deles automatisk på Facebook. Du kan også rette dem i admin: ${SITE_URL}/admin/artikler</p></div>`
-  const text = `${n} artikler klar til udgivelse:\n\n${drafts.map((a) => `- ${a.title}\n  ${articleApprovalLink(a.id)}`).join('\n')}`
+  const text = `${n} artikler klar til udgivelse:\n\n${[...(opts.notes ?? []), ''].join('\n')}${drafts.map((a) => `- ${a.title}${marks[a.id] ? ` [${qualityLine(marks[a.id])}]` : ''}\n  ${articleApprovalLink(a.id)}`).join('\n')}`
   return sendMail(`Matchly: ${n === 1 ? `"${drafts[0].title}" er klar` : `${n} artikler er klar`} til udgivelse`, html, text)
 }

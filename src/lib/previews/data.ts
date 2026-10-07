@@ -5,16 +5,43 @@ import { addCategory, allArticles, saveArticle } from '../articles'
 import { dataDir } from '../photos/config'
 import { withPhotoDb } from '../photos/server'
 import { clubKey } from '../photos/paths'
-import { buildPreview, type Fixture, type Goal, type Meeting, type Result } from './build'
+import { buildPreview, type Fixture, type Goal, type League, type Meeting, type Preview, type PreviewInput, type Result } from './build'
+import { checkPreview, type Quality } from './quality'
+import { saveQuality } from '../articleQuality'
+import { readDatavagt } from '../datavagt'
+import { dbuTvChannel } from '../channels'
 
 // The data behind the match previews (src/lib/previews/build.ts) and their drafts:
-// the fixture, this season's results and scorers from DBU (billeder.db, pool of
-// 1. division), and the clubs' meetings since 2001 from football.db and the
-// statistics bank. Previews are saved as drafts – nothing is published by itself.
+// the fixture, this season's results and scorers from DBU (billeder.db, one pool per
+// league), and the clubs' meetings since 2001 from football.db and the statistics
+// bank. Previews are saved as drafts – nothing is published by itself.
 
-/** 1. division 2026/27 at DBU (see PHOTOS_DBU_POOLS); next season gets a new number */
-export const PREVIEW_POOL = process.env.PREVIEW_DBU_POOL ?? '507530'
-const LEAGUE = { name: '1. division', sponsor: 'Betinia Liga', page: '/turnering/1-division' }
+export interface PreviewLeague extends League {
+  /** Our division id (src/data/leagues.ts) */
+  id: string
+  /** The league's pool at DBU this season (see PHOTOS_DBU_POOLS); next season gets new numbers */
+  pool: string
+  /** What the VS graphic's top line calls it */
+  graphic: string
+}
+
+/**
+ * The leagues that get previews by themselves, one at a time (the owner's choice): 1. division first, then
+ * 3. division from 2026-10-07. PREVIEW_LEAGUES="1div,3div" in the server's env picks them; a pool can be
+ * moved with PREVIEW_POOL_<ID> (PREVIEW_POOL_3DIV=…) when DBU starts the spring's pools.
+ */
+const ALL_LEAGUES: PreviewLeague[] = [
+  { id: '1div', pool: process.env.PREVIEW_POOL_1DIV ?? process.env.PREVIEW_DBU_POOL ?? '507530', name: '1. division', sponsor: 'Betinia Liga', page: '/turnering/1-division', graphic: 'Betinia Liga' },
+  { id: '3div', pool: process.env.PREVIEW_POOL_3DIV ?? '508657', name: '3. division', sponsor: 'CampoBet 3. Division', page: '/turnering/3-division', graphic: 'CampoBet 3. Division' },
+]
+export const previewLeagues = (): PreviewLeague[] => {
+  const on = (process.env.PREVIEW_LEAGUES ?? '1div,3div').split(',').map((s) => s.trim())
+  return ALL_LEAGUES.filter((l) => on.includes(l.id))
+}
+/** The league a fixture's DBU key belongs to ("dbu:<match>_<pool>") */
+export const leagueOfKey = (key: string): PreviewLeague | undefined => ALL_LEAGUES.find((l) => key.endsWith(`_${l.pool}`))
+/** The 1. division pool, kept for older callers */
+export const PREVIEW_POOL = ALL_LEAGUES[0].pool
 const SEASON = process.env.PREVIEW_SEASON ?? '2026/27'
 
 type Row = Record<string, unknown>
@@ -52,11 +79,16 @@ function clubPage(name: string): string | undefined {
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
 
 export interface UpcomingFixture extends Fixture {
+  league: PreviewLeague
   draft?: { id: number; status: string; updatedAt: string }
 }
 
-/** The pool's matches from today and the next `days` days */
-export function upcomingFixtures(days = 14): UpcomingFixture[] {
+/** The leagues' matches from today and the next `days` days (every preview league, or one) */
+export function upcomingFixtures(days = 14, only?: PreviewLeague): UpcomingFixture[] {
+  return (only ? [only] : previewLeagues()).flatMap((l) => leagueFixtures(l, days))
+}
+
+function leagueFixtures(league: PreviewLeague, days: number): UpcomingFixture[] {
   const to = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
   // Drafts as well as published articles (articleBySlug only finds live ones)
   const bySlug = new Map(allArticles().map((a) => [a.slug, a]))
@@ -67,18 +99,21 @@ export function upcomingFixtures(days = 14): UpcomingFixture[] {
          LEFT JOIN clubs h ON h.id = m.home_id LEFT JOIN clubs a ON a.id = m.away_id
          WHERE m.match_key LIKE ? AND m.has_events = 0 AND m.date >= ? AND m.date <= ? ORDER BY m.date, m.kickoff`,
       )
-      .all(`dbu:%_${PREVIEW_POOL}`, today(), to),
+      .all(`dbu:%_${league.pool}`, today(), to),
   ).map((r) => {
     const fx: UpcomingFixture = {
+      league,
       key: String(r.match_key),
       date: String(r.date),
       time: (r.kickoff as string) ?? null,
       venue: (r.venue as string) ?? null,
-      tv: (r.tv as string) ?? null,
-      home: { id: String(r.home_id), name: String(r.hn ?? r.home_id), page: clubPage(String(r.hn ?? '')) },
-      away: { id: String(r.away_id), name: String(r.an ?? r.away_id), page: clubPage(String(r.an ?? '')) },
+      // Only a real channel: DBU writes the league's name where there is no TV
+      tv: dbuTvChannel(r.tv as string),
+      // Matchly's own club names in the text ("ASA Aarhus", not DBU's "ASA, Aarhus")
+      home: { id: String(r.home_id), name: ourClubName(String(r.hn ?? r.home_id)), dbu: String(r.hn ?? r.home_id), page: clubPage(String(r.hn ?? '')) },
+      away: { id: String(r.away_id), name: ourClubName(String(r.an ?? r.away_id)), dbu: String(r.an ?? r.away_id), page: clubPage(String(r.an ?? '')) },
     }
-    const existing = bySlug.get(buildPreview({ fixture: fx, league: LEAGUE, season: SEASON, results: [], names: {}, goals: [], meetings: [] }).slug)
+    const existing = bySlug.get(buildPreview({ fixture: fx, league, season: SEASON, results: [], names: {}, goals: [], meetings: [] }).slug)
     if (existing) fx.draft = { id: existing.id, status: existing.status, updatedAt: existing.updatedAt }
     return fx
   })
@@ -86,8 +121,11 @@ export function upcomingFixtures(days = 14): UpcomingFixture[] {
 
 /** Every league meeting of the two clubs before the date: football.db, the statistics bank and DBU's sheets, each match once */
 function meetings(fx: Fixture): Meeting[] {
-  const hk = clubKey(fx.home.name)
-  const ak = clubKey(fx.away.name)
+  // Both the club's own name and its DBU name count (older matches are stored under either)
+  const hks = new Set([fx.home.name, fx.home.dbu ?? ''].filter(Boolean).map(clubKey))
+  const aks = new Set([fx.away.name, fx.away.dbu ?? ''].filter(Boolean).map(clubKey))
+  const hk = clubKey(fx.home.dbu ?? fx.home.name)
+  const ak = clubKey(fx.away.dbu ?? fx.away.name)
   const first = (k: string) => `%${k.split(' ')[0]}%`
   const seen = new Set<string>()
   const out: Meeting[] = []
@@ -95,8 +133,8 @@ function meetings(fx: Fixture): Meeting[] {
     if (hs == null || as == null || date >= fx.date) return
     const h = clubKey(home)
     const a = clubKey(away)
-    const atHome = h === hk && a === ak
-    if (!atHome && !(h === ak && a === hk)) return
+    const atHome = hks.has(h) && aks.has(a)
+    if (!atHome && !(aks.has(h) && hks.has(a))) return
     const id = `${date}|${[h, a].sort().join('|')}`
     if (seen.has(id)) return
     seen.add(id)
@@ -117,27 +155,65 @@ function meetings(fx: Fixture): Meeting[] {
 }
 
 export function previewFor(key: string) {
-  const fx = upcomingFixtures(60).find((f) => f.key === key)
+  const league = leagueOfKey(key)
+  const fx = league && upcomingFixtures(60, league).find((f) => f.key === key)
   if (!fx) return undefined
   const { results, goals, names } = withPhotoDb((db) => {
     const results: Result[] = db
       .prepare(`SELECT date, home_id, away_id, home_score, away_score FROM matches WHERE match_key LIKE ? AND has_events = 1 AND home_score IS NOT NULL AND date < ?`)
-      .all(`dbu:%_${PREVIEW_POOL}`, fx.date)
+      .all(`dbu:%_${fx.league.pool}`, fx.date)
       .map((r) => ({ date: String(r.date), homeId: String(r.home_id), awayId: String(r.away_id), hs: Number(r.home_score), as: Number(r.away_score) }))
     const goals: Goal[] = db
       .prepare(`SELECT g.club_id, g.name FROM goals g JOIN matches m ON m.match_key = g.match_key WHERE g.match_key LIKE ? AND m.date < ?`)
-      .all(`dbu:%_${PREVIEW_POOL}`, fx.date)
+      .all(`dbu:%_${fx.league.pool}`, fx.date)
       .map((r) => ({ clubId: String(r.club_id), name: String(r.name) }))
-    const names = Object.fromEntries(db.prepare('SELECT id, name FROM clubs').all().map((r) => [String(r.id), String(r.name)]))
+    const names = Object.fromEntries(db.prepare('SELECT id, name FROM clubs').all().map((r) => [String(r.id), ourClubName(String(r.name))]))
     return { results, goals, names }
   })
-  return { fixture: fx, preview: buildPreview({ fixture: fx, league: LEAGUE, season: SEASON, results, names, goals, meetings: meetings(fx) }) }
+  const input = { fixture: fx, league: fx.league, season: SEASON, results, names, goals, meetings: meetings(fx) }
+  return { fixture: fx, input, preview: buildPreview(input) }
 }
 
-/** Writes (or updates) the preview as a draft; a published preview is never touched */
-export function savePreviewDraft(key: string): { id?: number; slug?: string; error?: string; skipped?: string } {
-  const p = previewFor(key)
+/** Each club's players this season from DBU's team sheets (club id → names), for checking the names a preview uses */
+function squads(pool: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  withPhotoDb((db) => {
+    for (const r of db.prepare(`SELECT DISTINCT l.club_id, l.name FROM lineups l WHERE l.match_key LIKE ?`).all(`dbu:%_${pool}`)) (out[String(r.club_id)] ??= []).push(String(r.name))
+  })
+  return out
+}
+
+/** The DBU names of the clubs the datavagt has an open finding for, among the fixtures' clubs */
+function flagged(fixtures: Fixture[]): string[] {
+  const open = new Set(readDatavagt().findings.map((f) => f.club))
+  return fixtures.flatMap((f) => [f.home.name, f.away.name]).filter((n) => open.has(ourClubName(n)))
+}
+
+export interface PreviewItem {
+  fixture: UpcomingFixture
+  input: PreviewInput
+  preview: Preview
+  quality: Quality
+}
+
+/** The previews of several fixtures, each checked against the others of the batch, the squads and the datavagt */
+export function previewBatch(keys: string[]): PreviewItem[] {
+  const built = keys.map((k) => previewFor(k)).filter((p): p is NonNullable<ReturnType<typeof previewFor>> => !!p)
+  const others = built.map((b) => b.preview)
+  const bySquad = new Map<string, Record<string, string[]>>()
+  const flags = flagged(built.map((b) => b.fixture))
+  return built.map((b) => {
+    const pool = b.fixture.league.pool
+    if (!bySquad.has(pool)) bySquad.set(pool, squads(pool))
+    return { ...b, quality: checkPreview(b.input, b.preview, { others, squads: bySquad.get(pool), flagged: flags }) }
+  })
+}
+
+/** Writes (or updates) the preview as a draft with its quality mark; a published preview is never touched, a blocked one is not made */
+export function savePreviewDraft(key: string, item?: PreviewItem): { id?: number; slug?: string; error?: string; skipped?: string; quality?: Quality } {
+  const p = item ?? previewBatch([key])[0]
   if (!p) return { error: 'Kampen findes ikke blandt de kommende kampe' }
+  if (p.quality.level === 'blocked') return { skipped: `Ikke lavet: ${p.quality.reasons.join(' · ')}`, quality: p.quality }
   const existing = allArticles().find((a) => a.slug === p.preview.slug)
   if (existing?.status === 'published') return { skipped: 'Optakten er allerede udgivet – den røres ikke', id: existing.id, slug: existing.slug }
   addCategory('Optakter')
@@ -155,5 +231,7 @@ export function savePreviewDraft(key: string): { id?: number; slug?: string; err
     author: 'Matchly',
     status: 'draft',
   })
-  return r.error ? { error: r.error } : { id: r.article?.id, slug: r.article?.slug }
+  if (r.error || !r.article) return { error: r.error ?? 'Kladden kunne ikke gemmes' }
+  saveQuality(r.article.id, { ...p.quality, kind: 'preview', league: p.fixture.league.id })
+  return { id: r.article.id, slug: r.article.slug, quality: p.quality }
 }

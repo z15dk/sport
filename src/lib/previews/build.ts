@@ -10,6 +10,8 @@ export interface Team {
   name: string
   /** The club page, when the club has one (/klub/…) */
   page?: string
+  /** The club's name at DBU, when the text uses Matchly's own ("ASA, Aarhus" for "ASA Aarhus"): older matches are found under it */
+  dbu?: string
 }
 
 export interface Fixture {
@@ -163,6 +165,68 @@ export function scorers(clubId: string, goals: Goal[], n = 3) {
 
 const WORD = { V: 'sejr', U: 'uafgjort', T: 'nederlag' } as const
 
+/** How many of a club's latest matches in a row ended the same way (newest first) */
+export function streak(f: FormGame[], test: (g: FormGame) => boolean): number {
+  let n = 0
+  for (const g of f) {
+    if (!test(g)) break
+    n++
+  }
+  return n
+}
+
+const NUMBER = ['nul', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'otte', 'ni', 'ti']
+const say = (n: number) => NUMBER[n] ?? String(n)
+
+/**
+ * The story of the match in one sentence, picked from the data so the previews don't all open alike: a run of
+ * wins or matches without a win, top against bottom, a scorer in form, or one side's grip on the meetings. The
+ * strongest that holds; nothing when none does. Pure.
+ */
+export function angle(input: PreviewInput): string | undefined {
+  const { fixture: fx, results, goals, meetings } = input
+  const tab = table(results)
+  const pos = (id: string) => tab.findIndex((r) => r.id === id) + 1
+  const n = tab.length
+  const H = fx.home
+  const A = fx.away
+  const fh = form(H.id, results, 10)
+  const fa = form(A.id, results, 10)
+  for (const [t, f] of [
+    [H, fh],
+    [A, fa],
+  ] as const) {
+    const wins = streak(f, (g) => g.outcome === 'V')
+    if (wins >= 3) return `${esc(t.name)} kommer til kampen på ${say(wins)} sejre i træk.`
+  }
+  for (const [t, f] of [
+    [H, fh],
+    [A, fa],
+  ] as const) {
+    const unbeaten = streak(f, (g) => g.outcome !== 'T')
+    if (unbeaten >= 5) return `${esc(t.name)} har ikke tabt i de seneste ${say(unbeaten)} kampe.`
+    const winless = streak(f, (g) => g.outcome !== 'V')
+    if (winless >= 4) return `${esc(t.name)} har ikke vundet i de seneste ${say(winless)} kampe og jagter en vending.`
+  }
+  if (n >= 6) {
+    const [hp, ap] = [pos(H.id), pos(A.id)]
+    if (hp && ap && Math.min(hp, ap) <= 3 && Math.max(hp, ap) >= n - 2) {
+      const [top, bottom] = hp < ap ? [H, A] : [A, H]
+      return `Det er top mod bund: ${esc(top.name)} er nr. ${Math.min(hp, ap)}, ${esc(bottom.name)} nr. ${Math.max(hp, ap)}.`
+    }
+  }
+  const best = [...scorers(H.id, goals, 1), ...scorers(A.id, goals, 1)].sort((a, b) => b[1] - a[1])[0]
+  if (best && best[1] >= 6) return `Kig efter ${esc(best[0])}, der allerede har scoret ${best[1]} mål i sæsonen.`
+  const last5 = [...meetings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
+  if (last5.length >= 4) {
+    const hw = last5.filter((m) => m.forHome > m.forAway).length
+    const aw = last5.filter((m) => m.forAway > m.forHome).length
+    if (Math.max(hw, aw) >= last5.length - 1)
+      return `${esc(hw > aw ? H.name : A.name)} har vundet ${say(Math.max(hw, aw))} af de seneste ${say(last5.length)} indbyrdes opgør.`
+  }
+  return undefined
+}
+
 export function buildPreview(input: PreviewInput): Preview {
   const { fixture: fx, league, season, results, names, goals, meetings } = input
   const H = fx.home
@@ -177,7 +241,8 @@ export function buildPreview(input: PreviewInput): Preview {
   const out: string[] = []
 
   // The answer first: who, when, where, which channel, and where they stand
-  const lead = [`${link(H)} møder ${link(A)} i <a href="${league.page}">${esc(league.name)}</a> ${when}${fx.venue ? ` på ${esc(fx.venue)}` : ''}.`]
+  // "X mod Y" is what people search for: the keyword, word for word, in the first sentence
+  const lead = [`${link(H)} mod ${link(A)} spilles i <a href="${league.page}">${esc(league.name)}</a> ${when}${fx.venue ? ` på ${esc(fx.venue)}` : ''}.`]
   if (fx.tv) lead.push(`Kampen vises på ${esc(fx.tv)}.`)
   if (hRow && aRow) {
     lead.push(`Før kampen ligger ${esc(H.name)} nr. ${pos(H.id)} med ${plural(hRow.points, 'point', 'point')} efter ${plural(hRow.played, 'kamp', 'kampe')}, mens ${esc(A.name)} er nr. ${pos(A.id)} med ${plural(aRow.points, 'point', 'point')}.`)
@@ -185,6 +250,8 @@ export function buildPreview(input: PreviewInput): Preview {
     if (pos(H.id) <= 2 && pos(A.id) <= 2) lead.push('Det er et opgør mellem rækkens to bedste hold.')
     else if (gap === 1) lead.push('Holdene ligger lige efter hinanden i tabellen.')
   }
+  const story = angle(input)
+  if (story) lead.splice(1, 0, story)
   out.push(`<p>${lead.join(' ')}</p>`)
 
   out.push('<h2>Kampen kort fortalt</h2><ul>')
@@ -250,7 +317,7 @@ export function buildPreview(input: PreviewInput): Preview {
   out.push(`<h2>Hvordan er det gået i de indbyrdes opgør?</h2>`)
   if (ms.length) {
     out.push(
-      `<p>${esc(H.name)} og ${esc(A.name)} har mødt hinanden ${plural(ms.length, 'gang', 'gange')} i ligakampe siden 2001. ${esc(H.name)} har vundet ${hw}, ${esc(A.name)} har vundet ${aw}, og ${plural(dr, 'kamp', 'kampe')} er endt uafgjort.${ms.length >= 3 ? ` Der er i snit scoret ${((ms.reduce((s, m) => s + m.forHome + m.forAway, 0) / ms.length).toFixed(1)).replace('.', ',')} mål pr. opgør.` : ''}</p>`,
+      `<p>I de ligakampe, vi har registreret siden 2001, har ${esc(H.name)} og ${esc(A.name)} mødt hinanden ${plural(ms.length, 'gang', 'gange')}. ${esc(H.name)} har vundet ${hw}, ${esc(A.name)} har vundet ${aw}, og ${plural(dr, 'kamp', 'kampe')} er endt uafgjort.${ms.length >= 3 ? ` Der er i snit scoret ${((ms.reduce((s, m) => s + m.forHome + m.forAway, 0) / ms.length).toFixed(1)).replace('.', ',')} mål pr. opgør.` : ''}</p>`,
     )
     out.push(
       `<ul>${ms
@@ -261,7 +328,7 @@ export function buildPreview(input: PreviewInput): Preview {
         })
         .join('')}</ul>`,
     )
-  } else out.push(`<p>Holdene har ikke mødt hinanden i ligakampe i vores data siden 2001 – det her bliver det første opgør.</p>`)
+  } else out.push(`<p>Vi har ingen tidligere ligakampe mellem ${esc(H.name)} og ${esc(A.name)} registreret.</p>`)
 
   // Table
   if (tab.length) {
@@ -278,7 +345,7 @@ export function buildPreview(input: PreviewInput): Preview {
   out.push('<h2>Ofte stillede spørgsmål</h2>')
   out.push(`<h3>Hvornår spiller ${esc(H.name)} mod ${esc(A.name)}?</h3><p>${esc(H.name)} – ${esc(A.name)} spilles ${when}.</p>`)
   if (fx.venue) out.push(`<h3>Hvor spilles kampen?</h3><p>Kampen spilles på ${esc(fx.venue)}, ${esc(H.name)}s hjemmebane.</p>`)
-  if (fx.tv) out.push(`<h3>Hvor kan jeg se ${esc(H.name)} mod ${esc(A.name)}?</h3><p>Kampen vises på ${esc(fx.tv)}.</p>`)
+  if (fx.tv) out.push(`<h3>Hvor kan jeg se kampen?</h3><p>Kampen vises på ${esc(fx.tv)}.</p>`)
   if (ms.length) {
     const last = ms[0]
     const [hn, an, hs, as] = last.atHome ? [H.name, A.name, last.forHome, last.forAway] : [A.name, H.name, last.forAway, last.forHome]
@@ -296,9 +363,9 @@ export function buildPreview(input: PreviewInput): Preview {
     slug: `optakt-${slug(H.name)}-${slug(A.name)}-${fx.date}`,
     title,
     excerpt: `${H.name} møder ${A.name} ${when}${fx.venue ? ` på ${fx.venue}` : ''}. Her er formen, stillingen, topscorerne og de indbyrdes opgør før kampen.`,
-    seoTitle: `${H.name} – ${A.name} optakt ${short}: form og indbyrdes`.slice(0, 70),
+    seoTitle: `${H.name} mod ${A.name}: optakt ${short}`.slice(0, 70),
     metaDescription: `${meta}: placering, form, topscorere og indbyrdes opgør.`.slice(0, 300),
-    focusKeyword: `${H.name} ${A.name}`,
+    focusKeyword: `${H.name} mod ${A.name}`,
     tags: [H.name, A.name, league.name],
     content: out.join('\n'),
   }

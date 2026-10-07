@@ -1,0 +1,13 @@
+# Efter morgenens referater (kl. 07) og torsdagens optakter (kl. 10): kl. 07.40 hver dag og kl. 10.40 torsdag.
+# Mailen med kladderne venter halvanden time, så redaktørens vurdering står i den.
+# Er der ingen nye kladder, slutter kørslen med det samme uden at spørge Claude.
+[Unit]
+Description=Matchly: Claude-redaktøren kl. 07.40 dagligt og 10.40 torsdag
+
+[Timer]
+OnCalendar=*-*-* 07:40:00 Europe/Copenhagen
+OnCalendar=Thu *-*-* 10:40:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

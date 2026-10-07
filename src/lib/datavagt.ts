@@ -10,6 +10,7 @@ import { standings } from '../data/season'
 import { apiLeagueIdOf, apiStoredTable, apiTeamCoach, apiTeamIdOf, apiTeamStadium } from './apisports'
 import { allArticles, plainText, type Article } from './articles'
 import { articleApprovalLink } from './articleApproval'
+import { qualityOf } from './articleQuality'
 import { dbuHomeGround } from './channels'
 import { dbuClubCoach, dbuClubCoachLatest } from './dbuSquad'
 import { seoChecks } from './seoChecks'
@@ -200,7 +201,8 @@ const danishDay = (ms = Date.now()) => new Intl.DateTimeFormat('sv-SE', { timeZo
 /** The drafts the news scout (Claude's morning task, author "Matchly") has made in the last day, oldest first */
 export function scoutDrafts(now = Date.now()): Article[] {
   return allArticles()
-    .filter((a) => a.status === 'draft' && a.author === 'Matchly' && now - new Date(a.createdAt).getTime() < 26 * 3600_000)
+    // The automatic previews and reports have their own mail with a quality mark (src/lib/articleQuality.ts)
+    .filter((a) => a.status === 'draft' && a.author === 'Matchly' && now - new Date(a.createdAt).getTime() < 26 * 3600_000 && !qualityOf(a.id))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 

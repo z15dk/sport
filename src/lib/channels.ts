@@ -422,6 +422,8 @@ let dbuCache: ({ key: string } & DbuTv) | undefined
  * Only names that are TV channels: DBU writes the league ("3. division") where there is no TV.
  */
 const BROADCASTER = /^(tv ?2|tv ?3|viaplay|dr ?\d?\b|disney|max\b|discovery|kanal ?5|6'?eren)/i
+/** A TV channel DBU's programme names, or nothing: DBU writes the league ("3. division") where there is no TV */
+export const dbuTvChannel = (name?: string | null): string | null => (name && BROADCASTER.test(name.trim()) ? name.trim() : null)
 function dbuChannel(name: string): ChannelDef | undefined {
   if (!BROADCASTER.test(name)) return undefined
   const shown = name.replace(/\bSPORT\b/g, 'Sport').replace(/\bNEWS\b/g, 'News').replace(/\bPLAY\b/g, 'Play')

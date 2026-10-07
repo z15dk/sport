@@ -1,25 +1,68 @@
 import 'server-only'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { articleById, saveArticle } from './articles'
+import { allArticles, articleById, saveArticle } from './articles'
+import { qualityOf, saveQuality } from './articleQuality'
+import { SITE_URL } from './site'
 import { sendArticleApprovalMail } from './articleApproval'
-import { mailReady } from './mail'
+import { mailReady, sendMail } from './mail'
 import { dataDir } from './photos/config'
 import { dkDate } from './previews/build'
-import { ourClubName, savePreviewDraft, upcomingFixtures } from './previews/data'
+import { ourClubName, previewBatch, previewLeagues, savePreviewDraft, upcomingFixtures } from './previews/data'
 import { TZ } from './time'
+import { finishedWithoutReport, reportBatch, reportLeagues, saveReportDraft } from './reports/data'
 import { makeVsGraphic } from './vsGraphic'
 
-// The weekend's previews by themselves: every Thursday from 10.00 the 1. division matches from Friday to
-// Monday get a preview draft (src/lib/previews/) with a VS graphic (logos only – never a photo), and one
-// mail lists them with "Læs og udgiv" each and "Udgiv alle i morgen kl. 07.00" (src/lib/articleApproval.ts).
+// The weekend's previews by themselves: every Thursday from 10.00 the matches from Friday to Monday in every
+// preview league (1. division, 3. division – src/lib/previews/data.ts) get a preview draft, checked by the
+// quality gate (src/lib/previews/quality.ts), with a VS graphic (logos only – never a photo), and one mail lists
+// them with their quality mark, "Læs og udgiv" each and "Udgiv alle i morgen kl. 07.00" for the green ones
+// (src/lib/articleApproval.ts).
 // Nothing is published by itself. Once a week (state in data/auto-previews.json); AUTO_PREVIEWS=off stops it.
 
 const STATE = () => path.join(dataDir(), 'auto-previews.json')
 
+interface PendingMail {
+  ids: number[]
+  green: number[]
+  notes: string[]
+  /** Not before this time (ms) */
+  after: number
+}
+
+/** How long a batch waits for the Claude editor (its timer runs 40 minutes after the jobs) before the mail goes */
+const EDITOR_WAIT_MS = 90 * 60_000
+
+function queueMail(m: Omit<PendingMail, 'after'>, now = Date.now()) {
+  if (!m.ids.length) return
+  const s = readState()
+  writeState({ ...s, pending: [...(s.pending ?? []), { ...m, after: now + EDITOR_WAIT_MS }] })
+}
+
+/** Sends the waiting mails whose time has come (one mail per batch) */
+async function sendDueMails(now = Date.now()) {
+  const s = readState()
+  const due = (s.pending ?? []).filter((m) => m.after <= now)
+  if (!due.length || !mailReady()) return
+  writeState({ ...s, pending: (s.pending ?? []).filter((m) => m.after > now) })
+  for (const m of due) {
+    try {
+      await sendArticleApprovalMail(m.ids, { notes: m.notes, publishAll: m.green })
+    } catch {
+      // the drafts are in admin either way
+    }
+  }
+}
+
 interface State {
   /** The Thursday (YYYY-MM-DD) the last round was made for */
   done?: string
+  /** The day (YYYY-MM-DD) the waiting previews were last checked before going live */
+  checked?: string
+  /** The day (YYYY-MM-DD) the match reports were last made */
+  reported?: string
+  /** Mails waiting for the Claude editor to read their drafts first (deploy/claude-editor): sent after `after` */
+  pending?: PendingMail[]
   ids?: number[]
   at?: number
   error?: string
@@ -55,30 +98,127 @@ function danishNow(now: number) {
   return { weekday, hour: Number(parts.hour), date: `${parts.year}-${parts.month}-${parts.day}` }
 }
 
-/** The weekend's previews as drafts with a VS graphic, and the mail; returns the drafts' ids */
+/** A league's batch is held back from "Udgiv alle" when more than this share of its previews is yellow */
+const MAX_YELLOW = 0.2
+
+/**
+ * The weekend's previews in every preview league as drafts with a VS graphic, and one mail; returns the drafts'
+ * ids. A fixture without enough data gets no preview (said in the mail); a league with more than a fifth of
+ * its previews yellow gets no "Udgiv alle" this week – the owner reads them first.
+ */
 export async function makeWeekendPreviews(now = Date.now()): Promise<number[]> {
   const { date } = danishNow(now)
   const until = new Date(Date.parse(`${date}T12:00:00Z`) + 4 * 86_400_000).toISOString().slice(0, 10)
-  const fixtures = upcomingFixtures(5).filter((f) => f.date > date && f.date <= until && f.draft?.status !== 'published')
   const ids: number[] = []
-  for (const fx of fixtures) {
-    const r = savePreviewDraft(fx.key)
-    if (!r.id || r.skipped) continue
-    ids.push(r.id)
-    const a = articleById(r.id)
-    if (a && !a.featuredImage) {
-      try {
-        const home = ourClubName(fx.home.name)
-        const away = ourClubName(fx.away.name)
-        const top = `Betinia Liga · ${dkDate(fx.date, true, false)}${fx.time ? ` kl. ${fx.time.slice(0, 5).replace(':', '.')}` : ''}`
-        const { url } = await makeVsGraphic({ home, away, top })
-        saveArticle({ ...a, featuredImage: url, featuredAlt: `${home} mod ${away} i Betinia Liga` })
-      } catch {
-        // the draft without a picture; the owner picks one
+  const green: number[] = []
+  const notes: string[] = []
+  for (const league of previewLeagues()) {
+    const fixtures = upcomingFixtures(5, league).filter((f) => f.date > date && f.date <= until && f.draft?.status !== 'published')
+    if (!fixtures.length) continue
+    const made: { id: number; level: string }[] = []
+    const skipped: string[] = []
+    for (const item of previewBatch(fixtures.map((f) => f.key))) {
+      const fx = item.fixture
+      const r = savePreviewDraft(fx.key, item)
+      if (!r.id) {
+        if (r.skipped && item.quality.level === 'blocked') skipped.push(`${fx.home.name} – ${fx.away.name}`)
+        continue
+      }
+      if (r.skipped) continue
+      made.push({ id: r.id, level: item.quality.level })
+      const a = articleById(r.id)
+      if (a && !a.featuredImage) {
+        try {
+          const home = ourClubName(fx.home.name)
+          const away = ourClubName(fx.away.name)
+          const top = `${league.graphic} · ${dkDate(fx.date, true, false)}${fx.time ? ` kl. ${fx.time.slice(0, 5).replace(':', '.')}` : ''}`
+          const { url } = await makeVsGraphic({ home, away, top })
+          saveArticle({ ...a, featuredImage: url, featuredAlt: `${home} mod ${away} i ${league.graphic}` })
+        } catch {
+          // the draft without a picture; the owner picks one
+        }
       }
     }
+    ids.push(...made.map((m) => m.id))
+    const yellow = made.filter((m) => m.level !== 'green').length
+    if (made.length && yellow / made.length > MAX_YELLOW) notes.push(`${league.name}: ${yellow} af ${made.length} optakter er gule – "Udgiv alle" er holdt tilbage for rækken i denne uge. Læs dem først.`)
+    else green.push(...made.filter((m) => m.level === 'green').map((m) => m.id))
+    if (skipped.length) notes.push(`${league.name}: ingen optakt til ${skipped.join(', ')} – for lidt data endnu.`)
   }
-  if (ids.length && mailReady()) await sendArticleApprovalMail(ids)
+  // The mail waits for the Claude editor's verdicts (deploy/claude-editor)
+  queueMail({ ids, green, notes })
+  return ids
+}
+
+/**
+ * The last check before the morning's previews go live (06.30, before 07.00): every preview waiting to go live or
+ * still a draft is made again from the newest data, so a moved kickoff, ground or TV channel is right when it goes
+ * out. A preview whose match is no longer among the coming ones (postponed, moved to another day) is held back as
+ * a draft. Live previews are never changed; what changed is mailed. Returns the lines of the mail.
+ */
+export async function checkWaitingPreviews(now = Date.now()): Promise<string[]> {
+  const lines: string[] = []
+  const today = danishNow(now).date
+  const waiting = allArticles().filter((a) => a.slug.startsWith('optakt-') && (a.status === 'draft' || (a.status === 'published' && !!a.publishedAt && Date.parse(a.publishedAt) > now)))
+  const fixtures = upcomingFixtures(30)
+  for (const a of waiting) {
+    const date = a.slug.slice(-10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) continue
+    const fx = fixtures.find((f) => f.draft?.id === a.id)
+    if (!fx) {
+      if (a.status === 'published') {
+        saveArticle({ ...a, status: 'draft', publishedAt: undefined })
+        lines.push(`Holdt tilbage: "${a.title}" – kampen står ikke længere i programmet den dag (udsat eller flyttet).`)
+      }
+      continue
+    }
+    // Edited by hand after the automatic version: never overwritten, only pointed out when the facts moved
+    const mark = qualityOf(a.id)
+    const edited = !mark || Date.parse(a.updatedAt) > mark.at + 60_000
+    const item = previewBatch([fx.key])[0]
+    if (!item) continue
+    if (item.quality.level === 'blocked') continue
+    const changed = item.preview.content !== a.content
+    const factsBefore = /<li><strong>(?:Tidspunkt|Stadion|TV):<\/strong>[^<]*<\/li>/g
+    const facts = (html: string) => (html.match(factsBefore) ?? []).join(' ')
+    if (!changed) continue
+    if (edited) {
+      if (facts(item.preview.content) !== facts(a.content)) lines.push(`Tjek selv: "${a.title}" er rettet i hånden, og tidspunkt, stadion eller TV er ændret siden – den er ikke opdateret.`)
+      continue
+    }
+    saveArticle({ ...a, content: item.preview.content, excerpt: item.preview.excerpt, metaDescription: item.preview.metaDescription, status: a.status, publishedAt: a.publishedAt })
+    saveQuality(a.id, { ...item.quality, kind: 'preview', league: fx.league.id })
+    if (facts(item.preview.content) !== facts(a.content)) lines.push(`Opdateret før udgivelse: "${a.title}" – tidspunkt, stadion eller TV er ændret siden torsdag.`)
+  }
+  if (lines.length && mailReady()) {
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    await sendMail(`Matchly: ${lines.length} optakt${lines.length === 1 ? '' : 'er'} ændret før udgivelse`, `<div style="font-family:Arial,sans-serif;max-width:600px">${lines.map((l) => `<p>${esc(l)}</p>`).join('')}<p><a href="${SITE_URL}/admin/artikler">Åbn artiklerne</a></p></div>`, lines.join('\n'))
+  }
+  return lines
+}
+
+/**
+ * The match reports of the last days, once DBU's match pages have been read (the nightly job): every finished
+ * match in a report league with complete data gets a draft, checked by the quality gate, and one mail with
+ * their marks and "Udgiv alle" for the green ones. A match whose goals don't add up yet waits for the next day.
+ */
+export async function makeMatchReports(): Promise<number[]> {
+  const ids: number[] = []
+  const green: number[] = []
+  const notes: string[] = []
+  for (const league of reportLeagues()) {
+    const made: { id: number; level: string }[] = []
+    for (const item of reportBatch(finishedWithoutReport(league))) {
+      const r = saveReportDraft(item)
+      if (r.id && !r.skipped) made.push({ id: r.id, level: item.quality.level })
+    }
+    ids.push(...made.map((m) => m.id))
+    const yellow = made.filter((m) => m.level !== 'green').length
+    if (made.length && yellow / made.length > MAX_YELLOW) notes.push(`${league.name}: ${yellow} af ${made.length} referater er gule – "Udgiv alle" er holdt tilbage for rækken i dag. Læs dem først.`)
+    else green.push(...made.filter((m) => m.level === 'green').map((m) => m.id))
+  }
+  // The mail waits for the Claude editor's verdicts (deploy/claude-editor)
+  queueMail({ ids, green, notes })
   return ids
 }
 
@@ -91,14 +231,35 @@ export function startAutoPreviews() {
   const tick = async () => {
     const now = Date.now()
     const { weekday, hour, date } = danishNow(now)
+    // Every morning between 06 and 07: the last check of the previews waiting to go live
+    if (hour === 6 && readState().checked !== date) {
+      writeState({ ...readState(), checked: date })
+      try {
+        await checkWaitingPreviews(now)
+      } catch {
+        // tomorrow
+      }
+    }
+    await sendDueMails(now)
+    // Every morning from 07: the match reports of matches whose details came in the night (the editor reads them at 07.40, the mail goes at 08.30)
+    if (hour >= 7 && readState().reported !== date) {
+      writeState({ ...readState(), reported: date })
+      try {
+        await makeMatchReports()
+      } catch {
+        // tomorrow
+      }
+    }
     if (weekday !== 4 || hour < 10 || readState().done === date) return
-    writeState({ done: date, at: now })
+    const keep = { checked: readState().checked, reported: readState().reported, pending: readState().pending }
+    writeState({ ...keep, done: date, at: now })
     try {
-      writeState({ done: date, at: now, ids: await makeWeekendPreviews(now) })
+      const ids = await makeWeekendPreviews(now)
+      writeState({ ...readState(), done: date, at: now, ids })
     } catch (e) {
-      writeState({ done: date, at: now, error: e instanceof Error ? e.message : String(e) })
+      writeState({ ...readState(), done: date, at: now, error: e instanceof Error ? e.message : String(e) })
     }
   }
   setTimeout(() => void tick(), 60_000).unref?.()
-  setInterval(() => void tick(), 30 * 60_000).unref?.()
+  setInterval(() => void tick(), 15 * 60_000).unref?.()
 }

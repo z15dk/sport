@@ -85,6 +85,10 @@ export default async function ArticlePage({ params }: { params: Params }) {
   // The league or club the article is about: its table and next matches stand beside the text
   const subject = articleSubject(a, category)
   const url = `${SITE_URL}${paths.article(a.slug)}`
+  // A preview whose match is over says so at the top, with the match report when Matchly has written it
+  const previewDate = a.slug.startsWith('optakt-') ? a.slug.slice(-10) : undefined
+  const played = !!previewDate && /^\d{4}-\d{2}-\d{2}$/.test(previewDate) && previewDate < new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const report = played ? articleBySlug(a.slug.replace(/^optakt-/, 'referat-')) : undefined
   return (
     <div className="page article-page">
       {preview && (
@@ -160,6 +164,18 @@ export default async function ArticlePage({ params }: { params: Params }) {
       </header>
       <div className="article-layout">
         <article className="article">
+          {played && (
+            <p className="article-played" role="status">
+              <strong>Kampen er spillet.</strong>{' '}
+              {report ? (
+                <>
+                  Læs referatet: <Link href={paths.article(report.slug)}>{report.title}</Link>
+                </>
+              ) : (
+                'Optakten er skrevet før kampen.'
+              )}
+            </p>
+          )}
           <div className="article-body" dangerouslySetInnerHTML={{ __html: html }} />
           {hasWidget && <Script src="/widget.js" strategy="afterInteractive" />}
           <ShareRow url={url} title={a.title} />
