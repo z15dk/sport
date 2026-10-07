@@ -2,7 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { allArticles, articleById, saveArticle } from './articles'
-import { qualityOf, saveQuality } from './articleQuality'
+import { qualityOf, readQuality, saveQuality } from './articleQuality'
 import { SITE_URL } from './site'
 import { sendArticleApprovalMail } from './articleApproval'
 import { mailReady, sendMail } from './mail'
@@ -10,8 +10,8 @@ import { dataDir } from './photos/config'
 import { dkDate } from './previews/build'
 import { ourClubName, previewBatch, previewLeagues, savePreviewDraft, upcomingFixtures } from './previews/data'
 import { TZ } from './time'
-import { finishedWithoutReport, reportBatch, reportLeagues, saveReportDraft } from './reports/data'
-import { makeVsGraphic } from './vsGraphic'
+import { findReportKey, finishedWithoutReport, reportBatch, reportFor, reportLeagues, saveReportDraft, type ReportItem } from './reports/data'
+import { makeResultGraphic, makeVsGraphic } from './vsGraphic'
 
 // The weekend's previews by themselves: every Thursday from 10.00 the matches from Friday to Monday in every
 // preview league (1. division, 3. division – src/lib/previews/data.ts) get a preview draft, checked by the
@@ -212,6 +212,32 @@ export async function checkWaitingPreviews(now = Date.now()): Promise<string[]> 
  * match in a report league with complete data gets a draft, checked by the quality gate, and one mail with
  * their marks and "Udgiv alle" for the green ones. A match whose goals don't add up yet waits for the next day.
  */
+/** The match's own result graphic as a report's picture: both logos, the score and the scorers (not when it has one) */
+async function addResultGraphic(id: number, item: ReportItem) {
+  const a = articleById(id)
+  if (!a || a.featuredImage) return
+  const m = item.input.match
+  const goals = (clubId: string) => item.input.goals.filter((g) => g.clubId === clubId).sort((x, y) => (x.minute ?? 999) - (y.minute ?? 999)).map((g) => `${g.name.split(' ').at(-1)}${g.minute != null ? ` ${g.minute}'` : ''}`)
+  try {
+    const { url } = await makeResultGraphic({ home: m.home.name, away: m.away.name, hs: m.hs, as: m.as, top: `${item.league.graphic} · ${dkDate(m.date, true, false)}`, homeGoals: goals(m.home.id), awayGoals: goals(m.away.id) })
+    saveArticle({ ...a, featuredImage: url, featuredAlt: `${m.home.name} – ${m.away.name} ${m.hs}-${m.as} i ${item.league.graphic}` })
+  } catch {
+    // the draft without a picture; the owner picks one
+  }
+}
+
+/** Report drafts of the last week without a picture (made before the graphic existed) get their result graphic */
+async function addMissingResultGraphics() {
+  const marks = readQuality()
+  const week = Date.now() - 7 * 24 * 3600_000
+  for (const a of allArticles()) {
+    if (a.status !== 'draft' || a.featuredImage || marks[String(a.id)]?.kind !== 'report' || Date.parse(a.createdAt) < week) continue
+    const key = findReportKey(a.slug)
+    const item = key && reportFor(key)
+    if (item) await addResultGraphic(a.id, { ...item, quality: { level: 'green', reasons: [] } })
+  }
+}
+
 export async function makeMatchReports(): Promise<number[]> {
   const ids: number[] = []
   const green: number[] = []
@@ -220,7 +246,9 @@ export async function makeMatchReports(): Promise<number[]> {
     const made: { id: number; level: string }[] = []
     for (const item of reportBatch(finishedWithoutReport(league))) {
       const r = saveReportDraft(item)
-      if (r.id && !r.skipped) made.push({ id: r.id, level: item.quality.level })
+      if (!r.id || r.skipped) continue
+      made.push({ id: r.id, level: item.quality.level })
+      await addResultGraphic(r.id, item)
     }
     ids.push(...made.map((m) => m.id))
     const yellow = made.filter((m) => m.level !== 'green').length
@@ -250,6 +278,7 @@ export function startAutoPreviews() {
         // tomorrow
       }
     }
+    await addMissingResultGraphics()
     await sendDueMails(now)
     // Every morning from 07: the match reports of matches whose details came in the night (the editor reads them at 07.40, the mail goes at 08.30)
     if (hour >= 7 && readState().reported !== date) {

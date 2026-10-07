@@ -135,6 +135,16 @@ export function reportFor(key: string): Omit<ReportItem, 'quality'> | undefined 
   })
 }
 
+/** The DBU key of the match a report slug is about (its league's played matches, by the slug the report would get) */
+export function findReportKey(slug: string): string | undefined {
+  const date = slug.slice(-10)
+  for (const league of reportLeagues()) {
+    const keys = withPhotoDb((db) => db.prepare(`SELECT match_key FROM matches WHERE match_key LIKE ? AND date = ? AND has_events = 1`).all(`dbu:%_${league.pool}`, date)).map((r) => String(r.match_key))
+    for (const k of keys) if (reportFor(k)?.report.slug === slug) return k
+  }
+  return undefined
+}
+
 /** Several reports, each checked against the others of the batch and its own team sheets */
 export function reportBatch(keys: string[]): ReportItem[] {
   const built = keys.map(reportFor).filter((r): r is NonNullable<typeof r> => !!r)
@@ -148,7 +158,8 @@ export function saveReportDraft(item: ReportItem): { id?: number; skipped?: stri
   const existing = allArticles().find((a) => a.slug === item.report.slug)
   if (existing?.status === 'published') return { skipped: 'Allerede udgivet', id: existing.id }
   addCategory('Referater')
-  const r = saveArticle({ id: existing?.id, ...item.report, category: 'Referater', author: 'Matchly', status: 'draft' })
+  // Automatic match reports are not shared on social media (the owner's choice, 2026-10-07)
+  const r = saveArticle({ id: existing?.id, ...item.report, category: 'Referater', author: 'Matchly', status: 'draft', noSocial: true })
   if (r.error || !r.article) return { skipped: r.error }
   saveQuality(r.article.id, { ...item.quality, kind: 'report', league: item.league.id, facts: reportFacts(item.input, item.links, item.report.focusKeyword) })
   return { id: r.article.id }

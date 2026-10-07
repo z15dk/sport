@@ -256,6 +256,8 @@ export function savePreviewDraft(key: string, item?: PreviewItem): { id?: number
     metaDescription: p.preview.metaDescription,
     author: 'Matchly',
     status: 'draft',
+    // Automatic previews are not shared on social media (the owner's choice, 2026-10-07)
+    noSocial: true,
   })
   if (r.error || !r.article) return { error: r.error ?? 'Kladden kunne ikke gemmes' }
   const links = matchLinks(p.fixture.home.dbu ?? p.fixture.home.name, p.fixture.away.dbu ?? p.fixture.away.name, p.fixture.date, p.fixture.league)

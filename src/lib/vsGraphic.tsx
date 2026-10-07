@@ -339,3 +339,111 @@ export async function makeLeagueGraphic(input: { league: string; card?: boolean 
   }
   return { url: saved.url }
 }
+
+// ---------------------------------------------------------------- the result of a match
+
+export interface ResultInput {
+  home: string
+  away: string
+  hs: number
+  as: number
+  /** The line on top: the league and the day ("3. division · lørdag 3. oktober") */
+  top?: string
+  /** Each side's goals as "Zuberovski 25'", in match order */
+  homeGoals?: string[]
+  awayGoals?: string[]
+}
+
+/** Two clubs' colours from each top corner on Matchly's dark top, with the dots fading in from the middle top */
+function resultBackground(left: string, right: string): string {
+  const { width: w, height: h } = OG_SIZE
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+<defs>
+<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171c0d"/><stop offset="1" stop-color="#0b0d07"/></linearGradient>
+<radialGradient id="l" cx="0" cy="0" r="${w * 0.6}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${left}" stop-opacity="0.55"/><stop offset="0.75" stop-color="${left}" stop-opacity="0"/></radialGradient>
+<radialGradient id="r" cx="${w}" cy="0" r="${w * 0.6}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${right}" stop-opacity="0.55"/><stop offset="0.75" stop-color="${right}" stop-opacity="0"/></radialGradient>
+<radialGradient id="lime" cx="${w / 2}" cy="${h}" r="${w * 0.45}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c6f135" stop-opacity="0.14"/><stop offset="0.7" stop-color="#c6f135" stop-opacity="0"/></radialGradient>
+<pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.35"/></pattern>
+<radialGradient id="fade" cx="${w / 2}" cy="0" r="${w * 0.55}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<mask id="m"><rect width="${w}" height="${h}" fill="url(#fade)"/></mask>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#base)"/>
+<rect width="${w}" height="${h}" fill="url(#dots)" mask="url(#m)"/>
+<rect width="${w}" height="${h}" fill="url(#l)"/>
+<rect width="${w}" height="${h}" fill="url(#r)"/>
+<rect width="${w}" height="${h}" fill="url(#lime)"/>
+</svg>`
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
+}
+
+/** One side of the result: logo, name and its scorers */
+function ResultSide({ name, logo, goals }: { name: string; logo?: string; goals: string[] }) {
+  const shown = goals.slice(0, 4)
+  return (
+    <div style={{ width: 360, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {logo ? (
+        <img src={logo} width={210} height={210} alt="" style={{ objectFit: 'contain' }} />
+      ) : (
+        <div style={{ width: 170, height: 170, margin: '20px 0', borderRadius: 170, background: '#2a2d26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 72, fontWeight: 800, fontStyle: 'italic' }}>{name.slice(0, 2).toUpperCase()}</div>
+      )}
+      <div style={{ marginTop: 18, fontSize: name.length > 18 ? 30 : 38, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,0.82)' }}>
+        {shown.map((g, i) => (
+          <div key={i} style={{ display: 'flex' }}>
+            {g}
+          </div>
+        ))}
+        {goals.length > shown.length && <div style={{ display: 'flex', color: 'rgba(255,255,255,0.6)' }}>+{goals.length - shown.length} mere</div>}
+      </div>
+    </div>
+  )
+}
+
+/** The match's result as PNG (1200×630): both logos, the score big in the middle, the scorers, both clubs' colours */
+export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
+  const home = input.home.trim()
+  const away = input.away.trim()
+  if (!home || !away) throw new Error('Begge hold skal med')
+  const badges = await getBadges()
+  const [homeLogo, awayLogo] = await Promise.all([logoData(badges[home], 420, 420), logoData(badges[away], 420, 420)])
+  const res = new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+        <img src={resultBackground(clubColor(home, false), clubColor(away, false))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        {input.top && <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 2, color: LIME }}>{input.top.toUpperCase()}</div>}
+        <div style={{ position: 'absolute', left: 0, top: 100, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+          <ResultSide name={home} logo={homeLogo} goals={input.homeGoals ?? []} />
+          <div style={{ width: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 40 }}>
+            <div style={{ display: 'flex', fontSize: 22, fontWeight: 800, letterSpacing: 4, color: 'rgba(255,255,255,0.7)' }}>SLUT</div>
+            <div style={{ display: 'flex', fontSize: 150, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME, textShadow: '0 6px 30px rgba(0,0,0,0.5)' }}>
+              {input.hs}–{input.as}
+            </div>
+          </div>
+          <ResultSide name={away} logo={awayLogo} goals={input.awayGoals ?? []} />
+        </div>
+        <div style={{ position: 'absolute', right: 56, bottom: 30, display: 'flex', fontSize: 26, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+          MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: ogFonts() },
+  )
+  return Buffer.from(await res.arrayBuffer())
+}
+
+/** The result graphic saved as an upload (in the photo archive as a graphic credited Matchly.dk), ready as the report's picture */
+export async function makeResultGraphic(input: ResultInput): Promise<{ url: string }> {
+  const png = await resultGraphicPng(input)
+  const saved = await saveUpload(png, 1200)
+  if (saved.error || !saved.url) throw new Error(saved.error ?? 'Grafikken kunne ikke gemmes')
+  try {
+    const name = saved.url.replace('/uploads/', '')
+    withPhotoDb((db) => {
+      const id = registerArticleUpload(db, name)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(`${input.home} ${input.hs}-${input.as} ${input.away}`, id)
+    })
+  } catch {
+    // the article still gets its picture
+  }
+  return { url: saved.url }
+}
