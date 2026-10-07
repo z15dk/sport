@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { SEASON, shownDivisions } from '../../data/leagues'
 import { JsonLd, breadcrumbLd, organizationLd } from '../../lib/jsonld'
-import { SITE_NAME, paths } from '../../lib/site'
+import { CONTACT_EMAIL, SITE_NAME, paths } from '../../lib/site'
 import { indexable } from '../../lib/settings'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Om Matchly – hvem vi er og hvor tallene kommer fra' },
+  title: { absolute: 'Om Matchly – hvem vi er, hvor tallene kommer fra og hvordan vi skriver' },
   description:
-    'Matchly dækker fodbold, ishockey og basketball: Superligaen, Bundesliga, Premier League, Allsvenskan og Eliteserien med flere, Metal Ligaen, SHL og Basketligaen. Læs hvordan vi indsamler resultater, hvor ofte siden opdateres, og hvem der står bag.',
+    'Matchly dækker fodbold, ishockey og basketball: Superligaen, Bundesliga, Premier League, Allsvenskan og Eliteserien med flere, Metal Ligaen, SHL og Basketligaen. Læs hvem der står bag, hvordan vi skriver artikler, hvordan vi retter fejl, og hvordan du kontakter redaktionen.',
   alternates: { canonical: paths.about() },
 }
 
@@ -59,6 +59,33 @@ export default function AboutPage() {
           <p>
             Kampsider opdateres løbende, mens kampen spilles, og stillinger opdateres, så snart en kamp er slut. Klub- og
             turneringssider viser altid dagens kampe.
+          </p>
+        </section>
+
+        <section className="panel prose__section" id="artikler">
+          <h2 className="panel__title">Hvordan skriver vi artikler?</h2>
+          <p>
+            I <Link href={paths.articles()}>artiklerne</Link> skriver vi nyheder, optakter og analyser om især dansk fodbold – også de rækker og kvindeligaer, som de store medier sjældent dækker.
+          </p>
+          <p>
+            Hver artikel bygger på navngivne kilder: klubbernes egne meddelelser, DBU, forbundene og danske og udenlandske medier. Fakta om personer, stadioner og TV-kanaler tjekker vi i mindst to kilder, og tal fra vores egne kampdata kontrolleres, før de bruges. Kilderne står nederst i artiklen.
+          </p>
+          <p>
+            Vi bringer ikke citater, vi ikke selv har fået, og vi gætter ikke på det, vi ikke ved. Alle artikler læses og godkendes af redaktionen, før de udgives.
+          </p>
+        </section>
+
+        <section className="panel prose__section" id="rettelser">
+          <h2 className="panel__title">Har du fundet en fejl?</h2>
+          <p>
+            Skriv til <a href={`mailto:${CONTACT_EMAIL}?subject=Rettelse`}>{CONTACT_EMAIL}</a>, så retter vi det hurtigst muligt. En artikel, der er rettet efter udgivelsen, viser datoen for den seneste opdatering. Fejl i resultater og tabeller retter vi i data, så de er rigtige på alle sider.
+          </p>
+        </section>
+
+        <section className="panel prose__section" id="redaktionen">
+          <h2 className="panel__title">Hvem står bag Matchly?</h2>
+          <p>
+            Matchly.dk er en del af Z-15. Du kan skrive til redaktionen på <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> – også med tips, ønsker til nye ligaer og henvendelser fra klubber.
           </p>
         </section>
 

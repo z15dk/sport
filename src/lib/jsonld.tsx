@@ -5,7 +5,7 @@ import type { Match } from '../types'
 import type { Club, Division } from '../data/leagues'
 import type { TeamEntry } from '../data/teams'
 import { sportById } from '../sports'
-import { SITE_NAME, SITE_URL, paths, SOCIAL_PROFILES } from './site'
+import { CONTACT_EMAIL, SITE_NAME, SITE_URL, paths, SOCIAL_PROFILES } from './site'
 
 // schema.org structured data, read by search engines and AI assistants.
 
@@ -134,6 +134,13 @@ export function webPageLd(path: string, name: string, modified: Date, descriptio
 }
 
 /** An article (NewsArticle) for search engines */
+/** An uploaded article picture in the three shapes Google asks for (16:9, 4:3, 1:1, all 1200 wide); another picture as it is */
+function articleImages(image: string): string[] {
+  const m = /^\/uploads\/([a-f0-9]{24})\.webp$/.exec(image)
+  if (m) return [`${SITE_URL}${image}`, `${SITE_URL}/delingsbillede/${m[1]}-4x3.jpg`, `${SITE_URL}/delingsbillede/${m[1]}-1x1.jpg`]
+  return [image.startsWith('/') ? `${SITE_URL}${image}` : image]
+}
+
 export function articleLd(a: { title: string; description: string; path: string; image?: string; publishedAt?: string; updatedAt: string; author: string; tags: string[]; section?: string }) {
   return {
     '@context': 'https://schema.org',
@@ -142,7 +149,7 @@ export function articleLd(a: { title: string; description: string; path: string;
     description: a.description,
     url: `${SITE_URL}${a.path}`,
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}${a.path}` },
-    ...(a.image && { image: [a.image.startsWith('/') ? `${SITE_URL}${a.image}` : a.image] }),
+    ...(a.image && { image: articleImages(a.image) }),
     ...(a.publishedAt && { datePublished: a.publishedAt }),
     dateModified: a.updatedAt,
     author: a.author === SITE_NAME ? { '@type': 'Organization', name: SITE_NAME, url: SITE_URL } : { '@type': 'Person', name: a.author },
@@ -168,11 +175,17 @@ export function websiteLd() {
 export function organizationLd() {
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    // A news site (Google News): who is behind it, how to reach the editors, and how the articles are made and corrected (/om)
+    '@type': 'NewsMediaOrganization',
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/icon-512.png`,
-    description: 'Resultater, kampprogram, stillinger og statistik for fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
+    description: 'Resultater, kampprogram, stillinger, statistik og nyheder om fodbold, ishockey og basketball i Danmark, England, Tyskland, Spanien, Portugal, Sverige og Norge – live, gratis og på dansk.',
+    email: CONTACT_EMAIL,
+    contactPoint: { '@type': 'ContactPoint', contactType: 'Redaktionen', email: CONTACT_EMAIL, availableLanguage: 'da' },
+    parentOrganization: { '@type': 'Organization', name: 'Z-15' },
+    publishingPrinciples: `${SITE_URL}${paths.about()}#artikler`,
+    correctionsPolicy: `${SITE_URL}${paths.about()}#rettelser`,
     areaServed: ['DK', 'DE', 'GB', 'ES', 'PT', 'SE', 'NO'],
     knowsLanguage: 'da',
     sameAs: Object.values(SOCIAL_PROFILES),
@@ -211,6 +224,8 @@ export function matchListLd(name: string, matches: Match[]) {
 
 const textOf = (html: string) =>
   html
+    // Inline tags (a link, bold) go without a space, so "siden for <a>3. division</a>," stays "3. division,"
+    .replace(/<\/?(?:a|strong|em|b|i|span)\b[^>]*>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')

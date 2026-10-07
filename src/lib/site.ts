@@ -1,5 +1,7 @@
 import { addDays } from './time'
 export const SITE_NAME = 'Matchly'
+/** The editors' address, on /om and in the site's data for Google News */
+export const CONTACT_EMAIL = 'info@matchly.dk'
 export const SITE_URL = (process.env.SITE_URL || 'http://localhost:5173').replace(/\/$/, '')
 /** Matchly's own profiles (the footer and the Organization's sameAs) */
 export const SOCIAL_PROFILES = { facebook: 'https://www.facebook.com/profile.php?id=61594831118706' }
