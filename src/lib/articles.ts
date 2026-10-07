@@ -178,11 +178,21 @@ export const readingMinutes = (html: string) => Math.max(1, Math.round(plainText
 const isLive = (a: Article, now = Date.now()) => a.status === 'published' && !!a.publishedAt && Date.parse(a.publishedAt) <= now
 
 /** Published articles, newest first (scheduled ones only from their time) */
-export function publishedArticles(opts: { category?: string; tag?: string; limit?: number; offset?: number } = {}): { articles: Article[]; total: number } {
+/** Categories kept out of the article list's main stream and "Læs også" (still on their own tab, club pages, feed and sitemap) */
+export const OWN_TAB_CATEGORIES = ['referater']
+
+export function publishedArticles(opts: { category?: string; tag?: string; limit?: number; offset?: number; mainStream?: boolean } = {}): { articles: Article[]; total: number } {
   const all = open(
     (db) => db.prepare(`SELECT * FROM articles WHERE status = 'published' ORDER BY published_at DESC`).all().map(toArticle),
     [] as Article[],
-  ).filter((a) => isLive(a) && (!opts.category || a.category === opts.category) && (!opts.tag || a.tags.some((t) => slugify(t) === opts.tag)))
+  ).filter(
+    (a) =>
+      isLive(a) &&
+      (!opts.category || a.category === opts.category) &&
+      (!opts.tag || a.tags.some((t) => slugify(t) === opts.tag)) &&
+      // The match reports have their own tab: not in the main list (opts.mainStream)
+      (!opts.mainStream || !OWN_TAB_CATEGORIES.includes(a.category ?? '')),
+  )
   const offset = opts.offset ?? 0
   return { articles: all.slice(offset, offset + (opts.limit ?? all.length)), total: all.length }
 }

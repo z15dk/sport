@@ -78,7 +78,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const html = styleFaq(body)
   const faqLd = articleFaqLd(body)
   const heroCredit = photoCredits([a.featuredImage]).get(a.featuredImage ?? '')
-  const more = publishedArticles({ limit: 4 }).articles.filter((x) => x.id !== a.id).slice(0, 3)
+  const more = publishedArticles({ limit: 4, mainStream: true }).articles.filter((x) => x.id !== a.id).slice(0, 3)
   const published = a.publishedAt ? new Date(a.publishedAt) : undefined
   const updated = new Date(a.updatedAt)
   const changedLater = published && updated.getTime() - published.getTime() > 3_600_000

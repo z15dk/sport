@@ -23,12 +23,12 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ArticlesPage({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, Number((await searchParams).side) || 1)
-  const { articles, total } = publishedArticles({ limit: PER_PAGE, offset: (page - 1) * PER_PAGE })
+  const { articles, total } = publishedArticles({ limit: PER_PAGE, offset: (page - 1) * PER_PAGE, mainStream: true })
   const cats = categories().map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total })).filter((c) => c.count > 0)
   const tags = allTags().slice(0, 24)
   const names = new Map(cats.map((c) => [c.slug, c.name]))
   // The top's three: the most read this week, else the newest after the top story
-  const all = publishedArticles().articles
+  const all = publishedArticles({ mainStream: true }).articles
   const read = mostRead(all)
   const picks = (read.length ? read.map((r) => r.article) : all.slice(1, 4)).map((a) => ({
     slug: a.slug,
