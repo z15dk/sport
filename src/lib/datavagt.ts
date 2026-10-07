@@ -8,7 +8,7 @@ import { apiLeagueIdOf, apiTeamCoach, apiTeamIdOf } from './apisports'
 import { dbuClubCoach, dbuClubCoachLatest } from './dbuSquad'
 import { autoPreviewStatus } from './autoPreviews'
 import { mailReady, sendMail } from './mail'
-import { knownCoach, readRettelser } from './rettelser'
+import { confirmedCoach, knownCoach, readRettelser } from './rettelser'
 import { SITE_URL } from './site'
 import { samePerson } from './samePerson'
 import { cacheDir } from './tsdb'
@@ -64,9 +64,9 @@ export function runDatavagt(): Report {
       // Only a report from a match after the correction was set can tell of a new coach
       else if (fix?.acting && (latest = dbuClubCoachLatest(clubNames(c))) && latest.date > new Date(fix.at).toISOString().slice(0, 10) && !samePerson(latest.name, fix.name))
         findings.push({ ...base, id: `coach-acting-replaced:${c.slug}`, kind: 'coach-acting-replaced', text: `Vi viser ${fix.name} som konstitueret, men DBU's kamprapport fra ${latest.date} nævner ${latest.name}. Er der en ny cheftræner?`, suggestion: { action: 'setCoach', name: latest.name } })
-      else if (!fix && dbu && api && !samePerson(dbu, api))
+      else if (!fix && dbu && api && !samePerson(dbu, api) && !samePerson(dbu, confirmedCoach(c.slug)?.name ?? ''))
         findings.push({ ...base, id: `coach-conflict:${c.slug}`, kind: 'coach-conflict', text: `DBU nævner ${dbu}, API-Sports nævner ${api} som træner. Vi viser ${dbu}.` })
-      else if (!fix && !dbu && !api)
+      else if (!fix && !dbu && !api && !confirmedCoach(c.slug))
         findings.push({ ...base, id: `coach-missing:${c.slug}`, kind: 'coach-missing', text: 'Ingen træner på klubsiden – hverken DBU eller API-Sports nævner én.' })
     }
   }

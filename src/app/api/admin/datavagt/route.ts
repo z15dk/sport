@@ -1,11 +1,12 @@
 import { adminDenied } from '../../../../lib/admin'
 import { readDatavagt, runDatavagt, sendDatavagtMail } from '../../../../lib/datavagt'
 import { mailErrorText } from '../../../../lib/mail'
-import { readRettelser, setCoach } from '../../../../lib/rettelser'
+import { confirmCoach, readRettelser, setCoach } from '../../../../lib/rettelser'
 
 // The datavagt's list and the corrections, for /admin/datavagt and for Claude's morning run:
 // GET → { report, rettelser }; POST { action: 'run' } runs the checks now, { action: 'mail' } sends the morning mail now,
-// { action: 'setCoach', slug, name, acting?, why, by? } and { action: 'removeCoach', slug, by? } change the coach list.
+// { action: 'setCoach', slug, name, acting?, why, by? } and { action: 'removeCoach', slug, by? } change the coach list,
+// { action: 'confirmCoach', slug, name, by? } marks DBU's coach as checked ({ name: '' } removes the mark).
 
 export async function GET(request: Request) {
   const denied = await adminDenied(request)
@@ -40,6 +41,10 @@ export async function POST(request: Request) {
     case 'removeCoach':
       if (!slug) return Response.json({ error: 'slug mangler' }, { status: 400 })
       setCoach(slug, null, by)
+      return Response.json({ ok: true, rettelser: readRettelser() })
+    case 'confirmCoach':
+      if (!slug) return Response.json({ error: 'slug mangler' }, { status: 400 })
+      confirmCoach(slug, str(b.name, 80) || null, by)
       return Response.json({ ok: true, rettelser: readRettelser() })
     default:
       return Response.json({ error: 'Ukendt handling' }, { status: 400 })

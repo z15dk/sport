@@ -20,8 +20,17 @@ export interface FixLogLine {
   text: string
 }
 
+/** A coach the owner has checked: DBU's name is right, even though API-Sports names someone else */
+export interface CoachConfirmed {
+  name: string
+  at: number
+  by: string
+}
+
 interface Rettelser {
   coaches: Record<string, CoachFix>
+  /** Checked names the datavagt stops asking about, until DBU names someone else */
+  confirmed: Record<string, CoachConfirmed>
   log: FixLogLine[]
 }
 
@@ -35,10 +44,11 @@ export function readRettelser(): Rettelser {
   try {
     data = JSON.parse(readFileSync(file(), 'utf8')) as Rettelser
     data.coaches ??= {}
+    data.confirmed ??= {}
     data.log ??= []
   } catch {
     // First time: the list from the code
-    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), log: [] }
+    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), confirmed: {}, log: [] }
   }
   cache = { at: Date.now(), data }
   return data
@@ -66,5 +76,17 @@ export function setCoach(slug: string, coach: KnownCoach | null, by: string) {
       ? `Træner ${slug}: ${before?.name ?? '(DBU)'} → ${coach.name}${coach.acting ? ' (konstitueret)' : ''}. ${coach.why}`
       : `Træner ${slug}: rettelsen (${before?.name ?? '–'}) fjernet – DBU's rapporter bruges igen`,
   })
+  save(data)
+}
+
+/** DBU's coach checked and right – the datavagt leaves the club alone while DBU keeps naming him */
+export const confirmedCoach = (slug: string): CoachConfirmed | undefined => readRettelser().confirmed[slug]
+
+export function confirmCoach(slug: string, name: string | null, by: string) {
+  const data = readRettelser()
+  const before = data.confirmed[slug]
+  if (name) data.confirmed[slug] = { name, at: Date.now(), by }
+  else delete data.confirmed[slug]
+  data.log.push({ at: Date.now(), by, text: name ? `Træner ${slug}: ${name} bekræftet` : `Træner ${slug}: bekræftelsen (${before?.name ?? '–'}) fjernet` })
   save(data)
 }

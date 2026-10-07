@@ -57,6 +57,22 @@ export default async function DatavagtPage() {
             ))}
           </ul>
         </section>
+        {Object.keys(fixes.confirmed).length > 0 && (
+          <section className="panel pad">
+            <h2 className="panel__title">Trænere du har bekræftet ({Object.keys(fixes.confirmed).length})</h2>
+            <p className="muted small">DBU&apos;s navn er rigtigt – datavagten spørger ikke igen, før DBU nævner en anden.</p>
+            <ul className="quality__checks">
+              {Object.entries(fixes.confirmed).map(([slug, c]) => (
+                <li key={slug} className="quality__check quality__check--ok">
+                  <span className="quality__mark">✓</span>
+                  <span>
+                    <strong>{slug}</strong>: {c.name} <span className="muted small">({c.by}, {when(c.at)})</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <section className="panel pad">
           <h2 className="panel__title">Seneste ændringer</h2>
           {fixes.log.length ? (
