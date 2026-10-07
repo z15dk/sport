@@ -5,12 +5,18 @@ import { ArchivePicker } from './ArticlePhotos'
 
 // The VS graphic maker in the article editor: two clubs, a line on top and a photo behind them
 // (from the archive or an upload), shown live as it will look; "Lav grafik" makes the 1200×630
-// picture on the server and it becomes the article's picture.
+// picture on the server and it becomes the article's picture. Also one club's logo, or one league's.
+
+type Kind = 'vs' | 'club' | 'league'
+const TITLE: Record<Kind, string> = { vs: 'Lav VS-grafik', club: 'Lav klubbillede', league: 'Lav ligabillede' }
 
 export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: string) => void; onClose: () => void }) {
   const [clubs, setClubs] = useState<string[]>([])
-  // Two clubs (VS) or one club (only its logo)
-  const [one, setOne] = useState(false)
+  const [leagues, setLeagues] = useState<string[]>([])
+  // Two clubs (VS), one club (only its logo) or one league (its logo and name)
+  const [kind, setKind] = useState<Kind>('vs')
+  const one = kind !== 'vs'
+  const names = kind === 'league' ? leagues : clubs
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
   const [top, setTop] = useState('')
@@ -22,7 +28,10 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   useEffect(() => {
     void fetch('/api/admin/vs', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { clubs?: string[] }) => setClubs(d.clubs ?? []))
+      .then((d: { clubs?: string[]; leagues?: string[] }) => {
+        setClubs(d.clubs ?? [])
+        setLeagues(d.leagues ?? [])
+      })
       .catch(() => undefined)
   }, [])
 
@@ -43,7 +52,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const make = async () => {
     setBusy(true)
     setError(undefined)
-    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(one ? { club: home } : { home, away, top, bg }) })
+    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(kind === 'league' ? { league: home } : one ? { club: home } : { home, away, top, bg }) })
       .then(async (x) => {
         const text = await x.text()
         try {
@@ -60,8 +69,8 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   }
 
   // The live preview: the finished picture itself, drawn by the server (a moment after the last keystroke)
-  const ready = one ? clubs.includes(home) : clubs.includes(home) && clubs.includes(away)
-  const query = !ready ? undefined : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
+  const ready = one ? names.includes(home) : clubs.includes(home) && clubs.includes(away)
+  const query = !ready ? undefined : kind === 'league' ? new URLSearchParams({ liga: home }).toString() : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
   const [preview, setPreview] = useState<string>()
   const [loading, setLoading] = useState(false)
   useEffect(() => {
@@ -75,31 +84,40 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   }, [query])
 
   return (
-    <div className="vsd" role="dialog" aria-modal="true" aria-label={one ? 'Lav klubbillede' : 'Lav VS-grafik'}>
+    <div className="vsd" role="dialog" aria-modal="true" aria-label={TITLE[kind]}>
       <div className="vsd__panel">
         <header className="vsd__head">
-          <h2>{one ? 'Lav klubbillede' : 'Lav VS-grafik'}</h2>
+          <h2>{TITLE[kind]}</h2>
           <button type="button" className="text-btn" onClick={onClose}>
             Luk
           </button>
         </header>
         <datalist id="vs-clubs">
-          {clubs.map((c) => (
+          {names.map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>
         <div className="vsd__bg-actions" role="group" aria-label="Slags grafik">
-          <button type="button" className={`pill${one ? '' : ' is-active'}`} aria-pressed={!one} onClick={() => setOne(false)}>
-            To klubber (VS)
-          </button>
-          <button type="button" className={`pill${one ? ' is-active' : ''}`} aria-pressed={one} onClick={() => setOne(true)}>
-            Én klub (logo)
-          </button>
+          {(['vs', 'club', 'league'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={`pill${kind === k ? ' is-active' : ''}`}
+              aria-pressed={kind === k}
+              onClick={() => {
+                // A club's name is no league's: start over when switching between them
+                if ((k === 'league') !== (kind === 'league')) setHome('')
+                setKind(k)
+              }}
+            >
+              {k === 'vs' ? 'To klubber (VS)' : k === 'club' ? 'Én klub (logo)' : 'Liga (logo)'}
+            </button>
+          ))}
         </div>
         <div className="vsd__grid">
           <label>
-            <span>{one ? 'Klub' : 'Hjemmehold'}</span>
-            <input list="vs-clubs" value={home} onChange={(e) => setHome(e.target.value)} placeholder="Skriv klubbens navn …" />
+            <span>{kind === 'league' ? 'Liga' : one ? 'Klub' : 'Hjemmehold'}</span>
+            <input list="vs-clubs" value={home} onChange={(e) => setHome(e.target.value)} placeholder={kind === 'league' ? 'Skriv ligaens navn …' : 'Skriv klubbens navn …'} />
           </label>
           {!one && (
             <>
@@ -114,7 +132,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             </>
           )}
         </div>
-        {/* One club: only its logo, no background photo */}
+        {/* One club or league: only its logo, no background photo */}
         <div className="vsd__bg" hidden={one}>
           <span>Baggrundsbillede (valgfrit)</span>
           <div className="vsd__bg-actions">
@@ -146,7 +164,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             // eslint-disable-next-line @next/next/no-img-element -- the server's own picture, shown as it is
             <img
               src={preview}
-              alt={one ? 'Forhåndsvisning af klubbilledet' : 'Forhåndsvisning af VS-grafikken'}
+              alt={kind === 'league' ? 'Forhåndsvisning af ligabilledet' : one ? 'Forhåndsvisning af klubbilledet' : 'Forhåndsvisning af VS-grafikken'}
               width={1200}
               height={630}
               onLoad={() => setLoading(false)}
@@ -163,7 +181,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
               <p className="vsd__hint small">Baggrunden er valgt – vælg to klubber fra listen for at se hele grafikken.</p>
             </>
           ) : (
-            <p className="muted small">{one ? 'Vælg en klub fra listen for at se billedet.' : 'Vælg to klubber fra listen for at se grafikken.'}</p>
+            <p className="muted small">{kind === 'league' ? 'Vælg en liga fra listen for at se billedet.' : one ? 'Vælg en klub fra listen for at se billedet.' : 'Vælg to klubber fra listen for at se grafikken.'}</p>
           )}
         </div>
         {error && <p className="small social-msg is-error">{error}</p>}

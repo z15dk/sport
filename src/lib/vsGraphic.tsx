@@ -10,6 +10,11 @@ import { nationalTeams } from './nationalTeams'
 import { mOutline, OG_SIZE, ogFonts } from './ogImage'
 import { withPhotoDb } from './photos/server'
 import { allTeams } from '../data/teams'
+import { externalLeagueKey } from '../data/external'
+import { shownDivisions } from '../data/leagues'
+import { divisionOfGame } from '../data/ourLeagues'
+import { getRealData } from '../data/real'
+import { customLogoUrl } from './customLogos'
 import { englishNation, foldCountry } from '../data/countries'
 import { flagCode } from '../data/flagCodes'
 import { flagSource } from './flags'
@@ -245,6 +250,85 @@ export async function makeClubGraphic(input: { club: string }): Promise<{ url: s
     withPhotoDb((db) => {
       const id = registerArticleUpload(db, name)
       db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(input.club.trim(), id)
+    })
+  } catch {
+    // the article still gets its picture
+  }
+  return { url: saved.url }
+}
+
+// ---------------------------------------------------------------- one league
+
+/**
+ * The leagues that can have a picture, by the name shown on the site, with their logo: ours (the logo uploaded in
+ * admin or found for the league) and API-Sports' other leagues in the fetched days (A-Liga, Serie A, ...). A name
+ * two countries share ("Premier League") gets the country after it.
+ */
+export async function leagueLogos(): Promise<Record<string, string>> {
+  const badges = await getBadges()
+  const out: Record<string, string> = {}
+  for (const d of shownDivisions()) {
+    const logo = customLogoUrl(`liga-${d.slug}`) ?? badges[d.name]
+    if (logo) out[d.name] = logo
+  }
+  const seen = new Map<string, { name: string; country?: string; logo: string }>()
+  for (const g of getRealData()?.external ?? []) {
+    if (!g.league.logo || divisionOfGame(g)) continue
+    const key = externalLeagueKey(g.league)
+    if (!seen.has(key)) seen.set(key, { name: g.league.name, country: g.league.country, logo: customLogoUrl(`liga-${key}`) ?? proxyImage(g.league.logo) })
+  }
+  const count = new Map<string, number>()
+  for (const l of seen.values()) count.set(l.name, (count.get(l.name) ?? 0) + 1)
+  for (const l of seen.values()) {
+    const name = (count.get(l.name) ?? 0) > 1 || out[l.name] ? `${l.name} (${l.country ?? '?'})` : l.name
+    out[name] ??= l.logo
+  }
+  return out
+}
+
+/** The league picture as PNG (1200×630): the league's logo and its name on Matchly's dark top, as the club picture */
+export async function leagueGraphicPng(input: { league: string }): Promise<Buffer> {
+  const league = input.league.trim()
+  if (!league) throw new Error('Vælg en liga')
+  const logos = await leagueLogos()
+  if (!logos[league]) throw new Error(`Ingen liga med logo hedder "${league}"`)
+  const logo = await logoData(logos[league], 520, 520, false, true)
+  // The name without the country added to tell two leagues apart
+  const name = league.replace(/\s*\([^)]*\)$/, '')
+  const res = new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+        <img src={clubBackground('#2c3a0c')} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
+        <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', height: 470, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {logo && (
+            // A light card behind the logo: many league logos are dark and would vanish on the dark top
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 300, borderRadius: 40, background: '#f4f5f1', boxShadow: '0 18px 50px rgba(0,0,0,0.5)' }}>
+              <img src={logo} width={230} height={230} alt="" style={{ objectFit: 'contain' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', marginTop: logo ? 34 : 0, fontSize: name.length > 22 ? 48 : 64, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
+        </div>
+        <div style={{ position: 'absolute', left: 0, bottom: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 50, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+          MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: ogFonts() },
+  )
+  return Buffer.from(await res.arrayBuffer())
+}
+
+/** The league picture saved as an upload, ready as the article's picture */
+export async function makeLeagueGraphic(input: { league: string }): Promise<{ url: string }> {
+  const png = await leagueGraphicPng(input)
+  const saved = await saveUpload(png, 1200)
+  if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')
+  try {
+    const name = saved.url.replace('/uploads/', '')
+    withPhotoDb((db) => {
+      const id = registerArticleUpload(db, name)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(input.league.trim(), id)
     })
   } catch {
     // the article still gets its picture
