@@ -58,6 +58,9 @@ export async function register() {
   // Social media posts (does nothing until it is switched on in /admin/sociale)
   const { startSocialEngine } = await import('./lib/socialEngine')
   startSocialEngine()
+  // The weekend's 1. division previews as drafts every Thursday, mailed for publishing from the phone (src/lib/autoPreviews.ts)
+  const { startAutoPreviews } = await import('./lib/autoPreviews')
+  startAutoPreviews()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()

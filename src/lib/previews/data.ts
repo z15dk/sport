@@ -35,6 +35,13 @@ function readOnly<T>(file: string, fn: (db: { prepare(s: string): { all(...p: un
   }
 }
 
+/** Matchly's own name for a DBU club name (the one the logos are kept under), or the name itself */
+export function ourClubName(name: string): string {
+  const key = clubKey(name)
+  for (const d of shownDivisions()) for (const c of d.clubs) if (clubKey(c.name) === key || clubKey(c.originalName ?? '') === key) return c.name
+  return name
+}
+
 /** Matchly's club page for a DBU club name */
 function clubPage(name: string): string | undefined {
   const key = clubKey(name)

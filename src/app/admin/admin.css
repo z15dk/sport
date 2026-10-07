@@ -653,3 +653,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .art-approve__body table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .art-approve__body td, .art-approve__body th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
 .art-approve__body td p, .art-approve__body th p { margin: 0; }
+.art-approve__list { list-style: none; margin: 16px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.art-approve__list li { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border-radius: var(--radius-sm); background: var(--surface); }
+.art-approve__list img { width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; border-radius: 6px; }
+.art-approve__list div { display: flex; flex-direction: column; gap: 4px; }

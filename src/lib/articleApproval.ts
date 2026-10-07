@@ -21,6 +21,20 @@ export function validArticleApproval(id: number, token: string | undefined) {
 
 export const articleApprovalLink = (id: number) => `${SITE_URL}/admin/artikler/godkend/${id}?t=${articleApprovalToken(id)}`
 
+/** Several drafts at once ("Udgiv alle"): one signature over the list */
+export const articlesApprovalToken = (ids: number[]) =>
+  createHmac('sha256', socialSecrets().approvalKey).update(`articles:${ids.join(',')}`).digest('base64url').slice(0, 32)
+
+export function validArticlesApproval(ids: number[], token: string | undefined) {
+  const want = articlesApprovalToken(ids)
+  return ids.length > 0 && !!token && token.length === want.length && token === want
+}
+
+export const articlesApprovalLink = (ids: number[]) => `${SITE_URL}/admin/artikler/godkend/alle?ids=${ids.join(',')}&t=${articlesApprovalToken(ids)}`
+
+/** "1,2,3" → [1, 2, 3] (whole numbers only) */
+export const parseIds = (s: string | undefined) => (s ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 30)
+
 const danishDay = (ms: number) => new Intl.DateTimeFormat('sv-SE', { timeZone: TZ }).format(new Date(ms))
 
 /** The next 07.00 in Denmark (today's while it is more than five minutes away, else tomorrow's) */
@@ -50,9 +64,13 @@ export async function sendArticleApprovalMail(ids: number[]) {
       return `<div style="margin:0 0 28px">${img}<h3 style="margin:0 0 6px;font-size:18px">${esc(a.title)}</h3>${a.excerpt ? `<p style="margin:0 0 12px;color:#444">${esc(a.excerpt)}</p>` : ''}<a href="${articleApprovalLink(a.id)}" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Læs og udgiv</a></div>`
     })
     .join('')
+  const all =
+    n > 1
+      ? `<p style="margin:0 0 24px"><a href="${articlesApprovalLink(drafts.map((a) => a.id))}" style="display:inline-block;background:#c6f135;color:#16181a;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Se alle ${n} og udgiv dem samlet</a></p>`
+      : ''
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px">
 <h2 style="margin:0 0 16px">${n === 1 ? 'En artikel er klar' : `${n} artikler er klar`} til at blive udgivet</h2>
-${items}
+${all}${items}
 <p style="color:#777;font-size:13px">Udgivne artikler deles automatisk på Facebook. Du kan også rette dem i admin: ${SITE_URL}/admin/artikler</p></div>`
   const text = `${n} artikler klar til udgivelse:\n\n${drafts.map((a) => `- ${a.title}\n  ${articleApprovalLink(a.id)}`).join('\n')}`
   return sendMail(`Matchly: ${n === 1 ? `"${drafts[0].title}" er klar` : `${n} artikler er klar`} til udgivelse`, html, text)
