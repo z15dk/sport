@@ -17,7 +17,7 @@ echo "$(date -Is) $count kladde(r) til redaktøren"
 # Only: the site's editor API (matchly-api), web search and web pages, and files in its own folder.
 # No curl, no other commands, no files outside the folder – so a web page can never get it to send a key out.
 exec claude -p "$(cat "$PROMPT")" \
-  --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" "Write(./**)" \
+  --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" \
   --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" \
   --max-turns 80 \
   --output-format text

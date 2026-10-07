@@ -21,8 +21,9 @@ CLAUDE_CODE_OAUTH_TOKEN=
 EDITOR_TOKEN=$token
 SITE=http://127.0.0.1:$(grep -oP '^PORT=\K[0-9]+' /opt/scoreline/env || echo 3000)
 ENV
-  chown root:matchly-editor /etc/matchly-editor.env
-  chmod 640 /etc/matchly-editor.env
+  # Only root: systemd reads it before the writer starts, the writer itself never needs to
+  chown root:root /etc/matchly-editor.env
+  chmod 600 /etc/matchly-editor.env
   # The site needs the same key to let the editor in
   grep -q '^EDITOR_TOKEN=' /opt/scoreline/env || echo "EDITOR_TOKEN=$token" >> /opt/scoreline/env
   echo "Ny EDITOR_TOKEN lagt i /etc/matchly-editor.env og /opt/scoreline/env – genstart scoreline: systemctl restart scoreline"

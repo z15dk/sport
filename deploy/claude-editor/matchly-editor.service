@@ -26,3 +26,24 @@ ProtectHome=true
 ReadWritePaths=/var/lib/matchly-editor /tmp
 InaccessiblePaths=/opt/scoreline/data /opt/scoreline/env /opt/scoreline/google-sa.json
 PrivateTmp=true
+# Shut away from the rest of the machine (systemd-analyze security): no devices, kernel, clocks, other processes,
+# new privileges or odd sockets – only the network (web search, the site's API) and its own folder
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
