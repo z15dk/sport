@@ -698,7 +698,7 @@ function dropUnusedTemplates() {
 
 // ---------------------------------------------------------------- new articles
 
-/** Ten openings for a shared article (by the article's id, so each article keeps its own) */
+/** Openings for a shared article, one each (by the article's id, so each article keeps its own) */
 const ARTICLE_INTROS = [
   'Ny artikel på Matchly 📰',
   'Frisk fra redaktionen ✍️',
@@ -710,6 +710,40 @@ const ARTICLE_INTROS = [
   'Netop udgivet 🔥',
   'Til dig, der vil vide mere ⚽',
   'Kaffepause? Her er noget at læse ☕',
+  'Ny læsning på Matchly 📰',
+  'Lige udkommet på matchly.dk 🆕',
+  'Dagens læsning er klar 📖',
+  'Sådan ser det ud 👇',
+  'Her er historien 👇',
+  'Nyt fra Matchly ⚽',
+  'Varm fra tasterne ⌨️',
+  'Så er den ude 🚀',
+  'Har du styr på den her? 🤔',
+  'Vidste du det? 💡',
+  'Det her skal du vide 👀',
+  'Hvad siger du til den her? 🗣️',
+  'Er du enig? 🤔',
+  'Hvem havde set den komme? 😮',
+  'Spændende læsning forude 👀',
+  'Bliv klogere på 2 minutter ⏱️',
+  'Sofa, kaffe og fodbold ☕',
+  'Læsning til togturen 🚆',
+  'Noget at læse, mens du venter ⏳',
+  'Weekendlæsning til dig 🛋️',
+  'Fem minutter med fodbold? ⚽',
+  'Sæt dig godt til rette 📖',
+  'Del den med en, der skal læse den 🔁',
+  'Til dig, der følger med ⚽',
+  'Til alle fodboldnørder derude 🤓',
+  'Send den til din fodboldven 📲',
+  'Klar til at diskutere den her? 💬',
+  'Tag den med i omklædningsrummet 🧦',
+  'Fodboldsnak til middagsbordet 🍽️',
+  'Vi har gravet i det 🔍',
+  'Vi har set nærmere på det 🔎',
+  'Redaktionen anbefaler 👌',
+  'Matchly har kigget nærmere 🔍',
+  'Ugens læsning fra os ✍️',
 ]
 
 /**
