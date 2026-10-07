@@ -111,6 +111,6 @@ export function styleResult(html: string): string {
   if (!m) return html
   const [whole, home, away, hs, as, rest] = m
   const href = /href="(\/kamp\/[^"]+)"/.exec(rest)?.[1]
-  const link = href ? `<a class="art-result__link" href="${href}">Se kampen <span aria-hidden="true">→</span></a>` : ''
+  const link = href ? `<a class="art-result__link" href="${href}">Se stats <span aria-hidden="true">→</span></a>` : ''
   return `<aside class="art-result" aria-label="Resultat"><span class="art-faq__m" aria-hidden="true">M</span><div class="art-result__top"><p class="art-faq__kicker"><span class="art-faq__logo">Matchly<span class="logo__dot">.</span></span><span>Kampen er spillet</span></p>${link}</div><div class="art-result__score"><span class="art-result__team">${home}</span><strong>${hs}<span class="art-result__dash">–</span>${as}</strong><span class="art-result__team">${away}</span></div><p class="art-result__foot">Optakten herunder er skrevet før kampen</p></aside>${html.slice(whole.length)}`
 }
