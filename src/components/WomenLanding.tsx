@@ -54,7 +54,7 @@ export function womenMetadata(s: WomenSport, dato: string | undefined): Metadata
     s.id === 'soccer'
       ? 'Kvindeligaen, A-Ligaen, Champions League, WSL, Frauen-Bundesliga, Damallsvenskan og mere'
       : s.id === 'all'
-        ? 'fodbold, håndbold, basketball, ishockey og volleyball'
+        ? 'fodbold, håndbold, basketball og ishockey'
         : `${s.label.toLowerCase()} for kvinder i ind- og udland`
   return {
     title: other ? `${name} ${when} – resultater og kampe` : `${name} i dag – live resultater, kampe og stillinger`,
@@ -110,7 +110,7 @@ function womenDays(today: string, now: number): Match[][] {
 /** The text under the heading when the admin has not written one */
 export const defaultLead = (s: WomenSport) =>
   s.id === 'all'
-    ? 'Live score, resultater og tabeller fra kvindernes fodbold, håndbold, basketball, ishockey og volleyball – fra Kvindeligaen til Champions League.'
+    ? 'Live score, resultater og tabeller fra kvindernes fodbold, håndbold, basketball og ishockey – fra Kvindeligaen til Champions League.'
     : `Live score, resultater og tabeller i ${womenTitle(s).toLowerCase()} – hjemme og ude, hver dag.`
 
 export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato?: string; live?: string }) {
@@ -232,7 +232,7 @@ export function WomenLanding({ sport: s, dato, live }: { sport: WomenSport; dato
               <h2 className="panel__title">Om {name.toLowerCase()} på Matchly</h2>
               <p>
                 Kvinder i sport fortjener den samme plads som herrerne: live stilling, målscorere, tabeller og kampprogram, samlet ét sted. Her følger vi{' '}
-                {s.id === 'all' ? 'kvindernes kampe i fodbold, håndbold, basketball, ishockey og volleyball' : `kvindernes kampe i ${s.id === 'soccer' ? 'fodbold' : s.label.toLowerCase()}`} – fra de danske ligaer til de store
+                {s.id === 'all' ? 'kvindernes kampe i fodbold, håndbold, basketball og ishockey' : `kvindernes kampe i ${s.id === 'soccer' ? 'fodbold' : s.label.toLowerCase()}`} – fra de danske ligaer til de store
                 turneringer i udlandet.
               </p>
               <p>

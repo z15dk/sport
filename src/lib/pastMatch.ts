@@ -1,4 +1,5 @@
 import 'server-only'
+import { sportHidden } from '../sports'
 import type { Match } from '../types'
 import { getMatches } from '../data/matches'
 import { teamByName } from '../data/teams'
@@ -41,7 +42,8 @@ export function pastAsMatch(g: PastGame, withIncidents = true): Match {
 /** The older match behind a slug, or where its page is now */
 export function findPastMatch(slug: string): { game: PastGame; match: Match } | { redirect: string } | undefined {
   const game = pastGame(slug)
-  if (!game) return undefined
+  // A sport taken off the site: its old match pages are gone too
+  if (!game || sportHidden(game.sport)) return undefined
   const twin = currentTwin(game)
   if (twin) return { redirect: twin.slug }
   return { game, match: pastAsMatch(game) }

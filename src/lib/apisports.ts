@@ -21,6 +21,7 @@ import { followChoice, leagueFollowChoices } from './leagueFollow'
 import { createHash } from 'node:crypto'
 import { divisionOfGame } from '../data/ourLeagues'
 import { DIVISIONS, SEASON, sportOf, type Division } from '../data/leagues'
+import { sportHidden } from '../sports'
 import type { PlayerData, PlayerSeasonRow } from '../data/player'
 import type { Injury, Periods, TeamStats } from '../data/teamStats'
 import { archiveEvents, archiveMissingEvents, archiveMissingPlayers, archivePlayerGames, archiveSeason, type PlayerGame } from './archive'
@@ -342,8 +343,10 @@ const APIS: Record<Api, ApiDef> = {
 
 const fingerprint = (key?: string) => (key ? createHash('sha256').update(key).digest('hex').slice(0, 12) : undefined)
 
+// A sport taken off the site (src/sports.ts) is not fetched, and what we have of it is not shown
+const hiddenApi = (api: string) => !!APIS[api as Api] && sportHidden(APIS[api as Api].sport)
 const keyFor = (api: Api) =>
-  process.env[`API_SPORTS_KEY_${api.replace('-', '_').toUpperCase()}`]?.trim() || process.env.API_SPORTS_KEY?.trim() || undefined
+  hiddenApi(api) ? undefined : process.env[`API_SPORTS_KEY_${api.replace('-', '_').toUpperCase()}`]?.trim() || process.env.API_SPORTS_KEY?.trim() || undefined
 
 // ---------------------------------------------------------------- the cache file
 
@@ -457,7 +460,7 @@ export function externalGames(): { version: string; games: ExternalGame[] } {
     const byId = new Map<string, ExternalGame>()
     for (const [api, s] of Object.entries(mem.store)) {
       const def = APIS[api as Api]
-      if (!def) continue
+      if (!def || hiddenApi(api)) continue
       // Newest fetch last, so it wins for games that appear on two fetched days
       const fetched = Object.values(s.days).sort((a, b) => a.fetchedAt - b.fetchedAt)
       for (const d of fetched) for (const g of d.games) if (days.has(isoDate(new Date(g.kickoff)))) byId.set(g.id, g)
@@ -731,9 +734,10 @@ async function fetchDay(api: Api, date: string) {
 /** An API-Sports league (not ours) by its key, if we have seen its games */
 export function externalLeague(key: string): ExternalLeague | undefined {
   load()
-  for (const s of Object.values(mem.store)) if (s.leagues?.[key]) return { ...s.leagues[key], logo: realLogo(s.leagues[key].logo) }
+  for (const [api, s] of Object.entries(mem.store)) if (!hiddenApi(api) && s.leagues?.[key]) return { ...s.leagues[key], logo: realLogo(s.leagues[key].logo) }
   // Not remembered yet: from the games we have
   for (const [api, s] of Object.entries(mem.store)) {
+    if (hiddenApi(api)) continue
     const days = [...Object.values(s.days), ...Object.values(s.past ?? {}).map((games) => ({ games, fetchedAt: 0 }))]
     for (const d of days) {
       const g = d.games.find((x) => !divisionOfGame(x) && x.league.id && externalLeagueKey(x.league) === key)
@@ -746,7 +750,7 @@ export function externalLeague(key: string): ExternalLeague | undefined {
 /** Every API-Sports league (not ours) we have seen */
 export function externalLeagues(): ExternalLeague[] {
   load()
-  return Object.values(mem.store).flatMap((s) => Object.values(s.leagues ?? {}).map((l) => ({ ...l, logo: realLogo(l.logo) })))
+  return Object.entries(mem.store).flatMap(([api, s]) => (hiddenApi(api) ? [] : Object.values(s.leagues ?? {}).map((l) => ({ ...l, logo: realLogo(l.logo) }))))
 }
 
 /** Every team in the league tables we have, for the teams without a game in the fetched days (their pages and links) */

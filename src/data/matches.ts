@@ -1,3 +1,4 @@
+import { sportHidden } from '../sports'
 import type { Match, SportFilter, SportId } from '../types'
 import { addDays } from '../lib/time'
 import { clubFixtures, clubInDivision, fixturesOn, seasonClub, toMatch } from './season'
@@ -68,7 +69,7 @@ function leagueMatches(date: string, sport: SportId, now: number): Match[] {
     .map((f) => toMatch(f, now))
 }
 
-const ALL_SPORTS: SportId[] = ['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football']
+const ALL_SPORTS: SportId[] = (['soccer', 'basketball', 'ice_hockey', 'handball', 'volleyball', 'american_football'] as SportId[]).filter((s) => !sportHidden(s))
 
 /** The names a club goes by (ours, TheSportsDB's, search aliases), for matching games across sources */
 export function namesOf(name: string) {
