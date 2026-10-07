@@ -37,8 +37,8 @@ const DANISH = new Set(['superliga', '1div', '2div', '3div'])
 
 /** What the datavagt holds up against what, every night */
 const CHECKS: { what: string; how: string }[] = [
-  { what: 'Træner', how: 'to uafhængige kilder holdt op mod hinanden' },
-  { what: 'Stadion', how: 'to uafhængige kilder holdt op mod hinanden' },
+  { what: 'Træner', how: 'minimum 2 kilder målt op mod hinanden' },
+  { what: 'Stadion', how: 'minimum 2 kilder målt op mod hinanden' },
   { what: 'Tabel', how: 'vores kampe ↔ officiel stilling' },
   { what: 'TV-kanal', how: 'ugens Superliga- og 1. divisionskampe' },
   { what: 'Kampstatus', how: 'kampe, der ikke er afsluttet' },
@@ -198,7 +198,7 @@ export default async function AboutPage() {
               Vi tjekker os selv. Hver nat.
             </h2>
             <p>
-              Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i to uafhængige kilder og rettes, før du ser det.
+              Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i minimum 2 uafhængige kilder og rettes, før du ser det.
             </p>
             {lastRun && (
               <p className="about-vagt__status">
