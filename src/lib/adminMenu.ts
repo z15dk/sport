@@ -17,6 +17,7 @@ const SETTINGS = [
   { href: '/admin/widget', label: 'Widget', group: 'Siden' },
   { href: '/admin/data', label: 'Data & API', group: 'Siden' },
   { href: '/admin/kvalitet', label: 'Datakvalitet', group: 'Siden' },
+  { href: '/admin/datavagt', label: 'Datavagt', group: 'Siden' },
   { href: '/admin/logoer', label: 'Logo-job', group: 'Siden' },
   { href: '/admin/billetter', label: 'Billetter', group: 'Billetter og reklamer' },
   { href: '/admin/reklamer', label: 'Reklamepladser', group: 'Billetter og reklamer' },

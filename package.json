@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start -p 5173",
     "lint": "oxlint && tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test 'tests/photos/*.test.ts' 'tests/previews/*.test.ts' 'tests/data/*.test.ts' 'tests/articles/*.test.ts'",
+    "test": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test 'tests/photos/*.test.ts' 'tests/previews/*.test.ts' 'tests/data/*.test.ts' 'tests/articles/*.test.ts' 'tests/datavagt/*.test.ts'",
     "photos": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/photos-job.ts"
   },
   "dependencies": {

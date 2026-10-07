@@ -61,6 +61,9 @@ export async function register() {
   // The weekend's 1. division previews as drafts every Thursday, mailed for publishing from the phone (src/lib/autoPreviews.ts)
   const { startAutoPreviews } = await import('./lib/autoPreviews')
   startAutoPreviews()
+  // The datavagt: the club pages' coaches held up against DBU and API-Sports every night, for Claude to fix (src/lib/datavagt.ts)
+  const { startDatavagt } = await import('./lib/datavagt')
+  startDatavagt()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()

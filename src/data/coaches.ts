@@ -1,6 +1,6 @@
-// Head coaches we know better than the data: the club page takes the coach from the newest DBU match report, so a new
-// coach only shows after his first match, and a few reports name the wrong person. A name here wins on the club page
-// (header and "Hvem er … træner?"). Keep it short: remove a line once DBU's reports name the same coach.
+// The coach corrections the server starts from (data/rettelser.json, src/lib/rettelser.ts, takes over after the
+// first run – change them on /admin/datavagt or through /api/admin/datavagt, not here). The club page takes the coach
+// from the newest DBU match report, so a new coach only shows after his first match, and a few reports name the wrong person.
 
 export interface KnownCoach {
   name: string
@@ -15,5 +15,3 @@ export const KNOWN_COACHES: Record<string, KnownCoach> = {
   'kolding-if': { name: 'Brian Clarhaut', acting: true, why: 'Jonas Kamper fyret 6/10-2026; assistenten leder holdet, ny cheftræner præsenteres snart (tjekket 7/10-2026)' },
   'nykoebing-fc': { name: 'Mikkel Thygesen', why: "DBU's kamprapporter nævner fodbolddirektør Claus Jensen; Thygesen har været cheftræner siden januar 2025 (tjekket 6/10-2026)" },
 }
-
-export const knownCoach = (slug: string): KnownCoach | undefined => KNOWN_COACHES[slug]
