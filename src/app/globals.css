@@ -3117,3 +3117,41 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 }
 
 
+
+/* ------------------------------------------------------------------ /om: the league pages' dark top with live numbers, the coverage as logos, the datavagt, a door for the clubs */
+.about-hero { gap: 14px; margin-bottom: 0; }
+.about-hero .lx-hero__title { max-width: 24ch; }
+.about-hero__lead { margin: 0; max-width: 60ch; font-size: 16px; line-height: 1.5; color: rgba(255, 255, 255, 0.82); }
+.about-hero__nums { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.about-hero__nums .lx-hero__num { color: #fff; }
+.about-hero__nums a.lx-hero__num:hover { background: rgba(255, 255, 255, 0.13); }
+.about-cover { padding-bottom: 18px; }
+.about-cover__group { padding: 0 18px; }
+.about-cover__group + .about-cover__group { margin-top: 14px; }
+.about-cover__group h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.about-cover__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.about-cover__list a { display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; border-radius: var(--radius-sm); background: var(--surface-2); font-weight: 600; font-size: 14px; min-width: 0; }
+.about-cover__list a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.about-cover__list a:hover { background: var(--ink); color: #fff; }
+.about-cover__more { margin: 14px 0 0; padding: 0 18px; font-size: 14px; color: var(--ink-3); }
+.about-vagt { background: linear-gradient(180deg, #171c0d 0%, #0b0d07 100%); color: #fff; padding-bottom: 18px; }
+.about-vagt .panel__title { color: #fff; }
+.about-vagt__body { padding: 0 18px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+.about-vagt__body p { margin: 0; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
+.about-vagt__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.about-vagt__facts li { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.08); }
+.about-vagt__facts strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--lime); }
+.about-vagt__facts span { font-size: 13px; color: rgba(255, 255, 255, 0.78); }
+.about-clubs { padding-bottom: 18px; }
+.about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.about-clubs__card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.about-clubs__card em { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.about-clubs__card b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; line-height: 1.05; text-transform: uppercase; }
+.about-clubs__card span { font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.about-clubs__card:hover { background: var(--ink); color: #fff; }
+.about-clubs__card:hover :is(em, span) { color: rgba(255, 255, 255, 0.75); }
+@media (max-width: 760px) {
+  .about-hero__nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .about-hero__nums > :first-child { grid-column: 1 / -1; }
+  .about-vagt__body, .about-clubs__grid { grid-template-columns: 1fr; }
+}
