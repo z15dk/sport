@@ -368,7 +368,7 @@ async function externalLeaguePage(slug: string) {
       baseline={fromApi ? undefined : baseline}
       matches={own.matches}
       since={own.since}
-      recent={(tournament ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
+      recent={(tournament ? own.recent.filter((m) => m.date.getTime() < firstKept) : own.recent).map((m) => ({ ...m, home: shownTeam(m.home, found.country), away: shownTeam(m.away, found.country), homeLogo: m.homeLogo ?? logoFor(m.home), awayLogo: m.awayLogo ?? logoFor(m.away) }))}
       upcoming={upcoming}
       stats={stats}
       now={now}
