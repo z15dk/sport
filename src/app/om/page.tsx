@@ -35,15 +35,6 @@ export const metadata: Metadata = {
 
 const DANISH = new Set(['superliga', '1div', '2div', '3div'])
 
-/** What the datavagt holds up against what, every night, each with its icon (24×24 strokes) */
-const CHECKS: { what: string; how: string; icon: string }[] = [
-  { what: 'Træner', how: 'minimum 2 kilder målt op mod hinanden', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c.8-4 4-6 8-6s7.2 2 8 6' },
-  { what: 'Stadion', how: 'minimum 2 kilder målt op mod hinanden', icon: 'M3 9c0-2 4-4 9-4s9 2 9 4v6c0 2-4 4-9 4s-9-2-9-4V9ZM3 9c0 2 4 4 9 4s9-2 9-4M12 13v6' },
-  { what: 'Tabel', how: 'vores kampe ↔ officiel stilling', icon: 'M4 5h16M4 10h16M4 15h16M4 20h16M8 5v15' },
-  { what: 'TV-kanal', how: 'ugens Superliga- og 1. divisionskampe', icon: 'M3 7h18v11H3zM8 21h8M9 3l3 4 3-4' },
-  { what: 'Kampstatus', how: 'kampe, der ikke er afsluttet', icon: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM12 9v4l3 2M10 2h4' },
-]
-
 /** When the datavagt last ran, as a person says it: "i nat kl. 03.12", "i dag kl. 11.20", "i går kl. 03.10" */
 function whenRun(at: number, now: number): string {
   const day = (ms: number) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Copenhagen' }).format(new Date(ms))
@@ -199,7 +190,7 @@ export default async function AboutPage() {
                 Vi tjekker os selv. Hver nat.
               </h2>
               <p>
-                Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i minimum 2 uafhængige kilder og rettes, før du ser det.
+                Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat trænere, stadioner, tabeller, TV-kanaler og kampresultater op mod hinanden. Det, der ser forkert ud, tjekkes i minimum 2 uafhængige kilder og rettes, før du ser det.
               </p>
               {lastRun && (
                 <p className="about-vagt__status">
@@ -213,7 +204,7 @@ export default async function AboutPage() {
                 <dd>danske klubber</dd>
               </div>
               <div>
-                <dt>{CHECKS.length}</dt>
+                <dt>5</dt>
                 <dd>tjek pr. klub</dd>
               </div>
               <div>
@@ -222,20 +213,6 @@ export default async function AboutPage() {
               </div>
             </dl>
           </div>
-          <ul className="about-vagt__checks" aria-label="Det tjekker datavagten">
-            {CHECKS.map((c, i) => (
-              <li key={c.what} style={{ '--i': i } as CSSProperties}>
-                <span className="about-vagt__tick" aria-hidden="true">
-                  ✓
-                </span>
-                <svg className="about-vagt__icon" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
-                  <path d={c.icon} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <b>{c.what}</b>
-                <span>{c.how}</span>
-              </li>
-            ))}
-          </ul>
         </section>
 
         <section className="panel prose__section" id="artikler">
