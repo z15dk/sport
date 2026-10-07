@@ -64,6 +64,9 @@ export async function register() {
   // The datavagt: the club pages' coaches held up against DBU and API-Sports every night, for Claude to fix (src/lib/datavagt.ts)
   const { startDatavagt } = await import('./lib/datavagt')
   startDatavagt()
+  // Published previews get the result at the top once the match is played (src/lib/previewResults.ts)
+  const { startPreviewResults } = await import('./lib/previewResults')
+  startPreviewResults()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()
