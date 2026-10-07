@@ -1,4 +1,5 @@
 import 'server-only'
+import { isNationalTeam, shownTeam } from '../data/countries'
 import { findMatch } from '../data/matches'
 import { publishedArticles, saveArticle } from './articles'
 import { hasResult, isRoundUp, previewMatchSlug, withResult, withoutResult } from './previewResultText'
@@ -10,6 +11,9 @@ import { dateFromMatchSlug } from './slug'
 // coming from Google after the match is looking for, and an updated page for the search engines.
 // Once per preview (the line is the mark). PREVIEW_RESULTS=off stops it.
 
+/** The name we show: national teams in Danish ("Denmark U19" → "Danmark U19"), clubs as they are */
+const shown = (name: string) => shownTeam(name, isNationalTeam(name) ? 'World' : undefined)
+
 export function addPreviewResults(now = Date.now()): number {
   let done = 0
   for (const a of publishedArticles({ category: 'optakter', limit: 100 }).articles) {
@@ -18,7 +22,16 @@ export function addPreviewResults(now = Date.now()): number {
       if (hasResult(a.content)) saveArticle({ ...a, content: withoutResult(a.content) })
       continue
     }
-    if (hasResult(a.content) || !a.publishedAt || now - Date.parse(a.publishedAt) > 30 * 86_400_000) continue
+    // A result line written with the source's English names ("Wales – Denmark") gets the Danish ones
+    const line = /^<p><strong>Kampen er spillet: (.+?) – (.+?) (\d+)-(\d+)\.<\/strong>/.exec(a.content)
+    if (line) {
+      const [, h, w, hs, as] = line
+      const slug = previewMatchSlug(withoutResult(a.content))
+      if (slug && (shown(h) !== h || shown(w) !== w))
+        saveArticle({ ...a, content: withResult(withoutResult(a.content), { slug, home: shown(h), away: shown(w), hs: Number(hs), as: Number(as) }) })
+      continue
+    }
+    if (!a.publishedAt || now - Date.parse(a.publishedAt) > 30 * 86_400_000) continue
     const slug = previewMatchSlug(a.content)
     const date = slug && dateFromMatchSlug(slug)
     if (!slug || !date) continue
@@ -26,7 +39,7 @@ export function addPreviewResults(now = Date.now()): number {
     const past = findMatch(slug, date, now) ? undefined : findPastMatch(slug)
     const m = findMatch(slug, date, now) ?? (past && 'match' in past ? past.match : undefined)
     if (!m || m.state !== 'finished' || m.home.score == null || m.away.score == null) continue
-    const r = saveArticle({ ...a, content: withResult(a.content, { slug, home: m.home.name, away: m.away.name, hs: m.home.score, as: m.away.score }) })
+    const r = saveArticle({ ...a, content: withResult(a.content, { slug, home: shown(m.home.name), away: shown(m.away.name), hs: m.home.score, as: m.away.score }) })
     if (!r.error) done++
   }
   return done
