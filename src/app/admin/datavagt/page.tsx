@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
+import { DatavagtButton } from '../../../components/admin/DatavagtButton'
 import { isAdmin } from '../../../lib/admin'
 import { readDatavagt } from '../../../lib/datavagt'
 import { readRettelser } from '../../../lib/rettelser'
@@ -24,7 +25,7 @@ export default async function DatavagtPage() {
         <AdminNav current="/admin/datavagt" />
         <h1 className="feed__title">Datavagt</h1>
         <p className="muted">
-          Hver nat tjekkes trænerne på de danske klubsider mod DBU&apos;s kamprapporter og API-Sports. Claude gennemgår listen hver morgen, tjekker hvert punkt i to kilder og retter det selv – det usikre står tilbage her.
+          Hver nat tjekkes de danske klubsider: træner og stadion mod DBU og API-Sports, ugens Superliga- og 1. divisionskampe uden TV-kanal, vores tabel mod API-Sports&apos; og kampe, der hænger som i gang eller ikke spillet. Claude gennemgår listen hver morgen, tjekker hvert punkt i to kilder og retter trænerne selv – resten står her. Tryk &quot;Det er rigtigt&quot;, så kommer et fund først igen, hvis det ændrer sig.
         </p>
         <section className="panel pad">
           <h2 className="panel__title">Fundet {report.at ? when(report.at) : '– endnu ikke kørt'}</h2>
@@ -34,7 +35,7 @@ export default async function DatavagtPage() {
                 <li key={f.id} className="quality__check quality__check--warn">
                   <span className="quality__mark">!</span>
                   <span>
-                    <strong>{f.club}</strong> – {f.text}
+                    <strong>{f.url ? <a href={f.url}>{f.club}</a> : f.club}</strong> – {f.text} <DatavagtButton id={f.id} />
                   </span>
                 </li>
               ))}
@@ -67,6 +68,21 @@ export default async function DatavagtPage() {
                   <span className="quality__mark">✓</span>
                   <span>
                     <strong>{slug}</strong>: {c.name} <span className="muted small">({c.by}, {when(c.at)})</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {Object.keys(fixes.dismissed).length > 0 && (
+          <section className="panel pad">
+            <h2 className="panel__title">Fund du har godkendt ({Object.keys(fixes.dismissed).length})</h2>
+            <ul className="quality__checks">
+              {Object.entries(fixes.dismissed).map(([id, d]) => (
+                <li key={id} className="quality__check quality__check--ok">
+                  <span className="quality__mark">✓</span>
+                  <span>
+                    {d.text} <span className="muted small">({d.by}, {when(d.at)})</span> <DatavagtButton id={id} undo />
                   </span>
                 </li>
               ))}

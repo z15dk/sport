@@ -769,6 +769,12 @@ function tableTeamsNow(): TableTeam[] {
   )
 }
 
+/** The league's table as last fetched (the background job's copy; never asks the API), for the datavagt */
+export function apiStoredTable(leagueId: string, season = SEASON.slice(0, 4)): { fetchedAt: number; groups: TableRow[][] } | undefined {
+  const e = extrasStore().entries[`football|table|${leagueId}|${season}`]
+  return e?.table?.length ? { fetchedAt: e.fetchedAt, groups: e.table } : undefined
+}
+
 /** API-Sports' own table for a league (cached six hours); undefined when the plan or the budget doesn't allow it */
 export async function apiLeagueTable(league: ExternalLeague): Promise<TableRow[][] | undefined> {
   const api = league.api as Api

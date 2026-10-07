@@ -1,12 +1,13 @@
 import { adminDenied } from '../../../../lib/admin'
 import { readDatavagt, runDatavagt, sendDatavagtMail } from '../../../../lib/datavagt'
 import { mailErrorText } from '../../../../lib/mail'
-import { confirmCoach, readRettelser, setCoach } from '../../../../lib/rettelser'
+import { confirmCoach, dismissFinding, readRettelser, setCoach } from '../../../../lib/rettelser'
 
 // The datavagt's list and the corrections, for /admin/datavagt and for Claude's morning run:
 // GET → { report, rettelser }; POST { action: 'run' } runs the checks now, { action: 'mail' } sends the morning mail now,
 // { action: 'setCoach', slug, name, acting?, why, by? } and { action: 'removeCoach', slug, by? } change the coach list,
-// { action: 'confirmCoach', slug, name, by? } marks DBU's coach as checked ({ name: '' } removes the mark).
+// { action: 'confirmCoach', slug, name, by? } marks DBU's coach as checked ({ name: '' } removes the mark),
+// { action: 'dismiss', id, by? } marks a finding from the last run as fine until what it found changes, { action: 'undismiss', id } takes it back.
 
 export async function GET(request: Request) {
   const denied = await adminDenied(request)
@@ -46,6 +47,19 @@ export async function POST(request: Request) {
       if (!slug) return Response.json({ error: 'slug mangler' }, { status: 400 })
       confirmCoach(slug, str(b.name, 80) || null, by)
       return Response.json({ ok: true, rettelser: readRettelser() })
+    case 'dismiss': {
+      const id = str(b.id, 200)
+      const f = readDatavagt().findings.find((x) => x.id === id)
+      if (!f) return Response.json({ error: 'Fundet findes ikke i den seneste kørsel' }, { status: 404 })
+      dismissFinding(id, { sig: f.sig, text: `${f.club} – ${f.text}` }, by)
+      return Response.json({ ok: true, report: runDatavagt() })
+    }
+    case 'undismiss': {
+      const id = str(b.id, 200)
+      if (!id) return Response.json({ error: 'id mangler' }, { status: 400 })
+      dismissFinding(id, null, by)
+      return Response.json({ ok: true, report: runDatavagt() })
+    }
     default:
       return Response.json({ error: 'Ukendt handling' }, { status: 400 })
   }

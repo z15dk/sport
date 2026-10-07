@@ -27,8 +27,18 @@ export interface CoachConfirmed {
   by: string
 }
 
+/** A finding the owner has looked at and left as it is; it comes back when what it found changes (sig) */
+export interface Dismissed {
+  sig: string
+  /** The finding's text when it was dismissed, for the admin page */
+  text: string
+  at: number
+  by: string
+}
+
 interface Rettelser {
   coaches: Record<string, CoachFix>
+  dismissed: Record<string, Dismissed>
   /** Checked names the datavagt stops asking about, until DBU names someone else */
   confirmed: Record<string, CoachConfirmed>
   log: FixLogLine[]
@@ -45,10 +55,11 @@ export function readRettelser(): Rettelser {
     data = JSON.parse(readFileSync(file(), 'utf8')) as Rettelser
     data.coaches ??= {}
     data.confirmed ??= {}
+    data.dismissed ??= {}
     data.log ??= []
   } catch {
     // First time: the list from the code
-    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), confirmed: {}, log: [] }
+    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), confirmed: {}, dismissed: {}, log: [] }
   }
   cache = { at: Date.now(), data }
   return data
@@ -88,5 +99,14 @@ export function confirmCoach(slug: string, name: string | null, by: string) {
   if (name) data.confirmed[slug] = { name, at: Date.now(), by }
   else delete data.confirmed[slug]
   data.log.push({ at: Date.now(), by, text: name ? `Træner ${slug}: ${name} bekræftet` : `Træner ${slug}: bekræftelsen (${before?.name ?? '–'}) fjernet` })
+  save(data)
+}
+
+/** A finding marked as fine (sig = what it found); null takes the mark away */
+export function dismissFinding(id: string, finding: { sig: string; text: string } | null, by: string) {
+  const data = readRettelser()
+  if (finding) data.dismissed[id] = { ...finding, at: Date.now(), by }
+  else delete data.dismissed[id]
+  data.log.push({ at: Date.now(), by, text: finding ? `Godkendt som det er: ${finding.text}` : `Godkendelsen af ${id} fjernet` })
   save(data)
 }
