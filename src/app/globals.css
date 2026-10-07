@@ -3168,12 +3168,12 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 @media (prefers-reduced-motion: reduce) { .about-vagt__checks::after { display: none; } }
 .about-clubs { padding-bottom: 18px; }
 .about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.about-clubs__card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.about-clubs__card { transition: background 0.15s ease, color 0.15s ease; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .about-clubs__card em { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .about-clubs__card b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; line-height: 1.05; text-transform: uppercase; }
 .about-clubs__card span { font-size: 14px; color: var(--ink-2); line-height: 1.45; }
-.about-clubs__card:hover { background: var(--ink); color: #fff; }
-.about-clubs__card:hover :is(em, span) { color: rgba(255, 255, 255, 0.75); }
+.about-clubs__card:hover { background: var(--lime); color: #0f110c; }
+.about-clubs__card:hover :is(em, span) { color: rgba(15, 17, 12, 0.75); }
 @media (max-width: 760px) {
   .about-hero__nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .about-hero__nums > :first-child { grid-column: 1 / -1; }
