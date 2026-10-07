@@ -63,3 +63,14 @@ test('kvalitet: ufuldstændige mål blokerer, ukendte navne gør gul', () => {
   assert.ok(!ok.reasons.some((x) => x.includes('holdkort')), ok.reasons.join('; '))
   assert.ok(checkReport(i, r, { sheets: { ...sheets, asa: ['William Saleh'] } }).reasons.some((x) => x.includes('Andreas Lauridsen')))
 })
+
+test('målscorere på grafikken: samme efternavn får forbogstaver, en spillers mål samles', async () => {
+  const { scorerLines } = await import('../../src/lib/reports/build.ts')
+  const g = [
+    { name: 'Ronny Johan Larsen', minute: 5 },
+    { name: 'Louis Larsen', minute: 22 },
+    { name: 'Louis Larsen', minute: 79 },
+    { name: 'Mikkel Stangerup', minute: 85 },
+  ]
+  assert.deepEqual(scorerLines(g, g), ["R. J. Larsen 5'", "L. Larsen 22', 79'", "Stangerup 85'"])
+})

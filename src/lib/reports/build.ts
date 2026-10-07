@@ -85,6 +85,23 @@ export function runningScore(m: ReportInput['match'], goals: ReportGoal[]) {
     })
 }
 
+/**
+ * The scorers for the result graphic, one line per player in match order with all their minutes ("L. Larsen
+ * 22', 79'"): the surname alone when no one else in the match shares it, else with the first names' initials,
+ * so three different Larsens never look like a hat-trick.
+ */
+export function scorerLines(goals: { name: string; minute: number | null }[], all: { name: string }[]): string[] {
+  const surname = (n: string) => n.trim().split(/\s+/).at(-1) ?? n
+  const shared = (n: string) => new Set(all.filter((g) => surname(g.name) === surname(n)).map((g) => g.name)).size > 1
+  const short = (n: string) => {
+    const parts = n.trim().split(/\s+/)
+    return shared(n) && parts.length > 1 ? `${parts.slice(0, -1).map((p) => `${p[0]}.`).join(' ')} ${surname(n)}` : surname(n)
+  }
+  const byPlayer = new Map<string, (number | null)[]>()
+  for (const g of [...goals].sort((x, y) => (x.minute ?? 999) - (y.minute ?? 999))) byPlayer.set(g.name, [...(byPlayer.get(g.name) ?? []), g.minute])
+  return [...byPlayer].map(([name, mins]) => `${short(name)}${mins.some((m) => m != null) ? ` ${mins.filter((m) => m != null).map((m) => `${m}'`).join(', ')}` : ''}`)
+}
+
 /** The story of the match for the headline and the first sentence, from the data; undefined for a plain report */
 export function storyOf(input: ReportInput): { headline: string; sentence: string } | undefined {
   const { match: m } = input

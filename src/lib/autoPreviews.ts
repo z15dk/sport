@@ -10,6 +10,7 @@ import { dataDir } from './photos/config'
 import { dkDate } from './previews/build'
 import { ourClubName, previewBatch, previewLeagues, savePreviewDraft, upcomingFixtures } from './previews/data'
 import { TZ } from './time'
+import { scorerLines } from './reports/build'
 import { findReportKey, finishedWithoutReport, reportBatch, reportFor, reportLeagues, saveReportDraft, type ReportItem } from './reports/data'
 import { makeResultGraphic, makeVsGraphic } from './vsGraphic'
 
@@ -217,7 +218,7 @@ async function addResultGraphic(id: number, item: ReportItem) {
   const a = articleById(id)
   if (!a || a.featuredImage) return
   const m = item.input.match
-  const goals = (clubId: string) => item.input.goals.filter((g) => g.clubId === clubId).sort((x, y) => (x.minute ?? 999) - (y.minute ?? 999)).map((g) => `${g.name.split(' ').at(-1)}${g.minute != null ? ` ${g.minute}'` : ''}`)
+  const goals = (clubId: string) => scorerLines(item.input.goals.filter((g) => g.clubId === clubId), item.input.goals)
   try {
     const { url } = await makeResultGraphic({ home: m.home.name, away: m.away.name, hs: m.hs, as: m.as, top: `${item.league.graphic} · ${dkDate(m.date, true, false)}`, homeGoals: goals(m.home.id), awayGoals: goals(m.away.id) })
     saveArticle({ ...a, featuredImage: url, featuredAlt: `${m.home.name} – ${m.away.name} ${m.hs}-${m.as} i ${item.league.graphic}` })
