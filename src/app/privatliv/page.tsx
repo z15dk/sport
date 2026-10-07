@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: { absolute: `Privatliv og cookies · ${SITE_NAME}` },
   description: `Sådan behandler ${SITE_NAME} oplysninger og cookies: ingen brugerkonti, statistik og annoncemåling kun med dit samtykke, og dine hold gemmes kun i din egen browser.`,
   alternates: { canonical: paths.privacy() },
+  // Not for search results (the owner's choice); links from it are still followed
+  robots: { index: false, follow: true },
 }
 
 // The privacy policy: what the site keeps about its visitors (next to

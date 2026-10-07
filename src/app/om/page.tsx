@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { SEASON, shownDivisions, sportOf } from '../../data/leagues'
 import { getMatches } from '../../data/matches'
+import { standings } from '../../data/season'
 import { getRealData } from '../../data/real'
 import { externalLeagueKey } from '../../data/external'
 import { divisionOfGame } from '../../data/ourLeagues'
@@ -76,6 +77,9 @@ export default async function AboutPage() {
   const articles = publishedArticles({ limit: 1 }).total
   const danish = danishTournaments()
   const sports = [...new Set(divisions.map((d) => sportOf(d)))]
+  // The top of the Superliga, as the clubs' own table would show it (the widget card)
+  const superliga = divisions.find((d) => d.id === 'superliga')
+  const top = superliga ? standings(superliga, now).slice(0, 4) : []
 
   // The datavagt: when it last ran ("i nat", "i dag kl. 11.20")
   const vagt = readDatavagt()
@@ -224,20 +228,35 @@ export default async function AboutPage() {
             Til klubber og fanmedier
           </h2>
           <div className="about-clubs__grid">
-            <Link className="about-clubs__card" href="/widget">
+            <Link className="about-clubs__card about-clubs__card--lead" href="/widget">
               <em>Gratis</em>
               <b>Sæt tabellen på jeres hjemmeside</b>
+              {top.length > 0 && (
+                <ol className="about-clubs__mini" aria-label="Superligaen lige nu">
+                  {top.map((r, i) => (
+                    <li key={r.club.id}>
+                      <i>{i + 1}</i>
+                      <TeamBadge link={false} name={r.club.name} src={badges[r.club.name]} size={20} />
+                      <span>{r.club.name}</span>
+                      <strong>{r.points}</strong>
+                    </li>
+                  ))}
+                </ol>
+              )}
               <span>Tabel, kampprogram og resultater, der opdaterer sig selv.</span>
+              <u>Hent tabellen →</u>
             </Link>
             <a className="about-clubs__card" href={`mailto:${CONTACT_EMAIL}?subject=Nyhed fra klubben`}>
               <em>Nyheder</em>
               <b>Send os jeres nyheder</b>
               <span>Trænerskifte, nye spillere, jubilæer – vi skriver om det.</span>
+              <u>Skriv til os →</u>
             </a>
             <Link className="about-clubs__card" href={paths.advertising()}>
               <em>Synlighed</em>
               <b>Annoncér på Matchly</b>
               <span>Nå fodboldfans i hele landet med jeres budskab.</span>
+              <u>Se annoncepakker →</u>
             </Link>
           </div>
         </section>

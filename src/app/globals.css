@@ -3153,7 +3153,21 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .about-vagt__status { font-size: 14px; color: rgba(255, 255, 255, 0.8) !important; }
 .about-vagt__status b { color: var(--lime); }
 .about-clubs { padding-bottom: 18px; }
-.about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.about-clubs__card u { margin-top: auto; padding-top: 10px; text-decoration: none; font-weight: 700; font-size: 14px; }
+.about-clubs__card.about-clubs__card--lead { background: #0f110c; color: #fff; }
+.about-clubs__card.about-clubs__card--lead em { color: var(--lime); }
+.about-clubs__card.about-clubs__card--lead span { color: rgba(255, 255, 255, 0.72); }
+.about-clubs__card.about-clubs__card--lead u { color: var(--lime); }
+.about-clubs__card.about-clubs__card--lead:hover { background: #0f110c; color: #fff; box-shadow: inset 0 0 0 2px var(--lime); }
+.about-clubs__card.about-clubs__card--lead:hover :is(em, u) { color: var(--lime); }
+.about-clubs__card.about-clubs__card--lead:hover span { color: rgba(255, 255, 255, 0.72); }
+.about-clubs__mini { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.about-clubs__mini li { display: grid; grid-template-columns: 18px 20px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 10px 5px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.07); font-size: 13px; }
+.about-clubs__mini li:first-child { box-shadow: inset 3px 0 0 var(--lime); }
+.about-clubs__mini i { font-family: var(--display); font-style: italic; font-weight: 800; text-align: center; }
+.about-clubs__mini li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff !important; font-size: 13px !important; }
+.about-clubs__mini strong { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 16px; }
 .about-clubs__card { transition: background 0.15s ease, color 0.15s ease; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .about-clubs__card em { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .about-clubs__card b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; line-height: 1.05; text-transform: uppercase; }

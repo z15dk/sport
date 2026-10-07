@@ -14,4 +14,4 @@ export interface Partner {
 export const BOOKMAKER: Partner = { id: 'odds-partner', name: 'Odds-partner' }
 
 /** Required with any gambling marketing in Denmark */
-export const RESPONSIBLE_GAMBLING = { text: '18+ · Spil ansvarligt · Hjælp: StopSpillet.dk', url: 'https://stopspillet.dk' }
+export const RESPONSIBLE_GAMBLING = { text: '18+ · Spil ansvarligt · Hjælp: StopSpillet.dk', url: 'https://www.stopspillet.dk/' }
