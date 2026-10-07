@@ -33,7 +33,6 @@ export const metadata: Metadata = {
   alternates: { canonical: paths.about() },
 }
 
-const DANISH = new Set(['superliga', '1div', '2div', '3div'])
 
 /** When the datavagt last ran, as a person says it: "i nat kl. 03.12", "i dag kl. 11.20", "i går kl. 03.10" */
 function whenRun(at: number, now: number): string {
@@ -78,9 +77,8 @@ export default async function AboutPage() {
   const danish = danishTournaments()
   const sports = [...new Set(divisions.map((d) => sportOf(d)))]
 
-  // The datavagt: when it last ran ("i nat", "i dag kl. 11.20") and how many clubs it looks at
+  // The datavagt: when it last ran ("i nat", "i dag kl. 11.20")
   const vagt = readDatavagt()
-  const checkedClubs = divisions.filter((d) => DANISH.has(d.id)).reduce((n, d) => n + d.clubs.length, 0)
   const lastRun = vagt.at > 0 ? whenRun(vagt.at, now) : undefined
 
   const faq: FaqItem[] = [
@@ -198,20 +196,6 @@ export default async function AboutPage() {
                 </p>
               )}
             </div>
-            <dl className="about-vagt__big">
-              <div>
-                <dt>{number(checkedClubs)}</dt>
-                <dd>danske klubber</dd>
-              </div>
-              <div>
-                <dt>5</dt>
-                <dd>tjek pr. klub</dd>
-              </div>
-              <div>
-                <dt>2+</dt>
-                <dd>kilder pr. fakta</dd>
-              </div>
-            </dl>
           </div>
         </section>
 

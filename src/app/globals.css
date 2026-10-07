@@ -3146,17 +3146,12 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
   background-image: radial-gradient(rgba(198, 241, 53, 0.35) 1.2px, transparent 1.4px); background-size: 22px 22px;
   mask-image: radial-gradient(70% 90% at 100% 0%, #000 0%, transparent 75%);
 }
-.about-vagt__top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px 32px; align-items: end; }
+.about-vagt__top { display: block; }
 .about-vagt__intro { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .about-vagt__title { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(34px, 5vw, 60px); line-height: 0.92; text-transform: uppercase; }
 .about-vagt__intro p { margin: 0; line-height: 1.6; color: rgba(255, 255, 255, 0.8); max-width: 54ch; }
 .about-vagt__status { font-size: 14px; color: rgba(255, 255, 255, 0.8) !important; }
 .about-vagt__status b { color: var(--lime); }
-.about-vagt__big { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.about-vagt__big div { padding: 2px 0 2px 16px; border-left: 1px solid rgba(255, 255, 255, 0.14); }
-.about-vagt__big div:first-child { padding-left: 0; border-left: 0; }
-.about-vagt__big dt { font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(36px, 4.4vw, 56px); line-height: 0.9; color: var(--lime); }
-.about-vagt__big dd { margin: 6px 0 0; font-size: 13px; color: rgba(255, 255, 255, 0.75); }
 .about-clubs { padding-bottom: 18px; }
 .about-clubs__grid { padding: 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .about-clubs__card { transition: background 0.15s ease, color 0.15s ease; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--surface-2); }
@@ -3168,6 +3163,6 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 @media (max-width: 760px) {
   .about-hero__nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .about-hero__nums > :first-child { grid-column: 1 / -1; }
-  .about-clubs__grid, .about-vagt__top { grid-template-columns: 1fr; }
+  .about-clubs__grid { grid-template-columns: 1fr; }
   .about-vagt { padding: 20px 16px; }
 }
