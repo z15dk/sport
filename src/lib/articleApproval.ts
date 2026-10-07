@@ -65,7 +65,9 @@ export async function sendArticleApprovalMail(ids: number[], opts: { notes?: str
   const n = drafts.length
   const marks = Object.fromEntries(drafts.map((a) => [a.id, qualityOf(a.id)]))
   // Without marks every draft can go with "Udgiv alle", as before; with marks only the green ones (or the given list)
-  const all = (opts.publishAll ?? drafts.filter((a) => !marks[a.id] || marks[a.id]!.level === 'green').map((a) => a.id)).filter((id) => drafts.some((a) => a.id === id))
+  // The Claude writer's "look at this" (editor.ok false) keeps an article out of "Udgiv alle" too
+  const fine = (id: number) => !marks[id] || (marks[id]!.level === 'green' && marks[id]!.editor?.ok !== false)
+  const all = (opts.publishAll ?? drafts.map((a) => a.id)).filter((id) => drafts.some((a) => a.id === id) && fine(id))
   const items = drafts
     .map((a) => {
       const img = a.featuredImage ? `<img src="${esc(a.featuredImage.startsWith('/') ? SITE_URL + a.featuredImage : a.featuredImage)}" alt="" width="560" style="display:block;width:100%;max-width:560px;border-radius:10px;margin:0 0 10px">` : ''
