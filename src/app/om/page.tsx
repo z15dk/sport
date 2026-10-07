@@ -15,7 +15,6 @@ import { customLogoUrl } from '../../lib/customLogos'
 import { readDatavagt } from '../../lib/datavagt'
 import type { FaqItem } from '../../lib/faq'
 import { JsonLd, breadcrumbLd, faqLd, organizationLd } from '../../lib/jsonld'
-import { readRettelser } from '../../lib/rettelser'
 import { indexable } from '../../lib/settings'
 import { CONTACT_EMAIL, SITE_NAME, paths } from '../../lib/site'
 import { formatFull, formatTime, isoDate } from '../../lib/time'
@@ -35,6 +34,25 @@ export const metadata: Metadata = {
 }
 
 const DANISH = new Set(['superliga', '1div', '2div', '3div'])
+
+/** What the datavagt holds up against what, every night */
+const CHECKS: { what: string; how: string }[] = [
+  { what: 'Træner', how: 'DBU ↔ datapartner' },
+  { what: 'Stadion', how: 'DBU ↔ datapartner' },
+  { what: 'Tabel', how: 'vores kampe ↔ officiel stilling' },
+  { what: 'TV-kanal', how: 'ugens Superliga- og 1. divisionskampe' },
+  { what: 'Kampstatus', how: 'kampe, der ikke er afsluttet' },
+]
+
+/** When the datavagt last ran, as a person says it: "i nat kl. 03.12", "i dag kl. 11.20", "i går kl. 03.10" */
+function whenRun(at: number, now: number): string {
+  const day = (ms: number) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Copenhagen' }).format(new Date(ms))
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Copenhagen', hour: '2-digit', hourCycle: 'h23' }).format(new Date(at)))
+  const time = `kl. ${formatTime(new Date(at))}`
+  if (day(at) === day(now)) return `${hour < 6 ? 'i nat' : 'i dag'} ${time}`
+  if (day(at) === day(now - 24 * 3600_000)) return `${hour >= 22 ? 'i nat' : 'i går'} ${time}`
+  return `${formatFull(new Date(at))} ${time}`
+}
 const number = (n: number) => n.toLocaleString('da-DK')
 
 /** What we cover beyond our own leagues in Denmark (A-Liga, B-Liga, the cup): the tournaments the big sites skip */
@@ -69,10 +87,10 @@ export default async function AboutPage() {
   const danish = danishTournaments()
   const sports = [...new Set(divisions.map((d) => sportOf(d)))]
 
-  // The datavagt: when it last ran, how many clubs it looks at, and what was put right in the last 30 days
+  // The datavagt: when it last ran ("i nat", "i dag kl. 11.20") and how many clubs it looks at
   const vagt = readDatavagt()
   const checkedClubs = divisions.filter((d) => DANISH.has(d.id)).reduce((n, d) => n + d.clubs.length, 0)
-  const fixed = readRettelser().log.filter((l) => now - l.at < 30 * 24 * 3600_000).length
+  const lastRun = vagt.at > 0 ? whenRun(vagt.at, now) : undefined
 
   const faq: FaqItem[] = [
     { q: 'Er Matchly gratis?', a: 'Ja. Resultater, tabeller, statistik og artikler er gratis for alle. Siden betales af annoncer.' },
@@ -175,30 +193,34 @@ export default async function AboutPage() {
         </section>
 
         <section className="panel about-vagt" id="datavagten" aria-labelledby="about-vagt">
-          <h2 id="about-vagt" className="panel__title">
-            Datavagten: vi tjekker os selv hver nat
-          </h2>
-          <div className="about-vagt__body">
+          <div className="about-vagt__intro">
+            <span className="lx-hero__kicker">Datavagten</span>
+            <h2 id="about-vagt" className="about-vagt__title">
+              Vi tjekker os selv. Hver nat.
+            </h2>
             <p>
-              Data fra forskellige kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores tal op mod hinanden: træner og stadion hos DBU og vores datapartner, vores tabeller mod de officielle, ugens kampe uden TV-kanal og kampe, der hænger. Det, der ser forkert ud, tjekkes i to uafhængige kilder og rettes.
+              Kilder er ikke altid enige. Derfor holder Matchlys datavagt hver nat vores data op mod hinanden. Det, der ser forkert ud, tjekkes i to uafhængige kilder og rettes, før du ser det.
             </p>
-            <ul className="about-vagt__facts">
-              <li>
-                <strong>{number(checkedClubs)}</strong>
-                <span>danske klubber tjekket hver nat</span>
-              </li>
-              <li>
-                <strong>{number(fixed)}</strong>
-                <span>rettelser de seneste 30 dage</span>
-              </li>
-              {vagt.at > 0 && (
-                <li>
-                  <strong>{formatTime(new Date(vagt.at))}</strong>
-                  <span>seneste tjek, {formatFull(new Date(vagt.at))}</span>
-                </li>
-              )}
-            </ul>
+            {lastRun && (
+              <p className="about-vagt__status">
+                <i aria-hidden="true" /> Seneste tjek: <b>{lastRun}</b>
+              </p>
+            )}
           </div>
+          <ul className="about-vagt__checks" aria-label="Det tjekker datavagten">
+            {CHECKS.map((c) => (
+              <li key={c.what}>
+                <span className="about-vagt__tick" aria-hidden="true">
+                  ✓
+                </span>
+                <b>{c.what}</b>
+                <span>{c.how}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="about-vagt__strip">
+            <b>{number(checkedClubs)}</b> danske klubber <span aria-hidden="true">·</span> <b>{CHECKS.length}</b> tjek <span aria-hidden="true">·</span> <b>hver nat</b>
+          </p>
         </section>
 
         <section className="panel prose__section" id="artikler">
