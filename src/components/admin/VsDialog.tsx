@@ -9,6 +9,8 @@ import { ArchivePicker } from './ArticlePhotos'
 
 export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: string) => void; onClose: () => void }) {
   const [clubs, setClubs] = useState<string[]>([])
+  // Two clubs (VS) or one club (only its logo)
+  const [one, setOne] = useState(false)
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
   const [top, setTop] = useState('')
@@ -41,7 +43,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const make = async () => {
     setBusy(true)
     setError(undefined)
-    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ home, away, top, bg }) })
+    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(one ? { club: home } : { home, away, top, bg }) })
       .then(async (x) => {
         const text = await x.text()
         try {
@@ -53,13 +55,13 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
       })
       .catch((): { url?: string; error?: string } => ({ error: 'Ingen forbindelse til serveren' }))
     setBusy(false)
-    if (r.url) onDone(r.url, `${home} mod ${away}`)
+    if (r.url) onDone(r.url, one ? home : `${home} mod ${away}`)
     else setError(r.error ?? 'Grafikken kunne ikke laves')
   }
 
   // The live preview: the finished picture itself, drawn by the server (a moment after the last keystroke)
-  const ready = clubs.includes(home) && clubs.includes(away)
-  const query = ready ? new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString() : undefined
+  const ready = one ? clubs.includes(home) : clubs.includes(home) && clubs.includes(away)
+  const query = !ready ? undefined : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
   const [preview, setPreview] = useState<string>()
   const [loading, setLoading] = useState(false)
   useEffect(() => {
@@ -73,10 +75,10 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   }, [query])
 
   return (
-    <div className="vsd" role="dialog" aria-modal="true" aria-label="Lav VS-grafik">
+    <div className="vsd" role="dialog" aria-modal="true" aria-label={one ? 'Lav klubbillede' : 'Lav VS-grafik'}>
       <div className="vsd__panel">
         <header className="vsd__head">
-          <h2>Lav VS-grafik</h2>
+          <h2>{one ? 'Lav klubbillede' : 'Lav VS-grafik'}</h2>
           <button type="button" className="text-btn" onClick={onClose}>
             Luk
           </button>
@@ -86,21 +88,34 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             <option key={c} value={c} />
           ))}
         </datalist>
+        <div className="vsd__bg-actions" role="group" aria-label="Slags grafik">
+          <button type="button" className={`pill${one ? '' : ' is-active'}`} aria-pressed={!one} onClick={() => setOne(false)}>
+            To klubber (VS)
+          </button>
+          <button type="button" className={`pill${one ? ' is-active' : ''}`} aria-pressed={one} onClick={() => setOne(true)}>
+            Én klub (logo)
+          </button>
+        </div>
         <div className="vsd__grid">
           <label>
-            <span>Hjemmehold</span>
+            <span>{one ? 'Klub' : 'Hjemmehold'}</span>
             <input list="vs-clubs" value={home} onChange={(e) => setHome(e.target.value)} placeholder="Skriv klubbens navn …" />
           </label>
-          <label>
-            <span>Udehold</span>
-            <input list="vs-clubs" value={away} onChange={(e) => setAway(e.target.value)} placeholder="Skriv klubbens navn …" />
-          </label>
-          <label className="vsd__wide">
-            <span>Linje øverst (valgfri)</span>
-            <input value={top} onChange={(e) => setTop(e.target.value)} maxLength={120} placeholder="Fx SHL · lør. 3/10 kl. 15.15 · Malmö Arena" />
-          </label>
+          {!one && (
+            <>
+              <label>
+                <span>Udehold</span>
+                <input list="vs-clubs" value={away} onChange={(e) => setAway(e.target.value)} placeholder="Skriv klubbens navn …" />
+              </label>
+              <label className="vsd__wide">
+                <span>Linje øverst (valgfri)</span>
+                <input value={top} onChange={(e) => setTop(e.target.value)} maxLength={120} placeholder="Fx SHL · lør. 3/10 kl. 15.15 · Malmö Arena" />
+              </label>
+            </>
+          )}
         </div>
-        <div className="vsd__bg">
+        {/* One club: only its logo, no background photo */}
+        <div className="vsd__bg" hidden={one}>
           <span>Baggrundsbillede (valgfrit)</span>
           <div className="vsd__bg-actions">
             <button type="button" className="pill" onClick={() => setArchive(true)} disabled={busy}>
@@ -131,7 +146,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             // eslint-disable-next-line @next/next/no-img-element -- the server's own picture, shown as it is
             <img
               src={preview}
-              alt="Forhåndsvisning af VS-grafikken"
+              alt={one ? 'Forhåndsvisning af klubbilledet' : 'Forhåndsvisning af VS-grafikken'}
               width={1200}
               height={630}
               onLoad={() => setLoading(false)}
@@ -140,7 +155,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
                 setError('Forhåndsvisningen kunne ikke tegnes')
               }}
             />
-          ) : bg ? (
+          ) : bg && !one ? (
             // Before the clubs are chosen: the background as it will sit behind them
             <>
               {/* eslint-disable-next-line @next/next/no-img-element -- an upload of our own */}
@@ -148,13 +163,13 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
               <p className="vsd__hint small">Baggrunden er valgt – vælg to klubber fra listen for at se hele grafikken.</p>
             </>
           ) : (
-            <p className="muted small">Vælg to klubber fra listen for at se grafikken.</p>
+            <p className="muted small">{one ? 'Vælg en klub fra listen for at se billedet.' : 'Vælg to klubber fra listen for at se grafikken.'}</p>
           )}
         </div>
         {error && <p className="small social-msg is-error">{error}</p>}
         <p>
           <button type="button" className="pill is-active" disabled={!ready || busy} onClick={() => void make()}>
-            {busy ? 'Arbejder …' : 'Lav grafik og brug den'}
+            {busy ? 'Arbejder …' : one ? 'Lav billede og brug det' : 'Lav grafik og brug den'}
           </button>
         </p>
       </div>

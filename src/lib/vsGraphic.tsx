@@ -5,10 +5,15 @@ import { ImageResponse } from 'next/og'
 import sharp from 'sharp'
 import { getBadges } from './badges'
 import { readLogo } from './customLogos'
-import { proxiedPicture } from './imageProxy'
+import { proxiedPicture, proxyImage } from './imageProxy'
 import { nationalTeams } from './nationalTeams'
 import { mOutline, OG_SIZE, ogFonts } from './ogImage'
 import { withPhotoDb } from './photos/server'
+import { allTeams } from '../data/teams'
+import { englishNation, foldCountry } from '../data/countries'
+import { flagCode } from '../data/flagCodes'
+import { flagSource } from './flags'
+import { STANDARD_KLUBFARVE, klubfarve } from '../data/klubfarver'
 import { registerArticleUpload } from './photos/store'
 import { readUpload, saveUpload } from './uploads'
 
@@ -53,13 +58,13 @@ async function ownPicture(src: string): Promise<Buffer | undefined> {
 }
 
 /** A logo as PNG data, drawn to fit the box (an SVG at a density that keeps it sharp) */
-async function logoData(src: string | undefined, width: number, height: number, cover = false): Promise<string | undefined> {
+async function logoData(src: string | undefined, width: number, height: number, cover = false, enlarge = false): Promise<string | undefined> {
   if (!src) return undefined
   try {
     const bytes = await ownPicture(src)
     if (!bytes) return undefined
     const png = await sharp(bytes, { density: 300 })
-      .resize(width, height, { fit: cover ? 'cover' : 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 }, withoutEnlargement: !cover })
+      .resize(width, height, { fit: cover ? 'cover' : 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 }, withoutEnlargement: !cover && !enlarge })
       .png()
       .toBuffer()
     return `data:image/png;base64,${png.toString('base64')}`
@@ -151,6 +156,95 @@ export async function makeVsGraphic(input: VsInput): Promise<{ url: string }> {
     withPhotoDb((db) => {
       const id = registerArticleUpload(db, name)
       db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(`${input.home.trim()} vs ${input.away.trim()}`, id)
+    })
+  } catch {
+    // the article still gets its picture
+  }
+  return { url: saved.url }
+}
+
+// ---------------------------------------------------------------- one club
+
+/**
+ * The background of the club picture, as the league pages' top (.lx-hero): dark, the club's colour from the top
+ * right, a lime glow from the bottom left, and a dot pattern that fades in towards the club's colour. Drawn as one
+ * SVG, so the picture renderer needs no gradients or masks of its own.
+ */
+function clubBackground(color: string): string {
+  const { width: w, height: h } = OG_SIZE
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+<defs>
+<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171c0d"/><stop offset="1" stop-color="#0b0d07"/></linearGradient>
+<radialGradient id="club" cx="${w}" cy="0" r="${w * 0.75}" gradientUnits="userSpaceOnUse" gradientTransform="translate(${w} 0) scale(1 1.15) translate(${-w} 0)"><stop offset="0" stop-color="${color}" stop-opacity="0.55"/><stop offset="0.7" stop-color="${color}" stop-opacity="0"/></radialGradient>
+<radialGradient id="lime" cx="0" cy="${h}" r="${w * 0.6}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c6f135" stop-opacity="0.16"/><stop offset="0.7" stop-color="#c6f135" stop-opacity="0"/></radialGradient>
+<pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.4"/></pattern>
+<radialGradient id="fade" cx="${w}" cy="0" r="${w * 1.1}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<mask id="m"><rect width="${w}" height="${h}" fill="url(#fade)"/></mask>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#base)"/>
+<rect width="${w}" height="${h}" fill="url(#dots)" mask="url(#m)"/>
+<rect width="${w}" height="${h}" fill="url(#club)"/>
+<rect width="${w}" height="${h}" fill="url(#lime)"/>
+</svg>`
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
+}
+
+/** A club's colour for its picture: the club pages' colour (src/data/klubfarver.ts), else the league pages' olive */
+function clubColor(name: string, flag: boolean): string {
+  // A national team by its address's English name ("Danmark" -> "denmark"), where the national colours are kept
+  const english = flag ? englishNation(foldCountry(name)) : undefined
+  const team = english ? undefined : allTeams().find((t) => t.name === name || t.names?.includes(name))
+  const color = english ? klubfarve(english.replace(/[^a-z]+/g, '-')) : team ? klubfarve(team.slug, team.colors) : undefined
+  return color && color !== STANDARD_KLUBFARVE ? color : '#2c3a0c'
+}
+
+/** The club picture as PNG (1200×630): only the club's logo (or a national team's flag) on Matchly's dark top */
+export async function clubGraphicPng(input: { club: string }): Promise<Buffer> {
+  const club = input.club.trim()
+  if (!club) throw new Error('Vælg en klub')
+  const badges = await getBadges()
+  const flags = nationalTeams()
+  const flag = !badges[club] && !!flags[club]
+  // A flag drawn big from its source (the national teams' list keeps only a small copy)
+  const code = flag ? flagCode(club, true) : undefined
+  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace("/w160/", "/w640/")) : flags[club], 630, 420, true) : await logoData(badges[club], 680, 680, false, true)
+  const res = new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+        <img src={clubBackground(clubColor(club, flag))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        {/* The big M as on the league pages' top: an outline, cut off at the bottom right */}
+        <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
+        <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {logo ? (
+            flag ? (
+              <img src={logo} width={420} height={280} alt="" style={{ borderRadius: 18, objectFit: 'cover', boxShadow: '0 14px 40px rgba(0,0,0,0.55)' }} />
+            ) : (
+              <img src={logo} width={340} height={340} alt="" style={{ objectFit: 'contain' }} />
+            )
+          ) : (
+            <div style={{ display: 'flex', fontSize: 120, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center' }}>{club.toUpperCase()}</div>
+          )}
+        </div>
+        <div style={{ position: 'absolute', left: 0, bottom: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 50, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+          MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: ogFonts() },
+  )
+  return Buffer.from(await res.arrayBuffer())
+}
+
+/** The club picture saved as an upload, ready as the article's picture */
+export async function makeClubGraphic(input: { club: string }): Promise<{ url: string }> {
+  const png = await clubGraphicPng(input)
+  const saved = await saveUpload(png, 1200)
+  if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')
+  try {
+    const name = saved.url.replace('/uploads/', '')
+    withPhotoDb((db) => {
+      const id = registerArticleUpload(db, name)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(input.club.trim(), id)
     })
   } catch {
     // the article still gets its picture
