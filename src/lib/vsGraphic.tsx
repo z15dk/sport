@@ -349,6 +349,9 @@ export interface ResultInput {
   as: number
   /** The line on top: the league and the day ("3. division · lørdag 3. oktober") */
   top?: string
+  /** The names the logos are kept under, when they aren't the team names (the women's teams use their club's logo) */
+  homeLogo?: string
+  awayLogo?: string
   /** Each side's goals as "Zuberovski 25'", in match order */
   homeGoals?: string[]
   awayGoals?: string[]
@@ -405,11 +408,11 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
   const away = input.away.trim()
   if (!home || !away) throw new Error('Begge hold skal med')
   const badges = await getBadges()
-  const [homeLogo, awayLogo] = await Promise.all([logoData(badges[home], 420, 420), logoData(badges[away], 420, 420)])
+  const [homeLogo, awayLogo] = await Promise.all([logoData(badges[input.homeLogo ?? home] ?? badges[home], 420, 420), logoData(badges[input.awayLogo ?? away] ?? badges[away], 420, 420)])
   const res = new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
-        <img src={resultBackground(clubColor(home, false), clubColor(away, false))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        <img src={resultBackground(clubColor(input.homeLogo ?? home, false), clubColor(input.awayLogo ?? away, false))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
         {input.top && <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 2, color: LIME }}>{input.top.toUpperCase()}</div>}
         <div style={{ position: 'absolute', left: 0, top: 100, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
           <ResultSide name={home} logo={homeLogo} goals={input.homeGoals ?? []} />

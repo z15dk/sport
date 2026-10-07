@@ -61,7 +61,9 @@ test('kvalitet: ufuldstændige mål blokerer, ukendte navne gør gul', () => {
   const ok = checkReport(i, r, { sheets })
   assert.notEqual(ok.level, 'blocked')
   assert.ok(!ok.reasons.some((x) => x.includes('holdkort')), ok.reasons.join('; '))
-  assert.ok(checkReport(i, r, { sheets: { ...sheets, asa: ['William Saleh'] } }).reasons.some((x) => x.includes('Andreas Lauridsen')))
+  // A scorer missing from the sheet is yellow; a card to someone not on it (bench staff) is not
+  assert.ok(checkReport(i, r, { sheets: { ...sheets, hol: ['Miron Zuberovski'] } }).reasons.some((x) => x.includes('Mehmet Coskun')))
+  assert.ok(!checkReport(i, r, { sheets: { ...sheets, asa: ['William Saleh'] } }).reasons.some((x) => x.includes('Andreas Lauridsen')))
 })
 
 test('målscorere på grafikken: samme efternavn får forbogstaver, en spillers mål samles', async () => {

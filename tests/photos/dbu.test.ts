@@ -175,3 +175,15 @@ test('kampsider: ikke kommende kampe, og ældre kampe hver 12. time', () => {
   assert.equal(matchDueNow({ date: '2026-10-09', kickoff: '19:00', fetchedAt: '2026-10-10T07:00:00Z' }, now), true, 'læst for 13 timer siden')
   assert.equal(matchDueNow({ date: '2026-10-09', kickoff: '19:00' }, now), true, 'aldrig læst')
 })
+
+test('mål med oplæg: kun målscoreren, ikke målscorer og oplæg i ét (DBU-kamp 382057, A-Ligaen)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { parseResult } = await import('../../src/lib/photos/dbu.ts')
+  const html = readFileSync(new URL('./fixtures/dbu-kamp-med-oplaeg.html', import.meta.url), 'utf8')
+  const r = parseResult(html)
+  assert.ok(r)
+  assert.deepEqual(
+    r!.goals.map((g) => g.name),
+    ['Mille Gejl Jensen', 'Sara Benjaminsen', 'Nadia Nadim', 'Sara Benjaminsen'],
+  )
+})

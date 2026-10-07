@@ -11,6 +11,9 @@ import { dkDate } from './previews/build'
 import { ourClubName, previewBatch, previewLeagues, savePreviewDraft, upcomingFixtures } from './previews/data'
 import { TZ } from './time'
 import { scorerLines } from './reports/build'
+import { withWomenDbAsync } from './reports/women'
+import { syncDbu } from './photos/dbu'
+import { photoConfig } from './photos/config'
 import { findReportKey, finishedWithoutReport, reportBatch, reportFor, reportLeagues, saveReportDraft, type ReportItem } from './reports/data'
 import { makeResultGraphic, makeVsGraphic } from './vsGraphic'
 
@@ -62,6 +65,8 @@ interface State {
   checked?: string
   /** The day (YYYY-MM-DD) the match reports were last made */
   reported?: string
+  /** The day (YYYY-MM-DD) the women's leagues were last read from DBU */
+  womenSynced?: string
   /** Mails waiting for the Claude editor to read their drafts first (deploy/claude-editor): sent after `after` */
   pending?: PendingMail[]
   ids?: number[]
@@ -220,7 +225,7 @@ async function addResultGraphic(id: number, item: ReportItem) {
   const m = item.input.match
   const goals = (clubId: string) => scorerLines(item.input.goals.filter((g) => g.clubId === clubId), item.input.goals)
   try {
-    const { url } = await makeResultGraphic({ home: m.home.name, away: m.away.name, hs: m.hs, as: m.as, top: `${item.league.graphic} · ${dkDate(m.date, true, false)}`, homeGoals: goals(m.home.id), awayGoals: goals(m.away.id) })
+    const { url } = await makeResultGraphic({ home: m.home.name, away: m.away.name, homeLogo: m.home.logo, awayLogo: m.away.logo, hs: m.hs, as: m.as, top: `${item.league.graphic} · ${dkDate(m.date, true, false)}`, homeGoals: goals(m.home.id), awayGoals: goals(m.away.id) })
     saveArticle({ ...a, featuredImage: url, featuredAlt: `${m.home.name} – ${m.away.name} ${m.hs}-${m.as} i ${item.league.graphic}` })
   } catch {
     // the draft without a picture; the owner picks one
@@ -261,6 +266,13 @@ export async function makeMatchReports(): Promise<number[]> {
   return ids
 }
 
+/** The women's report leagues' clubs, fixtures, results, goals, cards and team sheets from DBU – into data/dbu-kvinder.db */
+async function syncWomenLeagues() {
+  const pools = reportLeagues().filter((l) => l.women).map((l) => l.pool)
+  if (!pools.length) return
+  await withWomenDbAsync((db) => syncDbu(db, pools, photoConfig().dbuPauseMs))
+}
+
 let started = false
 
 /** Checks every half hour whether it is Thursday after 10.00 and this week's previews are not made yet */
@@ -281,6 +293,15 @@ export function startAutoPreviews() {
     }
     await addMissingResultGraphics()
     await sendDueMails(now)
+    // Every night from 04 (and right away the first time): the women's leagues from DBU into their own database
+    if ((hour >= 4 || !readState().womenSynced) && readState().womenSynced !== date) {
+      writeState({ ...readState(), womenSynced: date })
+      try {
+        await syncWomenLeagues()
+      } catch {
+        // tomorrow
+      }
+    }
     // Every morning from 07: the match reports of matches whose details came in the night (the editor reads them at 07.40, the mail goes at 08.30)
     if (hour >= 7 && readState().reported !== date) {
       writeState({ ...readState(), reported: date })
@@ -291,7 +312,7 @@ export function startAutoPreviews() {
       }
     }
     if (weekday !== 4 || hour < 10 || readState().done === date) return
-    const keep = { checked: readState().checked, reported: readState().reported, pending: readState().pending }
+    const keep = { checked: readState().checked, reported: readState().reported, pending: readState().pending, womenSynced: readState().womenSynced }
     writeState({ ...keep, done: date, at: now })
     try {
       const ids = await makeWeekendPreviews(now)

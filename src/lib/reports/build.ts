@@ -10,6 +10,8 @@ export interface ReportTeam extends Team {
   coach?: string | null
   /** The rest of the bench staff (assistant coaches …), who can get cards too */
   staff?: string[]
+  /** The name the club's logo is kept under, when it isn't `name` (the women's teams use the club's logo) */
+  logo?: string
 }
 
 export interface ReportGoal {

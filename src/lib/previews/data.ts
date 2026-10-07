@@ -24,6 +24,8 @@ export interface PreviewLeague extends League {
   pool: string
   /** What the VS graphic's top line calls it */
   graphic: string
+  /** A women's league: its data lives in data/dbu-kvinder.db (src/lib/reports/women.ts), never with the men's clubs */
+  women?: boolean
 }
 
 /**
@@ -34,6 +36,8 @@ export interface PreviewLeague extends League {
 const ALL_LEAGUES: PreviewLeague[] = [
   { id: '1div', pool: process.env.PREVIEW_POOL_1DIV ?? process.env.PREVIEW_DBU_POOL ?? '507530', name: '1. division', sponsor: 'Betinia Liga', page: '/turnering/1-division', graphic: 'Betinia Liga' },
   { id: '3div', pool: process.env.PREVIEW_POOL_3DIV ?? '508657', name: '3. division', sponsor: 'CampoBet 3. Division', page: '/turnering/3-division', graphic: 'CampoBet 3. Division' },
+  // The women's top league: match reports from 2026-10-08 (no previews yet), from its own database
+  { id: 'aliga', pool: process.env.PREVIEW_POOL_ALIGA ?? '508850', name: 'A-Liga', page: '/turnering/x-denmark-a-liga', graphic: 'A-Liga', women: true },
 ]
 export const previewLeagues = (): PreviewLeague[] => {
   const on = (process.env.PREVIEW_LEAGUES ?? '1div,3div').split(',').map((s) => s.trim())

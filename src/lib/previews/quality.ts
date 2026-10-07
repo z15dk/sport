@@ -152,7 +152,8 @@ export function checkReport(
     if (!sheet?.length) continue
     // The coach and the bench staff get cards too
     const known = new Set([...sheet, t.coach ?? '', ...(t.staff ?? [])].filter(Boolean).map(fold))
-    for (const name of new Set([...goals, ...input.events].filter((x) => x.clubId === t.id).map((x) => x.name))) if (!known.has(fold(name))) yellow.push(`${name} står ikke på ${t.name}s holdkort`)
+    // Scorers only: cards also go to bench staff the team sheet doesn't list (team leaders, physios)
+    for (const name of new Set(goals.filter((x) => x.clubId === t.id).map((x) => x.name))) if (!known.has(fold(name))) yellow.push(`${name} står ikke på ${t.name}s holdkort`)
   }
   const names = Object.values(input.names)
   const mine = shingles(report, names)

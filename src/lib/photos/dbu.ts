@@ -116,7 +116,10 @@ export function parseResult(html: string): { home: number; away: number; goals: 
     if (!ev.includes('icon_sr_goal.svg')) continue
     const side = /live-score--event--(home|away)"/.exec(ev)?.[1] as 'home' | 'away' | undefined
     const minute = /event--minute">\s*(?:&#x27;|')?\s*(\d+)/.exec(ev)
-    const player = /event--player">([\s\S]*?)<\/div>/.exec(ev)
+    // The assist stands inside the scorer's block (event--player2): left out, or the two names run together
+    // ("Mille Gejl Jensen Zuzanna Izabela Witek")
+    const clean = ev.replace(/<div class="sr--match--live-score--event--player2">[\s\S]*?<\/div>/g, '')
+    const player = /event--player">([\s\S]*?)<\/div>/.exec(clean)
     if (side && player && text(player[1])) goals.push({ side, minute: minute ? Number(minute[1]) : null, name: text(player[1]) })
   }
   // The page lists the newest event first
