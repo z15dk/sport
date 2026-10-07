@@ -287,12 +287,13 @@ export async function leagueLogos(): Promise<Record<string, string>> {
 }
 
 /** The league picture as PNG (1200×630): the league's logo and its name on Matchly's dark top, as the club picture */
-export async function leagueGraphicPng(input: { league: string }): Promise<Buffer> {
+export async function leagueGraphicPng(input: { league: string; card?: boolean }): Promise<Buffer> {
   const league = input.league.trim()
   if (!league) throw new Error('Vælg en liga')
   const logos = await leagueLogos()
   if (!logos[league]) throw new Error(`Ingen liga med logo hedder "${league}"`)
-  const logo = await logoData(logos[league], 520, 520, false, true)
+  const card = input.card !== false
+  const logo = await logoData(logos[league], 920, 640, false, true)
   // The name without the country added to tell two leagues apart
   const name = league.replace(/\s*\([^)]*\)$/, '')
   const res = new ImageResponse(
@@ -300,13 +301,16 @@ export async function leagueGraphicPng(input: { league: string }): Promise<Buffe
       <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
         <img src={clubBackground('#2c3a0c')} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
         <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
-        <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', height: 470, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          {logo && (
-            // A light card behind the logo: many league logos are dark and would vanish on the dark top
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 300, borderRadius: 40, background: '#f4f5f1', boxShadow: '0 18px 50px rgba(0,0,0,0.5)' }}>
-              <img src={logo} width={230} height={230} alt="" style={{ objectFit: 'contain' }} />
-            </div>
-          )}
+        <div style={{ position: 'absolute', left: 0, top: 20, width: '100%', height: 510, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {logo &&
+            (card ? (
+              // A light card behind the logo (the default): many league logos are dark and would vanish on the dark top
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 520, height: 360, borderRadius: 40, background: '#f4f5f1', boxShadow: '0 18px 50px rgba(0,0,0,0.5)' }}>
+                <img src={logo} width={460} height={300} alt="" style={{ objectFit: 'contain' }} />
+              </div>
+            ) : (
+              <img src={logo} width={460} height={360} alt="" style={{ objectFit: 'contain' }} />
+            ))}
           <div style={{ display: 'flex', marginTop: logo ? 34 : 0, fontSize: name.length > 22 ? 48 : 64, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
         </div>
         <div style={{ position: 'absolute', left: 0, bottom: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 50, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
@@ -320,7 +324,7 @@ export async function leagueGraphicPng(input: { league: string }): Promise<Buffe
 }
 
 /** The league picture saved as an upload, ready as the article's picture */
-export async function makeLeagueGraphic(input: { league: string }): Promise<{ url: string }> {
+export async function makeLeagueGraphic(input: { league: string; card?: boolean }): Promise<{ url: string }> {
   const png = await leagueGraphicPng(input)
   const saved = await saveUpload(png, 1200)
   if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')

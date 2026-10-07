@@ -492,6 +492,8 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .vsd__head { display: flex; align-items: center; justify-content: space-between; }
 .vsd__head h2 { margin: 0; font-size: 20px; }
 .vsd__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.vsd__grid .vsd__check input { width: auto; padding: 0; }
+.vsd__grid .vsd__check { display: flex; flex-direction: row; align-items: center; gap: 8px; align-self: end; padding-bottom: 12px; font-weight: 600; }
 .vsd__wide { grid-column: 1 / -1; }
 .vsd label > span, .vsd__bg > span { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
 .vsd input:not([type='file']) { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }

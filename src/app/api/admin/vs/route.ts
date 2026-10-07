@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const s = (k: string, max = 200) => (typeof b[k] === 'string' ? (b[k] as string).slice(0, max) : '')
   try {
     // One club: only its logo on Matchly's dark top
-    if (s('league')) return Response.json(await makeLeagueGraphic({ league: s('league') }))
+    if (s('league')) return Response.json(await makeLeagueGraphic({ league: s('league'), card: b.card !== false }))
     if (s('club')) return Response.json(await makeClubGraphic({ club: s('club') }))
     return Response.json(await makeVsGraphic({ home: s('home'), away: s('away'), top: s('top', 120), bg: s('bg', 300) || undefined }))
   } catch (e) {

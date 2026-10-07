@@ -20,6 +20,8 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
   const [top, setTop] = useState('')
+  // The league picture's light card behind the logo
+  const [card, setCard] = useState(true)
   const [bg, setBg] = useState<string>()
   const [archive, setArchive] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -52,7 +54,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const make = async () => {
     setBusy(true)
     setError(undefined)
-    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(kind === 'league' ? { league: home } : one ? { club: home } : { home, away, top, bg }) })
+    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(kind === 'league' ? { league: home, card } : one ? { club: home } : { home, away, top, bg }) })
       .then(async (x) => {
         const text = await x.text()
         try {
@@ -70,7 +72,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
 
   // The live preview: the finished picture itself, drawn by the server (a moment after the last keystroke)
   const ready = one ? names.includes(home) : clubs.includes(home) && clubs.includes(away)
-  const query = !ready ? undefined : kind === 'league' ? new URLSearchParams({ liga: home }).toString() : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
+  const query = !ready ? undefined : kind === 'league' ? new URLSearchParams({ liga: home, ...(!card && { boks: '0' }) }).toString() : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
   const [preview, setPreview] = useState<string>()
   const [loading, setLoading] = useState(false)
   useEffect(() => {
@@ -119,6 +121,11 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
             <span>{kind === 'league' ? 'Liga' : one ? 'Klub' : 'Hjemmehold'}</span>
             <input list="vs-clubs" value={home} onChange={(e) => setHome(e.target.value)} placeholder={kind === 'league' ? 'Skriv ligaens navn …' : 'Skriv klubbens navn …'} />
           </label>
+          {kind === 'league' && (
+            <label className="vsd__check">
+              <input type="checkbox" checked={card} onChange={(e) => setCard(e.target.checked)} /> Hvid boks bag logoet
+            </label>
+          )}
           {!one && (
             <>
               <label>
