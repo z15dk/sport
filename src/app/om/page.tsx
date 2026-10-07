@@ -194,7 +194,6 @@ export default async function AboutPage() {
 
         <section className="panel about-vagt" id="datavagten" aria-labelledby="about-vagt">
           <div className="about-vagt__intro">
-            <span className="lx-hero__kicker">Datavagten</span>
             <h2 id="about-vagt" className="about-vagt__title">
               Vi tjekker os selv. Hver nat.
             </h2>
