@@ -175,7 +175,7 @@ export async function makeVsGraphic(input: VsInput): Promise<{ url: string }> {
  * right, a lime glow from the bottom left, and a dot pattern that fades in towards the club's colour. Drawn as one
  * SVG, so the picture renderer needs no gradients or masks of its own.
  */
-function clubBackground(color: string): string {
+function clubBackground(color: string, photo = false): string {
   const { width: w, height: h } = OG_SIZE
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
 <defs>
@@ -186,7 +186,7 @@ function clubBackground(color: string): string {
 <radialGradient id="fade" cx="${w}" cy="0" r="${w * 1.1}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
 <mask id="m"><rect width="${w}" height="${h}" fill="url(#fade)"/></mask>
 </defs>
-<rect width="${w}" height="${h}" fill="url(#base)"/>
+${photo ? `<rect width="${w}" height="${h}" fill="#0b0d07" fill-opacity="0.68"/>` : `<rect width="${w}" height="${h}" fill="url(#base)"/>`}
 <rect width="${w}" height="${h}" fill="url(#dots)" mask="url(#m)"/>
 <rect width="${w}" height="${h}" fill="url(#club)"/>
 <rect width="${w}" height="${h}" fill="url(#lime)"/>
@@ -204,7 +204,7 @@ function clubColor(name: string, flag: boolean): string {
 }
 
 /** The club picture as PNG (1200×630): only the club's logo (or a national team's flag) on Matchly's dark top */
-export async function clubGraphicPng(input: { club: string }): Promise<Buffer> {
+export async function clubGraphicPng(input: { club: string; bg?: string }): Promise<Buffer> {
   const club = input.club.trim()
   if (!club) throw new Error('Vælg en klub')
   const badges = await getBadges()
@@ -212,11 +212,14 @@ export async function clubGraphicPng(input: { club: string }): Promise<Buffer> {
   const flag = !badges[club] && !!flags[club]
   // A flag drawn big from its source (the national teams' list keeps only a small copy)
   const code = flag ? flagCode(club, true) : undefined
+  const photo = await photoData(input.bg)
   const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace("/w160/", "/w640/")) : flags[club], 630, 420, true) : await logoData(badges[club], 680, 680, false, true)
   const res = new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
-        <img src={clubBackground(clubColor(club, flag))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        {/* A photo of our own behind it, seen through the dark top (the colour, dots and M lie over it) */}
+        {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
+        <img src={clubBackground(clubColor(club, flag), !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
         {/* The big M as on the league pages' top: an outline, cut off at the bottom right */}
         <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
         <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -241,7 +244,7 @@ export async function clubGraphicPng(input: { club: string }): Promise<Buffer> {
 }
 
 /** The club picture saved as an upload, ready as the article's picture */
-export async function makeClubGraphic(input: { club: string }): Promise<{ url: string }> {
+export async function makeClubGraphic(input: { club: string; bg?: string }): Promise<{ url: string }> {
   const png = await clubGraphicPng(input)
   const saved = await saveUpload(png, 1200)
   if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')
@@ -287,19 +290,21 @@ export async function leagueLogos(): Promise<Record<string, string>> {
 }
 
 /** The league picture as PNG (1200×630): the league's logo and its name on Matchly's dark top, as the club picture */
-export async function leagueGraphicPng(input: { league: string; card?: boolean }): Promise<Buffer> {
+export async function leagueGraphicPng(input: { league: string; card?: boolean; bg?: string }): Promise<Buffer> {
   const league = input.league.trim()
   if (!league) throw new Error('Vælg en liga')
   const logos = await leagueLogos()
   if (!logos[league]) throw new Error(`Ingen liga med logo hedder "${league}"`)
   const card = input.card !== false
-  const logo = await logoData(logos[league], 920, 640, false, true)
+  const [logo, photo] = await Promise.all([logoData(logos[league], 920, 640, false, true), photoData(input.bg)])
   // The name without the country added to tell two leagues apart
   const name = league.replace(/\s*\([^)]*\)$/, '')
   const res = new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
-        <img src={clubBackground('#2c3a0c')} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        {/* A photo of our own behind it, seen through the dark top */}
+        {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
+        <img src={clubBackground('#2c3a0c', !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
         <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
         <div style={{ position: 'absolute', left: 0, top: 20, width: '100%', height: 510, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           {logo &&
@@ -324,7 +329,7 @@ export async function leagueGraphicPng(input: { league: string; card?: boolean }
 }
 
 /** The league picture saved as an upload, ready as the article's picture */
-export async function makeLeagueGraphic(input: { league: string; card?: boolean }): Promise<{ url: string }> {
+export async function makeLeagueGraphic(input: { league: string; card?: boolean; bg?: string }): Promise<{ url: string }> {
   const png = await leagueGraphicPng(input)
   const saved = await saveUpload(png, 1200)
   if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')

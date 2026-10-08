@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     // One club: only its logo on Matchly's dark top
     // A text picture: a headline in Matchly's design, with an optional line above and under it and a photo behind it
     if (s('title')) return Response.json(await makeTextGraphic({ title: s('title', 120), top: s('top', 80) || undefined, sub: s('sub', 140) || undefined, bg: s('bg', 300) || undefined }))
-    if (s('league')) return Response.json(await makeLeagueGraphic({ league: s('league'), card: b.card !== false }))
-    if (s('club')) return Response.json(await makeClubGraphic({ club: s('club') }))
+    if (s('league')) return Response.json(await makeLeagueGraphic({ league: s('league'), card: b.card !== false, bg: s('bg', 300) || undefined }))
+    if (s('club')) return Response.json(await makeClubGraphic({ club: s('club'), bg: s('bg', 300) || undefined }))
     return Response.json(await makeVsGraphic({ home: s('home'), away: s('away'), top: s('top', 120), bg: s('bg', 300) || undefined }))
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 })

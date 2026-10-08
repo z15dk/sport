@@ -60,7 +60,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
   const make = async () => {
     setBusy(true)
     setError(undefined)
-    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(text ? { title, top, sub, bg } : kind === 'league' ? { league: home, card } : one ? { club: home } : { home, away, top, bg }) })
+    const r = await fetch('/api/admin/vs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(text ? { title, top, sub, bg } : kind === 'league' ? { league: home, card, bg } : one ? { club: home, bg } : { home, away, top, bg }) })
       .then(async (x) => {
         const text = await x.text()
         try {
@@ -78,7 +78,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
 
   // The live preview: the finished picture itself, drawn by the server (a moment after the last keystroke)
   const ready = text ? !!title.trim() : one ? names.includes(home) : clubs.includes(home) && clubs.includes(away)
-  const query = !ready ? undefined : text ? new URLSearchParams({ tekst: title, ...(top && { top }), ...(sub && { under: sub }), ...(bg && { bg }) }).toString() : kind === 'league' ? new URLSearchParams({ liga: home, ...(!card && { boks: '0' }) }).toString() : one ? new URLSearchParams({ klub: home }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
+  const query = !ready ? undefined : text ? new URLSearchParams({ tekst: title, ...(top && { top }), ...(sub && { under: sub }), ...(bg && { bg }) }).toString() : kind === 'league' ? new URLSearchParams({ liga: home, ...(!card && { boks: '0' }), ...(bg && { bg }) }).toString() : one ? new URLSearchParams({ klub: home, ...(bg && { bg }) }).toString() : new URLSearchParams({ h: home, a: away, ...(top && { top }), ...(bg && { bg }) }).toString()
   const [preview, setPreview] = useState<string>()
   const [loading, setLoading] = useState(false)
   useEffect(() => {
@@ -164,7 +164,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
         </div>
         )}
         {/* One club or league: only its logo, no background photo */}
-        <div className="vsd__bg" hidden={one}>
+        <div className="vsd__bg">
           <span>Baggrundsbillede (valgfrit)</span>
           <div className="vsd__bg-actions">
             <button type="button" className="pill" onClick={() => setArchive(true)} disabled={busy}>
@@ -186,7 +186,7 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
               </>
             )}
           </div>
-          <small className="muted">{text ? 'Billedet gøres mørkere bag teksten, så den står tydeligt.' : 'Billedet gøres mørkere bag logoerne, så de står tydeligt.'}</small>
+          <small className="muted">{text ? 'Billedet gøres mørkere bag teksten, så den står tydeligt.' : one ? 'Billedet lægges halvgennemsigtigt bag logoet, så logoet står tydeligt.' : 'Billedet gøres mørkere bag logoerne, så de står tydeligt.'}</small>
           {/* The graphic is credited "Matchly.dk", so a photo behind it must be one we may use without naming anyone else */}
           <small className="vsd__rights">Brug kun billeder, I selv har taget eller har købt ret til. Grafikken krediteres Matchly.dk, så fotografen bliver ikke nævnt – klubbers og mediers billeder må ikke bruges her.</small>
         </div>
@@ -204,12 +204,12 @@ export function VsDialog({ onDone, onClose }: { onDone: (url: string, alt: strin
                 setError('Forhåndsvisningen kunne ikke tegnes')
               }}
             />
-          ) : bg && !one ? (
+          ) : bg ? (
             // Before the clubs are chosen: the background as it will sit behind them
             <>
               {/* eslint-disable-next-line @next/next/no-img-element -- an upload of our own */}
               <img className="vsd__bg-only" src={bg} alt="Valgt baggrund" />
-              <p className="vsd__hint small">{text ? 'Baggrunden er valgt – skriv en tekst for at se hele billedet.' : 'Baggrunden er valgt – vælg to klubber fra listen for at se hele grafikken.'}</p>
+              <p className="vsd__hint small">{text ? 'Baggrunden er valgt – skriv en tekst for at se hele billedet.' : kind === 'league' ? 'Baggrunden er valgt – vælg en liga fra listen for at se hele billedet.' : one ? 'Baggrunden er valgt – vælg en klub fra listen for at se hele billedet.' : 'Baggrunden er valgt – vælg to klubber fra listen for at se hele grafikken.'}</p>
             </>
           ) : (
             <p className="muted small">{text ? 'Skriv en tekst for at se billedet.' : kind === 'league' ? 'Vælg en liga fra listen for at se billedet.' : one ? 'Vælg en klub fra listen for at se billedet.' : 'Vælg to klubber fra listen for at se grafikken.'}</p>
