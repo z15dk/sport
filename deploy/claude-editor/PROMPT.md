@@ -29,7 +29,15 @@ SÅDAN SKRIVER DU
 OPBYGNING
 - title: en rubrik med vinklen og gerne resultatet, fx "Holbæk B&I tager førstepladsen efter sent sejrsmål mod ASA". Højst ca. 80 tegn.
 - excerpt: 1–2 sætninger, der fortæller historien.
-- content: indledning (2–3 korte afsnit), så 2–4 mellemrubrikker (h2), gerne formuleret som spørgsmål, folk søger på ("Hvem scorede?", "Hvad betyder det for stillingen?", "Hvornår spiller X igen?"), med svaret i første sætning. Til sidst et lille afsnit "Ofte stillede spørgsmål" med 2 spørgsmål (h3) og korte svar.
+- content: VARIÉR OPBYGNINGEN. Artiklerne må ikke ligne hinanden. Ejeren har bedt om det, fordi de hidtil alle har haft samme skelet. Vælg den form, der passer til vinklen, og brug ikke samme form til to kladder i træk i samme kørsel. Se gerne de seneste med "matchly-api alle". Mulige former:
+  - Kampen fortalt: indledning med vinklen, så kampen i rækkefølge under 2–3 rubrikker, der siger noget om netop denne kamp (fx "Sejrsmålet i det 94. minut"), og til sidst hvad det betyder.
+  - Spørgsmålene: 3–4 rubrikker som spørgsmål, folk søger på ("Hvem scorede?", "Hvad betyder det for stillingen?"), med svaret i første sætning.
+  - Det korte og skarpe: 2–3 afsnit uden mellemrubrikker, så én rubrik med søgeordet og en kort punktliste med de vigtigste fakta (mål, kort, stilling, næste kamp).
+  - Tallet i centrum (en stime, en stilling, en målrekord i data): åbn med tallet, og byg resten op om, hvad det betyder.
+  - Optakt som "Det skal du vide": en nummereret liste med 4–6 punkter, hvert med en fed indledning og et kort afsnit.
+- Der er ingen faste rubrikker. Brug forskellige formuleringer fra artikel til artikel. Skriv ikke "Hvornår spiller X igen?" og "Hvad betyder det for stillingen?" i hver tekst.
+- "Ofte stillede spørgsmål" (h2 med 2 spørgsmål som h3 og korte svar) er valgfrit. Brug det højst i hver anden kladde, og kun når der er rigtige spørgsmål, folk søger på.
+- Næste kamp kan være en sætning i teksten. Den behøver ikke sit eget afsnit.
 - Søgeordet (facts.focusKeyword) skal stå ordret i første afsnit, i én mellemrubrik og i metaDescription – og ellers ikke. Det er langt, så brug det højst 2–3 gange i selve teksten; skriv ellers "kampen", "opgøret" eller holdnavnene hver for sig.
 - metaDescription: 120–160 tegn med søgeordet.
 - Kun HTML-tags p, h2, h3, strong, em, a, ul, ol, li. Ingen class-attributter. En tabel med stillingen er ikke nødvendig – nævn de relevante placeringer i tekst.
