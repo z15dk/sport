@@ -10,7 +10,7 @@ export function ClaudeNote({ id, mark, t, from = 'godkend', sent }: { id: number
   const pending = mark.note?.pending
   return (
     <section className="claude-note">
-      <h2>Claude-skribenten</h2>
+      <h2>James</h2>
       {mark.editor && !pending && (
         <p className={mark.editor.ok ? 'claude-note__verdict is-ok' : 'claude-note__verdict is-warn'}>
           <strong>{mark.editor.ok ? 'Klar' : 'Se på den'}:</strong> {mark.editor.verdict} <span className="muted small">({time(mark.editor.at)})</span>
@@ -18,7 +18,7 @@ export function ClaudeNote({ id, mark, t, from = 'godkend', sent }: { id: number
       )}
       {pending && (
         <p className="claude-note__pending">
-          <strong>Claude arbejder på din besked</strong>: “{mark.note!.text}”. Det tager typisk 2–5 minutter – opdater siden bagefter.
+          <strong>James arbejder på din besked</strong>: “{mark.note!.text}”. Det tager typisk 2–5 minutter – opdater siden bagefter.
         </p>
       )}
       {sent && !pending && <p className="claude-note__pending">Beskeden er sendt.</p>}
@@ -26,12 +26,12 @@ export function ClaudeNote({ id, mark, t, from = 'godkend', sent }: { id: number
         <input type="hidden" name="id" value={id} />
         {t && <input type="hidden" name="t" value={t} />}
         <input type="hidden" name="fra" value={from} />
-        <label htmlFor={`besked-${id}`}>Besked til Claude</label>
+        <label htmlFor={`besked-${id}`}>Besked til James</label>
         <textarea id={`besked-${id}`} name="besked" rows={3} maxLength={1000} placeholder="Fx: Mere om Brøndbys stime, mindre om tabellen. Eller: Rubrikken skal handle om Nadim." required />
         <button type="submit" className="pill is-active" disabled={pending}>
-          {pending ? 'Claude arbejder …' : 'Skriv om'}
+          {pending ? 'James arbejder …' : 'Skriv om'}
         </button>
-        <small className="muted">Claude skriver artiklen om efter din besked, men bruger stadig kun fakta fra kampdata og kilder. Dine faste regler står under Admin → Redaktør.</small>
+        <small className="muted">James skriver artiklen om efter din besked, men bruger stadig kun fakta fra kampdata og kilder. Hans faste regler står under Admin → James.</small>
       </form>
     </section>
   )

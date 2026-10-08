@@ -67,7 +67,7 @@ export function saveEditorVerdict(id: number, verdict: string, ok: boolean): boo
 export function qualityLine(m?: QualityMark): string {
   if (!m) return ''
   const base = m.level === 'green' ? 'Grøn – klar til udgivelse' : `Gul – læs den: ${m.reasons.join(' · ')}`
-  return m.editor ? `${base}. Redaktøren: ${m.editor.verdict}` : base
+  return m.editor ? `${base}. James: ${m.editor.verdict}` : base
 }
 
 /** The file the Claude writer's systemd path unit watches (deploy/claude-editor/matchly-editor.path): it starts a run */

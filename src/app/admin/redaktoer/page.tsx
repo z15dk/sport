@@ -8,7 +8,7 @@ import { readQuality } from '../../../lib/articleQuality'
 import { readEditorRules } from '../../../lib/editorRules'
 
 export const dynamic = 'force-dynamic'
-export const metadata: Metadata = { title: 'Redaktør', robots: { index: false, follow: false } }
+export const metadata: Metadata = { title: 'James', robots: { index: false, follow: false } }
 
 // The Claude writer (deploy/claude-editor): the owner's standing rules, added to its instructions on every run,
 // and its latest work – the automatic previews and match reports with its verdict and the owner's messages.
@@ -28,13 +28,13 @@ export default async function EditorPage({ searchParams }: { searchParams: Promi
     <div className="page">
       <div className="clubs admin">
         <AdminNav current="/admin/redaktoer" />
-        <h1 className="feed__title">Redaktør</h1>
+        <h1 className="feed__title">James</h1>
         <p className="muted">
-          Claude skriver de automatiske optakter og referater om som sportsjournalistik. Her står dine faste regler, som Claude følger i hver artikel. En besked til én bestemt artikel skriver du på artiklen (&quot;Besked til Claude&quot;).
+          James er Matchlys Claude-skribent: han skriver de automatiske optakter og referater om som sportsjournalistik. Her står dine faste regler, som han følger i hver artikel. En besked til én bestemt artikel skriver du på artiklen (&quot;Besked til James&quot;).
         </p>
         <section className="panel pad">
           <h2 className="panel__title">Faste regler</h2>
-          {gemt && <p className="social-msg is-ok">Gemt – Claude følger dem fra næste artikel.</p>}
+          {gemt && <p className="social-msg is-ok">Gemt – James følger dem fra næste artikel.</p>}
           <form method="post" action="/api/admin/redaktor" className="claude-note__form">
             <textarea name="regler" rows={8} maxLength={4000} defaultValue={rules.text} placeholder={'Én regel pr. linje, fx:\nSkriv "Brøndby" og ikke "Brøndby IF" efter første omtale.\nIngen udråbstegn i rubrikker.\nNævn altid tilskuertallet, når det findes.'} />
             <button type="submit" className="pill is-active">
@@ -44,7 +44,7 @@ export default async function EditorPage({ searchParams }: { searchParams: Promi
           </form>
         </section>
         <section className="panel pad">
-          <h2 className="panel__title">Claudes seneste arbejde</h2>
+          <h2 className="panel__title">James' seneste arbejde</h2>
           {latest.length ? (
             <ul className="quality__checks">
               {latest.map(({ id, m, a }) => (
