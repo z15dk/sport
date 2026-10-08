@@ -2,7 +2,8 @@
 # The news scout (matchly-nyhedsspejder.timer): every morning Claude finds the day's football news, writes 1–2 news
 # drafts through the site's editor API (/api/redaktor/nyheder, key EDITOR_TOKEN), mails them to the owner and fixes
 # the coach list. Same user, key and limits as the editor (run.sh): only matchly-api, web search and its own folder.
-# The model is Fable unless SPEJDER_MODEL in /etc/matchly-editor.env says otherwise.
+# The model is Fable unless SPEJDER_MODEL in /etc/matchly-editor.env says otherwise; if it fails, the default model.
+# Runs at 07, 12 and 19 (matchly-nyhedsspejder.timer); the round is told in the prompt.
 set -euo pipefail
 BIN="$(dirname "$(readlink -f "$0")")"
 PROMPT="$BIN/NYHEDER.md"
@@ -15,9 +16,20 @@ export SITE
 echo "$(date -Is) nyhedsspejderen starter (model ${SPEJDER_MODEL:-claude-fable-5-1})"
 # Only: the site's editor API (matchly-api), web search and web pages, and files in its own folder.
 # No curl, no other commands, no files outside the folder – so a web page can never get it to send a key out.
-exec claude -p "$(cat "$PROMPT")" \
-  --model "${SPEJDER_MODEL:-claude-fable-5-1}" \
-  --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" "Write(./**)" \
-  --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" \
-  --max-turns 150 \
-  --output-format text
+# Which round this is (the prompt says how much each round writes): morgen before 10, middag before 16, else aften
+hour=$(TZ=Europe/Copenhagen date +%H)
+round=aften; [ "$hour" -lt 16 ] && round=middag; [ "$hour" -lt 10 ] && round=morgen
+echo "Runde: $round"
+scout() {
+  claude -p "$(cat "$PROMPT")
+
+DENNE KØRSEL: $round-runden, $(TZ=Europe/Copenhagen date '+%A %-d. %B %Y kl. %H.%M')." \
+    "$@" \
+    --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" \
+    --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" \
+    --max-turns 150 \
+    --output-format text
+}
+# Fable first; if it fails (e.g. the subscription's limit for it is used up), the same round with the default model.
+# The prompt makes it skip what Matchly already has, so a half-finished first try is never written twice.
+scout --model "${SPEJDER_MODEL:-claude-fable-5-1}" || { echo "$(date -Is) ${SPEJDER_MODEL:-claude-fable-5-1} fejlede – prøver standardmodellen"; scout; }

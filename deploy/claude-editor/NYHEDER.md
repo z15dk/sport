@@ -93,7 +93,15 @@ ADGANG
    - Tjek bagefter klubsiden (matchly-api side /klub/<slug>). Den kan være op til et par minutter om at vise ændringen.
    - Stadioner, kampe og alt andet retter du ikke. Det står i ejerens mail kl. 9.
 
-Højst 2 artikler pr. morgen. Når du er færdig, skriv en kort opsummering:
+KØRSLER: Du kører kl. 07, 12 og 19. Den sidste linje i denne instruks siger, hvilken runde det er.
+- Morgen-runden (kl. 07): højst 2 artikler om døgnets største historier. Alle fem punkter.
+- Middag- og aften-runden (kl. 12 og 19): højst 1 artikel. Den skal handle om noget, der er sket siden sidste runde, fx en fyring, en ansættelse, en stor skade eller en officiel melding.
+  - Tjek først med matchly-api artikler, hvad dagens tidligere runder allerede har skrevet. Kladder tæller også. Skriv ikke om det igen.
+  - Er der ikke noget nyt og stort nok, så skriv intet. Det er det normale udfald.
+  - Punkt 5 (datavagten) laver du kun ved trænerskifter, du selv fandt i denne runde.
+- Højst 4 artikler pr. dag i alt.
+
+Når du er færdig, skriv en kort opsummering:
 - kladderne med id og titel;
 - hvad du rettede;
 - hvad ejeren skal se på;
