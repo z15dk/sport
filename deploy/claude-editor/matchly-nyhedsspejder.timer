@@ -1,0 +1,10 @@
+# Hver morgen kl. 07.00, så kladderne og trænerrettelserne står i datavagtens mail kl. 9 (og spejderens egen mail kommer før).
+[Unit]
+Description=Matchly: nyhedsspejderen kl. 07.00 dagligt
+
+[Timer]
+OnCalendar=*-*-* 07:00:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

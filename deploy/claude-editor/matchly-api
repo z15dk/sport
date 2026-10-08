@@ -1,20 +1,56 @@
 #!/usr/bin/env bash
-# The Claude writer's only way to the site (deploy/claude-editor): it talks to Matchly's editor API on this
-# server and nowhere else, so the writer needs no curl and never sees the keys in its environment.
+# The Claude writers' only way to the site (deploy/claude-editor): it talks to Matchly on this server and nowhere
+# else, so the writers need no curl and never see the keys in their environment.
+# The editor (PROMPT.md):
 #   matchly-api kladder              the new automatic drafts with their fact sheets (JSON)
 #   matchly-api alle                 also the drafts already read
 #   matchly-api gem <id> <fil.json>  saves the article in the file (in the writer's own folder) for draft <id>
+# The news scout (NYHEDER.md):
+#   matchly-api artikler             the newest 40 articles (titles, slugs, status) – what Matchly already has
+#   matchly-api artikel <id>         one of its own drafts in full, with the checklist
+#   matchly-api nyhed <fil.json>     saves a news draft {"action":"gem","article":{…}} → id and the checklist
+#   matchly-api mail <id> [<id>…]    mails its drafts to the owner ("Læs og udgiv")
+#   matchly-api datavagt             the night's findings and the coach list
+#   matchly-api traener <fil.json>   {"action":"setCoach",…} or {"action":"removeCoach","slug":…}
+# Both:
+#   matchly-api tjek </sti>          the HTTP status of a page on matchly.dk (e.g. /klub/ab → 200)
+#   matchly-api side </sti>          a page on matchly.dk as plain text
+#   matchly-api soeg <navn>          the site search (clubs and leagues with their slugs)
 set -euo pipefail
 : "${SITE:?}" "${EDITOR_TOKEN:?}"
+auth=(-H "Authorization: Bearer ${EDITOR_TOKEN}")
+# Only a plain file in the writer's own folder
+jsonfile() { [[ "${1:-}" =~ ^[A-Za-z0-9._-]+\.json$ && -f "$1" ]] || { echo "Filen skal være en .json-fil i din egen mappe" >&2; exit 2; }; }
+# Only a path on the site itself (no host, no spaces)
+sitepath() { [[ "${1:-}" =~ ^/[A-Za-z0-9/_.%-]*$ ]] || { echo "Stien skal starte med / og kun indeholde bogstaver, tal og - _ . /" >&2; exit 2; }; }
+post() { exec curl -sS -w '\nHTTP %{http_code}\n' -X POST "${auth[@]}" -H 'content-type: application/json' "${SITE}$1" --data-binary "@$2"; }
 case "${1:-}" in
-  kladder) exec curl -sS -H "Authorization: Bearer ${EDITOR_TOKEN}" "${SITE}/api/redaktor/kladder" ;;
-  alle) exec curl -sS -H "Authorization: Bearer ${EDITOR_TOKEN}" "${SITE}/api/redaktor/kladder?alle=1" ;;
+  kladder) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/kladder" ;;
+  alle) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/kladder?alle=1" ;;
   gem)
     id="${2:-}"; file="${3:-}"
     [[ "$id" =~ ^[0-9]+$ ]] || { echo "Brug: matchly-api gem <id> <fil.json>" >&2; exit 2; }
-    # Only a plain file in the writer's own folder
-    [[ "$file" =~ ^[A-Za-z0-9._-]+\.json$ && -f "$file" ]] || { echo "Filen skal være en .json-fil i din egen mappe" >&2; exit 2; }
-    exec curl -sS -w '\nHTTP %{http_code}\n' -X POST -H "Authorization: Bearer ${EDITOR_TOKEN}" -H 'content-type: application/json' "${SITE}/api/redaktor/kladder/${id}" --data-binary "@${file}"
+    jsonfile "$file"; post "/api/redaktor/kladder/${id}" "$file"
     ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json>" >&2; exit 2 ;;
+  artikler) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/nyheder" ;;
+  artikel)
+    [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "Brug: matchly-api artikel <id>" >&2; exit 2; }
+    exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/nyheder?id=$2"
+    ;;
+  nyhed) jsonfile "${2:-}"; post "/api/redaktor/nyheder" "$2" ;;
+  mail)
+    shift; [[ $# -gt 0 ]] || { echo "Brug: matchly-api mail <id> [<id>…]" >&2; exit 2; }
+    for i in "$@"; do [[ "$i" =~ ^[0-9]+$ ]] || { echo "Id'er skal være tal" >&2; exit 2; }; done
+    exec curl -sS -w '\nHTTP %{http_code}\n' -X POST "${auth[@]}" -H 'content-type: application/json' "${SITE}/api/redaktor/nyheder" --data "{\"action\":\"mail\",\"ids\":[$(IFS=,; echo "$*")]}"
+    ;;
+  datavagt) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/datavagt" ;;
+  traener) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
+  tjek) sitepath "${2:-}"; exec curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "${SITE}$2" ;;
+  side)
+    sitepath "${2:-}"
+    curl -sS -L "${SITE}$2" | sed -e 's/<script[^>]*>[^<]*<\/script>//g' -e 's/<style[^>]*>[^<]*<\/style>//g' -e 's/<[^>]*>/ | /g' | tr -s ' |\n' | head -c 40000
+    echo
+    ;;
+  soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | mail <id>… | datavagt | traener <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac
