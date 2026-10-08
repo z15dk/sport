@@ -450,3 +450,78 @@ export async function makeResultGraphic(input: ResultInput): Promise<{ url: stri
   }
   return { url: saved.url }
 }
+
+// ---------------------------------------------------------------- a text picture
+
+export interface TextInput {
+  /** The big text, e.g. "Hjulmand bliver tv-ekspert" */
+  title: string
+  /** The small lime line above it (optional), e.g. "Conference League på Disney+" */
+  top?: string
+  /** A line under it (optional) */
+  sub?: string
+  /** A picture from our own site behind the text ("/uploads/<fil>.webp") */
+  bg?: string
+}
+
+/** The big text's size by its length, so a long headline still fits three lines */
+const titleSize = (t: string) => (t.length <= 28 ? 104 : t.length <= 50 ? 84 : t.length <= 80 ? 66 : 52)
+
+/**
+ * The text picture as PNG (1200×630): a headline in Matchly's design for an article with no photo or logo that fits
+ * (a person we have no picture of, a general story). The league pages' dark top with the big M, a lime line on top,
+ * the headline big and slanted, a line under it, and MATCHLY. at the foot; a photo of our own behind it if chosen.
+ */
+export async function textGraphicPng(input: TextInput): Promise<Buffer> {
+  const title = input.title.trim().slice(0, 120)
+  if (!title) throw new Error('Skriv en tekst')
+  const top = input.top?.trim().slice(0, 80)
+  const sub = input.sub?.trim().slice(0, 140)
+  const photo = await photoData(input.bg)
+  const res = new ImageResponse(
+    (
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+        {photo ? (
+          <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />
+        ) : (
+          <img src={clubBackground('#2c3a0c')} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        )}
+        {/* Over a photo: darker towards the left, where the text stands */}
+        {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'linear-gradient(90deg, rgba(17,19,14,0.88) 0%, rgba(17,19,14,0.7) 55%, rgba(17,19,14,0.35) 100%)' }} />}
+        <img src={mOutline(photo ? 'rgba(198,241,53,0.16)' : 'rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
+        <div style={{ position: 'absolute', left: 80, top: 0, width: 1000, height: 540, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          {top && (
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 26 }}>
+              <div style={{ display: 'flex', width: 46, height: 6, background: LIME, marginRight: 16 }} />
+              <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, letterSpacing: 2, color: LIME }}>{top.toUpperCase()}</div>
+            </div>
+          )}
+          <div style={{ display: 'flex', fontSize: titleSize(title), fontWeight: 800, fontStyle: 'italic', lineHeight: 1.02, textShadow: '0 4px 24px rgba(0,0,0,0.55)' }}>{title.toUpperCase()}</div>
+          {sub && <div style={{ display: 'flex', marginTop: 26, fontSize: 32, fontWeight: 600, lineHeight: 1.25, color: 'rgba(255,255,255,0.82)' }}>{sub}</div>}
+        </div>
+        <div style={{ position: 'absolute', left: 80, bottom: 44, display: 'flex', fontSize: 44, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+          MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: ogFonts() },
+  )
+  return Buffer.from(await res.arrayBuffer())
+}
+
+/** The text picture saved as an upload (in the photo archive as a graphic credited Matchly.dk), ready as the article's picture */
+export async function makeTextGraphic(input: TextInput): Promise<{ url: string }> {
+  const png = await textGraphicPng(input)
+  const saved = await saveUpload(png, 1200)
+  if (saved.error || !saved.url) throw new Error(saved.error ?? 'Billedet kunne ikke gemmes')
+  try {
+    const name = saved.url.replace('/uploads/', '')
+    withPhotoDb((db) => {
+      const id = registerArticleUpload(db, name)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(input.title.trim().slice(0, 120), id)
+    })
+  } catch {
+    // the article still gets its picture
+  }
+  return { url: saved.url }
+}
