@@ -14,6 +14,9 @@ WorkingDirectory=/var/lib/matchly-editor
 EnvironmentFile=/etc/matchly-editor.env
 Environment=HOME=/var/lib/matchly-editor
 # The newest script and prompt from the live release, copied as root into the editor's own folder before each run
+# Started from admin ("Find nyheder nu", matchly-nyhedsspejder.path): the request is turned into a mark in the scout's own
+# folder (the run itself can't see /opt/scoreline/data), so this run is the extra round; then the request goes
+ExecStartPre=+/bin/sh -c 'if [ -e /opt/scoreline/data/spejder-request ]; then install -d -o matchly-editor -g matchly-editor -m 700 /var/lib/matchly-editor/nyheder && install -o matchly-editor -g matchly-editor -m 600 /dev/null /var/lib/matchly-editor/nyheder/ekstra; rm -f /opt/scoreline/data/spejder-request; fi'
 ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/spejder-bin /opt/scoreline/current/deploy/claude-editor/run-nyheder.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/NYHEDER.md
 ExecStart=/var/lib/matchly-editor/spejder-bin/run-nyheder.sh
 Nice=15

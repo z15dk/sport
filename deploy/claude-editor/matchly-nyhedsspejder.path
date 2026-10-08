@@ -1,0 +1,11 @@
+# "Find nyheder nu" på /admin/redaktoer skriver /opt/scoreline/data/spejder-request; så startes nyhedsspejderen med det
+# samme som en ekstra runde (matchly-nyhedsspejder.service fjerner filen og giver runden besked). Webprocessen får ingen rettigheder.
+[Unit]
+Description=Matchly: nyhedsspejderen startes fra admin (Find nyheder nu)
+
+[Path]
+PathExists=/opt/scoreline/data/spejder-request
+Unit=matchly-nyhedsspejder.service
+
+[Install]
+WantedBy=multi-user.target

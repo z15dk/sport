@@ -83,6 +83,20 @@ export function requestEditorRun() {
   }
 }
 
+/** The news scout's doorbell (deploy/claude-editor/matchly-nyhedsspejder.path): "Find nyheder nu" on /admin/redaktoer */
+const scoutRequestFile = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'spejder-request')
+
+/** Starts an extra round of the news scout now (up to 2 news drafts, mailed when ready) */
+export function requestScoutRun(): boolean {
+  try {
+    mkdirSync(path.dirname(scoutRequestFile()), { recursive: true })
+    writeFileSync(scoutRequestFile(), String(Date.now()))
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
  * The owner's message for one automatic draft ("Mere om Brøndbys stime"): kept with the mark, the writer's last
  * verdict is cleared so it reads the draft again, and a run is started. False when it isn't an automatic draft.

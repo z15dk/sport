@@ -107,6 +107,7 @@ KØRSLER: Du kører kl. 07, 12 og 19. Den sidste linje i denne instruks siger, h
   - Tjek først med matchly-api artikler, hvad dagens tidligere runder allerede har skrevet. Kladder tæller også. Skriv ikke om det igen.
   - Er der ikke noget nyt og stort nok, så skriv intet. Det er det normale udfald.
   - Punkt 5 (datavagten) laver du kun ved trænerskifter, du selv fandt i denne runde.
+- Ekstra-runden (ejeren har trykket "Find nyheder nu" i admin): højst 2 artikler om de største historier, Matchly ikke har endnu – typisk til at udgive næste morgen. Tjek først med matchly-api artikler, hvad dagens runder allerede har skrevet (kladder tæller også), og skriv ikke om det igen. Alle fem punkter. Ekstra-runden tæller ikke med i grænsen nedenfor.
 - Højst 4 artikler pr. dag i alt.
 
 Når du er færdig, skriv en kort opsummering:

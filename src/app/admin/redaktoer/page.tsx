@@ -15,9 +15,9 @@ export const metadata: Metadata = { title: 'James', robots: { index: false, foll
 
 const time = (ms: number) => new Date(ms).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
-export default async function EditorPage({ searchParams }: { searchParams: Promise<{ gemt?: string }> }) {
+export default async function EditorPage({ searchParams }: { searchParams: Promise<{ gemt?: string; spejder?: string }> }) {
   if (!(await isAdmin())) redirect('/admin')
-  const { gemt } = await searchParams
+  const { gemt, spejder } = await searchParams
   const rules = readEditorRules()
   const latest = Object.entries(readQuality())
     .map(([id, m]) => ({ id: Number(id), m, a: articleById(Number(id)) }))
@@ -32,6 +32,20 @@ export default async function EditorPage({ searchParams }: { searchParams: Promi
         <p className="muted">
           James er Matchlys Claude-skribent: han skriver de automatiske optakter og referater om som sportsjournalistik. Her står dine faste regler, som han følger i hver artikel. En besked til én bestemt artikel skriver du på artiklen (&quot;Besked til James&quot;).
         </p>
+        <section className="panel pad">
+          <h2 className="panel__title">Nyheder nu</h2>
+          <p className="muted small">
+            James leder selv efter nyheder kl. 7, 12 og 19. Vil du have artikler nu – fx to til i morgen tidlig – så tryk her. Han finder de største historier, som Matchly ikke har endnu, skriver op til 2 kladder og mailer dem til dig. Det tager typisk 15–30 minutter.
+          </p>
+          {spejder === '1' && <p className="social-msg is-ok">James er i gang. Kladderne kommer i din mail, når de er klar.</p>}
+          {spejder === 'fejl' && <p className="social-msg is-error">Det gik ikke at starte James – prøv igen om lidt.</p>}
+          <form method="post" action="/api/admin/redaktor">
+            <input type="hidden" name="spejder" value="1" />
+            <button type="submit" className="pill is-active">
+              Find nyheder nu
+            </button>
+          </form>
+        </section>
         <section className="panel pad">
           <h2 className="panel__title">Faste regler</h2>
           {gemt && <p className="social-msg is-ok">Gemt – James følger dem fra næste artikel.</p>}
