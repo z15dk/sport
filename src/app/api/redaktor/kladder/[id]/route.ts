@@ -1,12 +1,14 @@
 import { articleById, saveArticle } from '../../../../../lib/articles'
 import { qualityOf, saveEditorVerdict, saveQuality } from '../../../../../lib/articleQuality'
 import { editorAllowed } from '../../../../../lib/editorAccess'
-import { checkRewrite } from '../../../../../lib/previews/facts'
+import { checkRewrite, cleanResearch } from '../../../../../lib/previews/facts'
 
 // The Claude editor's change to one automatic draft: new text (title, excerpt, content, metaDescription) and/or
 // its verdict. New text must hold against the article's fact sheet (422 with the problems otherwise). Only an automatic article that is a draft or waiting to go live; the status, the slug, the
 // publishing time and everything else stay as they are – the editor can never publish or delete.
-// POST { verdict: string, ok: boolean, title?, excerpt?, content?, metaDescription? }
+// POST { verdict: string, ok: boolean, title?, excerpt?, content?, metaDescription?, research?: [{ fakta, kilde }] }
+// research: what the writer found on the web, each with its https source – its numbers may stand in the text and its
+// sources may be linked (src/lib/previews/facts.ts); the approval mail lists the sources for the owner.
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!editorAllowed(request)) return Response.json({ error: 'Ingen adgang' }, { status: 401 })
@@ -20,19 +22,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const str = (k: string, max: number) => (typeof b[k] === 'string' && (b[k] as string).trim() ? (b[k] as string).trim().slice(0, max) : undefined)
   const verdict = str('verdict', 600)
   if (!verdict || typeof b.ok !== 'boolean') return Response.json({ error: 'verdict og ok skal med' }, { status: 400 })
+  const research = cleanResearch(b.research)
   const change = { title: str('title', 200), excerpt: str('excerpt', 400), content: str('content', 60_000), metaDescription: str('metaDescription', 300) }
   if (Object.values(change).some(Boolean)) {
     // The new text is held against the article's fact sheet: numbers, links, keyword and checklist (src/lib/previews/facts.ts)
     if (mark.facts) {
       const next = { ...a, ...Object.fromEntries(Object.entries(change).filter(([, v]) => v)) }
-      const check = checkRewrite(mark.facts, { slug: a.slug, title: next.title, excerpt: next.excerpt, content: next.content, seoTitle: next.seoTitle, metaDescription: next.metaDescription })
+      const check = checkRewrite(mark.facts, { slug: a.slug, title: next.title, excerpt: next.excerpt, content: next.content, seoTitle: next.seoTitle, metaDescription: next.metaDescription }, research)
       if (!check.ok) return Response.json({ error: 'Teksten holder ikke mod faktaarket – ret og send igen', problems: check.problems }, { status: 422 })
     }
     const r = saveArticle({ ...a, ...Object.fromEntries(Object.entries(change).filter(([, v]) => v)), status: a.status, publishedAt: a.publishedAt, slug: a.slug })
     if (r.error) return Response.json({ error: r.error }, { status: 400 })
     // The text changed after the automatic check: the mark keeps its level, the time moves so the morning check
     // (src/lib/autoPreviews.ts) sees the editor's version as the automatic one and does not call it hand-edited
-    saveQuality(a.id, { ...mark, at: Date.now(), rewritten: true })
+    saveQuality(a.id, { ...mark, at: Date.now(), rewritten: true, research: research.length ? research : undefined })
   }
   saveEditorVerdict(a.id, verdict, b.ok)
   return Response.json({ ok: true })

@@ -97,3 +97,27 @@ test('omskrivning: opfundne tal, fremmede links og datakilder fanges', async () 
   assert.match(probs, /\/klub\/x/)
   assert.match(probs, /datakilde/)
 })
+
+test('omskrivning med research: kildens tal og link godtages, andre ikke', async () => {
+  const { previewFacts, checkRewrite, cleanResearch } = await import('../../src/lib/previews/facts.ts')
+  const i = mk('a', 'b')
+  const p = buildPreview(i)
+  const links = [{ label: 'Klub A', href: '/klub/a' }, { label: 'Klub B', href: '/klub/b' }, { label: '3. division', href: '/turnering/3-division' }]
+  const f = previewFacts(i, links, p.focusKeyword)
+  const research = cleanResearch([
+    { fakta: 'Klub A blev stiftet i 1921 og vandt pokalen i 1974', kilde: 'https://klub-a.dk/historie' },
+    { fakta: 'Uden kilde', kilde: '' },
+    { fakta: 'Matchlys egen side tæller ikke', kilde: 'https://matchly.dk/klub/a' },
+    { fakta: 'Ikke https', kilde: 'http://klub-b.dk' },
+  ])
+  assert.equal(research.length, 1)
+  const base = `${p.content}<p>Følg <a href="/klub/a">værterne</a> og <a href="/klub/b">gæsterne</a> resten af sæsonen.</p>`
+  const good = { ...p, content: `${base}<p>Klubben blev stiftet i 1921 og vandt pokalen i 1974, skriver <a href="https://klub-a.dk/historie">klubben</a>.</p>` }
+  assert.deepEqual(checkRewrite(f, good, research).problems, [])
+  // Without the research the same text is refused
+  assert.match(checkRewrite(f, good).problems.join(' | '), /1921/)
+  const bad = { ...p, content: `${base}<p>Hele 4512 tilskuere ventes ifølge <a href="https://andet.dk/x">en anden side</a>.</p>` }
+  const probs = checkRewrite(f, bad, research).problems.join(' | ')
+  assert.match(probs, /4512/)
+  assert.match(probs, /ikke er en kilde/)
+})

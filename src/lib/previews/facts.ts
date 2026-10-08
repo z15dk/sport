@@ -108,6 +108,28 @@ function allowedNumbers(f: Facts): Set<string> {
   return out
 }
 
+/**
+ * What the writer found on the web and wants to use, each with its source: a club's page, the local paper, bold.dk.
+ * Numbers in `fakta` may then stand in the text, and the source may be linked. The owner sees the list in the mail.
+ */
+export interface Research {
+  fakta: string
+  kilde: string
+}
+
+/** The research the writer sent, cleaned: at most 15 lines, each a short fact with an https source outside Matchly */
+export function cleanResearch(input: unknown): Research[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((r) => (r && typeof r === 'object' ? (r as Record<string, unknown>) : {}))
+    .map((r) => ({ fakta: typeof r.fakta === 'string' ? r.fakta.trim().slice(0, 300) : '', kilde: typeof r.kilde === 'string' ? r.kilde.trim().slice(0, 400) : '' }))
+    .filter((r) => r.fakta && /^https:\/\/[^\s"<>]+$/i.test(r.kilde) && !/^https:\/\/(www\.)?matchly\.dk/i.test(r.kilde))
+    .slice(0, 15)
+}
+
+/** At most this many links out of Matchly in one article (to the sources in the research) */
+export const MAX_EXTERNAL_LINKS = 3
+
 export interface RewriteCheck {
   ok: boolean
   /** Why the rewrite can't be used as it is */
@@ -115,22 +137,29 @@ export interface RewriteCheck {
 }
 
 /**
- * Holds a rewritten article against its fact sheet: every number in the text must be in the sheet, every internal
- * link must be on the list (external links are not allowed), the keyword must stay where search looks for it,
- * and the checklist may not be red. Words for numbers ("tre sejre") are the writer's own risk and read by the owner.
+ * Holds a rewritten article against its fact sheet and the writer's research: every number in the text must be in
+ * the sheet or in a researched fact, every internal link must be on the list, an external link only to a research
+ * source (at most three), the keyword must stay where search looks for it, and the checklist may not be red. Words for
+ * numbers ("tre sejre") are the writer's own risk and read by the owner.
  */
-export function checkRewrite(f: Facts, a: { title: string; excerpt: string; content: string; seoTitle?: string; metaDescription?: string; slug: string }): RewriteCheck {
+export function checkRewrite(f: Facts, a: { title: string; excerpt: string; content: string; seoTitle?: string; metaDescription?: string; slug: string }, research: Research[] = []): RewriteCheck {
   const problems: string[] = []
   const allowed = allowedNumbers(f)
+  for (const r of research) for (const m of r.fakta.matchAll(/\d+/g)) allowed.add(String(Number(m[0])))
+  const sources = new Set(research.map((r) => r.kilde))
   const text = `${a.title} ${a.excerpt} ${plain(a.content)} ${a.metaDescription ?? ''}`
   const unknown = [...new Set([...text.matchAll(/\d+/g)].map((m) => String(Number(m[0]))))].filter((n) => !allowed.has(n))
   if (unknown.length) problems.push(`Tal, der ikke står i data: ${unknown.slice(0, 8).join(', ')}`)
   const ok = new Set(f.links.map((l) => l.href))
+  let external = 0
   for (const m of a.content.matchAll(/href="([^"]+)"/g)) {
-    const href = m[1]
-    if (/^https?:\/\//i.test(href) || href.startsWith('//')) problems.push(`Eksternt link er ikke tilladt: ${href}`)
-    else if (!ok.has(href)) problems.push(`Link, der ikke står på listen: ${href}`)
+    const href = m[1].replace(/&amp;/g, '&')
+    if (/^https?:\/\//i.test(href) || href.startsWith('//')) {
+      if (!sources.has(href)) problems.push(`Eksternt link, der ikke er en kilde i research: ${href}`)
+      else external++
+    } else if (!ok.has(href)) problems.push(`Link, der ikke står på listen: ${href}`)
   }
+  if (external > MAX_EXTERNAL_LINKS) problems.push(`${external} links ud af Matchly (højst ${MAX_EXTERNAL_LINKS})`)
   const internal = [...a.content.matchAll(/href="(\/[^"]*)"/g)].length
   if (internal < Math.min(3, f.links.length)) problems.push(`Kun ${internal} interne links (mindst ${Math.min(3, f.links.length)})`)
   for (const c of seoChecks({ ...a, focusKeyword: f.focusKeyword, featuredImage: 'x' })) if (c.level === 'bad') problems.push(`Tjeklisten: ${c.text}`)

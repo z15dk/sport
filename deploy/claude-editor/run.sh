@@ -22,5 +22,5 @@ echo "$(date -Is) $count kladde(r) til redaktøren"
 exec claude -p "$(cat "$PROMPT")" \
   --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" \
   --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" "Read(~/.claude/**)" "Edit(~/.claude/**)" "Read(~/.claude.json)" "Edit(~/.claude.json)" \
-  --max-turns 80 \
+  --max-turns 200 \
   --output-format text

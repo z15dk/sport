@@ -246,6 +246,15 @@ export function savePreviewDraft(key: string, item?: PreviewItem): { id?: number
   if (p.quality.level === 'blocked') return { skipped: `Ikke lavet: ${p.quality.reasons.join(' · ')}`, quality: p.quality }
   const existing = allArticles().find((a) => a.slug === p.preview.slug)
   if (existing?.status === 'published') return { skipped: 'Optakten er allerede udgivet – den røres ikke', id: existing.id, slug: existing.slug }
+  // A preview of the same match written by hand (or by the news scout) already exists: no second one to compete with it on Google.
+  // Same day at the end of the slug, category Optakter and both teams among its tags.
+  {
+    const names = (t: { name: string; dbu?: string }) => [t.name, t.dbu].filter((x): x is string => !!x).map((x) => x.toLowerCase())
+    const home = names(p.fixture.home)
+    const away = names(p.fixture.away)
+    const other = allArticles().find((a) => a.id !== existing?.id && a.category === 'optakter' && a.slug.endsWith(p.fixture.date) && a.tags.some((t) => home.includes(t.toLowerCase())) && a.tags.some((t) => away.includes(t.toLowerCase())))
+    if (other) return { skipped: `Der er allerede en optakt til kampen: ${other.title}` }
+  }
   addCategory('Optakter')
   const r = saveArticle({
     id: existing?.id,

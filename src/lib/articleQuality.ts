@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { cacheDir } from './tsdb'
 import type { Quality } from './previews/quality'
-import type { Facts } from './previews/facts'
+import type { Facts, Research } from './previews/facts'
 
 // The quality mark of each automatic article (green or yellow, with the reasons), by article id, kept in
 // data/article-quality.json: the approval mail and the morning mail show it, and "Udgiv alle" only takes
@@ -21,6 +21,8 @@ export interface QualityMark extends Quality {
   editor?: { verdict: string; ok: boolean; at: number }
   /** The Claude writer has rewritten the text as sports journalism: the morning check never puts the template back */
   rewritten?: boolean
+  /** What the Claude writer found on the web and used, each with its source (shown in the approval mail) */
+  research?: Research[]
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'article-quality.json')
@@ -39,7 +41,7 @@ export function saveQuality(id: number, mark: Omit<QualityMark, 'at'> & { at?: n
   const all = readQuality()
   const before = all[String(id)]
   // A new automatic check keeps the editor's verdict only when the text it read is unchanged (same reasons and level)
-  all[String(id)] = { ...mark, at: mark.at ?? Date.now(), facts: mark.facts ?? before?.facts, rewritten: mark.rewritten ?? before?.rewritten, editor: mark.editor ?? (before && before.level === mark.level ? before.editor : undefined) }
+  all[String(id)] = { ...mark, at: mark.at ?? Date.now(), facts: mark.facts ?? before?.facts, rewritten: mark.rewritten ?? before?.rewritten, research: mark.research ?? before?.research, editor: mark.editor ?? (before && before.level === mark.level ? before.editor : undefined) }
   // Old marks go after 90 days
   const cut = Date.now() - 90 * 24 * 3600_000
   for (const [k, v] of Object.entries(all)) if (v.at < cut) delete all[k]

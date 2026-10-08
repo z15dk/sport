@@ -73,7 +73,9 @@ export async function sendArticleApprovalMail(ids: number[], opts: { notes?: str
       const img = a.featuredImage ? `<img src="${esc(a.featuredImage.startsWith('/') ? SITE_URL + a.featuredImage : a.featuredImage)}" alt="" width="560" style="display:block;width:100%;max-width:560px;border-radius:10px;margin:0 0 10px">` : ''
       const m = marks[a.id]
       const badge = m ? `<p style="margin:0 0 10px;padding:6px 10px;border-radius:6px;font-size:13px;background:${m.level === 'green' ? '#e9f7d4' : '#fff4cc'}">${esc(qualityLine(m))}</p>` : ''
-      return `<div style="margin:0 0 28px">${img}<h3 style="margin:0 0 6px;font-size:18px">${esc(a.title)}</h3>${a.excerpt ? `<p style="margin:0 0 12px;color:#444">${esc(a.excerpt)}</p>` : ''}${badge}<a href="${articleApprovalLink(a.id)}" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Læs og udgiv</a></div>`
+      // The sources the Claude writer used beyond the match data, so the owner can check them before publishing
+      const sources = m?.research?.length ? `<p style="margin:0 0 10px;font-size:13px;color:#555">Skribentens kilder: ${m.research.map((r) => `<a href="${esc(r.kilde)}" style="color:#555">${esc(r.kilde.replace(/^https:\/\/(www\.)?/, '').split('/')[0])}</a>`).filter((v, i, all) => all.indexOf(v) === i).join(' · ')}</p>` : ''
+      return `<div style="margin:0 0 28px">${img}<h3 style="margin:0 0 6px;font-size:18px">${esc(a.title)}</h3>${a.excerpt ? `<p style="margin:0 0 12px;color:#444">${esc(a.excerpt)}</p>` : ''}${badge}${sources}<a href="${articleApprovalLink(a.id)}" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Læs og udgiv</a></div>`
     })
     .join('')
   const greenOnly = all.length < n
