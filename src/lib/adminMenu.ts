@@ -18,7 +18,6 @@ const SETTINGS = [
   { href: '/admin/data', label: 'Data & API', group: 'Siden' },
   { href: '/admin/kvalitet', label: 'Datakvalitet', group: 'Siden' },
   { href: '/admin/datavagt', label: 'Datavagt', group: 'Siden' },
-  { href: '/admin/redaktoer', label: 'James', group: 'Siden' },
   { href: '/admin/logoer', label: 'Logo-job', group: 'Siden' },
   { href: '/admin/billetter', label: 'Billetter', group: 'Billetter og reklamer' },
   { href: '/admin/reklamer', label: 'Reklamepladser', group: 'Billetter og reklamer' },
@@ -40,6 +39,8 @@ const ARTICLES = [
   { href: '/admin/artikler', label: 'Alle artikler' },
   { href: '/admin/artikler/optakter', label: 'Optakter' },
   { href: '/admin/artikler/superliga', label: 'Superliga-artikler' },
+  // The Claude writer (James): his rules and what he has written
+  { href: '/admin/redaktoer', label: 'James' },
 ]
 export const ADMIN_MENU: AdminMenuItem[] = [
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
