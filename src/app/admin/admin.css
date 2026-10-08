@@ -724,3 +724,35 @@ section > .ads-admin__form { padding: 0 18px 18px; }
   .dv-item__logo img { width: 24px; height: 24px; }
   .dv-item__act { grid-column: 2; }
 }
+
+/* /admin/klubkontakt: the clubs and the mail about their page and the table widget */
+.ko-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ko-group { margin-bottom: 14px; }
+.ko-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ko-item { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border-left: 4px solid var(--line); }
+.ko-item.is-sent { border-left-color: var(--lime-deep); }
+.ko-item__head { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.ko-item__logo { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--surface); overflow: hidden; }
+.ko-item__logo img { width: 28px; height: 28px; object-fit: contain; }
+.ko-item__logo span { font-size: 11px; font-weight: 800; color: var(--ink-3); }
+.ko-item__who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ko-item__who a { color: var(--ink); }
+.ko-item__who .small { overflow-wrap: anywhere; }
+.ko-state { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; background: var(--surface); color: var(--ink-3); white-space: nowrap; }
+.ko-state.is-sent { background: var(--lime); color: var(--ink); }
+.ko-note { margin: 8px 0 0 48px; font-size: 13px; }
+.ko-more { margin: 8px 0 0 48px; }
+.ko-more summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.ko-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-width: 680px; }
+.ko-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.ko-form input, .ko-form textarea { font: inherit; font-size: 14px; font-weight: 400; color: var(--ink); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ko-form textarea { line-height: 1.5; resize: vertical; }
+.ko-form .pill { align-self: flex-start; }
+.ko-form--note { flex-direction: row; align-items: flex-end; flex-wrap: wrap; }
+.ko-form--note label { flex: 1 1 260px; }
+@media (max-width: 600px) {
+  .ko-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ko-item__head { grid-template-columns: 32px minmax(0, 1fr); }
+  .ko-state { grid-column: 2; justify-self: start; }
+  .ko-note, .ko-more { margin-left: 0; }
+}

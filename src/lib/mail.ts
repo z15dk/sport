@@ -32,7 +32,8 @@ export function mailErrorText(err: unknown) {
   return parts.join(' · ')
 }
 
-export async function sendMail(subject: string, html: string, text: string): Promise<MailResult> {
+/** A mail to the owner (the address on /admin/sociale/indstillinger), or with `to` to someone else (the clubs on /admin/klubkontakt) */
+export async function sendMail(subject: string, html: string, text: string, opts: { to?: string; replyTo?: string } = {}): Promise<MailResult> {
   const { email } = socialConfig()
   if (!mailReady()) throw new Error('Mail er ikke sat op')
   const nodemailer = (await import('nodemailer')).default
@@ -47,10 +48,11 @@ export async function sendMail(subject: string, html: string, text: string): Pro
     socketTimeout: 30_000,
   })
   const from = email.from || email.user
-  const info = await transport.sendMail({ from, to: email.to, subject, html, text })
+  const to = opts.to ?? email.to
+  const info = await transport.sendMail({ from, to, subject, html, text, ...(opts.replyTo && { replyTo: opts.replyTo }) })
   return {
     from,
-    to: email.to,
+    to,
     accepted: (info.accepted ?? []).map(String),
     rejected: (info.rejected ?? []).map(String),
     response: info.response ?? '',

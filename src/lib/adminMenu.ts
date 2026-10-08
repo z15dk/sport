@@ -46,7 +46,15 @@ export const ADMIN_MENU: AdminMenuItem[] = [
   { href: '/admin/indstillinger', label: 'Indstillinger', children: SETTINGS },
   { href: '/admin/artikler', label: 'Artikler', children: ARTICLES },
   // The way to 10,000 page views a day: the numbers and the week's task as a checklist
-  { href: '/admin/vaekst', label: 'Vækst' },
+  {
+    href: '/admin/vaekst',
+    label: 'Vækst',
+    children: [
+      { href: '/admin/vaekst', label: 'Ugens opgaver' },
+      // The mail to the clubs of 1.–3. division about their page and the table widget
+      { href: '/admin/klubkontakt', label: 'Klubkontakt' },
+    ],
+  },
   { href: '/admin/klubber', label: 'Klubber' },
   { href: '/admin/ligaer', label: 'Ligaer' },
   { href: '/admin/kanaler', label: 'Kanaler' },
