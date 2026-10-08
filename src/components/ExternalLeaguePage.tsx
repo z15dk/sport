@@ -19,7 +19,7 @@ import { LeagueStats } from './LeagueStats'
 import type { LeagueStats as LeagueStatsData } from '../data/stats'
 import type { Leaders } from '../data/matchExtra'
 import { AdSlot } from './AdSlot'
-import { danishCountry } from '../data/countries'
+import { danishCountry, womenMarked } from '../data/countries'
 import { sportById } from '../sports'
 import { formatShortYear } from '../lib/time'
 import { paths } from '../lib/site'
@@ -120,7 +120,8 @@ export function ExternalLeaguePage({ view, league, groups, source, matches, sinc
                               // Linked to the team's own page in this league (not a men's club of the same name)
                               const team = teamInLeague(league.key, r.name, league.sport)
                               // One of our own clubs under our name for it ("Bodø/Glimt", not the source's "Bodo/Glimt")
-                              const name = team?.season ? team.name : r.name
+                              // and every team of a women's league with the women's mark ("ASA Aarhus (K)")
+                              const name = team?.season ? team.name : womenMarked(r.name, league.name)
                               return (
                                 <span className="table__club">
                                   <TeamBadge link={false} name={name} src={r.logo ?? team?.logo} size={20} />

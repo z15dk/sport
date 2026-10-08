@@ -296,6 +296,17 @@ export function shownTeam(name: string, leagueCountry?: string): string {
 /** The women's mark we show ("Paris FC (K)"), where a name is read again */
 export const SHOWN_WOMEN = /\s*\(k\)$/i
 
+/** A women's league by its name (A-Liga, B-Liga, Kvindeliga, "Women", Frauen, Damallsvenskan …) */
+const WOMEN_LEAGUE_NAME = /kvinde|women|frauen|femin|femmin|\ba-liga\b|\bb-liga\b|damallsvenskan|toppserien|\bwsl\b/i
+
+/**
+ * Every team in a women's league carries the women's mark, also where the league's own table names it without
+ * ("ASA Aarhus" in the A-Liga is "ASA Aarhus (K)"), so it is never mistaken for the men's club. Only for showing.
+ */
+export function womenMarked(name: string, league?: string): string {
+  return league && WOMEN_LEAGUE_NAME.test(league) && !SHOWN_WOMEN.test(name) ? `${name} (K)` : name
+}
+
 /** A national team's name ("Wales", "Denmark U21", "Danmark"), not a club's */
 export function isNationalTeam(name: string): boolean {
   let base = name.trim()

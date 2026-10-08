@@ -8,7 +8,7 @@ import { ourClubByName, ourClubInGame } from './cups'
 import { BASELINES, sameLeagueKeys } from './baselines'
 import { alike, nameWords, normalize } from './aliases'
 import { slugify } from '../lib/slug'
-import { SHOWN_WOMEN, isInternational, shownTeam } from './countries'
+import { SHOWN_WOMEN, isInternational, shownTeam, womenMarked } from './countries'
 
 // One register of every team playing in the leagues we show (from the real
 // season). Every team automatically gets a page at /klub/<slug>, links from
@@ -64,8 +64,8 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     if (taken.has(slug) || resemblesOurClub(name)) slug = `${slug}-${slugify(e.slugLeague ?? e.league)}`
     if (taken.has(slug)) slug = `${slug}-${slugify(e.country ?? '')}`
     taken.add(slug)
-    // Shown under its Danish name (national teams, "(K)" for women's teams); found under the source's too
-    const shown = shownTeam(name, e.country)
+    // Shown under its Danish name (national teams, "(K)" for women's teams – every team of a women's league); found under the source's too
+    const shown = womenMarked(shownTeam(name, e.country), e.league)
     const team: TeamEntry = { slug, name: shown, ...e, names: shown === name ? [name] : [name, shown] }
     // The address it had for some hours on 4 October 2026, made from our Danish name for the league: sent on to the real one
     if (e.slugLeague && e.slugLeague !== e.league && slug.endsWith(`-${slugify(e.slugLeague)}`)) movedSlugs.set(`${slugify(name)}-${slugify(e.league)}`, slug)

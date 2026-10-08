@@ -5,7 +5,7 @@ import { hasRealData } from '../data/real'
 import { clubMatches, getMatches } from '../data/matches'
 import { standings } from '../data/season'
 import { articleSubjects } from '../lib/news'
-import { subjectFromTags } from '../lib/articleTopics'
+import { isWomenArticle, subjectFromTags } from '../lib/articleTopics'
 import { paths } from '../lib/site'
 import { addDays, isoDate } from '../lib/time'
 import type { Match } from '../types'
@@ -24,6 +24,8 @@ interface Subject {
 
 /** The league (and club) an article is about, when it is one we cover with data */
 export function articleSubject(a: { title: string; excerpt: string; tags: string[]; focusKeyword?: string }, categoryName?: string): Subject | undefined {
+  // Our leagues are the men's: an article about women's football gets today's matches, not the men's club's table
+  if (isWomenArticle({ tags: a.tags, title: a.title, category: categoryName })) return undefined
   // The tags decide: the first club tag (its league's table and matches), else the first league tag
   const tagged = subjectFromTags(a.tags)
   if (tagged) return tagged
