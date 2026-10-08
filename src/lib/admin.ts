@@ -90,10 +90,29 @@ export async function adminDenied(request: Request): Promise<string | undefined>
   return undefined
 }
 
-// A few wrong passwords per minute per address, then wait
+/**
+ * The visitor's address as nginx saw it: X-Real-IP (nginx sets it to $remote_addr, the visitor can't), else the
+ * LAST X-Forwarded-For entry (nginx appends the real one; the first ones are whatever the visitor sent).
+ */
+export function clientIp(request: Request): string {
+  const real = request.headers.get('x-real-ip')?.trim()
+  if (real) return real
+  const fwd = request.headers.get('x-forwarded-for')?.split(',').map((s) => s.trim()).filter(Boolean)
+  return fwd?.at(-1) ?? 'lokal'
+}
+
+// A few wrong passwords per minute per address, and at most 30 a minute in all, then wait
 const attempts = new Map<string, { count: number; since: number }>()
+let all = { count: 0, since: 0 }
 export function tooManyAttempts(ip: string) {
   const now = Date.now()
+  if (now - all.since > 60_000) {
+    all = { count: 0, since: now }
+    // Old addresses go, so made-up ones can't fill the memory
+    for (const [k, v] of attempts) if (now - v.since > 60_000) attempts.delete(k)
+  }
+  all.count++
+  if (all.count > 30 || attempts.size > 5_000) return true
   const a = attempts.get(ip)
   if (!a || now - a.since > 60_000) {
     attempts.set(ip, { count: 1, since: now })

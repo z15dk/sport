@@ -10,12 +10,14 @@ export const dynamic = 'force-dynamic'
 export function GET(request: Request) {
   const url = new URL(request.url)
   const raw = url.searchParams.get('til') ?? '/'
-  // Our own paths only: no other host, no protocol-relative address
-  const path = /^\/(?!\/)[^\s]*$/.test(raw) ? raw : '/'
+  // Our own paths only: no other host, no protocol-relative address, no backslash (a browser reads "/\\x" as "//x")
+  const path = /^\/(?![/\\])[^\s\\]*$/.test(raw) ? raw : '/'
   const campaign = url.searchParams.get('kampagne') ?? ''
   const preview = url.searchParams.get('id') === 'preview'
   noteAdClick({ page: url.searchParams.get('side'), referer: request.headers.get('referer'), campaign, ua: request.headers.get('user-agent'), preview, target: path.split('?')[0] })
-  const to = new URL(path, SITE_URL)
+  let to = new URL(path, SITE_URL)
+  // Checked once more after parsing: the result must still be on our own site
+  if (to.origin !== new URL(SITE_URL).origin) to = new URL('/', SITE_URL)
   if (!preview) {
     to.searchParams.set('utm_source', 'annonce')
     to.searchParams.set('utm_medium', 'helside')

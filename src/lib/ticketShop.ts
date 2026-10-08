@@ -341,7 +341,10 @@ export function soldByClub(): Map<string, { sold: number; revenue: number }> {
 export type LeadKind = 'billet' | 'annoncering'
 
 /** A club that wants to hear more (the form on /billetsystem), or an advertiser (the form on /annoncering) */
-export function saveLead(input: { club: string; name: string; email: string; phone: string; message: string }, kind: LeadKind = 'billet'): { ok: true } | { error: string } {
+export type Lead = { club: string; name: string; email: string; phone: string; message: string }
+
+/** Saves the lead with every field cut to size; the saved (cut) fields come back for the owner's mail */
+export function saveLead(input: Lead, kind: LeadKind = 'billet'): { ok: true; lead: Lead } | { error: string } {
   const d = db()
   if (!d) return { error: 'Det gik ikke – prøv igen senere' }
   const clip = (s: string, n: number) => s.trim().slice(0, n)
@@ -350,8 +353,9 @@ export function saveLead(input: { club: string; name: string; email: string; pho
   if (!club || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: kind === 'annoncering' ? 'Skriv virksomhedens navn og en mailadresse' : 'Skriv klubbens navn og en mailadresse' }
   const recent = Number(d.prepare('SELECT COUNT(*) AS n FROM leads WHERE created > ?').get(Date.now() - 3_600_000)?.n ?? 0)
   if (recent > 30) return { error: 'For mange henvendelser lige nu – prøv igen om lidt' }
-  d.prepare('INSERT INTO leads (created, club, name, email, phone, message, kind) VALUES (?, ?, ?, ?, ?, ?, ?)').run(Date.now(), club, clip(input.name, 120), email, clip(input.phone, 40), clip(input.message, 2000), kind)
-  return { ok: true }
+  const lead = { club, name: clip(input.name, 120), email, phone: clip(input.phone, 40), message: clip(input.message, 2000) }
+  d.prepare('INSERT INTO leads (created, club, name, email, phone, message, kind) VALUES (?, ?, ?, ?, ?, ?, ?)').run(Date.now(), lead.club, lead.name, lead.email, lead.phone, lead.message, kind)
+  return { ok: true, lead }
 }
 
 export function leads(kind: LeadKind = 'billet') {
