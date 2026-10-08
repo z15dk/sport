@@ -1,0 +1,10 @@
+# Kl. 03.30 hver nat, når der er færrest besøgende (og før DBU- og referatjobbene om morgenen).
+[Unit]
+Description=Matchly: daglig backup kl. 03.30
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Europe/Copenhagen
+Persistent=true
+
+[Install]
+WantedBy=timers.target

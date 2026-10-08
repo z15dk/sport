@@ -1,0 +1,9 @@
+# Daglig backup af Matchlys databaser, indstillinger og billeder (deploy/matchly-backup.sh) til /var/backups/matchly.
+[Unit]
+Description=Matchly: daglig backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/matchly-backup
+Nice=19
+IOSchedulingClass=idle
