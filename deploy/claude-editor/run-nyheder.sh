@@ -26,7 +26,7 @@ scout() {
 DENNE KØRSEL: $round-runden, $(TZ=Europe/Copenhagen date '+%A %-d. %B %Y kl. %H.%M')." \
     "$@" \
     --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" \
-    --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" \
+    --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" "Read(~/.claude/**)" "Edit(~/.claude/**)" "Read(~/.claude.json)" "Edit(~/.claude.json)" \
     --max-turns 150 \
     --output-format text
 }

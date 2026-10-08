@@ -5,8 +5,11 @@
 # (CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`); only matchly-api, web search and its own folder allowed. Env: /etc/matchly-editor.env.
 set -euo pipefail
 PROMPT="$(dirname "$(readlink -f "$0")")/PROMPT.md"
-# Claude works in its own folder (the release is read-only for it); matchly-api lies next to this script
-cd /var/lib/matchly-editor
+# Claude works in its own folder (the release is read-only for it); matchly-api lies next to this script.
+# A folder below its home, never the home itself: Claude's own settings (~/.claude, ~/.claude.json) live there, and a
+# writer allowed to edit them could give itself new tools for the next run.
+mkdir -p /var/lib/matchly-editor/arbejde
+cd /var/lib/matchly-editor/arbejde
 export PATH="$(dirname "$(readlink -f "$0")"):$PATH"
 : "${SITE:?SITE mangler i /etc/matchly-editor.env (sitets egen port, PORT i /opt/scoreline/env)}"
 export SITE
@@ -18,6 +21,6 @@ echo "$(date -Is) $count kladde(r) til redaktøren"
 # No curl, no other commands, no files outside the folder – so a web page can never get it to send a key out.
 exec claude -p "$(cat "$PROMPT")" \
   --allowedTools "Bash(matchly-api:*)" "WebSearch" "WebFetch" "Read(./**)" "Edit(./**)" \
-  --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" \
+  --disallowedTools "Bash(curl:*)" "Bash(env:*)" "Bash(printenv:*)" "Bash(cat:*)" "Read(~/.claude/**)" "Edit(~/.claude/**)" "Read(~/.claude.json)" "Edit(~/.claude.json)" \
   --max-turns 80 \
   --output-format text
