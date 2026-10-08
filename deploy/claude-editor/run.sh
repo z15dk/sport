@@ -14,7 +14,8 @@ export PATH="$(dirname "$(readlink -f "$0")"):$PATH"
 : "${SITE:?SITE mangler i /etc/matchly-editor.env (sitets egen port, PORT i /opt/scoreline/env)}"
 export SITE
 # Nothing to read: no Claude run at all
-count=$(curl -fsS -H "Authorization: Bearer ${EDITOR_TOKEN}" "$SITE/api/redaktor/kladder" | grep -o '"id":' | wc -l || echo 0)
+# (grep finds nothing when there are no drafts: that's 0, not an error)
+count=$(curl -fsS -H "Authorization: Bearer ${EDITOR_TOKEN}" "$SITE/api/redaktor/kladder" | { grep -o '"id":' || true; } | wc -l | tr -d ' ')
 if [ "${count:-0}" -eq 0 ]; then echo "Ingen nye kladder"; exit 0; fi
 echo "$(date -Is) $count kladde(r) til redaktøren"
 # Only: the site's editor API (matchly-api), web search and web pages, and files in its own folder.
