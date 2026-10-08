@@ -55,7 +55,7 @@ export function platformCaption(platform: Platform, raw: string, link: string, h
     case 'instagram':
       return [caption, 'Alle kampe, tabeller og tal: link i profilen.', tags].filter(Boolean).join('\n\n').slice(0, 2200)
     case 'facebook':
-      return [caption, link, tags].filter(Boolean).join('\n\n')
+      return [caption, link, FACEBOOK_FOLLOW, tags].filter(Boolean).join('\n\n')
     case 'threads': {
       const end = `\n\n${link}`
       return caption.length + end.length <= 500 ? caption + end : `${cut(caption, 500 - end.length)}${end}`
@@ -68,6 +68,9 @@ export function platformCaption(platform: Platform, raw: string, link: string, h
   }
 }
 
+/** The line under every Facebook post that turns a view into a follower (the page had views but no followers) */
+export const FACEBOOK_FOLLOW = '⭐ Følg Matchly – dagens kampe, resultater og nyheder fra dansk fodbold hver dag'
+
 /**
  * Facebook with the link in the comments (a post with a link in its text reaches fewer people): the text ends with a
  * pointer to the comments instead of the link, and the comment carries the link. Make posts the text and then
@@ -77,7 +80,7 @@ export function facebookLinkComment(raw: string, link: string, hashtags: string,
   const tags = hashtags.trim()
   const caption = withTags('facebook', raw)
   return {
-    text: [caption, 'Link i kommentarerne 👇', tags].filter(Boolean).join('\n\n'),
+    text: [caption, 'Link i kommentarerne 👇', FACEBOOK_FOLLOW, tags].filter(Boolean).join('\n\n'),
     comment: `${article ? 'Læs hele artiklen her' : 'Se det hele på Matchly'} 👉 ${link}`,
   }
 }
