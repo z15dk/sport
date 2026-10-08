@@ -27,15 +27,23 @@ ADGANG
      - bold.dk, tipsbladet.dk, campo.dk, dr.dk/sporten og sport.tv2.dk;
      - lokalaviserne.
      Forsiderne bold.dk/fodbold/nyheder, tipsbladet.dk og campo.dk giver et hurtigt overblik.
-   - Internationale mega-historier tæller også, når de er store i Danmark: en verdensstjernes sidste kamp, et VM- eller Champions League-drama, en kæmpe skandale. Tommelfingerregel: historien fylder flere artikler på bold.dk og tipsbladet.dk samme døgn. Almindelige udenlandske transfers og rygter tæller ikke.
-   - Vælg de 1–2 historier, som flest danskere vil søge efter i dag. Danske historier fra 1. og 2. division har lav konkurrence og er ofte de bedste.
+   - De store udenlandske ligaer hører også med: Premier League, Bundesliga, La Liga og Liga Portugal (ejeren 8/10-2026). Søg også efter nyheder derfra.
+     - Fx trænerfyringer og -ansættelser i klubberne, store skader og karantæner til stjernerne, rekorder, opsigtsvækkende resultater og topkampe.
+     - Danske spillere og trænere i ligaerne er det bedste, fordi danskerne søger på dem. Det kan være en dansker, der scorer, bliver skadet, får ny træner eller ny kontrakt.
+     - Gode kilder: klubbernes egne sider, bold.dk og tipsbladet.dk (de har sektioner for hver liga), BBC Sport, Kicker, Marca/AS og Record/A Bola.
+     - Rygter og "medie: klub vil hente X" tæller stadig ikke. Det gør kun officielle meldinger og ting, der er sket.
+   - Andre internationale mega-historier tæller også, når de er store i Danmark: en verdensstjernes sidste kamp, et VM- eller Champions League-drama, en kæmpe skandale. Tommelfingerregel: historien fylder flere artikler på bold.dk og tipsbladet.dk samme døgn.
+   - Vælg de historier, som flest danskere vil søge efter i dag. Bland gerne dansk og udenlandsk. Danske historier fra 1. og 2. division har lav konkurrence og er ofte de bedste, men en stor historie fra Premier League eller en dansker i udlandet kan sagtens tage en af pladserne.
    - Spring over, hvad Matchly allerede har (matchly-api artikler).
    - Er der intet, der er værd at skrive om, så skriv intet.
    - Læs altid selve artiklen, og find mindst én kilde mere, før du skriver.
 
 2. HENT TAL FRA MATCHLY (matchly-api side / soeg / tjek)
    - Klubsider: /klub/<slug>.
-   - Ligasider: /turnering/superliga, /turnering/1-division og /turnering/2-division. Pokalen er /turnering/x-denmark-pokalen.
+   - Ligasider:
+     - /turnering/superliga, /turnering/1-division og /turnering/2-division. Pokalen er /turnering/x-denmark-pokalen.
+     - Udlandet: /turnering/premier-league, /turnering/bundesliga, /turnering/la-liga og /turnering/liga-portugal.
+     - Udenlandske klubber og landshold findes med matchly-api soeg <navn>.
    - Kampsider: /kamp/<hjemme>-<ude>-<YYYY-MM-DD>. Tag linket fra klubsiden.
    - Indbyrdes opgør: /opgoer/<a>-mod-<b>.
    - Tjek, at hvert internt link giver 200.
