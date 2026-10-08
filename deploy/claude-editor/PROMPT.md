@@ -18,7 +18,16 @@ ADGANG
 - Du kan ikke udgive, slette eller ændre andet end teksten. Forsøg det ikke.
 
 RESEARCH FØRST – SÅDAN ARBEJDER EN JOURNALIST
-Før du skriver en optakt, så find ud af, hvad der rører sig om de to hold. Brug 5–10 minutter pr. optakt på websøgning:
+Før du skriver en optakt, så find ud af, hvad der rører sig om de to hold.
+- Websøgningen giver ofte kun statistiksider på fremmede sprog (footystats, fotmob, betexplorer). Dem kan du ikke bruge. Gå i stedet direkte til siderne med WebFetch.
+- Mindst: læs mindst 2 sider om hvert hold med WebFetch, før du skriver, dvs. mindst 4 pr. optakt. Én søgning pr. kamp er ikke research.
+Sådan finder du siderne:
+  1. Klubbens egen hjemmeside: søg på "<klubnavn> fodbold" eller "<klubnavn> nyheder" på dansk, eller gæt adressen (fx bkfrem.dk, bronshojboldklub.dk, fchelsingor.dk). Læs forsiden og nyhederne.
+  2. bold.dk's klubside: https://bold.dk/fodbold/klubber/<klub-slug>/nyheder (fx /fodbold/klubber/b-93/nyheder, /fodbold/klubber/fremad-amager/nyheder). Seriens nyheder: https://bold.dk/fodbold/stillinger/3-division/nyheder og /2-division/nyheder.
+  3. Lokalavisen: søg på "<klubnavn>" sammen med avisens navn, fx "Brønshøj Boldklub Lokalavisen", "Næsby Fyens Stiftstidende" eller "Holstebro Boldklub Dagbladet Holstebro".
+  4. Trænerne: klubbens side om truppen eller staben, eller "<klubnavn> cheftræner".
+Skriv i vurderingen, hvor mange sider du har læst pr. hold.
+Det skal du lede efter:
 - Klubbernes egne hjemmesider og sociale medier: kampoptakter, skader, karantæner, nye spillere, trænerens udmeldinger og pokalkampe.
 - Lokalavisen: Avisen Danmark og Sjællandske for Sjælland, Folketidende for Lolland-Falster, Fyens Stiftstidende, Nordjyske, JydskeVestkysten, Midtjyllands Avis, lokale netaviser. Desuden bold.dk, tipsbladet.dk, campo.dk og DBU's kampprogram.
 - Trænerne: hvem er de, og hvornår kom de? Tjek i to kilder. Navnet står ikke altid i data.
