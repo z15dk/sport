@@ -1,11 +1,13 @@
 import { allArticles } from '../../../../lib/articles'
 import { readQuality } from '../../../../lib/articleQuality'
 import { editorAllowed } from '../../../../lib/editorAccess'
+import { readEditorRules } from '../../../../lib/editorRules'
 
 export const dynamic = 'force-dynamic'
 
 // The Claude editor's list (src/lib/editorAccess.ts): the automatic previews and match reports that are still
-// drafts or waiting to go live and that the editor has not read yet (?alle=1: also those it has read).
+// drafts or waiting to go live and that the editor has not read yet (?alle=1: also those it has read), the owner's
+// message on a draft (quality.note, pending until done) and the owner's standing rules (regler).
 
 export async function GET(request: Request) {
   if (!editorAllowed(request)) return Response.json({ error: 'Ingen adgang' }, { status: 401 })
@@ -16,5 +18,6 @@ export async function GET(request: Request) {
     .filter((a) => marks[String(a.id)] && (a.status === 'draft' || (a.publishedAt && Date.parse(a.publishedAt) > now)))
     .filter((a) => all || !marks[String(a.id)].editor)
     .map((a) => ({ id: a.id, slug: a.slug, status: a.status, title: a.title, excerpt: a.excerpt, seoTitle: a.seoTitle, metaDescription: a.metaDescription, content: a.content, quality: marks[String(a.id)] }))
-  return Response.json({ drafts })
+  // The owner's standing rules (/admin/redaktoer), for every run
+  return Response.json({ drafts, regler: readEditorRules().text })
 }

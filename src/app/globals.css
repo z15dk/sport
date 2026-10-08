@@ -3183,3 +3183,13 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
   .about-clubs__grid { grid-template-columns: 1fr; }
   .about-vagt { padding: 20px 16px; }
 }
+
+/* "Besked til Claude" on an automatic draft (the approval page and the editor) and the rules on /admin/redaktoer */
+.claude-note { margin: 0 0 18px; padding: 16px 18px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; flex-direction: column; gap: 10px; }
+.claude-note h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; text-transform: uppercase; }
+.claude-note__verdict, .claude-note__pending { margin: 0; padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.45; }
+.claude-note__verdict.is-ok { background: #e9f7d4; }
+.claude-note__verdict.is-warn, .claude-note__pending { background: #fff4cc; }
+.claude-note__form { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.claude-note__form label { font-weight: 700; font-size: 14px; }
+.claude-note__form textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); resize: vertical; }

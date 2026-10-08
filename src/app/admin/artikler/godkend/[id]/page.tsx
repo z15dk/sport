@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { isAdmin } from '../../../../../lib/admin'
 import { nextMorning, validArticleApproval } from '../../../../../lib/articleApproval'
-import { articleById } from '../../../../../lib/articles'
+import { articleById, cleanHtml } from '../../../../../lib/articles'
+import { qualityOf } from '../../../../../lib/articleQuality'
+import { ClaudeNote } from '../../../../../components/admin/ClaudeNote'
 import { paths } from '../../../../../lib/site'
 import { seoChecks } from '../../../../../lib/seoChecks'
 import { formatLong, formatTime } from '../../../../../lib/time'
@@ -13,13 +15,13 @@ export const metadata: Metadata = { title: 'Udgiv artikel · Matchly', robots: {
 // "Udgiv nu" and "Udgiv kl. 07.00". The link's signature is the access, so it works on the
 // phone without logging in.
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string; ok?: string; fejl?: string }> }
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string; ok?: string; fejl?: string; claude?: string }> }
 
 const when = (d: Date) => `${formatLong(d)} kl. ${formatTime(d)}`
 
 export default async function ApproveArticlePage({ params, searchParams }: Props) {
   const id = Number((await params).id)
-  const { t, ok, fejl } = await searchParams
+  const { t, ok, fejl, claude } = await searchParams
   const a = Number.isInteger(id) ? articleById(id) : undefined
   if (!a || !(validArticleApproval(id, t) || (await isAdmin())))
     return (
@@ -34,6 +36,8 @@ export default async function ApproveArticlePage({ params, searchParams }: Props
   const planned = live && Date.parse(a.publishedAt!) > Date.now()
   const morning = nextMorning()
   const issues = seoChecks(a).filter((c) => c.level === 'bad')
+  // An automatic preview or report: the Claude writer's verdict and "Besked til Claude"
+  const mark = qualityOf(a.id)
   const button = (value: 'now' | 'morning', label: string, primary?: boolean) => (
     <form method="post" action="/api/articles/approve" className="social-inline">
       <input type="hidden" name="id" value={a.id} />
@@ -47,7 +51,11 @@ export default async function ApproveArticlePage({ params, searchParams }: Props
   return (
     <div className="page">
       <div className="clubs prose admin art-approve">
-        {ok && <p className="social-msg is-ok">{ok === 'morning' ? `Planlagt til ${when(morning)}. Den deles på Facebook, når den går live.` : 'Udgivet. Den deles på Facebook om lidt.'}</p>}
+        {ok && (
+          <p className="social-msg is-ok">
+            {ok === 'morning' ? `Planlagt til ${when(morning)}.${a.noSocial ? '' : ' Den deles på Facebook, når den går live.'}` : `Udgivet.${a.noSocial ? '' : ' Den deles på Facebook om lidt.'}`}
+          </p>
+        )}
         {fejl && <p className="social-msg is-error">{fejl}</p>}
         <p className="muted small">
           {live ? (planned ? `Planlagt til ${when(new Date(a.publishedAt!))}` : `Udgivet ${when(new Date(a.publishedAt!))}`) : 'Kladde – ikke udgivet'}
@@ -80,7 +88,9 @@ export default async function ApproveArticlePage({ params, searchParams }: Props
             ))}
           </ul>
         )}
-        <div className="art-approve__body" dangerouslySetInnerHTML={{ __html: a.content }} />
+        {mark && !live && <ClaudeNote id={a.id} mark={mark} t={t} sent={claude === '1'} />}
+        {/* Cleaned again when shown, as on the public article page */}
+        <div className="art-approve__body" dangerouslySetInnerHTML={{ __html: cleanHtml(a.content) }} />
         {!live && <div className="art-approve__actions">{button('now', 'Udgiv nu', true)}</div>}
       </div>
     </div>

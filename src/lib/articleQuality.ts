@@ -23,6 +23,8 @@ export interface QualityMark extends Quality {
   rewritten?: boolean
   /** What the Claude writer found on the web and used, each with its source (shown in the approval mail) */
   research?: Research[]
+  /** The owner's message to the Claude writer ("Skriv om"); pending until the writer has done it */
+  note?: { text: string; at: number; by: string; pending: boolean }
 }
 
 const file = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'article-quality.json')
@@ -41,7 +43,7 @@ export function saveQuality(id: number, mark: Omit<QualityMark, 'at'> & { at?: n
   const all = readQuality()
   const before = all[String(id)]
   // A new automatic check keeps the editor's verdict only when the text it read is unchanged (same reasons and level)
-  all[String(id)] = { ...mark, at: mark.at ?? Date.now(), facts: mark.facts ?? before?.facts, rewritten: mark.rewritten ?? before?.rewritten, research: mark.research ?? before?.research, editor: mark.editor ?? (before && before.level === mark.level ? before.editor : undefined) }
+  all[String(id)] = { ...mark, at: mark.at ?? Date.now(), facts: mark.facts ?? before?.facts, rewritten: mark.rewritten ?? before?.rewritten, research: mark.research ?? before?.research, note: mark.note ?? before?.note, editor: mark.editor ?? (before && before.level === mark.level ? before.editor : undefined) }
   // Old marks go after 90 days
   const cut = Date.now() - 90 * 24 * 3600_000
   for (const [k, v] of Object.entries(all)) if (v.at < cut) delete all[k]
@@ -54,6 +56,8 @@ export function saveEditorVerdict(id: number, verdict: string, ok: boolean): boo
   const mark = all[String(id)]
   if (!mark) return false
   mark.editor = { verdict: verdict.slice(0, 600), ok, at: Date.now() }
+  // The owner's message is done once the writer has answered after it
+  if (mark.note?.pending) mark.note = { ...mark.note, pending: false }
   mkdirSync(path.dirname(file()), { recursive: true })
   writeFileSync(file(), JSON.stringify(all, null, 2))
   return true
@@ -64,4 +68,33 @@ export function qualityLine(m?: QualityMark): string {
   if (!m) return ''
   const base = m.level === 'green' ? 'Grøn – klar til udgivelse' : `Gul – læs den: ${m.reasons.join(' · ')}`
   return m.editor ? `${base}. Redaktøren: ${m.editor.verdict}` : base
+}
+
+/** The file the Claude writer's systemd path unit watches (deploy/claude-editor/matchly-editor.path): it starts a run */
+const requestFile = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'redaktor-request')
+
+/** Rings the writer's doorbell: a run starts within seconds (the web process gets no other rights) */
+export function requestEditorRun() {
+  try {
+    mkdirSync(path.dirname(requestFile()), { recursive: true })
+    writeFileSync(requestFile(), String(Date.now()))
+  } catch {
+    // the next timed run takes it
+  }
+}
+
+/**
+ * The owner's message for one automatic draft ("Mere om Brøndbys stime"): kept with the mark, the writer's last
+ * verdict is cleared so it reads the draft again, and a run is started. False when it isn't an automatic draft.
+ */
+export function saveNote(id: number, text: string, by: string): boolean {
+  const all = readQuality()
+  const mark = all[String(id)]
+  if (!mark) return false
+  mark.note = { text: text.slice(0, 1000), at: Date.now(), by, pending: true }
+  delete mark.editor
+  mkdirSync(path.dirname(file()), { recursive: true })
+  writeFileSync(file(), JSON.stringify(all, null, 2))
+  requestEditorRun()
+  return true
 }

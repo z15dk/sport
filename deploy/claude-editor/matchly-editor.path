@@ -1,0 +1,11 @@
+# "Skriv om" i admin eller på godkendelsessiden skriver /opt/scoreline/data/redaktor-request; så startes Claude-
+# skribenten med det samme (matchly-editor.service fjerner filen, før den kører). Webprocessen får ingen rettigheder.
+[Unit]
+Description=Matchly: Claude-skribenten startes fra admin (Skriv om)
+
+[Path]
+PathExists=/opt/scoreline/data/redaktor-request
+Unit=matchly-editor.service
+
+[Install]
+WantedBy=multi-user.target

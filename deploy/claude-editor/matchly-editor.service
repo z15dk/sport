@@ -14,6 +14,8 @@ WorkingDirectory=/var/lib/matchly-editor
 EnvironmentFile=/etc/matchly-editor.env
 Environment=HOME=/var/lib/matchly-editor
 # The newest script and prompt from the live release, copied as root into the editor's own folder before each run
+# The doorbell from admin (matchly-editor.path) is answered: removed before the run, as root
+ExecStartPre=+/bin/rm -f /opt/scoreline/data/redaktor-request
 ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/bin /opt/scoreline/current/deploy/claude-editor/run.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/PROMPT.md
 ExecStart=/var/lib/matchly-editor/bin/run.sh
 Nice=15
