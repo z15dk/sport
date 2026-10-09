@@ -24,7 +24,7 @@ export default async function QuizPage() {
         <AdminNav current="/admin/sociale/quiz" />
         <h1 className="feed__title">Gæt klubben</h1>
         <p className="muted small">
-          En quiz-serie til Reels. Hvert afsnit starter med svaret fra det forrige og slutter uden svar. James laver tre afsnit om ugen (mandag, onsdag og fredag kl. 10). Download videoen, læg den op som Reel med en trending lyd, og marker den som lagt op.
+          En quiz-serie til Reels. Hvert afsnit starter med svaret fra det forrige og slutter uden svar. James holder sig to uger foran: der ligger altid seks afsnit klar til mandag, onsdag og fredag. Download videoen, læg den op som Reel med en trending lyd, og marker den som lagt op.
         </p>
         <QuizSound has={hasSound()} />
         {list.length === 0 && <p className="panel pad muted">Ingen afsnit endnu.</p>}
@@ -40,6 +40,7 @@ export default async function QuizPage() {
                 Afsnit {e.n}: {e.club}
               </h2>
               <p className="muted small">
+                {e.plannedFor && <b>Planlagt {new Date(`${e.plannedFor}T12:00:00Z`).toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long' })} · </b>}
                 {LEVEL[e.level]} · lavet {when(e.createdAt)} af {e.by === 'claude' ? 'James' : 'dig'}
                 {e.postedAt ? ` · lagt op ${when(e.postedAt)}` : ' · ikke lagt op endnu'}
               </p>

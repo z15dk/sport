@@ -42,6 +42,8 @@ export interface QuizEpisode {
   createdAt: number
   /** Posted by the owner (the next episode reveals this one) */
   postedAt?: number
+  /** The day it is planned to go out (YYYY-MM-DD): Monday, Wednesday or Friday, in order */
+  plannedFor?: string
 }
 
 const dir = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'quiz')
@@ -74,14 +76,31 @@ export const hasVideo = (n: number) => {
   }
 }
 
+/** Episodes James keeps ready ahead: two weeks at three a week */
+export const AHEAD = 6
+const QUIZ_DAYS = new Set([1, 3, 5])
+
+/** The next quiz day (Monday, Wednesday, Friday) after a day (YYYY-MM-DD), or from tomorrow */
+function nextQuizDay(after?: string): string {
+  const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Copenhagen' }))
+  const d = after ? new Date(`${after}T12:00:00Z`) : new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 12))
+  do d.setUTCDate(d.getUTCDate() + 1)
+  while (!QUIZ_DAYS.has(d.getUTCDay()))
+  return d.toISOString().slice(0, 10)
+}
+
 /** What James needs: the episodes so far (clubs used, the levels), the next number and whose answer it will open with */
 export async function seriesBrief() {
   const list = readSeries()
   const names = [...new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams())])]
+  const ready = list.filter((e) => !e.postedAt).length
   return {
     next: (list.at(-1)?.n ?? 0) + 1,
+    // How many are made and not posted yet, and how many more to make now to be two weeks ahead
+    ready,
+    toMake: Math.max(0, AHEAD - ready),
     revealsInNext: list.at(-1) ? { n: list.at(-1)!.n, club: list.at(-1)!.club } : null,
-    episodes: list.map((e) => ({ n: e.n, club: e.club, level: e.level, at: new Date(e.createdAt).toISOString(), posted: !!e.postedAt })),
+    episodes: list.map((e) => ({ n: e.n, club: e.club, level: e.level, plannedFor: e.plannedFor, posted: !!e.postedAt })),
     clubsWithLogo: names.length,
   }
 }
@@ -384,7 +403,12 @@ export async function makeEpisode(input: { club: unknown; level: unknown; clues:
   const caption = clean(input.caption, 600)
   if (!caption) return { error: 'caption (opslagets tekst) mangler' }
   if (caption.toLowerCase().includes(lower)) return { error: 'Opslagets tekst afslører klubben' }
-  const episode: QuizEpisode = { n: (list.at(-1)?.n ?? 0) + 1, club, level, clues: clues as [string, string, string], caption, answerNote: clean(input.answerNote, 90) || undefined, by, createdAt: Date.now() }
+  if (list.filter((e) => !e.postedAt).length >= AHEAD + 3) return { error: `Der ligger allerede ${AHEAD + 3} afsnit klar – vent til nogle er lagt op` }
+  // Planned for the quiz day after the last one planned (or posted), never in the past
+  const last = list.at(-1)?.plannedFor
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' })
+  const plannedFor = last && last >= today ? nextQuizDay(last) : nextQuizDay()
+  const episode: QuizEpisode = { n: (list.at(-1)?.n ?? 0) + 1, club, level, clues: clues as [string, string, string], caption, answerNote: clean(input.answerNote, 90) || undefined, by, createdAt: Date.now(), plannedFor }
   await renderVideo(episode, list.at(-1))
   saveSeries([...list, episode])
   return { episode }
