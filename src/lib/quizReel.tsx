@@ -8,7 +8,7 @@ import sharp from 'sharp'
 import { ImageResponse } from 'next/og'
 import { getBadges } from './badges'
 import { nationalTeams } from './nationalTeams'
-import { mOutline, ogFonts } from './ogImage'
+import { ogFonts } from './ogImage'
 import { cacheDir } from './tsdb'
 import { clubLogoAndColor } from './vsGraphic'
 
@@ -16,16 +16,14 @@ import { clubLogoAndColor } from './vsGraphic'
 // (three clues, guess in the comments, the answer next time), then the answer to the one before ("Svaret fra afsnit N-1"), asks a new club with three text clues from hard to easy, and ends without the
 // answer ("Svaret kommer i næste afsnit") – so the answer is the hook of the next one. James (deploy/claude-editor/
 // QUIZ.md) picks the club and writes the clues three times a week through /api/redaktor/quiz; the owner sees the
-// videos on /admin/sociale/quiz and posts them. Drawn in Matchly's light look (the page's grey, white cards, lime, the M) by
+// videos on /admin/sociale/quiz and posts them. Drawn as a sports poster in Matchly's colours (lime, ink, paper, the club's colour) by
 // the share pictures' renderer, put together by ffmpeg. The series in data/quiz/serie.json, the videos next to it.
 
 const exec = promisify(execFile)
 const W = 1080
 const H = 1920
-const BG = '#eceee7'
 const INK = '#0f110c'
 const LIME = '#c6f135'
-const MUTED = '#5c6157'
 const ORANGE = '#ff4a1f'
 
 export type QuizLevel = 'nem' | 'mellem' | 'svær'
@@ -86,44 +84,6 @@ export async function seriesBrief() {
 
 // ---------------------------------------------------------------- drawing
 
-const background = (base: string, dot: string, glow?: string) =>
-  `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
-<defs><pattern id="d" width="30" height="30" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="2.6" fill="${dot}"/></pattern>
-<radialGradient id="f" cx="${W}" cy="0" r="${H * 0.95}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-<mask id="m"><rect width="${W}" height="${H}" fill="url(#f)"/></mask>
-${glow ? `<radialGradient id="g" cx="${W / 2}" cy="${H * 0.4}" r="${W * 0.75}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${glow}" stop-opacity="0.45"/><stop offset="1" stop-color="${glow}" stop-opacity="0"/></radialGradient>` : ''}</defs>
-<rect width="${W}" height="${H}" fill="${base}"/><rect width="${W}" height="${H}" fill="url(#d)" mask="url(#m)"/>${glow ? `<rect width="${W}" height="${H}" fill="url(#g)"/>` : ''}</svg>`).toString('base64')}`
-
-function Frame({ theme, glow, children }: { theme: 'lime' | 'light'; glow?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ width: W, height: H, display: 'flex', flexDirection: 'column', position: 'relative', background: theme === 'lime' ? LIME : BG, color: INK, fontFamily: 'Barlow' }}>
-      <img src={theme === 'lime' ? background(LIME, 'rgba(15,17,12,0.16)') : background(BG, 'rgba(111,143,0,0.28)', glow)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-      <img src={mOutline(theme === 'lime' ? 'rgba(15,17,12,0.14)' : 'rgba(111,143,0,0.22)', 0.5)} width={1300} height={936} alt="" style={{ position: 'absolute', left: 260, top: 1180 }} />
-      <div style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 200, gap: 40 }}>{children}</div>
-      <div style={{ position: 'absolute', left: 0, bottom: 90, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 64, fontWeight: 800, fontStyle: 'italic' }}>
-        MATCHLY<span style={{ color: ORANGE }}>.</span>
-      </div>
-    </div>
-  )
-}
-
-const Title = ({ text, size }: { text: string; size: number }) => (
-  <div style={{ display: 'flex', fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.92, textTransform: 'uppercase', textAlign: 'center', justifyContent: 'center' }}>{text}</div>
-)
-const Pill = ({ text }: { text: string }) => (
-  <div style={{ display: 'flex', padding: '14px 30px', borderRadius: 999, background: INK, color: LIME, fontSize: 34, fontWeight: 700, letterSpacing: 4 }}>{text.toUpperCase()}</div>
-)
-const Sub = ({ text, color = MUTED }: { text: string; color?: string }) => (
-  <div style={{ display: 'flex', fontSize: 48, fontWeight: 700, color, textAlign: 'center', justifyContent: 'center', padding: '0 60px' }}>{text}</div>
-)
-const Bar = ({ step }: { step: number }) => (
-  <div style={{ display: 'flex', gap: 14 }}>
-    {[1, 2, 3].map((i) => (
-      <div key={i} style={{ width: 120, height: 16, borderRadius: 8, background: i <= step ? INK : 'rgba(15,17,12,0.15)' }} />
-    ))}
-  </div>
-)
-
 /** The logo's strongest colour (the most common saturated one), for the glow behind it: a white club colour would vanish on the light page */
 async function logoGlow(logo: string | undefined, fallback: string): Promise<string> {
   if (!logo) return fallback
@@ -148,57 +108,168 @@ async function png(el: React.ReactElement): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer())
 }
 
-/** The episode's pictures in order, with how long each is shown and how it moves */
+/** Black or white text on a club's colour, whichever reads */
+const onColour = (rgb: string) => {
+  const m = /(\d+)\D+(\d+)\D+(\d+)/.exec(rgb) ?? /#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(rgb)
+  if (!m) return '#ffffff'
+  const [r, g, b] = m.slice(1, 4).map((v) => (v.length === 2 && /[a-f]/i.test(v) ? parseInt(v, 16) : Number(v.length === 2 && !/^\d+$/.test(v) ? parseInt(v, 16) : v)))
+  return 0.299 * r + 0.587 * g + 0.114 * b > 165 ? INK : '#ffffff'
+}
+
+const PAPER = '#f4f4ef'
+/** The paper's halftone dots */
+const paper = `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><defs><pattern id="d" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="3.2" fill="rgba(15,17,12,0.12)"/></pattern></defs><rect width="${W}" height="${H}" fill="${PAPER}"/><rect width="${W}" height="${H}" fill="url(#d)"/></svg>`).toString('base64')}`
+
+const Big = ({ children, size, color, style }: { children: React.ReactNode; size: number; color: string; style?: React.CSSProperties }) => (
+  <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.84, textTransform: 'uppercase', color, ...style }}>{children}</div>
+)
+const Small = ({ text, color, style }: { text: string; color: string; style?: React.CSSProperties }) => (
+  <div style={{ position: 'absolute', display: 'flex', fontFamily: 'DM Sans', fontWeight: 700, fontSize: 46, letterSpacing: 6, color, ...style }}>{text.toUpperCase()}</div>
+)
+/** A strip of tape across the picture, its words repeated, tilted */
+const Tape = ({ text, top, angle, bg, fg }: { text: string; top: number; angle: number; bg: string; fg: string }) => (
+  <div style={{ position: 'absolute', left: -220, top, width: W + 440, display: 'flex', padding: '22px 0', background: bg, color: fg, fontSize: 70, fontWeight: 800, fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', transform: `rotate(${angle}deg)` }}>
+    {Array.from({ length: 6 }, () => `${text.toUpperCase()}  •  `).join('')}
+  </div>
+)
+const Mark = ({ color, dot = ORANGE, style }: { color: string; dot?: string; style?: React.CSSProperties }) => (
+  <div style={{ position: 'absolute', left: 65, bottom: 70, display: 'flex', fontSize: 86, fontWeight: 800, fontStyle: 'italic', color, ...style }}>
+    MATCHLY<span style={{ color: dot }}>.</span>
+  </div>
+)
+/** A clue's words, those in **…** with a lime marker stroke behind */
+const clueWords = (text: string) =>
+  text.split(/(\*\*[^*]+\*\*)/).filter(Boolean).flatMap((part, i) => {
+    const marked = part.startsWith('**')
+    return part
+      .replace(/\*\*/g, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w, j) => (
+        <span key={`${i}-${j}`} style={{ marginRight: '0.22em', ...(marked && { padding: '0 8px', backgroundImage: 'linear-gradient(180deg, rgba(198,241,53,0) 18%, rgba(198,241,53,1) 18%, rgba(198,241,53,1) 90%, rgba(198,241,53,0) 90%)' }) }}>
+          {w}
+        </span>
+      ))
+  })
+const plain = (text: string) => text.replace(/\*\*/g, '')
+
+/** The episode's pictures in order, with how long each is shown and how it moves – in the look of a sports poster */
 async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ png: Buffer; seconds: number; zoom: number; flash?: boolean }[]> {
   const out: { png: Buffer; seconds: number; zoom: number; flash?: boolean }[] = []
-  // First what this is, so a new viewer understands the game before anything else
-  const Step = ({ n, text }: { n: number; text: string }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 28, width: 900, padding: '26px 34px', borderRadius: 32, background: '#ffffff' }}>
-      <div style={{ display: 'flex', width: 92, height: 92, borderRadius: 999, background: INK, color: LIME, alignItems: 'center', justifyContent: 'center', fontSize: 64, fontWeight: 800, fontStyle: 'italic' }}>{String(n)}</div>
-      <div style={{ display: 'flex', fontSize: 50, fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', lineHeight: 1 }}>{text}</div>
+  const no = String(e.n).padStart(2, '0')
+  const shell = (bg: string, children: React.ReactNode, image?: string) => (
+    <div style={{ width: W, height: H, display: 'flex', position: 'relative', overflow: 'hidden', background: bg, fontFamily: 'Barlow' }}>
+      {image && <img src={image} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />}
+      {children}
     </div>
   )
+  // What the game is, first, so a new viewer understands it
   out.push({
     png: await png(
-      <Frame theme="lime">
-        <Pill text={`Afsnit ${e.n} · svær`} />
-        <Title text="Gæt klubben" size={175} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 22, marginTop: 50 }}>
-          <Step n={1} text="3 ledetråde – kun de færreste klarer den" />
-          <Step n={2} text="Skriv dit gæt i kommentarerne" />
-          <Step n={3} text="Svaret kommer i næste afsnit" />
-        </div>
-      </Frame>,
+      shell(
+        LIME,
+        <>
+          <Big size={400} color={INK} style={{ left: 60, top: 150 }}>
+            <span>Gæt</span>
+            <span>klub-</span>
+            <span>ben</span>
+          </Big>
+          <Tape text={`Afsnit ${no} • Svær`} top={1270} angle={-7} bg={INK} fg={LIME} />
+          <div style={{ position: 'absolute', left: 65, top: 1500, width: W - 130, display: 'flex', flexDirection: 'column', fontFamily: 'DM Sans', fontWeight: 700, fontSize: 58, lineHeight: 1.35, color: INK }}>
+            <span>3 ledetråde.</span>
+            <span>Dit gæt i kommentarerne.</span>
+            <span>Svaret i næste afsnit.</span>
+          </div>
+          <Mark color={INK} />
+        </>,
+      ),
     ),
     seconds: 3.5,
     zoom: 1.03,
   })
-  if (previous) {
-    // A breath before last time's answer, then the answer
+  // The same two slots in every episode (the answer from last time, or for the first one what the series is), so every
+  // episode has the same length and cuts at the same moments – one sound for all
+  if (!previous) {
     out.push({
       png: await png(
-        <Frame theme="light">
-          <Pill text={`Afsnit ${previous.n}`} />
-          <div style={{ display: 'flex', marginTop: 260 }}>
-            <Title text="Fik du den" size={170} />
-          </div>
-          <Title text="sidste gang?" size={170} />
-          <Sub text="Her er svaret" />
-        </Frame>,
+        shell(
+          PAPER,
+          <>
+            <Small text="Ny serie" color={INK} style={{ left: 65, top: 90 }} />
+            <Big size={300} color={INK} style={{ left: 60, top: 300 }}>
+              <span>Første</span>
+              <span>afsnit</span>
+            </Big>
+            <Tape text="Gæt klubben • Ny serie" top={1330} angle={6} bg={LIME} fg={INK} />
+            <Mark color={INK} />
+          </>,
+          paper,
+        ),
       ),
       seconds: 2,
       zoom: 1.06,
     })
-    const { logo, color, flag } = await clubLogoAndColor(previous.club, 720)
-    const glow = await logoGlow(logo, color)
     out.push({
       png: await png(
-        <Frame theme="light" glow={glow}>
-          <Pill text={`Svaret fra afsnit ${previous.n}`} />
-          {logo && (flag ? <img src={logo} width={660} height={440} alt="" style={{ marginTop: 80, borderRadius: 30 }} /> : <img src={logo} width={700} height={700} alt="" style={{ marginTop: 40 }} />)}
-          <Title text={previous.club} size={previous.club.length > 14 ? 130 : 170} />
-          {previous.answerNote && <Sub text={previous.answerNote} />}
-        </Frame>,
+        shell(
+          INK,
+          <>
+            <Small text="Hver uge" color={LIME} style={{ left: 65, top: 90 }} />
+            <Big size={250} color={LIME} style={{ left: 60, top: 330 }}>
+              <span>Ny klub</span>
+              <span>mandag,</span>
+              <span>onsdag og</span>
+              <span>fredag</span>
+            </Big>
+            <Mark color="#ffffff" />
+          </>,
+        ),
+      ),
+      seconds: 2.8,
+      zoom: 1.05,
+      flash: true,
+    })
+  }
+  if (previous) {
+    const prevNo = String(previous.n).padStart(2, '0')
+    out.push({
+      png: await png(
+        shell(
+          PAPER,
+          <>
+            <Small text={`Afsnit ${prevNo}`} color={INK} style={{ left: 65, top: 90 }} />
+            <Big size={250} color={INK} style={{ left: 60, top: 320, width: W - 120 }}>
+              <span>Fik du</span>
+              <span>den sid-</span>
+              <span>ste gang?</span>
+            </Big>
+            <Tape text={`Svaret fra afsnit ${prevNo}`} top={1330} angle={6} bg={LIME} fg={INK} />
+            <Mark color={INK} />
+          </>,
+          paper,
+        ),
+      ),
+      seconds: 2,
+      zoom: 1.06,
+    })
+    const { logo, color, flag } = await clubLogoAndColor(previous.club, 900)
+    const glow = await logoGlow(logo, color)
+    const fg = onColour(glow)
+    const name = previous.club
+    out.push({
+      png: await png(
+        shell(
+          glow,
+          <>
+            <Small text={`Svaret fra afsnit ${prevNo}`} color={fg} style={{ left: 65, top: 90 }} />
+            {logo && (flag ? <img src={logo} width={900} height={600} alt="" style={{ position: 'absolute', left: 380, top: 300, borderRadius: 30, transform: 'rotate(-8deg)' }} /> : <img src={logo} width={980} height={980} alt="" style={{ position: 'absolute', left: 340, top: 190, transform: 'rotate(-8deg)' }} />)}
+            <div style={{ position: 'absolute', left: 60, top: 1180, width: W - 120, display: 'flex', flexDirection: 'column', gap: 30 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', fontSize: name.length > 16 ? 150 : name.length > 10 ? 190 : 250, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.86, textTransform: 'uppercase', color: fg }}>{name}</div>
+              {previous.answerNote && <div style={{ display: 'flex', fontFamily: 'DM Sans', fontWeight: 700, fontSize: 50, color: fg }}>{previous.answerNote}</div>}
+            </div>
+            <Mark color={fg} dot={fg === INK ? ORANGE : INK} />
+          </>,
+        ),
       ),
       seconds: 2.8,
       zoom: 1.05,
@@ -207,19 +278,24 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
   }
   for (let i = 0; i < 3; i++) {
     const text = e.clues[i]
+    const len = plain(text).length
     out.push({
       png: await png(
-        <Frame theme="light">
-          <Pill text={`Ledetråd ${i + 1}`} />
-          <Bar step={i + 1} />
-          <div style={{ display: 'flex', position: 'relative', marginTop: 110, width: 920, minHeight: 640, alignItems: 'center', justifyContent: 'center', padding: '80px 64px 64px', borderRadius: 48, background: '#ffffff', boxShadow: '0 30px 60px rgba(15,17,12,0.12)' }}>
-            <div style={{ position: 'absolute', top: -70, left: 380, width: 160, height: 160, borderRadius: 999, background: LIME, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 110, fontWeight: 800, fontStyle: 'italic', border: `8px solid ${BG}` }}>{String(i + 1)}</div>
-            <div style={{ display: 'flex', fontSize: text.length > 80 ? 66 : text.length > 60 ? 78 : 90, fontWeight: 800, fontStyle: 'italic', lineHeight: 1.06, textAlign: 'center', textTransform: 'uppercase' }}>{text}</div>
-          </div>
-          <div style={{ display: 'flex', marginTop: 30 }}>
-            <Sub text="Ved du det? Skriv det i kommentarerne" />
-          </div>
-        </Frame>,
+        shell(
+          PAPER,
+          <>
+            <div style={{ position: 'absolute', left: -110, top: -160, display: 'flex', fontSize: 1250, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: 'rgba(198,241,53,0.55)' }}>{String(i + 1)}</div>
+            <Small text={`Ledetråd ${i + 1} / 3`} color={INK} style={{ left: 65, top: 90 }} />
+            <div style={{ position: 'absolute', left: 65, top: 600, width: W - 120, display: 'flex', flexWrap: 'wrap', fontSize: len > 85 ? 112 : len > 65 ? 128 : 146, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.98, textTransform: 'uppercase', color: INK }}>{clueWords(text)}</div>
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 34, display: 'flex', gap: 16 }}>
+              {[0, 1, 2].map((k) => (
+                <div key={k} style={{ flex: 1, background: k <= i ? INK : '#d9dccf' }} />
+              ))}
+            </div>
+            <Mark color={INK} style={{ bottom: 100 }} />
+          </>,
+          paper,
+        ),
       ),
       seconds: 4,
       zoom: 1.05,
@@ -227,23 +303,26 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
   }
   out.push({
     png: await png(
-      <Frame theme="lime">
-        <Pill text={`Afsnit ${e.n}`} />
-        <Title text="Hvem er det?" size={160} />
-        <div style={{ display: 'flex', marginTop: 50, padding: '26px 44px', borderRadius: 28, background: INK, color: LIME, fontSize: 58, fontWeight: 800, fontStyle: 'italic' }}>SKRIV DIT GÆT I KOMMENTARERNE</div>
-        <div style={{ display: 'flex', marginTop: 80 }}>
-          <Title text="Svaret kommer" size={110} />
-        </div>
-        <Title text="i næste afsnit" size={110} />
-        <Sub text="Følg Matchly, så du ikke misser det" color={INK} />
-      </Frame>,
+      shell(
+        INK,
+        <>
+          <Big size={330} color={LIME} style={{ left: 60, top: 200 }}>
+            <span>Hvem</span>
+            <span>er</span>
+            <span>det?</span>
+          </Big>
+          <Tape text="Svaret i næste afsnit • Følg Matchly" top={1270} angle={5} bg={LIME} fg={INK} />
+          <div style={{ position: 'absolute', left: 65, top: 1520, width: W - 130, display: 'flex', fontFamily: 'DM Sans', fontWeight: 700, fontSize: 58, color: '#ffffff' }}>Skriv dit gæt i kommentarerne</div>
+          <Mark color="#ffffff" />
+        </>,
+      ),
     ),
     seconds: 3,
     zoom: 1.04,
   })
-  // Reels in this series are at most 25 seconds
-  const total = out.reduce((t, f) => t + f.seconds, 0)
-  if (total > 25) throw new Error(`Afsnittet ville vare ${total} sekunder – højst 25`)
+  // Every episode the same 23.3 seconds with the same cuts (one sound for the whole series)
+  const total = Math.round(out.reduce((t, f) => t + f.seconds, 0) * 10) / 10
+  if (total !== 23.3 || out.length !== 7) throw new Error(`Afsnittet har en anden tidsplan (${total} sek., ${out.length} billeder) end serien`)
   return out
 }
 
@@ -289,7 +368,7 @@ export async function makeEpisode(input: { club: unknown; level: unknown; clues:
   if (list.slice(-30).some((e) => e.club === club)) return { error: `${club} har været med inden for de seneste 30 afsnit – vælg en anden klub` }
   const level = (['nem', 'mellem', 'svær'] as const).find((l) => l === input.level)
   if (!level) return { error: 'level skal være "nem", "mellem" eller "svær"' }
-  const clues = Array.isArray(input.clues) ? input.clues.map((c) => clean(c, 110)) : []
+  const clues = Array.isArray(input.clues) ? input.clues.map((c) => clean(c, 114)) : []
   if (clues.length !== 3 || clues.some((c) => c.length < 10)) return { error: 'clues skal være tre ledetråde (10–110 tegn), den sværeste først' }
   const lower = club.toLowerCase().replace(/\s+(fc|if|bk|ik|fb)$/i, '')
   if (clues.some((c) => c.toLowerCase().includes(lower))) return { error: 'En ledetråd nævner klubbens navn' }
