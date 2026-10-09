@@ -155,13 +155,18 @@ ADGANG
      - INGEN citater, og opfind aldrig detaljer om spillet, som kilderne ikke har.
      - Gem med matchly-api nyhed, og ret det røde.
      - Billede: "kind":"resultat" med målscorerne fra incidents som "Navn 12'". Selvmål skrives "Navn (selvmål) 55'", straffe "Navn (str.) 30'".
-     - Vælg selv grafikken med "variant", efter kampens historie. Der er 5:
-       - "overskrift": kampens historie i store bogstaver med en resultatbar. Giv "headline" (højst ca. 50 tegn), fx "Myhra reddede straffesparket". Til kampe med én klar historie: en redning, en udvisning, en debut, et comeback, et sent mål eller en overraskelse.
-       - "diagonal": klubfarverne delt skråt. Til lokalopgør, topkampe og opgør mellem to kendte klubber.
+     - Vælg selv grafikken med "variant", efter kampens historie. Der er 10:
+       - "overskrift": kampens historie i store bogstaver med en resultatbar. Giv "headline" (højst ca. 50 tegn), fx "Myhra reddede straffesparket". Til kampe med én klar historie: en redning, en udvisning, en debut, et comeback eller et sent mål.
+       - "plakat": resultatet kæmpestort. Til store sejre og overraskelser (fx 4-0 eller bunden slår toppen).
+       - "logoer": begge klubbers logoer store ud over kanterne. Til topkampe og opgør mellem to kendte klubber.
+       - "diagonal": klubfarverne delt skråt. Til lokalopgør og derbyer.
+       - "bane": en kridttegnet bane med resultatet i midtercirklen. Til tætte kampe (sejr med ét mål).
+       - "billet": en kampbillet med holdene og resultatet. Til hjemmesejre og kampe med stort publikum.
+       - "ramme": tyk lime ramme, resultatet stort og holdene opstillet. Til kampe med mange målscorere.
        - "tv": som et scorebug på TV, målscorerne under. Til almindelige kampe.
        - "minimal": kun navne og stort resultat. Til 0-0 og kampe uden målscorere.
-       - "klassisk": begge logoer og resultatet i midten, målscorerne under. Til målrige kampe, og når intet andet passer bedre.
-       - Varier: brug ikke samme variant til to referater i træk (se de seneste referater med matchly-api artikler).
+       - "klassisk": begge logoer og resultatet i midten. Når intet andet passer bedre.
+       - Varier: brug ikke samme variant til to referater i træk, og helst ikke samme variant to gange samme dag (se de seneste referater med matchly-api artikler).
      - Opslag: resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?".
      - Marker det skrevet: matchly-api referat med {"action":"skrevet","slug":"<kampens slug>","id":<kladdens id>}.
      - Er der intet at skrive (resultatet ser forkert ud, eller kampen er aflyst): {"action":"spring","slug":…,"why":"…"}.
