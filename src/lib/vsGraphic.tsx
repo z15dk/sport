@@ -1171,6 +1171,13 @@ export async function clubLogoAndColor(club: string, size: number): Promise<{ lo
   const flags = nationalTeams()
   const flag = !badges[club] && !!flags[club]
   const code = flag ? flagCode(club, true) : undefined
-  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace('/w160/', '/w640/')) : flags[club], size, Math.round((size * 2) / 3), true) : await logoData(badges[club], size, size, false, true)
+  // Our clubs' logos first, else a team's logo from the sources (the A-Liga's women's teams, clubs abroad)
+  const own = badges[club] ?? (flag ? undefined : allTeams().find((t) => t.logo && (t.name === club || t.names?.includes(club)))?.logo)
+  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace('/w160/', '/w640/')) : flags[club], size, Math.round((size * 2) / 3), true) : await logoData(own, size, size, false, true)
   return { logo, color: clubColor(club, flag), flag }
+}
+
+/** Every team name with a logo the graphics can draw: our clubs, the national teams, and the sources' teams (women's teams too) */
+export async function namesWithLogo(): Promise<Set<string>> {
+  return new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams()), ...allTeams().filter((t) => t.logo).map((t) => t.name)])
 }

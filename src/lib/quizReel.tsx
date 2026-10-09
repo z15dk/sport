@@ -10,7 +10,7 @@ import { getBadges } from './badges'
 import { nationalTeams } from './nationalTeams'
 import { ogFonts } from './ogImage'
 import { cacheDir } from './tsdb'
-import { clubLogoAndColor } from './vsGraphic'
+import { clubLogoAndColor, namesWithLogo } from './vsGraphic'
 
 // "Gæt klubben" – a quiz series for Reels (1080×1920, at most 25 seconds). Each episode opens with what the game is
 // (three clues, guess in the comments, the answer next time), then the answer to the one before ("Svaret fra afsnit N-1"), asks a new club with three text clues from hard to easy, and ends without the
@@ -92,7 +92,7 @@ function nextQuizDay(after?: string): string {
 /** What James needs: the episodes so far (clubs used, the levels), the next number and whose answer it will open with */
 export async function seriesBrief() {
   const list = readSeries()
-  const names = [...new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams())])]
+  const names = [...(await namesWithLogo())]
   const ready = list.filter((e) => !e.postedAt).length
   return {
     next: (list.at(-1)?.n ?? 0) + 1,
@@ -391,7 +391,7 @@ const clean = (s: unknown, max: number) => (typeof s === 'string' ? s.replace(/\
 /** A new episode: checks the club and the clues, makes the video and keeps it in the series */
 export async function makeEpisode(input: { club: unknown; level: unknown; clues: unknown; caption: unknown; answerNote?: unknown }, by: QuizEpisode['by']): Promise<{ episode?: QuizEpisode; error?: string }> {
   const club = clean(input.club, 60)
-  const names = new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams())])
+  const names = await namesWithLogo()
   if (!names.has(club)) return { error: `"${club}" har intet logo på Matchly – brug navnet præcis som på sitet (matchly-api soeg)` }
   const list = readSeries()
   if (list.slice(-30).some((e) => e.club === club)) return { error: `${club} har været med inden for de seneste 30 afsnit – vælg en anden klub` }
