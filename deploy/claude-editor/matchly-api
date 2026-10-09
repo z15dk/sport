@@ -10,8 +10,12 @@
 #   matchly-api artikel <id>         one of its own drafts in full, with the checklist
 #   matchly-api nyhed <fil.json>     saves a news draft {"action":"gem","article":{…}} → id and the checklist
 #   matchly-api mail <id> [<id>…]    mails its drafts to the owner ("Læs og udgiv")
+#   matchly-api billede <fil.json>   {"action":"billede","id":…,"kind":"vs"|"tekst"|"klub"|"liga",…} – the draft's picture (Matchly's own graphics)
+#   matchly-api opslag <fil.json>    {"action":"opslag","id":…,"text":…} – the draft's social post text
+#   matchly-api opdater <fil.json>   {"action":"opdater","id":…,"content":…,"why":…} – a statistics article with new numbers
 #   matchly-api datavagt             the night's findings and the coach list
 #   matchly-api traener <fil.json>   {"action":"setCoach",…} or {"action":"removeCoach","slug":…}
+#   matchly-api ret <fil.json>       {"action":"setGround"|"removeGround"|"setTv"|"matchRefetch"|"matchResult"|"matchHide",…,"why":…}
 # The growth round (VAEKST.md):
 #   matchly-api vaekst               the numbers: page views, Google, the pages close to page 1, rising/falling, title tests
 #   matchly-api titel <fil.json>     {"action":"titel","path":…,"title":…,"description":…,"query":…,"why":…}
@@ -42,7 +46,7 @@ case "${1:-}" in
     [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "Brug: matchly-api artikel <id>" >&2; exit 2; }
     exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/nyheder?id=$2"
     ;;
-  nyhed) jsonfile "${2:-}"; post "/api/redaktor/nyheder" "$2" ;;
+  nyhed|billede|opslag|opdater) jsonfile "${2:-}"; post "/api/redaktor/nyheder" "$2" ;;
   mail)
     shift; [[ $# -gt 0 ]] || { echo "Brug: matchly-api mail <id> [<id>…]" >&2; exit 2; }
     for i in "$@"; do [[ "$i" =~ ^[0-9]+$ ]] || { echo "Id'er skal være tal" >&2; exit 2; }; done
@@ -51,7 +55,7 @@ case "${1:-}" in
   datavagt) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/datavagt" ;;
   vaekst) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/vaekst" ;;
   titel|dom|dagbog) jsonfile "${2:-}"; post "/api/redaktor/vaekst" "$2" ;;
-  traener) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
+  traener|ret) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
   tjek) sitepath "${2:-}"; exec curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "${SITE}$2" ;;
   side)
     sitepath "${2:-}"
@@ -59,5 +63,5 @@ case "${1:-}" in
     echo
     ;;
   soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | mail <id>… | datavagt | traener <fil.json> | vaekst | titel <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac

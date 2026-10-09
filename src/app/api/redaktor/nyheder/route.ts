@@ -2,8 +2,12 @@ import { allArticles, articleById, saveArticle, type Article } from '../../../..
 import { sendArticleApprovalMail } from '../../../../lib/articleApproval'
 import { scoutDrafts } from '../../../../lib/datavagt'
 import { editorAllowed } from '../../../../lib/editorAccess'
-import { mailErrorText } from '../../../../lib/mail'
 import { seoChecks } from '../../../../lib/seoChecks'
+import { indexNowByHand } from '../../../../lib/indexnow'
+import { mailErrorText, sendMail } from '../../../../lib/mail'
+import { SITE_URL, paths } from '../../../../lib/site'
+import { setSocialCaption } from '../../../../lib/socialCaptions'
+import { makeClubGraphic, makeLeagueGraphic, makeTextGraphic, makeVsGraphic } from '../../../../lib/vsGraphic'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,17 +17,28 @@ export const dynamic = 'force-dynamic'
 // (scoutDrafts in src/lib/datavagt.ts: author "Matchly", no automatic quality mark).
 // GET → { articles } (the newest 40, without text); GET ?id=<id> → one of its own drafts in full.
 // POST { action: 'gem', article } → { article, checks } (the editor's checklist); POST { action: 'mail', ids } sends the approval mail.
+// POST { action: 'billede', id, kind: 'vs'|'tekst'|'klub'|'liga', home, away, top, title, sub, club, league, alt } makes the
+// draft's picture – Matchly's own graphics only, never a photo; POST { action: 'opslag', id, text } is its social post text.
+// POST { action: 'opdater', id, content, title?, excerpt?, seoTitle?, metaDescription?, why } brings a statistics article
+// (category Statistik, also a published one) up to date – once in six days, no red points, the owner gets a mail.
+// GET ?id= also gives a statistics article in full.
 
 const CATEGORIES = ['Nyheder', 'Optakter']
 const own = (id: number) => scoutDrafts().find((a) => a.id === id)
+/** The statistics articles (category Statistik) James keeps fresh with new numbers – also once they are published */
+const statArticle = (id: number) => {
+  const a = articleById(id)
+  return a && a.category === 'statistik' ? a : undefined
+}
+const UPDATE_GAP = 6 * 86_400_000
 const brief = (a: Article) => ({ id: a.id, slug: a.slug, title: a.title, status: a.status, category: a.category, tags: a.tags, publishedAt: a.publishedAt, createdAt: a.createdAt })
 
 export async function GET(request: Request) {
   if (!editorAllowed(request)) return Response.json({ error: 'Ingen adgang' }, { status: 401 })
   const id = Number(new URL(request.url).searchParams.get('id'))
   if (id) {
-    const a = own(id)
-    return a ? Response.json({ article: a, checks: seoChecks(a) }) : Response.json({ error: 'Ikke en af dine kladder' }, { status: 404 })
+    const a = own(id) ?? statArticle(id)
+    return a ? Response.json({ article: a, checks: seoChecks(a) }) : Response.json({ error: 'Ikke en af dine kladder eller en statistik-artikel' }, { status: 404 })
   }
   const articles = allArticles()
     .sort((a, b) => (b.publishedAt ?? b.createdAt).localeCompare(a.publishedAt ?? a.createdAt))
@@ -45,7 +60,57 @@ export async function POST(request: Request) {
       return Response.json({ error: mailErrorText(e) }, { status: 400 })
     }
   }
-  if (b.action !== 'gem' || !b.article) return Response.json({ error: 'Brug { action: "gem", article } eller { action: "mail", ids }' }, { status: 400 })
+  if (b.action === 'opdater') {
+    // A statistics article with this week's numbers: text, title, lead and description only – slug, status, time,
+    // picture and tags stay; at most once in six days; the owner gets a short mail and search engines are told
+    const x = b as Record<string, unknown>
+    const id = Number(x.id)
+    const a = statArticle(id)
+    if (!a) return Response.json({ error: 'Kun artikler i kategorien Statistik' }, { status: 403 })
+    const t = (k: string, max: number) => (typeof x[k] === 'string' ? (x[k] as string).trim().slice(0, max) : '')
+    const why = t('why', 300)
+    const content = t('content', 60_000)
+    if (!why || content.length < 500) return Response.json({ error: 'content (hele teksten) og why skal udfyldes' }, { status: 400 })
+    if (Date.now() - Date.parse(a.updatedAt) < UPDATE_GAP) return Response.json({ error: 'Artiklen er opdateret inden for de seneste 6 dage' }, { status: 409 })
+    const next = { ...a, content, title: t('title', 200) || a.title, excerpt: t('excerpt', 400) || a.excerpt, seoTitle: t('seoTitle', 70) || a.seoTitle, metaDescription: t('metaDescription', 200) || a.metaDescription }
+    const red = seoChecks(next).filter((c) => c.level === 'bad' && c.id !== 'image')
+    if (red.length) return Response.json({ error: 'Tjeklisten har røde punkter', red: red.map((c) => c.text) }, { status: 422 })
+    const saved = saveArticle(next)
+    if (saved.error || !saved.article) return Response.json({ error: saved.error ?? 'Kunne ikke gemme' }, { status: 400 })
+    if (a.status === 'published') await indexNowByHand([paths.article(a.slug)]).catch(() => undefined)
+    await sendMail(`Matchly: James har opdateret "${a.title}"`, `<p>James har opdateret <a href="${SITE_URL}${paths.article(a.slug)}">${a.title}</a> med nye tal.</p><p>${why}</p>`, `James har opdateret "${a.title}": ${why}\n${SITE_URL}${paths.article(a.slug)}`).catch(() => undefined)
+    return Response.json({ ok: true, article: brief(saved.article) })
+  }
+  if (b.action === 'billede' || b.action === 'opslag') {
+    const x = b as Record<string, unknown>
+    const id = Number(x.id)
+    const draft = own(id)
+    if (!draft) return Response.json({ error: 'Kun dine egne kladder fra det seneste døgn' }, { status: 403 })
+    const t = (k: string, max = 140) => (typeof x[k] === 'string' ? (x[k] as string).trim().slice(0, max) : '')
+    if (b.action === 'opslag') {
+      const r = setSocialCaption(id, t('text', 600), 'claude')
+      return r.error ? Response.json(r, { status: 400 }) : Response.json({ ok: true })
+    }
+    try {
+      const kind = t('kind', 10)
+      const made =
+        kind === 'vs' && t('home') && t('away')
+          ? await makeVsGraphic({ home: t('home', 60), away: t('away', 60), top: t('top', 80) || undefined })
+          : kind === 'klub' && t('club')
+            ? await makeClubGraphic({ club: t('club', 60) })
+            : kind === 'liga' && t('league')
+              ? await makeLeagueGraphic({ league: t('league', 60) })
+              : kind === 'tekst' && t('title')
+                ? await makeTextGraphic({ title: t('title', 120), top: t('top', 80) || undefined, sub: t('sub') || undefined })
+                : undefined
+      if (!made) return Response.json({ error: 'Brug kind "vs" (home, away, top), "klub" (club), "liga" (league) eller "tekst" (title, top, sub)' }, { status: 400 })
+      const saved = saveArticle({ ...draft, featuredImage: made.url, featuredAlt: t('alt', 160) || draft.title })
+      return saved.error ? Response.json({ error: saved.error }, { status: 400 }) : Response.json({ ok: true, url: made.url })
+    } catch (e) {
+      return Response.json({ error: e instanceof Error ? e.message : 'Billedet kunne ikke laves' }, { status: 400 })
+    }
+  }
+  if (b.action !== 'gem' || !b.article) return Response.json({ error: 'Brug { action: "gem", article }, "mail", "billede" eller "opslag"' }, { status: 400 })
   const a = b.article
   const str = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : undefined)
   const id = a.id === undefined ? undefined : Number(a.id)

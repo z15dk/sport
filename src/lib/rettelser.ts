@@ -36,8 +36,17 @@ export interface Dismissed {
   by: string
 }
 
+/** A club's home ground we know better than the sources (shown on the club page and the match pages) */
+export interface GroundFix {
+  name: string
+  why: string
+  at: number
+  by: string
+}
+
 interface Rettelser {
   coaches: Record<string, CoachFix>
+  grounds: Record<string, GroundFix>
   dismissed: Record<string, Dismissed>
   /** Checked names the datavagt stops asking about, until DBU names someone else */
   confirmed: Record<string, CoachConfirmed>
@@ -54,12 +63,13 @@ export function readRettelser(): Rettelser {
   try {
     data = JSON.parse(readFileSync(file(), 'utf8')) as Rettelser
     data.coaches ??= {}
+    data.grounds ??= {}
     data.confirmed ??= {}
     data.dismissed ??= {}
     data.log ??= []
   } catch {
     // First time: the list from the code
-    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), confirmed: {}, dismissed: {}, log: [] }
+    data = { coaches: Object.fromEntries(Object.entries(KNOWN_COACHES).map(([slug, c]) => [slug, { ...c, at: Date.now(), by: 'kode' }])), grounds: {}, confirmed: {}, dismissed: {}, log: [] }
   }
   cache = { at: Date.now(), data }
   return data
@@ -87,6 +97,25 @@ export function setCoach(slug: string, coach: KnownCoach | null, by: string) {
       ? `Træner ${slug}: ${before?.name ?? '(DBU)'} → ${coach.name}${coach.acting ? ' (konstitueret)' : ''}. ${coach.why}`
       : `Træner ${slug}: rettelsen (${before?.name ?? '–'}) fjernet – DBU's rapporter bruges igen`,
   })
+  save(data)
+}
+
+/** The club's home ground we show instead of the sources', if any */
+export const knownGround = (slug: string): GroundFix | undefined => readRettelser().grounds[slug]
+
+export function setGround(slug: string, ground: { name: string; why: string } | null, by: string) {
+  const data = readRettelser()
+  const before = data.grounds[slug]
+  if (ground) data.grounds[slug] = { ...ground, at: Date.now(), by }
+  else delete data.grounds[slug]
+  data.log.push({ at: Date.now(), by, text: ground ? `Stadion ${slug}: ${before?.name ?? '(kilderne)'} → ${ground.name}. ${ground.why}` : `Stadion ${slug}: rettelsen (${before?.name ?? '–'}) fjernet` })
+  save(data)
+}
+
+/** A line in the corrections' log for a fix kept elsewhere (a match's result, a TV channel) */
+export function logFix(by: string, text: string) {
+  const data = readRettelser()
+  data.log.push({ at: Date.now(), by, text: text.slice(0, 400) })
   save(data)
 }
 

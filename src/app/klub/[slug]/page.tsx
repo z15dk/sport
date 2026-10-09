@@ -54,7 +54,7 @@ import { CalendarButton } from '../../../components/CalendarButton'
 import { dbuHomeGround } from '../../../lib/channels'
 import { homeGround } from '../../../lib/ground'
 import { dbuClubCoach, dbuClubSquad } from '../../../lib/dbuSquad'
-import { knownCoach } from '../../../lib/rettelser'
+import { knownCoach, knownGround } from '../../../lib/rettelser'
 import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
@@ -234,7 +234,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
       ? {
           channel: upcoming[0] && channelsFor(upcoming[0])[0]?.name,
           scorers: squad.filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals).map((p) => ({ name: p.name, goals: p.goals, matches: p.dbu ? 0 : p.starts + p.subbedOn })),
-          stadium: dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
+          stadium: knownGround(club.slug)?.name ?? dbuHomeGround(clubNames(club)) ?? (apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined),
           coach,
           coachActing,
           cards: cardTotals.yellow + cardTotals.red > 0 ? { ...cardTotals, most: mostCards && { name: mostCards.name, yellow: mostCards.yellow ?? 0, red: mostCards.red ?? 0 } } : undefined,

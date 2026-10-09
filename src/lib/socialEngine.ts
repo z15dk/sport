@@ -28,6 +28,7 @@ import { addDays, danishTime, formatLong, formatTime, isoDate } from './time'
 import { SITE_URL, paths } from './site'
 import { publishedArticles } from './articles'
 import { readUpload } from './uploads'
+import { socialCaption } from './socialCaptions'
 
 // The social media engine, run every minute from src/instrumentation.ts:
 //
@@ -775,7 +776,8 @@ function articlePost(a: { id: number; title: string; excerpt: string; slug: stri
     article: a.id,
     matchIds: [],
     title: a.title,
-    caption: [intro, '', a.title, ...(a.excerpt ? ['', a.excerpt] : [])].join('\n'),
+    // James' own text for the post when he wrote one with the article (src/lib/socialCaptions.ts), else the fixed opening, title and lead
+    caption: socialCaption(a.id) ?? [intro, '', a.title, ...(a.excerpt ? ['', a.excerpt] : [])].join('\n'),
     captionEdited: true,
     link: `${SITE_URL}${paths.article(a.slug)}`,
     images,

@@ -17,7 +17,7 @@ import { seoChecks } from './seoChecks'
 import { addDays, isoDate } from './time'
 import { autoPreviewStatus } from './autoPreviews'
 import { mailReady, sendMail } from './mail'
-import { confirmedCoach, knownCoach, readRettelser } from './rettelser'
+import { confirmedCoach, knownCoach, knownGround, readRettelser } from './rettelser'
 import { SITE_URL } from './site'
 import { samePerson } from './samePerson'
 import { cacheDir } from './tsdb'
@@ -174,7 +174,8 @@ export function runDatavagt(): Report {
         findings.push({ ...base, id: `coach-conflict:${c.slug}`, kind: 'coach-conflict', sig: `${dbu}|${api}`, text: `DBU nævner ${dbu}, API-Sports nævner ${api} som træner. Vi viser ${dbu}.` })
       else if (!fix && !dbu && !api && !confirmedCoach(c.slug))
         findings.push({ ...base, id: `coach-missing:${c.slug}`, kind: 'coach-missing', sig: '-', text: 'Ingen træner på klubsiden – hverken DBU eller API-Sports nævner én.' })
-      findings.push(...groundFindings(base, dbuHomeGround(clubNames(c)), apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined))
+      // A ground set by hand or by James is the answer: no finding for that club
+      if (!knownGround(c.slug)) findings.push(...groundFindings(base, dbuHomeGround(clubNames(c)), apiLeague && apiTeam ? apiTeamStadium(apiLeague, apiTeam) : undefined))
     }
     if (apiLeague) findings.push(...tableFindings(d, apiLeague))
   }
