@@ -1,11 +1,11 @@
 import { adminDenied } from '../../../../lib/admin'
-import { makeEpisode, removeNewest, setPosted } from '../../../../lib/quizReel'
+import { makeEpisode, removeNewest, rerenderUnposted, setPosted } from '../../../../lib/quizReel'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 // The quiz series on /admin/quiz: POST { action: 'posted', n, posted } marks an episode as posted, { action: 'remove', n }
-// removes the newest (not posted) one, { action: 'afsnit', club, level, clues, caption, answerNote? } makes one by hand.
+// removes the newest (not posted) one, { action: 'genlav' } makes the unposted videos again (new look or timing), { action: 'afsnit', club, level, clues, caption, answerNote? } makes one by hand.
 
 export async function POST(request: Request) {
   const denied = await adminDenied(request)
@@ -18,6 +18,8 @@ export async function POST(request: Request) {
         ? setPosted(n, b.posted !== false)
         : b.action === 'remove'
           ? removeNewest(n)
+          : b.action === 'genlav'
+            ? await rerenderUnposted().then(() => ({ error: undefined }))
           : b.action === 'afsnit'
             ? await makeEpisode({ club: b.club, level: b.level, clues: b.clues, caption: b.caption, answerNote: b.answerNote }, 'admin')
             : { error: 'Ukendt handling' }

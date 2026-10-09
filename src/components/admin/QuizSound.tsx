@@ -26,7 +26,7 @@ export function QuizSound({ has }: { has: boolean }) {
     <section className="panel pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h2 className="panel__title">Seriens lyd</h2>
       <p className="muted small">
-        Samme lyd på alle afsnit (23,3 sek.). Klippene falder ved 3,5 · 5,5 (svaret) · 8,3 · 12,3 · 16,3 · 20,3 sek. En længere fil klippes af med en kort fade; en kortere får stilhed til sidst. Brug kun musik, I har ret til.
+        Samme lyd på alle afsnit (24 sek., 120 BPM = 12 takter à 2 sek.). Klippene falder på takterne: 4 · 6 (svaret – droppet) · 10 · 14 · 18 · 22 sek. En længere fil klippes af med en kort fade; en kortere får stilhed til sidst. Brug kun musik, I har ret til.
       </p>
       {/* eslint-disable-next-line jsx-a11y/media-has-caption -- music without words */}
       {has && <audio src={`/api/admin/quiz/lyd?v=${Date.now()}`} controls preload="none" style={{ width: '100%' }} />}
@@ -49,6 +49,23 @@ export function QuizSound({ has }: { has: boolean }) {
             Fjern lyd
           </button>
         )}
+        <button
+          type="button"
+          className="text-btn"
+          disabled={busy}
+          onClick={async () => {
+            if (!confirm('Lav alle afsnit, der ikke er lagt op, om med den nyeste timing og design? Det tager et minut eller to.')) return
+            setBusy(true)
+            setMsg(undefined)
+            const res = await fetch('/api/admin/quiz', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'genlav' }) }).catch(() => undefined)
+            setBusy(false)
+            if (!res?.ok) return setMsg({ text: 'Det gik ikke', error: true })
+            setMsg({ text: 'Videoerne er lavet om' })
+            router.refresh()
+          }}
+        >
+          Lav videoerne om
+        </button>
         {msg && <small className={msg.error ? 'is-error' : 'muted'}>{msg.text}</small>}
       </div>
     </section>

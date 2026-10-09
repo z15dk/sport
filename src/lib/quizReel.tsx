@@ -52,7 +52,7 @@ export const videoFile = (n: number) => path.join(dir(), `afsnit-${n}.mp4`)
 /** The series' sound (the owner's own track), put on every episode: the same length and cuts in all of them */
 export const soundFile = () => path.join(dir(), 'lyd.m4a')
 /** Every episode's length in seconds (see episodeFrames) */
-export const EPISODE_SECONDS = 23.3
+export const EPISODE_SECONDS = 24
 
 export function readSeries(): QuizEpisode[] {
   try {
@@ -207,7 +207,7 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
         </>,
       ),
     ),
-    seconds: 3.5,
+    seconds: 4,
     zoom: 1.03,
   })
   // The same two slots in every episode (the answer from last time, or for the first one what the series is), so every
@@ -248,7 +248,7 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
           </>,
         ),
       ),
-      seconds: 2.8,
+      seconds: 4,
       zoom: 1.05,
       flash: true,
     })
@@ -294,7 +294,7 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
           </>,
         ),
       ),
-      seconds: 2.8,
+      seconds: 4,
       zoom: 1.05,
       flash: true,
     })
@@ -340,12 +340,13 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
         </>,
       ),
     ),
-    seconds: 3,
+    seconds: 2,
     zoom: 1.04,
   })
-  // Every episode the same 23.3 seconds with the same cuts (one sound for the whole series)
+  // Every episode the same 24 seconds with every cut on a bar of 120 BPM (2 seconds a bar: 2+1+2+2+2+2+1 bars) – one
+  // sound for the whole series, made to the bars (Suno), fits every episode
   const total = Math.round(out.reduce((t, f) => t + f.seconds, 0) * 10) / 10
-  if (total !== 23.3 || out.length !== 7) throw new Error(`Afsnittet har en anden tidsplan (${total} sek., ${out.length} billeder) end serien`)
+  if (total !== EPISODE_SECONDS || out.length !== 7) throw new Error(`Afsnittet har en anden tidsplan (${total} sek., ${out.length} billeder) end serien`)
   return out
 }
 
@@ -482,4 +483,16 @@ export async function soundOnAll(): Promise<{ done: number; error?: string }> {
     done++
   }
   return { done }
+}
+
+/** The unposted episodes' videos made again from their clues (after a change to the look or the timing), in order */
+export async function rerenderUnposted(): Promise<number> {
+  const list = readSeries()
+  let done = 0
+  for (const [i, e] of list.entries()) {
+    if (e.postedAt) continue
+    await renderVideo(e, list[i - 1])
+    done++
+  }
+  return done
 }
