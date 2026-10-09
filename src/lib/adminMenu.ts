@@ -37,8 +37,7 @@ const SOCIAL = [
 ]
 const ARTICLES = [
   { href: '/admin/artikler', label: 'Alle artikler' },
-  { href: '/admin/artikler/optakter', label: 'Optakter' },
-  { href: '/admin/artikler/superliga', label: 'Superliga-artikler' },
+  // Optakter and Superliga-artikler (/admin/artikler/optakter, /superliga) are out of the menu: James writes them now
   // The Claude writer (James): his rules and what he has written
   { href: '/admin/redaktoer', label: 'James' },
 ]
