@@ -12,8 +12,8 @@ import { mOutline, ogFonts } from './ogImage'
 import { cacheDir } from './tsdb'
 import { clubLogoAndColor } from './vsGraphic'
 
-// "Gæt klubben" – a quiz series for Reels (1080×1920, about 20 seconds). Each episode opens with the answer to the one
-// before ("Svaret fra afsnit N-1"), asks a new club with three text clues from hard to easy, and ends without the
+// "Gæt klubben" – a quiz series for Reels (1080×1920, at most 25 seconds). Each episode opens with what the game is
+// (three clues, guess in the comments, the answer next time), then the answer to the one before ("Svaret fra afsnit N-1"), asks a new club with three text clues from hard to easy, and ends without the
 // answer ("Svaret kommer i næste afsnit") – so the answer is the hook of the next one. James (deploy/claude-editor/
 // QUIZ.md) picks the club and writes the clues three times a week through /api/redaktor/quiz; the owner sees the
 // videos on /admin/sociale/quiz and posts them. Drawn in Matchly's light look (the page's grey, white cards, lime, the M) by
@@ -151,7 +151,44 @@ async function png(el: React.ReactElement): Promise<Buffer> {
 /** The episode's pictures in order, with how long each is shown and how it moves */
 async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ png: Buffer; seconds: number; zoom: number; flash?: boolean }[]> {
   const out: { png: Buffer; seconds: number; zoom: number; flash?: boolean }[] = []
+  // First what this is, so a new viewer understands the game before anything else
+  const Step = ({ n, text }: { n: number; text: string }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 28, width: 900, padding: '26px 34px', borderRadius: 32, background: '#ffffff' }}>
+      <div style={{ display: 'flex', width: 92, height: 92, borderRadius: 999, background: INK, color: LIME, alignItems: 'center', justifyContent: 'center', fontSize: 64, fontWeight: 800, fontStyle: 'italic' }}>{String(n)}</div>
+      <div style={{ display: 'flex', fontSize: 50, fontWeight: 800, fontStyle: 'italic', textTransform: 'uppercase', lineHeight: 1 }}>{text}</div>
+    </div>
+  )
+  out.push({
+    png: await png(
+      <Frame theme="lime">
+        <Pill text={`Afsnit ${e.n} · ${e.level}`} />
+        <Title text="Gæt klubben" size={175} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22, marginTop: 50 }}>
+          <Step n={1} text="3 ledetråde – fra svær til nem" />
+          <Step n={2} text="Skriv dit gæt i kommentarerne" />
+          <Step n={3} text="Svaret kommer i næste afsnit" />
+        </div>
+      </Frame>,
+    ),
+    seconds: 3.5,
+    zoom: 1.03,
+  })
   if (previous) {
+    // A breath before last time's answer, then the answer
+    out.push({
+      png: await png(
+        <Frame theme="light">
+          <Pill text={`Afsnit ${previous.n}`} />
+          <div style={{ display: 'flex', marginTop: 260 }}>
+            <Title text="Fik du den" size={170} />
+          </div>
+          <Title text="sidste gang?" size={170} />
+          <Sub text="Her er svaret" />
+        </Frame>,
+      ),
+      seconds: 1.2,
+      zoom: 1.06,
+    })
     const { logo, color, flag } = await clubLogoAndColor(previous.club, 720)
     const glow = await logoGlow(logo, color)
     out.push({
@@ -163,25 +200,11 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
           {previous.answerNote && <Sub text={previous.answerNote} />}
         </Frame>,
       ),
-      seconds: 3.2,
+      seconds: 2.8,
       zoom: 1.05,
       flash: true,
     })
   }
-  out.push({
-    png: await png(
-      <Frame theme="lime">
-        <Pill text={`Gæt klubben · afsnit ${e.n}`} />
-        <Title text="Gæt klubben" size={175} />
-        <div style={{ display: 'flex', width: 520, height: 520, borderRadius: 999, background: INK, alignItems: 'center', justifyContent: 'center', marginTop: 30 }}>
-          <div style={{ display: 'flex', fontSize: 440, fontWeight: 800, fontStyle: 'italic', color: LIME, lineHeight: 1 }}>?</div>
-        </div>
-        <Sub text={e.level === 'svær' ? '3 ledetråde – kun de færreste klarer den' : e.level === 'mellem' ? '3 ledetråde – kan du klare den?' : '3 ledetråde – hvor hurtigt får du den?'} color={INK} />
-      </Frame>,
-    ),
-    seconds: 1.8,
-    zoom: 1.05,
-  })
   const levels = ['svær', 'mellem', 'nem']
   for (let i = 0; i < 3; i++) {
     const text = e.clues[i]
@@ -199,7 +222,7 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
           </div>
         </Frame>,
       ),
-      seconds: 3.5,
+      seconds: 4,
       zoom: 1.05,
     })
   }
@@ -216,9 +239,12 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
         <Sub text="Følg Matchly, så du ikke misser det" color={INK} />
       </Frame>,
     ),
-    seconds: 3.2,
+    seconds: 3,
     zoom: 1.04,
   })
+  // Reels in this series are at most 25 seconds
+  const total = out.reduce((t, f) => t + f.seconds, 0)
+  if (total > 25) throw new Error(`Afsnittet ville vare ${total} sekunder – højst 25`)
   return out
 }
 
