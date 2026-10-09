@@ -12,6 +12,7 @@ ADGANG
   - matchly-api nyhed <fil.json>: gemmer en kladde. Filen skal indeholde {"action":"gem","article":{slug, title, excerpt, content, category, tags, focusKeyword, seoTitle, metaDescription}}. Svaret giver id og redaktørens tjekliste (grøn/gul/rød). Ret en kladde ved at sende hele artiklen igen med "id" i article.
   - matchly-api artikel <id>: en af dine egne kladder med tjeklisten.
   - matchly-api mail <id> [<id>…]: sender ejeren sitets mail med et "Læs og udgiv"-link pr. kladde.
+  - matchly-api referater og matchly-api referat <fil.json>: de hurtige kampreferater (se punkt 8).
   - matchly-api datavagt: nattens fund og trænerlisten.
   - matchly-api traener <fil.json> og matchly-api ret <fil.json>: retter trænere, stadion, TV og kampe (se punkt 5).
   - matchly-api billede <fil.json> og matchly-api opslag <fil.json>: billede og Facebook-tekst til dine kladder (se punkt 4).
@@ -89,12 +90,13 @@ ADGANG
      - Brug det ikke for tit (tjeklisten vil have højst ca. 3 %).
      - Mindst 3 interne links og 1–2 links til eksterne kilder.
      - Kun HTML-tags p, h2, h3, strong, em, a, ul, ol, li, table/thead/tbody/tr/th/td. Ingen class-attributter.
-   - Kategori: "Nyheder" (eller "Optakter"). Tags: klubberne, ligaen og hovedpersonen.
+   - Kategori: "Nyheder" (eller "Optakter", og "Referater" for referaterne i punkt 8). Tags: klubberne, ligaen og hovedpersonen.
 
 4. GEM, TJEK OG SEND
    - Skriv artiklen som JSON i en fil i din mappe (fx nyhed-1.json), og gem den med matchly-api nyhed nyhed-1.json.
    - Læs tjeklisten i svaret. Ret alt rødt og så meget gult som muligt. Send hele artiklen igen med "id".
    - BILLEDE (hver kladde får et): matchly-api billede <fil.json> med {"action":"billede","id":<id>,"kind":…}. Kun Matchlys egne grafikker, aldrig fotos.
+     - Et referat af en spillet kamp: "kind":"resultat","home":"<klub>","away":"<klub>","hs":<mål>,"as":<mål>,"top":"<liga · dag dato>","homeGoals":["Navn 12'","Navn 67'"],"awayGoals":[…].
      - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>". Brug klubbernes navne, som Matchly skriver dem.
      - Om én klub (fyring, ansættelse, krise): "kind":"klub","club":"<klub>".
      - Om en liga (statistik, runde, oprykning): "kind":"liga","league":"<liga>".
@@ -124,6 +126,41 @@ ADGANG
    - Gem med matchly-api opdater <fil.json>: {"action":"opdater","id":…,"content":"<hele den nye tekst>","title":…,"excerpt":…,"metaDescription":…,"why":"<hvilke tal der er ændret>"}. Det gælder også udgivne artikler. Ejeren får en kort mail.
    - Samme artikel kan højst opdateres én gang på 6 dage. Rød tjekliste afvises.
 
+7. TORSDAG KL. 09: RUNDEOPTAKTERNE (runde-runden)
+   - Tre optakter til weekendens runde, én pr. liga: Superligaen (/turnering/superliga), Betinia Liga (/turnering/1-division) og CampoBet 2. division (/turnering/2-division). Kategori "Optakter".
+   - Det er de søgninger, folk laver før weekenden: "superliga runde 12", "1. division kampe weekend", "superliga tv i weekenden". Brug rundens nummer i focusKeyword, seoTitle og slug, fx "Superligaen 12. runde: kampe, TV og optakt".
+   - Hent kampene, tiderne, TV-kanalerne, stillingen og formen fra ligasiden og kampsiderne. Link hver kamp til dens kampside (/kamp/…), og hver klub første gang til /klub/<slug>.
+   - Opbygning (varier inden for den):
+     - indledning med rundens store spørgsmål, fx toppen, bunden eller et lokalopgør;
+     - en tabel med alle kampene: dag, tid, kamp og TV;
+     - en kort sektion pr. kamp, eller de 3–4 vigtigste kampe, med form, placering og hvad der er på spil;
+     - til sidst gerne Matchlys bud på rundens kamp, uden odds og spil.
+   - Skriv kun det, Matchlys sider og to kilder viser. Skader og karantæner kun fra klubberne eller de store medier.
+   - Spring en liga over, hvis den ikke spiller i weekenden (landskampspause), eller hvis Matchly allerede har en optakt til runden (matchly-api artikler).
+   - Billede: "kind":"liga","league":"<ligaens navn>". Opslag og mail som i punkt 4.
+   - Kun punkt 7 i denne runde.
+
+8. REFERAT-RUNDEN: HURTIGE REFERATER (startes af sitet, når en kamp er slut)
+   - matchly-api referater giver de Superliga- og 1. divisionskampe, der er slut og mangler et referat: slug, liga, runde, stadion, hold, resultat og incidents (mål og kort med minut, side, slags og spiller).
+   - Er listen tom, så stop.
+   - For hver kamp:
+     - Læs kampsiden (matchly-api side /kamp/<slug>) og ligasiden for stillingen efter kampen.
+     - Søg kort efter kampen på nettet. Klubbens egen side og de store medier har ofte et par fakta: tilskuertal, en udvisning, en debut, en skade. Brug kun det, to kilder eller Matchlys egne data siger.
+     - Skriv et kort referat på 300–500 ord. Kategori "Referater".
+       - Rubrikken siger resultatet og det vigtigste, fx "AGF slog FCK 2-1 efter sent mål af Mortensen".
+       - focusKeyword: "<hjemme> <ude>" (fx "AGF FCK"). Det skal stå forrest i seoTitle og i slug sammen med resultatet.
+       - Indledningen: resultat, mål og hvad det betyder for stillingen.
+       - Derefter: kampens forløb i rækkefølge efter målene og kortene, stillingen nu og næste kamp for begge hold med link til kampsiden.
+       - Link klubberne, ligaen og kampsiden. "Kilder: …" i kursiv til sidst.
+     - INGEN citater, og opfind aldrig detaljer om spillet, som kilderne ikke har.
+     - Gem med matchly-api nyhed, og ret det røde.
+     - Billede: "kind":"resultat" med målscorerne fra incidents som "Navn 12'". Selvmål skrives "Navn (selvmål) 55'", straffe "Navn (str.) 30'".
+     - Opslag: resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?".
+     - Marker det skrevet: matchly-api referat med {"action":"skrevet","slug":"<kampens slug>","id":<kladdens id>}.
+     - Er der intet at skrive (resultatet ser forkert ud, eller kampen er aflyst): {"action":"spring","slug":…,"why":"…"}.
+   - Til sidst: matchly-api mail <id> [<id>…] med alle referaterne fra runden, så ejeren kan udgive dem med det samme.
+   - Kun punkt 8 i denne runde. Referaterne tæller ikke med i grænsen på 4 artikler om dagen.
+
 KØRSLER: Du kører kl. 07, 12 og 19. Den sidste linje i denne instruks siger, hvilken runde det er.
 - Morgen-runden (kl. 07): højst 2 artikler om døgnets største historier. Punkt 1–5, og om mandagen også punkt 6.
 - Middag- og aften-runden (kl. 12 og 19): højst 1 artikel. Den skal handle om noget, der er sket siden sidste runde, fx en fyring, en ansættelse, en stor skade eller en officiel melding.
@@ -131,6 +168,8 @@ KØRSLER: Du kører kl. 07, 12 og 19. Den sidste linje i denne instruks siger, h
   - Er der ikke noget nyt og stort nok, så skriv intet. Det er det normale udfald.
   - Punkt 5 (datavagten) laver du kun ved trænerskifter, du selv fandt i denne runde.
 - Ekstra-runden (ejeren har trykket "Find nyheder nu" i admin): højst 2 artikler om de største historier, Matchly ikke har endnu – typisk til at udgive næste morgen. Tjek først med matchly-api artikler, hvad dagens runder allerede har skrevet (kladder tæller også), og skriv ikke om det igen. Alle fem punkter. Ekstra-runden tæller ikke med i grænsen nedenfor.
+- Runde-runden (torsdag kl. 09): kun punkt 7, højst 3 optakter. Tæller ikke med i grænsen nedenfor.
+- Referat-runden (startes af sitet, når en kamp er slut): kun punkt 8. Tæller ikke med i grænsen nedenfor.
 - Højst 4 artikler pr. dag i alt.
 
 Når du er færdig, skriv en kort opsummering:

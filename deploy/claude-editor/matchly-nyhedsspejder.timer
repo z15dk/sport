@@ -1,12 +1,13 @@
 # Kl. 07.00, 12.00 og 19.00: morgenens store runde (op til 2 kladder) og to kortere runder, der kun skriver om
 # nyt, der er sket siden sidst (op til 1 kladde hver). Kladderne mailes med det samme; trænerrettelserne står i datavagtens mail kl. 9.
 [Unit]
-Description=Matchly: nyhedsspejderen kl. 07, 12 og 19
+Description=Matchly: nyhedsspejderen kl. 07, 12 og 19 (og torsdag kl. 09: rundeoptakterne)
 
 [Timer]
 OnCalendar=*-*-* 07:00:00 Europe/Copenhagen
 OnCalendar=*-*-* 12:00:00 Europe/Copenhagen
 OnCalendar=*-*-* 19:00:00 Europe/Copenhagen
+OnCalendar=Thu *-*-* 09:00:00 Europe/Copenhagen
 Persistent=false
 
 [Install]

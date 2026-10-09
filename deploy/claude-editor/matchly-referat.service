@@ -1,0 +1,52 @@
+# James' hurtige referater (matchly-referat.path): når en Superliga- eller 1. divisionskamp er slut, lægger sitet
+# /opt/scoreline/data/referat-request (src/lib/fastReports.ts), og James skriver referatet som kladde. Samme bruger, nøgle og
+# spærringer som nyhedsspejderen, men egen mappe, så de kan køre samtidig. Lav prioritet, så siden altid går forud.
+[Unit]
+Description=Matchly: James skriver referater af Superliga- og 1. divisionskampe
+After=network-online.target scoreline.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=matchly-editor
+Group=matchly-editor
+WorkingDirectory=/var/lib/matchly-editor
+EnvironmentFile=/etc/matchly-editor.env
+Environment=HOME=/var/lib/matchly-editor
+Environment=ROUND=referat
+# The newest script and prompt from the live release, copied as root into the editor's own folder before each run
+# The request goes first, so a match finishing during the run starts the next run
+ExecStartPre=+/bin/rm -f /opt/scoreline/data/referat-request
+ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/referat-bin /opt/scoreline/current/deploy/claude-editor/run-nyheder.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/NYHEDER.md
+ExecStart=/var/lib/matchly-editor/referat-bin/run-nyheder.sh
+Nice=15
+CPUQuota=50%
+MemoryMax=900M
+TimeoutStartSec=40min
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/matchly-editor /tmp
+InaccessiblePaths=/opt/scoreline/data /opt/scoreline/env /opt/scoreline/google-sa.json
+PrivateTmp=true
+# Shut away from the rest of the machine (systemd-analyze security): no devices, kernel, clocks, other processes,
+# new privileges or odd sockets – only the network (web search, the site's API) and its own folder
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077

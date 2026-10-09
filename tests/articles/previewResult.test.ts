@@ -35,3 +35,11 @@ test('a round-up of the day gets no result, and loses one put there by mistake',
   const wrong = withResult(roundUp, { slug: 'croatia-spain-2026-10-06', home: 'Kroatien', away: 'Spanien', hs: 1, as: 2 })
   assert.equal(withoutResult(wrong), roundUp)
 })
+
+test("a round's preview over several days is a round-up", async () => {
+  const { isRoundUp } = await import('../../src/lib/previewResultText.ts')
+  const round = '<p><a href="/kamp/agf-fc-midtjylland-2026-10-16">AGF – FCM</a> fredag og <a href="/kamp/brondby-if-fc-kobenhavn-2026-10-18">Brøndby – FCK</a> søndag.</p>'
+  assert.equal(isRoundUp(round), true)
+  const one = '<p><a href="/kamp/agf-fc-midtjylland-2026-10-16">AGF – FCM</a>. Sidst: <a href="/kamp/fc-midtjylland-agf-2026-04-02">FCM – AGF</a>.</p>'
+  assert.equal(isRoundUp(one), false)
+})

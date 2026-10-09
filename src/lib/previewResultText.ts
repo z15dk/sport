@@ -9,8 +9,9 @@ export function previewMatchSlug(content: string): string | undefined {
 export function isRoundUp(content: string): boolean {
   const slugs = new Set([...content.matchAll(/href="\/kamp\/([a-z0-9-]+-(\d{4}-\d{2}-\d{2}))"/g)].map((m) => m[1]))
   const first = previewMatchSlug(content)
-  const day = first?.slice(-10)
-  return [...slugs].filter((x) => x.endsWith(day ?? '-')).length > 1
+  const day = first ? Date.parse(first.slice(-10)) : NaN
+  // A round's preview (Friday to Monday): more than one match within four days of the first one
+  return [...slugs].filter((x) => Math.abs(Date.parse(x.slice(-10)) - day) <= 4 * 86_400_000).length > 1
 }
 
 const MARK = '<p><strong>Kampen er spillet:'

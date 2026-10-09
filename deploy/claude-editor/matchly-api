@@ -10,15 +10,17 @@
 #   matchly-api artikel <id>         one of its own drafts in full, with the checklist
 #   matchly-api nyhed <fil.json>     saves a news draft {"action":"gem","article":{…}} → id and the checklist
 #   matchly-api mail <id> [<id>…]    mails its drafts to the owner ("Læs og udgiv")
-#   matchly-api billede <fil.json>   {"action":"billede","id":…,"kind":"vs"|"tekst"|"klub"|"liga",…} – the draft's picture (Matchly's own graphics)
+#   matchly-api billede <fil.json>   {"action":"billede","id":…,"kind":"resultat"|"vs"|"tekst"|"klub"|"liga",…} – the draft's picture (Matchly's own graphics)
 #   matchly-api opslag <fil.json>    {"action":"opslag","id":…,"text":…} – the draft's social post text
 #   matchly-api opdater <fil.json>   {"action":"opdater","id":…,"content":…,"why":…} – a statistics article with new numbers
+#   matchly-api referater            the finished Superliga/1. division matches to write a fast report on (the referat round)
+#   matchly-api referat <fil.json>   {"action":"skrevet","slug":…,"id":…} or {"action":"spring","slug":…,"why":…}
 #   matchly-api datavagt             the night's findings and the coach list
 #   matchly-api traener <fil.json>   {"action":"setCoach",…} or {"action":"removeCoach","slug":…}
 #   matchly-api ret <fil.json>       {"action":"setGround"|"removeGround"|"setTv"|"matchRefetch"|"matchResult"|"matchHide",…,"why":…}
 # The growth round (VAEKST.md):
 #   matchly-api vaekst               the numbers: page views, Google, the pages close to page 1, rising/falling, title tests
-#   matchly-api titel <fil.json>     {"action":"titel","path":…,"title":…,"description":…,"query":…,"why":…}
+#   matchly-api titel <fil.json>     {"action":"titel","path":…,"title":…,"description":…,"faq":[{"q":…,"a":…}],"query":…,"why":…}
 #   matchly-api dom <fil.json>       {"action":"behold"|"fortryd","path":…,"why":…} – the verdict on a 14-day title test
 #   matchly-api dagbog <fil.json>    {"action":"dagbog","text":…,"actions":[…],"numbers":{…}} – today's diary entry
 # Both:
@@ -53,6 +55,8 @@ case "${1:-}" in
     exec curl -sS -w '\nHTTP %{http_code}\n' -X POST "${auth[@]}" -H 'content-type: application/json' "${SITE}/api/redaktor/nyheder" --data "{\"action\":\"mail\",\"ids\":[$(IFS=,; echo "$*")]}"
     ;;
   datavagt) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/datavagt" ;;
+  referater) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/referater" ;;
+  referat) jsonfile "${2:-}"; post "/api/redaktor/referater" "$2" ;;
   vaekst) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/vaekst" ;;
   titel|dom|dagbog) jsonfile "${2:-}"; post "/api/redaktor/vaekst" "$2" ;;
   traener|ret) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
@@ -63,5 +67,5 @@ case "${1:-}" in
     echo
     ;;
   soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac

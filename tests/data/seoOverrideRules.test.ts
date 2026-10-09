@@ -22,3 +22,15 @@ test('lengths and words Matchly never uses', () => {
   assert.match(checkOverride({ ...ok, description: `${ok.description.slice(0, 120)} Data fra DBU.` })!, /DBU/)
   assert.match(checkOverride({ ...ok, title: 'Kolding IF: kampprogram og stilling | Matchly' })!, /Matchly/)
 })
+
+test('questions and answers for the FAQ', () => {
+  const faq = [{ q: 'Hvornår spiller Kolding IF næste gang?', a: 'Kolding IF spiller næste gang på hjemmebane – se kampprogrammet øverst på siden.' }]
+  assert.equal(checkOverride({ path: '/klub/kolding-if', faq }), undefined)
+  assert.equal(checkOverride({ path: '/opgoer/fc-kobenhavn-mod-brondby-if', faq }), undefined)
+  assert.match(checkOverride({ path: '/kamp/kolding-if-mod-agf', faq })!, /klub-, liga- og opgørssider/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', faq: [{ q: 'Hvornår spiller Kolding IF', a: faq[0].a }] })!, /"\?"/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', faq: [{ q: faq[0].q, a: 'Snart.' }] })!, /20–400/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', faq: [{ q: faq[0].q, a: 'Se mere på https://example.com om klubben og kampene.' }] })!, /links/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', faq: Array(5).fill(faq[0]) })!, /Højst 4/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', faq: [{ q: faq[0].q, a: 'Kampene ses på DBU og alle andre steder, hvor man følger fodbold.' }] })!, /DBU/)
+})

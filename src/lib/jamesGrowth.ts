@@ -113,7 +113,7 @@ export async function growthBrief(now = Date.now()) {
 
   const tests = Object.entries(overrides.pages).map(([page, o]) => {
     const ageDays = Math.floor((now - o.at) / DAY)
-    return { page, title: o.title, description: o.description, query: o.query, why: o.why, by: o.by, setOn: danishDay(o.at), ageDays, before: o.before, last7: metrics(pages7.get(page)), kept: o.kept, dueForVerdict: !o.kept && ageDays >= LOCK_DAYS }
+    return { page, title: o.title, description: o.description, faq: o.faq?.map((f) => f.q), query: o.query, why: o.why, by: o.by, setOn: danishDay(o.at), ageDays, before: o.before, last7: metrics(pages7.get(page)), kept: o.kept, dueForVerdict: !o.kept && ageDays >= LOCK_DAYS }
   })
 
   return {

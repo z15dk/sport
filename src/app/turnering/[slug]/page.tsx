@@ -65,7 +65,7 @@ import { knownLeague } from '../../../lib/knownLeague'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { LeagueSubNav } from '../../../components/LeagueSubPage'
 import { TableShift } from '../../../components/TableShift'
-import { withSeoOverride } from '../../../lib/seoOverrides'
+import { withSeoFaq, withSeoOverride } from '../../../lib/seoOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -411,7 +411,7 @@ async function LeaguePageInner({ params }: { params: Params }) {
     .map((f) => toMatch(f, now))
   // The matches by round, when the sources give round numbers (else the ten latest results)
   const byRound = roundsOf(division, now)
-  const faq = leagueFaq(division, rows)
+  const faq = withSeoFaq(paths.league(division.slug), leagueFaq(division, rows))
   // The season at a glance, the players, who is out and where the season is (src/lib/leagueDeep.ts)
   const deep = await leagueDeep(division, now)
   const stats = leagueStats(division)

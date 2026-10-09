@@ -1,0 +1,12 @@
+# Når en Superliga- eller 1. divisionskamp har været slut i 15 minutter, skriver sitet /opt/scoreline/data/referat-request
+# (src/lib/fastReports.ts); så startes James med det samme og skriver referatet (matchly-referat.service fjerner filen).
+# Webprocessen får ingen rettigheder.
+[Unit]
+Description=Matchly: James skriver referater, når kampene er slut
+
+[Path]
+PathExists=/opt/scoreline/data/referat-request
+Unit=matchly-referat.service
+
+[Install]
+WantedBy=multi-user.target

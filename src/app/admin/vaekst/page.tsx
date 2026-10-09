@@ -168,6 +168,7 @@ export default async function GrowthPage() {
                         <li key={path}>
                           <a href={path}>{path}</a>
                           {o.title && <strong>{o.title}</strong>}
+                          {o.faq?.length ? <span className="small">Spørgsmål: {o.faq.map((f) => f.q).join(' · ')}</span> : null}
                           <span className="muted small">
                             {o.query && `“${o.query}” · `}før: plads {pos(o.before?.position)}, klikrate {pct(o.before?.ctr)} · {o.kept ? 'beholdt' : age >= 14 ? 'klar til dom' : `${age} af 14 dage`}
                           </span>

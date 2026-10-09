@@ -3,14 +3,18 @@
 # drafts through the site's editor API (/api/redaktor/nyheder, key EDITOR_TOKEN), mails them to the owner and fixes
 # the coach list. Same user, key and limits as the editor (run.sh): only matchly-api, web search and its own folder.
 # The model is Fable unless SPEJDER_MODEL in /etc/matchly-editor.env says otherwise; if it fails, the default model.
-# Runs at 07, 12 and 19 (matchly-nyhedsspejder.timer), and when the owner asks from admin (matchly-nyhedsspejder.path,
-# the extra round); the round is told in the prompt.
+# Runs at 07, 12 and 19 and Thursday at 09 (matchly-nyhedsspejder.timer, the round previews), when the owner asks from
+# admin (matchly-nyhedsspejder.path, the extra round) and after Superliga and 1. division matches (matchly-referat.path,
+# the fast reports); the round is told in the prompt.
 set -euo pipefail
 BIN="$(dirname "$(readlink -f "$0")")"
 PROMPT="$BIN/NYHEDER.md"
-# Its own folder next to the editor's, so the two never mix their article files
-mkdir -p /var/lib/matchly-editor/nyheder
-cd /var/lib/matchly-editor/nyheder
+# Its own folder next to the editor's, so the two never mix their article files (the fast reports, ROUND=referat from
+# matchly-referat.service, have their own, as they can run while a news round is going)
+folder=nyheder; [ "${ROUND:-}" = referat ] && folder=referat
+mkdir -p "/var/lib/matchly-editor/$folder"
+cd "/var/lib/matchly-editor/$folder"
+
 export PATH="$BIN:$PATH"
 : "${SITE:?SITE mangler i /etc/matchly-editor.env (sitets egen port, PORT i /opt/scoreline/env)}"
 export SITE
@@ -20,8 +24,12 @@ echo "$(date -Is) nyhedsspejderen starter (model ${SPEJDER_MODEL:-claude-fable-5
 # Which round this is (the prompt says how much each round writes): morgen before 10, middag before 16, else aften
 hour=$(TZ=Europe/Copenhagen date +%H)
 round=aften; [ "$hour" -lt 16 ] && round=middag; [ "$hour" -lt 10 ] && round=morgen
+# Thursday at 09 (the timer's extra time): the round previews for the weekend, one per league
+[ "$(TZ=Europe/Copenhagen date +%u)" = 4 ] && [ "$hour" = 09 ] && round=runde
+# Started by the site when a Superliga or 1. division match is over (matchly-referat.service): the fast reports
+[ "${ROUND:-}" = referat ] && round=referat
 # Started by the owner from admin ("Find nyheder nu"): the extra round, up to 2 articles (the mark is left by the service)
-if [ -e ekstra ]; then round=ekstra; rm -f ekstra; fi
+if [ "$round" != referat ] && [ -e ekstra ]; then round=ekstra; rm -f ekstra; fi
 echo "Runde: $round"
 scout() {
   claude -p "$(cat "$PROMPT")

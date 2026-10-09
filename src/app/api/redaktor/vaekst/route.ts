@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'
 
 // James' daily growth round (deploy/claude-editor/VAEKST.md, the editor's key): GET → the numbers and what he may
 // act on (src/lib/jamesGrowth.ts). POST
-//   { action: 'titel', path, title?, description?, query?, why }  a better title/description (sent to Index Now)
+//   { action: 'titel', path, title?, description?, faq?: [{ q, a }], query?, why }  a better title/description and/or
+//                                                                  up to 4 questions for the page's FAQ (sent to Index Now)
 //   { action: 'behold' | 'fortryd', path, why }                    the verdict on a title test after 14 days
 //   { action: 'dagbog', text, actions: [], ideas: [], numbers? }    today's diary entry, shown on /admin/vaekst (ideas: for the news scout)
 
@@ -22,8 +23,10 @@ export async function POST(request: Request) {
   const str = (v: unknown, max = 400) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
   const pagePath = str(b.path, 200)
   switch (b.action) {
-    case 'titel': {
-      const r = setSeoOverride({ path: pagePath, title: str(b.title, 80) || undefined, description: str(b.description, 200) || undefined, query: str(b.query, 120) || undefined, why: str(b.why) }, 'claude', await pageBaseline(pagePath))
+    case 'titel':
+    case 'faq': {
+      const faq = Array.isArray(b.faq) ? b.faq.slice(0, 10).map((f) => ({ q: str((f as Record<string, unknown>)?.q, 200), a: str((f as Record<string, unknown>)?.a, 600) })) : undefined
+      const r = setSeoOverride({ path: pagePath, title: str(b.title, 80) || undefined, description: str(b.description, 200) || undefined, faq, query: str(b.query, 120) || undefined, why: str(b.why) }, 'claude', await pageBaseline(pagePath))
       if (r.error) return Response.json(r, { status: 400 })
       await indexNowByHand([pagePath]).catch(() => undefined)
       return Response.json({ ok: true })

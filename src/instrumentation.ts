@@ -67,6 +67,9 @@ export async function register() {
   // Published previews get the result at the top once the match is played (src/lib/previewResults.ts)
   const { startPreviewResults } = await import('./lib/previewResults')
   startPreviewResults()
+  // Superliga and 1. division matches: James is started to write the report 15 minutes after the final whistle (src/lib/fastReports.ts)
+  const { startFastReports } = await import('./lib/fastReports')
+  startFastReports()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()

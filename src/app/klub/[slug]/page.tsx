@@ -67,7 +67,7 @@ import { clubFaq, teamFaq } from '../../../lib/faq'
 import { formatDayMonth, formatLong, formatShortYear, formatTime, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
-import { withSeoOverride } from '../../../lib/seoOverrides'
+import { withSeoFaq, withSeoOverride } from '../../../lib/seoOverrides'
 
 /** A men's football national team ("Luxembourg"), not a youth or women's team ("Danmark U19", "Danmark (K)") */
 const seniorNationalTeam = (name: string, sport?: string) => sport === 'soccer' && isNationalTeam(name) && !/\b(u\d{2}|w)$|\(k\)$/i.test(name.trim())
@@ -224,7 +224,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
   const cardTotals = squad.reduce((t, p) => ({ yellow: t.yellow + (p.yellow ?? 0), red: t.red + (p.red ?? 0) }), { yellow: 0, red: 0 })
   const mostCards = [...squad].filter((p) => (p.yellow ?? 0) + (p.red ?? 0) > 0).sort((a, b) => (b.yellow ?? 0) + (b.red ?? 0) - (a.yellow ?? 0) - (a.red ?? 0) || (b.red ?? 0) - (a.red ?? 0))[0]
   // The questions people search for; with the new header also the channel, the top scorer, the ground and the tickets
-  const faq = clubFaq(
+  const faq = withSeoFaq(paths.club(club.slug), clubFaq(
     club,
     division,
     stats,
@@ -241,7 +241,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           tickets: !!clubTicketUrl(club.id),
         }
       : undefined,
-  )
+  ))
 
   return (
     <div className="page">
@@ -577,7 +577,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const ground = newPage && league && apiTeam ? apiTeamStadium(league.id, apiTeam) : undefined
   // The next match that has not been played (a match the data still calls coming after its time is not it)
   const nextUp = upcoming.find((m) => m.kickoff.getTime() > now)
-  const faq = teamFaq(
+  const faq = withSeoFaq(paths.club(team.slug), teamFaq(
     team,
     newPage ? nextUp : upcoming[0],
     lastMatch,
@@ -588,7 +588,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           stadium: ground,
         }
       : undefined,
-  )
+  ))
   const goalWord = team.sport === 'soccer' || team.sport === 'ice_hockey' ? 'Mål' : 'Score'
 
   // The team's side of each result

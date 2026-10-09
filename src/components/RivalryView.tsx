@@ -15,6 +15,7 @@ import { Faq } from './Faq'
 import { AdSlot } from './AdSlot'
 import { Updated } from './Updated'
 import { channelsFor } from '../data/channels'
+import { withSeoFaq } from '../lib/seoOverrides'
 
 // The head-to-head page (/opgoer/<a>-mod-<b>, src/app/opgoer/[slug]/page.tsx) in the match page's design: the clubs
 // large on a dark field lit in their colours with the record between them, the title and "Kort fortalt", then the
@@ -88,7 +89,7 @@ export function RivalryView({ r, canonical, now, sa, sb }: { r: Rivalry; canonic
   const points = brief(r, s, sa, sb, nextChannel)
   const glow = (c?: [string, string]) => (c?.[0] && c[0].toLowerCase() !== '#ffffff' ? c[0] : c?.[1])
   const colors = (team: string) => (team === a.club.name ? a.club.colors : team === b.club.name ? b.club.colors : undefined)
-  const faq = [
+  const faq = withSeoFaq(canonical, [
     n > 0 && {
       q: `Hvem har vundet flest opgør mellem ${a.club.name} og ${b.club.name}?`,
       a: record.a === record.b ? `De har vundet lige mange (${record.a} hver) i ${n} opgør, og ${record.draw} er endt uafgjort.` : `${record.a > record.b ? a.club.name : b.club.name} har vundet ${Math.max(record.a, record.b)} af ${n} opgør, ${record.a > record.b ? b.club.name : a.club.name} ${Math.min(record.a, record.b)}, og ${record.draw} er endt uafgjort.`,
@@ -98,7 +99,7 @@ export function RivalryView({ r, canonical, now, sa, sb }: { r: Rivalry; canonic
     n > 0 && { q: `Hvor mange mål er der scoret i opgørene?`, a: `${s.goalsA + s.goalsB} mål i ${n} kampe – ${dec((s.goalsA + s.goalsB) / n)} pr. kamp: ${s.goalsA} til ${a.club.name} og ${s.goalsB} til ${b.club.name}.` },
     r.biggestA && { q: `Hvad er ${a.club.name}s største sejr over ${b.club.name}?`, a: `${score(r.biggestA)} ${formatLong(r.biggestA.date)} (${r.biggestA.competition}).` },
     r.biggestB && { q: `Hvad er ${b.club.name}s største sejr over ${a.club.name}?`, a: `${score(r.biggestB)} ${formatLong(r.biggestB.date)} (${r.biggestB.competition}).` },
-  ].filter((x): x is { q: string; a: string } => !!x)
+  ].filter((x): x is { q: string; a: string } => !!x))
 
   const Side = ({ c, st }: { c: Rivalry['a']; st?: ClubStats }) => (
     <div className="mx-hero__side">
