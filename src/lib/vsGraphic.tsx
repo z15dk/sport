@@ -362,8 +362,10 @@ export interface ResultInput {
   awayGoals?: string[]
   /** Which of the eight designs (RESULT_VARIANTS); the classic one when unset */
   variant?: ResultVariant
-  /** The big line in the "overskrift" design, e.g. "Myhra reddede straffesparket" */
+  /** The big line in the "overskrift" and "avis" designs, e.g. "Myhra reddede straffesparket" */
   headline?: string
+  /** The match winner in the "matchvinder" design, e.g. "Mads Kjærgaard" */
+  hero?: string
 }
 
 /**
@@ -371,9 +373,11 @@ export interface ResultInput {
  * klassisk – both logos and the score in the middle; vinder – the winner's colour and logo fill the picture;
  * diagonal – the clubs' colours split on a slant; lime – Matchly's lime all over (stands out in a feed);
  * tidslinje – the goals on a 90-minute line (comebacks, late goals); overskrift – the match's story in big letters
- * with a score bar; minimal – type only, no logos; tv – a TV score bug with the scorers under it.
+ * with a score bar; minimal – type only, no logos; tv – a TV score bug with the scorers under it. New candidates for the
+ * owner: split – the halves in the clubs' colours with each side's goals; avis – a printed sports page; kampkort – the
+ * match as a card like Matchly's own match list; matchvinder – the match winner's name big; stribe – one band per club.
  */
-export const RESULT_VARIANTS = ['klassisk', 'vinder', 'diagonal', 'lime', 'tidslinje', 'overskrift', 'minimal', 'tv'] as const
+export const RESULT_VARIANTS = ['klassisk', 'vinder', 'diagonal', 'lime', 'tidslinje', 'overskrift', 'minimal', 'tv', 'split', 'avis', 'kampkort', 'matchvinder', 'stribe'] as const
 export type ResultVariant = (typeof RESULT_VARIANTS)[number]
 /** The designs the owner has approved (9/10-2026) – the only ones James may choose; vinder, lime and tidslinje are being reworked */
 export const RESULT_VARIANTS_IN_USE: ResultVariant[] = ['klassisk', 'diagonal', 'overskrift', 'minimal', 'tv']
@@ -751,6 +755,143 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
             <Scorers goals={ag} align="flex-end" size={24} />
           </div>
           <Brand />
+        </>,
+      )
+      break
+    }
+    case 'split': {
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W / 2}" height="${H}" fill="${shade(hc, 0.6)}"/><rect x="${W / 2}" width="${W / 2}" height="${H}" fill="${shade(ac, 0.6)}"/><rect width="${W}" height="${H}" fill="#000" fill-opacity="0.2"/><rect x="${W / 2 - 3}" width="6" height="${H}" fill="${BG}"/></svg>`)
+      const half = (name: string, logo: string | undefined, score: number, goals: string[], left: number, won: boolean) => (
+        <div style={{ position: 'absolute', left, top: 70, width: W / 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Crest name={name} logo={logo} size={150} />
+          <div style={{ display: 'flex', marginTop: 12, fontSize: nameSize(name, 40), fontWeight: 800, fontStyle: 'italic' }}>{name.toUpperCase()}</div>
+          <div style={{ display: 'flex', fontSize: 230, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.95, color: won ? LIME : 'rgba(255,255,255,0.92)' }}>{score}</div>
+          <Scorers goals={goals} max={2} size={21} />
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          {topLine('#fff', 22, true)}
+          {half(home, homeLogo, hs, hg, 0, hs > as)}
+          {half(away, awayLogo, as, ag, W / 2, as > hs)}
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'avis': {
+      const headline = (input.headline?.trim() || (draw ? `Delt point i ${home} – ${away}` : `${hs > as ? home : away} vandt`)).slice(0, 70)
+      const ink = BG
+      picture = frame(
+        <>
+          <div style={{ position: 'absolute', left: 70, top: 46, width: W - 140, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 14, borderBottom: `3px solid ${ink}` }}>
+            <div style={{ display: 'flex', fontSize: 34, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+              MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+            </div>
+            {top && <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(17,19,14,0.7)' }}>{top}</div>}
+          </div>
+          <div style={{ position: 'absolute', left: 70, top: 120, width: W - 140, height: 460, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', fontSize: headline.length <= 30 ? 104 : headline.length <= 50 ? 86 : 68, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{headline.toUpperCase()}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 22, marginTop: 40, paddingTop: 26, borderTop: '1px solid rgba(17,19,14,0.25)' }}>
+              <Crest name={home} logo={homeLogo} size={72} />
+              <div style={{ display: 'flex', fontSize: 40, fontWeight: 800 }}>{home}</div>
+              <div style={{ display: 'flex', padding: '0 18px', background: LIME, fontSize: 60, fontWeight: 800, fontStyle: 'italic', lineHeight: 1.1 }}>
+                {hs}–{as}
+              </div>
+              <div style={{ display: 'flex', fontSize: 40, fontWeight: 800 }}>{away}</div>
+              <Crest name={away} logo={awayLogo} size={72} />
+            </div>
+            {hg.length + ag.length > 0 && <div style={{ display: 'flex', marginTop: 14, fontFamily: 'DM Sans', fontSize: 21, fontWeight: 500, color: 'rgba(17,19,14,0.7)' }}>{[...hg, ...ag].join(' · ')}</div>}
+          </div>
+        </>,
+        '#eceee8',
+        ink,
+      )
+      break
+    }
+    case 'kampkort': {
+      const row = (name: string, logo: string | undefined, score: number, won: boolean) => (
+        <div style={{ display: 'flex', alignItems: 'center', height: 110, gap: 24 }}>
+          <Crest name={name} logo={logo} size={76} />
+          <div style={{ display: 'flex', flex: 1, fontSize: nameSize(name, 48), fontWeight: 800, fontStyle: 'italic', color: won || draw ? '#fff' : 'rgba(255,255,255,0.6)' }}>{name.toUpperCase()}</div>
+          <div style={{ display: 'flex', fontSize: 84, fontWeight: 800, fontStyle: 'italic', color: won ? LIME : draw ? '#fff' : 'rgba(255,255,255,0.55)' }}>{score}</div>
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 190, top: 60, width: 820, display: 'flex', flexDirection: 'column', padding: '26px 44px', borderRadius: 30, background: 'rgba(27,30,22,0.94)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>{top ?? ''}</div>
+              <div style={{ display: 'flex', padding: '4px 14px', borderRadius: 20, background: LIME, color: BG, fontFamily: 'DM Sans', fontSize: 20, fontWeight: 700 }}>Slut</div>
+            </div>
+            {row(home, homeLogo, hs, hs > as)}
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', display: 'flex' }} />
+            {row(away, awayLogo, as, as > hs)}
+            {hg.length + ag.length > 0 && (
+              <div style={{ display: 'flex', marginTop: 10, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.1)', fontFamily: 'DM Sans', fontSize: 21, fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>{[...hg, ...ag].slice(0, 6).join(' · ')}</div>
+            )}
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'matchvinder': {
+      const hero = (input.hero?.trim() || (hs > as ? hg : ag).at(-1)?.replace(/\s*\(.*?\)|\s*\d+(\+\d+)?'?\s*$/g, '') || (hs >= as ? home : away)).slice(0, 40)
+      const last = hero.split(' ').at(-1) ?? hero
+      const heroHome = hg.some((g) => g.includes(last)) || (!ag.some((g) => g.includes(last)) && hs >= as)
+      const [tName, tLogo, tColor, tGoals] = heroHome ? [home, homeLogo, hc, hg] : [away, awayLogo, ac, ag]
+      const mine = tGoals.filter((g) => g.includes(last)).map((g) => g.replace(/^.*?(\d+(\+\d+)?'?)\s*$/, '$1'))
+      const words = hero.split(' ')
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><defs><radialGradient id="g" cx="${W * 0.82}" cy="${H * 0.45}" r="${W * 0.5}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${tColor}" stop-opacity="0.75"/><stop offset="1" stop-color="${tColor}" stop-opacity="0"/></radialGradient></defs><rect width="${W}" height="${H}" fill="#0f110b"/><rect width="${W}" height="${H}" fill="url(#g)"/></svg>`)
+      picture = frame(
+        <>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', right: 90, top: 110, display: 'flex' }}>
+            <Crest name={tName} logo={tLogo} size={300} />
+          </div>
+          <div style={{ position: 'absolute', left: 80, top: 70, width: 700, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 28, fontWeight: 600, color: LIME }}>Matchvinder</div>
+            {words.length > 1 && <div style={{ display: 'flex', marginTop: 14, fontSize: 60, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: 'rgba(255,255,255,0.8)' }}>{words.slice(0, -1).join(' ').toUpperCase()}</div>}
+            <div style={{ display: 'flex', fontSize: last.length > 10 ? 110 : 140, fontWeight: 800, fontStyle: 'italic', lineHeight: 0.95 }}>{last.toUpperCase()}</div>
+            {mine.length > 0 && <div style={{ display: 'flex', marginTop: 16, fontFamily: 'DM Sans', fontSize: 28, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{mine.length === 1 ? `Mål i ${mine[0]}` : `${mine.length} mål: ${mine.join(', ')}`}</div>}
+          </div>
+          <div style={{ position: 'absolute', left: 80, bottom: 50, display: 'flex', alignItems: 'center', gap: 18 }}>
+            <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, fontStyle: 'italic' }}>{home.toUpperCase()}</div>
+            <div style={{ display: 'flex', fontSize: 56, fontWeight: 800, fontStyle: 'italic', color: LIME }}>
+              {hs}–{as}
+            </div>
+            <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, fontStyle: 'italic' }}>{away.toUpperCase()}</div>
+            {top && <div style={{ display: 'flex', marginLeft: 14, fontFamily: 'DM Sans', fontSize: 20, fontWeight: 500, color: 'rgba(255,255,255,0.6)' }}>{top}</div>}
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'stribe': {
+      const band = (name: string, logo: string | undefined, score: number, goals: string[], color: string, y: number, won: boolean) => (
+        <div style={{ position: 'absolute', left: 0, top: y, width: W, height: 255, display: 'flex', alignItems: 'center', padding: '0 70px', gap: 30, background: shade(color, 0.5) }}>
+          <Crest name={name} logo={logo} size={170} />
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
+            <div style={{ display: 'flex', fontSize: nameSize(name, 60), fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{name.toUpperCase()}</div>
+            {goals.length > 0 && <div style={{ display: 'flex', marginTop: 10, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>{goals.slice(0, 4).join(' · ')}</div>}
+          </div>
+          <div style={{ display: 'flex', fontSize: 190, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: won ? LIME : '#fff' }}>{score}</div>
+        </div>
+      )
+      picture = frame(
+        <>
+          {band(home, homeLogo, hs, hg, hc, 0, hs > as)}
+          {band(away, awayLogo, as, ag, ac, 375, as > hs)}
+          <div style={{ position: 'absolute', left: 0, top: 255, width: W, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 70px', background: BG, borderTop: `4px solid ${LIME}`, borderBottom: `4px solid ${LIME}` }}>
+            <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 26, fontWeight: 600, color: LIME }}>{top ? `Slut · ${top}` : 'Slut'}</div>
+            <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+              MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+            </div>
+          </div>
         </>,
       )
       break
