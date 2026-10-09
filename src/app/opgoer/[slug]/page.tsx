@@ -4,6 +4,7 @@ import { MIN_INDEXED, parseRivalry, rivalry, rivalryPath } from '../../../lib/ri
 import { clubStats } from '../../../data/matchInsights'
 import { formatLong } from '../../../lib/time'
 import { RivalryView, summary } from '../../../components/RivalryView'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 // Head-to-head between two of our clubs (src/lib/rivalry.ts): the pair's data and the address; the page itself is
 // src/components/RivalryView.tsx (the match page's design).
@@ -19,7 +20,12 @@ function load(slug: string) {
   return r && { r, canonical: rivalryPath(pair[0], pair[1]) }
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/opgoer/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const found = load((await params).slug)
   if (!found) return { title: 'Opgøret findes ikke' }
   const { r, canonical } = found

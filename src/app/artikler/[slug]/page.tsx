@@ -16,6 +16,7 @@ import { loadRealData } from '../../../lib/realdata'
 import { isAdmin } from '../../../lib/admin'
 import { expandWidgets, markNumberColumns, styleFaq, styleResult } from '../../../lib/articleEmbeds'
 import Script from 'next/script'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,12 @@ async function load(slug: string): Promise<{ a: ReturnType<typeof articleBySlugA
   return any && { a: any, preview: true }
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/artikler/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const found = await load((await params).slug)
   if (!found) return { title: 'Artikel' }
   const { a } = found

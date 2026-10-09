@@ -1,0 +1,9 @@
+[Unit]
+Description=Matchly: James' vækstrunde hver morgen kl. 06.30
+
+[Timer]
+OnCalendar=*-*-* 06:30:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -17,10 +17,12 @@ ADGANG
   - matchly-api tjek </sti>: HTTP-status for en side på matchly.dk, fx "matchly-api tjek /klub/ab" giver 200.
   - matchly-api side </sti>: en side på matchly.dk som ren tekst (klubsider, ligasider, kampsider).
   - matchly-api soeg <navn>: sitets søgning med klubbernes og ligaernes slugs.
+  - matchly-api vaekst: James' vækstrunde – her bruger du kun diary og dens ideas.
 - Du kan ikke udgive, slette eller røre udgivne artikler. Forsøg det ikke. Alt, du gemmer, er en kladde.
 
 1. FIND NYHEDERNE (seneste ca. 24 timer)
    - Start med ejerens Google Alert om de danske fodboldligaer: WebFetch https://www.google.com/alerts/feeds/17336130936366264753/9899134086605896615. Det er et Atom-feed. Hver entry har titel, dato og et Google-link, hvor den rigtige adresse står i parameteren url=. Brug feedet som tipliste. Er det tomt, så gå videre.
+   - Se også James' vækstidéer: matchly-api vaekst giver diary (hans seneste notater) med "ideas" – søgninger, Matchly ikke har en god side til, med en vinkel. Morgenrunden kan gøre den bedste af dem til en af dagens artikler, når den er aktuel og kan skrives med fakta fra mindst to kilder.
    - Søg efter danske fodboldnyheder om Superligaen, Betinia Liga (1. division), CampoBet 2. division, pokalen og landsholdene. Det kan være trænerskifter, fyringer, ansættelser, store skader og karantæner før weekenden, rekorder, store resultater og klubkriser.
    - Gode kilder:
      - klubbernes egne hjemmesider (pressemeddelelser er bedst);

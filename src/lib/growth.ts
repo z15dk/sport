@@ -41,6 +41,11 @@ export interface GscSummary {
   almostPage1: GscRow[]
   /** Pages seen 10+ times without a click */
   noClicks: GscRow[]
+  /** For James' daily growth round (src/lib/jamesGrowth.ts): every page and search→page pair of the last 28 days, and the pages of the last 7 days against the 7 before */
+  pages?: GscRow[]
+  pairs?: GscRow[]
+  pages7?: GscRow[]
+  pagesPrev7?: GscRow[]
   error?: string
 }
 
@@ -85,11 +90,13 @@ async function fetchGsc(): Promise<GscSummary> {
     ctr: Math.round(r.ctr * 1000) / 10,
     position: Math.round(r.position * 10) / 10,
   })
-  const [days, queries, pages, pairs] = await Promise.all([
+  const [days, queries, pages, pairs, pages7, pagesPrev7] = await Promise.all([
     q({ startDate: day(35), endDate: day(0), dimensions: ['date'] }),
     q({ startDate: day(28), endDate: day(0), dimensions: ['query'], rowLimit: 100 }),
-    q({ startDate: day(28), endDate: day(0), dimensions: ['page'], rowLimit: 250 }),
-    q({ startDate: day(28), endDate: day(0), dimensions: ['query', 'page'], rowLimit: 500 }),
+    q({ startDate: day(28), endDate: day(0), dimensions: ['page'], rowLimit: 500 }),
+    q({ startDate: day(28), endDate: day(0), dimensions: ['query', 'page'], rowLimit: 1000 }),
+    q({ startDate: day(7), endDate: day(0), dimensions: ['page'], rowLimit: 500 }),
+    q({ startDate: day(14), endDate: day(8), dimensions: ['page'], rowLimit: 500 }),
   ])
   const perDay = days.map((r) => ({ date: r.keys[0], clicks: r.clicks, impressions: r.impressions, position: Math.round(r.position * 10) / 10 }))
   const total = (from: string, to: string) => {
@@ -117,6 +124,24 @@ async function fetchGsc(): Promise<GscSummary> {
       .filter((r) => r.clicks === 0 && r.impressions >= 10)
       .sort((a, b) => b.impressions - a.impressions)
       .slice(0, 10),
+    pages: pages.map(row),
+    pairs: pairs.map(row),
+    pages7: pages7.map(row),
+    pagesPrev7: pagesPrev7.map(row),
+  }
+}
+
+/** The Google numbers no older than `maxAge` (fetched now and saved when they are older): James' morning round */
+export async function freshSearchConsole(maxAge = 12 * 3_600_000): Promise<GscSummary | undefined> {
+  const saved = searchConsole()
+  if (saved && Date.now() - Date.parse(saved.fetchedAt) < maxAge && saved.pages) return saved
+  if (!existsSync(keyFile())) return saved
+  try {
+    const s = await fetchGsc()
+    writeJson(path.join(dir(), 'gsc.json'), s)
+    return s
+  } catch (e) {
+    return saved && { ...saved, error: e instanceof Error ? e.message : String(e) }
   }
 }
 

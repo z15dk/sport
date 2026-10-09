@@ -65,6 +65,7 @@ import { knownLeague } from '../../../lib/knownLeague'
 import { divisionOfGame } from '../../../data/ourLeagues'
 import { LeagueSubNav } from '../../../components/LeagueSubPage'
 import { TableShift } from '../../../components/TableShift'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +75,12 @@ export function generateStaticParams() {
   return DIVISIONS.map((d) => ({ slug: d.slug }))
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/turnering/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const slug = (await params).slug
   // One of API-Sports' other leagues
   if (slug.startsWith('x-')) {

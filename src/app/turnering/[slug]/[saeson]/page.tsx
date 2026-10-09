@@ -16,6 +16,7 @@ import { PlayerPhoto } from '../../../../components/PlayerPhoto'
 import { playerFaces } from '../../../../lib/playerPhotos'
 import { hasRealData } from '../../../../data/real'
 import { LeagueSubPageView, isLeagueSubPage, leagueSubMetadata } from '../../../../components/LeagueSubPage'
+import { withSeoOverride } from '../../../../lib/seoOverrides'
 
 // An earlier season of one of our leagues (only seasons our partners' results
 // cover in full): final table, top scorers, every match and the season in numbers.
@@ -61,7 +62,13 @@ function facts(season: PastSeason) {
   return { goals, perMatch: g.length ? goals / g.length : 0, homeWins, draws, awayWins: g.length - homeWins - draws, biggest, crowd }
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  const { slug, saeson } = await props.params
+  return withSeoOverride(`/turnering/${slug}/${saeson}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug, saeson } = await params
   // The league's own pages: top scorers, fixture list, results (src/components/LeagueSubPage.tsx)
   if (isLeagueSubPage(saeson)) {

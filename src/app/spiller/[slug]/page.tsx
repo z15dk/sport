@@ -26,6 +26,7 @@ import { TeamBadge } from '../../../components/TeamBadge'
 import { Updated } from '../../../components/Updated'
 import { AdSlot } from '../../../components/AdSlot'
 import type { Match } from '../../../types'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -640,7 +641,12 @@ function SeasonTable({ rows, keeper }: { rows: PlayerSeasonRow[]; keeper: boolea
 }
 
 /** generateMetadata with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
 export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/spiller/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata(props: { params: Params }): Promise<Metadata> {
   return forVisitor(() => generateMetadataInner(props))
 }
 

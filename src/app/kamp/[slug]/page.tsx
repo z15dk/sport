@@ -40,6 +40,7 @@ import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,12 @@ async function PastMatchPageInner({ game: g, match: original }: { game: PastGame
   )
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/kamp/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const slug = (await params).slug
   const found = load(slug)
   if (!found) return pastMetadata(slug)

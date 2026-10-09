@@ -28,7 +28,7 @@ ENV
   grep -q '^EDITOR_TOKEN=' /opt/scoreline/env || echo "EDITOR_TOKEN=$token" >> /opt/scoreline/env
   echo "Ny EDITOR_TOKEN lagt i /etc/matchly-editor.env og /opt/scoreline/env – genstart scoreline: systemctl restart scoreline"
 fi
-install -m 644 "$HERE/matchly-editor.service" "$HERE/matchly-editor.timer" "$HERE/matchly-nyhedsspejder.service" "$HERE/matchly-nyhedsspejder.timer" "$HERE/matchly-editor.path" "$HERE/matchly-nyhedsspejder.path" /etc/systemd/system/
+install -m 644 "$HERE/matchly-editor.service" "$HERE/matchly-editor.timer" "$HERE/matchly-nyhedsspejder.service" "$HERE/matchly-nyhedsspejder.timer" "$HERE/matchly-editor.path" "$HERE/matchly-nyhedsspejder.path" "$HERE/matchly-vaekst.service" "$HERE/matchly-vaekst.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable matchly-editor.timer >/dev/null
 # "Skriv om" from admin starts a run right away
@@ -37,5 +37,7 @@ systemctl enable --now matchly-editor.path >/dev/null
 systemctl enable --now matchly-nyhedsspejder.timer >/dev/null
 # "Find nyheder nu" from admin starts an extra round right away
 systemctl enable --now matchly-nyhedsspejder.path >/dev/null
+# James' growth round: the numbers, better titles and his diary, every morning at 06.30
+systemctl enable --now matchly-vaekst.timer >/dev/null
 echo "Klar. Indsæt CLAUDE_CODE_OAUTH_TOKEN i /etc/matchly-editor.env, og start timeren: systemctl start matchly-editor.timer"
 echo "Prøv en kørsel nu: systemctl start matchly-editor.service && journalctl -u matchly-editor -n 50"

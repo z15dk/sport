@@ -6,6 +6,8 @@ import { IndexNowForm } from '../../../components/admin/IndexNowButton'
 import { indexNowLog } from '../../../lib/indexnow'
 import { isAdmin } from '../../../lib/admin'
 import { GOAL_PER_DAY, growthTasks, searchConsole, siteViews } from '../../../lib/growth'
+import { readDiary } from '../../../lib/jamesGrowth'
+import { readSeoOverrides } from '../../../lib/seoOverrides'
 import { formatNumeric, formatTime } from '../../../lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -123,6 +125,63 @@ export default async function GrowthPage() {
             <span className="dash-tile__sub">lavere er bedre · side 1 = 1–10</span>
           </div>
         </div>
+
+        {(() => {
+          // James' daily growth round (src/lib/jamesGrowth.ts): his diary and the titles he is testing
+          const diary = readDiary().slice(-7).reverse()
+          const seo = readSeoOverrides()
+          const tests = Object.entries(seo.pages).sort((x, y) => y[1].at - x[1].at)
+          const pct = (n?: number) => (n === undefined ? '–' : `${String(n).replace('.', ',')} %`)
+          const pos = (n?: number) => (n === undefined ? '–' : String(n).replace('.', ','))
+          return (
+            <div className="jd">
+              <section className="panel dash-card jd-diary">
+                <h2 className="panel__title">James' dagbog</h2>
+                {diary.length ? (
+                  <ol className="jd-list">
+                    {diary.map((e) => (
+                      <li key={e.day}>
+                        <span className="jd-day">{formatNumeric(new Date(e.at))}</span>
+                        <p>{e.text}</p>
+                        {e.actions.length > 0 && (
+                          <ul className="jd-actions">
+                            {e.actions.map((a) => (
+                              <li key={a}>{a}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {e.ideas && e.ideas.length > 0 && <p className="jd-ideas">💡 Idéer til nyhedsspejderen: {e.ideas.join(' · ')}</p>}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="muted">James skriver her hver morgen kl. 06.30: hvad tallene siger, og hvad han har gjort ved det.</p>
+                )}
+              </section>
+              <section className="panel dash-card jd-tests">
+                <h2 className="panel__title">Titler James tester ({tests.length})</h2>
+                {tests.length ? (
+                  <ul className="jd-test-list">
+                    {tests.map(([path, o]) => {
+                      const age = Math.floor((Date.now() - o.at) / 86_400_000)
+                      return (
+                        <li key={path}>
+                          <a href={path}>{path}</a>
+                          {o.title && <strong>{o.title}</strong>}
+                          <span className="muted small">
+                            {o.query && `“${o.query}” · `}før: plads {pos(o.before?.position)}, klikrate {pct(o.before?.ctr)} · {o.kept ? 'beholdt' : age >= 14 ? 'klar til dom' : `${age} af 14 dage`}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="muted">Ingen endnu. James sætter op til 5 nye titler om dagen på sider tæt på side 1 og dømmer dem efter 14 dage.</p>
+                )}
+              </section>
+            </div>
+          )
+        })()}
 
         <section className="panel dash-card growth-task">
           <h2 className="panel__title">Ugens opgaver{week ? ` · uge ${week}` : ''}</h2>

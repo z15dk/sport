@@ -67,6 +67,7 @@ import { clubFaq, teamFaq } from '../../../lib/faq'
 import { formatDayMonth, formatLong, formatShortYear, formatTime, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
+import { withSeoOverride } from '../../../lib/seoOverrides'
 
 /** A men's football national team ("Luxembourg"), not a youth or women's team ("Danmark U19", "Danmark (K)") */
 const seniorNationalTeam = (name: string, sport?: string) => sport === 'soccer' && isNationalTeam(name) && !/\b(u\d{2}|w)$|\(k\)$/i.test(name.trim())
@@ -88,7 +89,12 @@ const isNationalSide = (team: { sport: string; country?: string; name: string })
 const shownName = (team: { name: string; league: string; country?: string }) =>
   isWomenLeague(team.league, team.country) && !WOMEN_TEAM.test(team.name) && !/\sQ$/.test(team.name) ? `${team.name} (K)` : team.name
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+/** The page's metadata with James' title and description when he has set one (src/lib/seoOverrides.ts) */
+export async function generateMetadata(props: { params: Params }): Promise<Metadata> {
+  return withSeoOverride(`/klub/${(await props.params).slug}`, await baseMetadata(props))
+}
+
+async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const team = teamBySlug((await params).slug)
   if (!team) return { title: 'Klubben findes ikke' }
   if (!team.season) {
