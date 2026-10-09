@@ -161,10 +161,10 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
   out.push({
     png: await png(
       <Frame theme="lime">
-        <Pill text={`Afsnit ${e.n} · ${e.level}`} />
+        <Pill text={`Afsnit ${e.n} · svær`} />
         <Title text="Gæt klubben" size={175} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22, marginTop: 50 }}>
-          <Step n={1} text="3 ledetråde – fra svær til nem" />
+          <Step n={1} text="3 ledetråde – kun de færreste klarer den" />
           <Step n={2} text="Skriv dit gæt i kommentarerne" />
           <Step n={3} text="Svaret kommer i næste afsnit" />
         </div>
@@ -205,13 +205,12 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
       flash: true,
     })
   }
-  const levels = ['svær', 'mellem', 'nem']
   for (let i = 0; i < 3; i++) {
     const text = e.clues[i]
     out.push({
       png: await png(
         <Frame theme="light">
-          <Pill text={`Ledetråd ${i + 1} · ${levels[i]}`} />
+          <Pill text={`Ledetråd ${i + 1}`} />
           <Bar step={i + 1} />
           <div style={{ display: 'flex', position: 'relative', marginTop: 110, width: 920, minHeight: 640, alignItems: 'center', justifyContent: 'center', padding: '80px 64px 64px', borderRadius: 48, background: '#ffffff', boxShadow: '0 30px 60px rgba(15,17,12,0.12)' }}>
             <div style={{ position: 'absolute', top: -70, left: 380, width: 160, height: 160, borderRadius: 999, background: LIME, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 110, fontWeight: 800, fontStyle: 'italic', border: `8px solid ${BG}` }}>{String(i + 1)}</div>

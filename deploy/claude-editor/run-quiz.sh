@@ -3,7 +3,7 @@
 # the site's editor API (/api/redaktor/quiz, key EDITOR_TOKEN): he picks a club not used yet, writes three text clues
 # from hard to easy and the post's text; Matchly makes the video (src/lib/quizReel.tsx) for /admin/sociale/quiz. Same
 # user, key and limits as the growth round (run-vaekst.sh): only matchly-api, web search and its own folder.
-# The level by weekday: Monday mellem, Wednesday svær, Friday nem. Opus 5.5 unless QUIZ_MODEL says otherwise.
+# Every episode is hard (svær). Opus 5.5 unless QUIZ_MODEL says otherwise.
 set -euo pipefail
 BIN="$(dirname "$(readlink -f "$0")")"
 PROMPT="$BIN/QUIZ.md"
@@ -12,12 +12,8 @@ cd /var/lib/matchly-editor/quiz
 export PATH="$BIN:$PATH"
 : "${SITE:?SITE mangler i /etc/matchly-editor.env (sitets egen port, PORT i /opt/scoreline/env)}"
 export SITE
-case "$(TZ=Europe/Copenhagen date +%u)" in
-  1) LEVEL=mellem ;;
-  3) LEVEL=svær ;;
-  5) LEVEL=nem ;;
-  *) LEVEL=mellem ;;
-esac
+# Every episode is hard: the owner wants to challenge people (10 October 2026)
+LEVEL=svær
 echo "$(date -Is) quiz-runden starter (sværhedsgrad $LEVEL, model ${QUIZ_MODEL:-claude-opus-5-5})"
 quiz() {
   claude -p "$(cat "$PROMPT")

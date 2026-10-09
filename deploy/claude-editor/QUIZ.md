@@ -24,15 +24,16 @@ ADGANG
    - Skift mellem rækker: Superligaen, 1. division (Betinia Ligaen), 2. og 3. division, A-Ligaen (kvinder) og en gang imellem en kendt udenlandsk klub. Ikke den samme række to gange i træk.
    - Klubben skal have et logo på Matchly: find den med matchly-api soeg og brug navnet præcis, som Matchly skriver det.
 
-2. SVÆRHEDSGRAD (står under I DAG)
-   - nem: en kendt klub (Superligaen eller en stor udenlandsk). De fleste skal kunne gætte den ved ledetråd 3.
-   - mellem: en klub fra Superligaen eller 1. division. Fans skal kunne gætte den ved ledetråd 2-3.
-   - svær: en klub fra 1.-3. division eller A-Ligaen. Kun de garvede skal kunne gætte den.
+2. SVÆRHEDSGRAD: ALTID SVÆR
+   - Ejeren vil udfordre folk: hvert afsnit skal være svært. Ingen lette klubber og ingen lette ledetråde.
+   - Vælg klubber fra 1.-3. division, A-Ligaen eller mindre kendte udenlandske klubber – ikke de store Superliga-klubber og ikke de kendte udenlandske storklubber.
+   - Kun de garvede fans skal kunne gætte den, og helst først ved ledetråd 3.
+   - Send altid "level":"svær".
 
-3. LEDETRÅDENE (tre, den sværeste først, 30-100 tegn hver)
-   - Ledetråd 1 (svær): en historisk eller kuriøs fakta, fx en kendt spiller der kom derfra, et særligt øgenavn, et år eller en bedrift.
-   - Ledetråd 2 (mellem): noget fra denne sæson, fx form, en stime, en placering eller en topscorer uden navn.
-   - Ledetråd 3 (nem): det, der næsten afslører klubben, fx egnen eller byen omskrevet, rækken og placeringen.
+3. LEDETRÅDENE (tre, den sværeste først, 30-100 tegn hver – alle svære)
+   - Ledetråd 1: en historisk eller kuriøs fakta, som kun de færreste kender, fx en kendt spiller der kom derfra, et år eller en bedrift.
+   - Ledetråd 2: noget fra denne sæson, fx form, en stime, en placering eller en topscorer uden navn.
+   - Ledetråd 3: den, der giver eksperterne en chance – fx egnen omskrevet eller rækken og placeringen – men aldrig så tydelig, at alle kan gætte den.
    - Ingen ledetråd må nævne klubbens navn, by-navnet i klubbens navn, kælenavnet eller stadionnavnet direkte.
    - SANDHED FØRST: Alt skal være rigtigt.
      - Tal fra denne sæson (placering, point, mål, form) tager du KUN fra Matchly: matchly-api side /klub/<slug> eller /turnering/<liga>.
