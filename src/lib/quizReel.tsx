@@ -186,7 +186,7 @@ async function episodeFrames(e: QuizEpisode, previous?: QuizEpisode): Promise<{ 
           <Sub text="Her er svaret" />
         </Frame>,
       ),
-      seconds: 1.2,
+      seconds: 2,
       zoom: 1.06,
     })
     const { logo, color, flag } = await clubLogoAndColor(previous.club, 720)
