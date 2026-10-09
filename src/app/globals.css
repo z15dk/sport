@@ -3193,3 +3193,44 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .claude-note__form { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .claude-note__form label { font-weight: 700; font-size: 14px; }
 .claude-note__form textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); resize: vertical; }
+
+/* Head-to-head pages (/opgoer, src/app/opgoer/[slug]/page.tsx) in the match page's design: the boxes */
+.rv-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.rv-brief li { line-height: 1.5; }
+.rv-hero .mx-hero__status { letter-spacing: 0.04em; }
+.rv-balance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: center; gap: 8px; }
+.rv-balance strong { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 40px; line-height: 1; }
+.rv-balance span { font-size: 12px; color: var(--ink-2); }
+.rv-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.rv-bar--slim { height: 6px; }
+.rv-bar i { display: block; height: 100%; }
+.rv-bar .is-a, .rv-bar .is-w { background: var(--lime-deep); }
+.rv-bar .is-d { background: #c9cdc2; }
+.rv-bar .is-b, .rv-bar .is-l { background: var(--ink); }
+.rv-note { margin: 0; text-align: center; font-size: 12px; color: var(--ink-3); }
+.rv-cmp { display: flex; flex-direction: column; gap: 5px; }
+.rv-cmp__vals { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 10px; font-size: 13px; }
+.rv-cmp__vals span { color: var(--ink-2); text-align: center; }
+.rv-cmp__vals b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 18px; color: var(--ink-3); }
+.rv-cmp__vals b:last-child { text-align: right; }
+.rv-cmp__vals b.is-best { color: var(--ink); }
+.rv-cmp__bar { display: flex; gap: 4px; height: 6px; }
+.rv-cmp__bar i { display: block; height: 100%; border-radius: 999px; }
+.rv-cmp__bar .is-a { background: var(--lime-deep); }
+.rv-cmp__bar .is-b { background: var(--ink); }
+.rv-facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.rv-facts li { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 12px; color: var(--ink-2); }
+.rv-facts b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 22px; color: var(--ink); }
+.rv-home { display: flex; flex-direction: column; gap: 6px; }
+.rv-home__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rv-form { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
+.rv-last { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rv-last li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.rv-last a { color: var(--ink); }
+.rv-run { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 700; font-size: 13px; }
+.rv-records { margin: 0; display: flex; flex-direction: column; }
+.rv-records > div { padding: 9px 0; border-top: 1px solid var(--line); }
+.rv-records > div:first-child { border-top: 0; padding-top: 0; }
+.rv-records dt { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.rv-records dd { margin: 3px 0 0; font-size: 14px; font-weight: 700; }
+.rv-comps th .badge { vertical-align: middle; }
