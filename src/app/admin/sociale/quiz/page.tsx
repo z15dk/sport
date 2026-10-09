@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../../components/admin/AdminNav'
 import { QuizEpisodeActions } from '../../../../components/admin/QuizEpisodeActions'
 import { isAdmin } from '../../../../lib/admin'
-import { hasVideo, readSeries } from '../../../../lib/quizReel'
+import { hasSound, hasVideo, readSeries } from '../../../../lib/quizReel'
+import { QuizSound } from '../../../../components/admin/QuizSound'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Gæt klubben', robots: { index: false, follow: false } }
@@ -25,6 +26,7 @@ export default async function QuizPage() {
         <p className="muted small">
           En quiz-serie til Reels. Hvert afsnit starter med svaret fra det forrige og slutter uden svar. James laver tre afsnit om ugen (mandag, onsdag og fredag kl. 10). Download videoen, læg den op som Reel med en trending lyd, og marker den som lagt op.
         </p>
+        <QuizSound has={hasSound()} />
         {list.length === 0 && <p className="panel pad muted">Ingen afsnit endnu.</p>}
         {list.map((e, i) => (
           <section key={e.n} className="panel pad" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 220px) minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>

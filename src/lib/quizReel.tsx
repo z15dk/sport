@@ -47,6 +47,10 @@ export interface QuizEpisode {
 const dir = () => path.join(/*turbopackIgnore: true*/ cacheDir(), 'data', 'quiz')
 const file = () => path.join(dir(), 'serie.json')
 export const videoFile = (n: number) => path.join(dir(), `afsnit-${n}.mp4`)
+/** The series' sound (the owner's own track), put on every episode: the same length and cuts in all of them */
+export const soundFile = () => path.join(dir(), 'lyd.m4a')
+/** Every episode's length in seconds (see episodeFrames) */
+export const EPISODE_SECONDS = 23.3
 
 export function readSeries(): QuizEpisode[] {
   try {
@@ -346,6 +350,11 @@ async function renderVideo(e: QuizEpisode, previous?: QuizEpisode): Promise<void
     mkdirSync(dir(), { recursive: true })
     const target = videoFile(e.n)
     await exec(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(tmp, 'list.txt'), '-c', 'copy', '-movflags', '+faststart', `${target}.tmp.mp4`], { timeout: 120_000 })
+    // The series' sound on it, when the owner has given one
+    if (hasSound()) {
+      await exec(ffmpeg, ['-y', '-loglevel', 'error', '-i', `${target}.tmp.mp4`, '-i', soundFile(), '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-movflags', '+faststart', `${target}.lyd.mp4`], { timeout: 120_000 })
+      renameSync(`${target}.lyd.mp4`, `${target}.tmp.mp4`)
+    }
     renameSync(`${target}.tmp.mp4`, target)
   } catch (err) {
     const code = (err as { code?: string }).code
@@ -399,4 +408,54 @@ export function removeNewest(n: number): { error?: string } {
   saveSeries(list.slice(0, -1))
   rmSync(videoFile(n), { force: true })
   return {}
+}
+
+// ---------------------------------------------------------------- the sound
+
+export const hasSound = () => {
+  try {
+    return statSync(soundFile()).size > 0
+  } catch {
+    return false
+  }
+}
+
+/** The owner's track as the series' sound: made exactly one episode long (cut with a short fade, or silence after it), AAC */
+export async function saveSound(bytes: Buffer): Promise<{ error?: string }> {
+  if (bytes.length > 25 * 1024 * 1024) return { error: 'Lydfilen må højst fylde 25 MB' }
+  const tmp = mkdtempSync(path.join(tmpdir(), 'matchly-lyd-'))
+  const ffmpeg = process.env.FFMPEG ?? 'ffmpeg'
+  try {
+    const input = path.join(tmp, 'ind')
+    writeFileSync(input, bytes)
+    mkdirSync(dir(), { recursive: true })
+    const fade = EPISODE_SECONDS - 0.4
+    await exec(ffmpeg, ['-y', '-loglevel', 'error', '-i', input, '-vn', '-af', `apad=whole_dur=${EPISODE_SECONDS},afade=t=out:st=${fade}:d=0.4`, '-t', String(EPISODE_SECONDS), '-c:a', 'aac', '-b:a', '192k', `${soundFile()}.tmp.m4a`], { timeout: 60_000 })
+    renameSync(`${soundFile()}.tmp.m4a`, soundFile())
+    return {}
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    return { error: code === 'ENOENT' ? 'ffmpeg findes ikke på serveren – installér det (apt-get install ffmpeg)' : 'Filen kunne ikke læses som lyd (brug mp3, m4a eller wav)' }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+}
+
+export function removeSound() {
+  rmSync(soundFile(), { force: true })
+}
+
+/** The series' sound put on (or replacing the sound of) every episode's video so far; without a sound, they are left */
+export async function soundOnAll(): Promise<{ done: number; error?: string }> {
+  if (!hasSound()) return { done: 0, error: 'Der er ingen lyd endnu' }
+  const ffmpeg = process.env.FFMPEG ?? 'ffmpeg'
+  let done = 0
+  for (const e of readSeries()) {
+    if (!hasVideo(e.n)) continue
+    const target = videoFile(e.n)
+    await exec(ffmpeg, ['-y', '-loglevel', 'error', '-i', target, '-i', soundFile(), '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-movflags', '+faststart', `${target}.lyd.mp4`], { timeout: 120_000 })
+    renameSync(`${target}.lyd.mp4`, target)
+    done++
+  }
+  return { done }
 }
