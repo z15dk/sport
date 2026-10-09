@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { DatavagtButton } from '../../../components/admin/DatavagtButton'
+import { ResetMatchButton, StuckMatchActions } from '../../../components/admin/StuckMatchActions'
+import { SOURCE_GAME, matchOverrides } from '../../../lib/matchOverrides'
 import { DatavagtRunButton } from '../../../components/admin/DatavagtRunButton'
 import { isAdmin } from '../../../lib/admin'
 import { getBadges } from '../../../lib/badges'
@@ -147,6 +149,8 @@ export default async function DatavagtPage() {
                             )}
                           </div>
                           <div className="dv-item__act">
+                            {/* A stuck match of the source's: its result typed, fetched again or hidden */}
+                            {f.kind === 'match-stuck' && SOURCE_GAME.test(f.id.slice('match-stuck:'.length)) && <StuckMatchActions game={f.id.slice('match-stuck:'.length)} label={f.club} />}
                             <DatavagtButton id={f.id} />
                           </div>
                         </li>
@@ -227,6 +231,23 @@ export default async function DatavagtPage() {
                     </ul>
                   </details>
                 )}
+              </section>
+            )}
+
+            {Object.keys(matchOverrides().overrides).length > 0 && (
+              <section className="panel pad">
+                <h2 className="panel__title">Rettede kampe</h2>
+                <p className="muted small">Resultater du har tastet, og kampe du har skjult. Fortryd, og kampen står igen som kilden siger.</p>
+                <ul className="dv-dismissed">
+                  {Object.entries(matchOverrides().overrides).map(([game, o]) => (
+                    <li key={game}>
+                      <span>
+                        {o.label ?? game}: {o.hidden ? 'skjult' : o.score ? `resultat ${o.score[0]}-${o.score[1]}` : ''}
+                      </span>
+                      <ResetMatchButton game={game} />
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
           </aside>

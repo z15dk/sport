@@ -2,11 +2,15 @@ import { adminDenied } from '../../../../lib/admin'
 import { readDatavagt, runDatavagt, sendDatavagtMail } from '../../../../lib/datavagt'
 import { mailErrorText } from '../../../../lib/mail'
 import { confirmCoach, dismissFinding, readRettelser, setCoach } from '../../../../lib/rettelser'
+import { requestRefetch, setMatchOverride } from '../../../../lib/matchOverrides'
+import { refreshRealData } from '../../../../lib/realdata'
 
 // The datavagt's list and the corrections, for /admin/datavagt and for Claude's morning run:
 // GET → { report, rettelser }; POST { action: 'run' } runs the checks now, { action: 'mail' } sends the morning mail now,
 // { action: 'setCoach', slug, name, acting?, why, by? } and { action: 'removeCoach', slug, by? } change the coach list,
 // { action: 'confirmCoach', slug, name, by? } marks DBU's coach as checked ({ name: '' } removes the mark),
+// { action: 'matchResult', game, home, away } types a stuck match's result, { action: 'matchHide', game } hides it from the site,
+// { action: 'matchReset', game } takes the correction back, { action: 'matchRefetch', game } has the job fetch its day again,
 // { action: 'dismiss', id, by? } marks a finding from the last run as fine until what it found changes, { action: 'undismiss', id } takes it back.
 
 export async function GET(request: Request) {
@@ -59,6 +63,20 @@ export async function POST(request: Request) {
       if (!id) return Response.json({ error: 'id mangler' }, { status: 400 })
       dismissFinding(id, null, by)
       return Response.json({ ok: true, report: runDatavagt() })
+    }
+    case 'matchResult':
+    case 'matchHide':
+    case 'matchReset':
+    case 'matchRefetch': {
+      const game = str(b.game, 40)
+      const r =
+        b.action === 'matchRefetch'
+          ? requestRefetch(game)
+          : setMatchOverride(game, b.action === 'matchHide' ? { hidden: true, label: str(b.label, 120) } : b.action === 'matchResult' ? { score: [Number(b.home), Number(b.away)], label: str(b.label, 120) } : null)
+      if (r.error) return Response.json({ error: r.error }, { status: 400 })
+      // A correction on the site now, as a club's new name
+      if (b.action !== 'matchRefetch') refreshRealData()
+      return Response.json({ ok: true })
     }
     default:
       return Response.json({ error: 'Ukendt handling' }, { status: 400 })

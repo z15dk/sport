@@ -11,6 +11,7 @@ import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
 import { squadFromApi } from '../data/squadApi'
 import { NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../data/nyKlubside'
+import { takeRefetchRequests } from './matchOverrides'
 import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type LineupPlayer, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
 import { cacheDir } from './tsdb'
@@ -1144,6 +1145,12 @@ async function tick() {
       for (const d of Object.values(s.days)) d.fetchedAt = 0
       s.keepVersion = keepVersion
       changed = true
+    }
+    // Games the admin asked to be fetched again (the data guard): their day is due at once
+    for (const id of takeRefetchRequests()) {
+      const s = mem.store[id.split('-')[0] as Api]
+      const day = s && Object.entries(s.days).find(([, d]) => d.games.some((g) => g.id === id))
+      if (day) day[1].fetchedAt = 0
     }
     for (const api of Object.keys(APIS) as Api[]) {
       if (!keyFor(api)) continue

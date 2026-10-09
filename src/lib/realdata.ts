@@ -15,6 +15,7 @@ import { externalGames, seasonGames, tableTeams } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { addDays, isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
+import { matchOverrides, withMatchOverrides } from './matchOverrides'
 import { clubAliasList } from './clubAliases'
 import { leagueNameOverrides } from './leagueNames'
 import { customLogoUrl, customLogos } from './customLogos'
@@ -205,8 +206,9 @@ function apply() {
   const tsdbData = base()
   const db = timed('Fletning: historik til sæsonen', databaseSeason)
   const external = timed('Fletning: API-Sports-kampe', externalGames)
-  const { names, aliases, channels, settings, ads, leagueNames, logos } = timed('Fletning: navne, kanaler og indstillinger', () => ({
+  const { names, corrected, aliases, channels, settings, ads, leagueNames, logos } = timed('Fletning: navne, kanaler og indstillinger', () => ({
     names: clubNameOverrides(),
+    corrected: matchOverrides(),
     aliases: clubAliasList(),
     channels: channelData(),
     settings: siteSettings(),
@@ -215,7 +217,7 @@ function apply() {
     logos: Object.keys(customLogos()).length,
   }))
   const { tables, tablesKey } = timed('Fletning: tabellerne', () => tablesOf(tableTeams(), leagueNames))
-  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${aliases.version}|${channels.version}|${dbuTvVersion()}|${boldTvVersion()}|${sportLiveTvVersion()}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
+  const key = timed('Fletning: logo-tjek', () => `${tablesKey}|${tsdbData?.version ?? '-'}|${db?.key ?? '-'}|${external.version}|${names.version}|${corrected.version}|${aliases.version}|${channels.version}|${dbuTvVersion()}|${boldTvVersion()}|${sportLiveTvVersion()}|${settings.version}|${ads.version}|${leagueNames.version}|${logos}|${logoCheckVersion()}`)
   if (mergedKey === key) return
   mergedKey = key
   const leagues = mergedLeagues(tsdbData, db)
@@ -236,7 +238,7 @@ function apply() {
     leagues,
     checked: tsdbData?.checked,
     // API-Sports' other leagues with the names and logos set in the admin pages
-    external: timed('Fletning: dagens kampe', () => sameLeague(withCups(external.games, db?.cups ?? []).map(withoutPlaceholders)).map((g) => {
+    external: timed('Fletning: dagens kampe', () => sameLeague(withCups(withMatchOverrides(external.games, corrected.overrides), db?.cups ?? []).map(withoutPlaceholders)).map((g) => {
       if (divisionOfGame(g)) return g
       const key = externalLeagueKey(g.league)
       // A cup also under the source's own name (the admin pages list API-Sports' leagues by it)
