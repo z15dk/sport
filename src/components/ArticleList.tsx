@@ -120,7 +120,7 @@ export function ArticlesHero({
           </Link>
           {categories.map((c) => (
             <Link key={c.slug} className={`ah__cat${active === c.slug ? ' is-active' : ''}`} href={paths.articleCategory(c.slug)} aria-current={active === c.slug ? 'page' : undefined}>
-              {c.name} <span>{c.count}</span>
+              {c.name}
             </Link>
           ))}
         </nav>
@@ -163,7 +163,7 @@ export function ArticleTopics({ tags, active }: { tags: { slug: string; name: st
         {tags.map((t) => (
           <li key={t.slug}>
             <Link className={active === t.slug ? 'is-active' : undefined} href={paths.articleTag(t.slug)}>
-              # {t.name} <span>{t.count}</span>
+              # {t.name}
             </Link>
           </li>
         ))}
