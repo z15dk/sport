@@ -16,7 +16,7 @@ const BG = '#0f110c'
 const CARD = '#1a1c1b'
 const ACCENT = '#ff4a1f'
 
-let fonts: { name: string; data: Buffer; weight: 700 | 800; style: 'normal' | 'italic' }[] | undefined
+let fonts: { name: string; data: Buffer; weight: 500 | 600 | 700 | 800; style: 'normal' | 'italic' }[] | undefined
 /** The brand's type for the picture renderer (Barlow Condensed 700/800, upright and slanted) */
 export function ogFonts() {
   return loadFonts()
@@ -33,6 +33,8 @@ function loadFonts() {
     // The brand's slanted display type (the logo, titles and the score)
     { name: 'Barlow', data: file(800, 'latin', 'italic'), weight: 800, style: 'italic' },
     { name: 'Barlow', data: file(800, 'latin-ext', 'italic'), weight: 800, style: 'italic' },
+    // The site's body type for the small text (a league line, scorers): as on matchly.dk, not condensed capitals
+    ...([500, 600, 700] as const).map((w) => ({ name: 'DM Sans', data: readFileSync(path.join(/*turbopackIgnore: true*/ process.cwd(), 'node_modules/@fontsource/dm-sans/files', `dm-sans-latin-${w}-normal.woff`)), weight: w, style: 'normal' as const })),
   ]
   return fonts
 }

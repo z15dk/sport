@@ -409,7 +409,7 @@ function ResultSide({ name, logo, goals }: { name: string; logo?: string; goals:
         <div style={{ width: 170, height: 170, margin: '20px 0', borderRadius: 170, background: '#2a2d26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 72, fontWeight: 800, fontStyle: 'italic' }}>{name.slice(0, 2).toUpperCase()}</div>
       )}
       <div style={{ marginTop: 18, fontSize: name.length > 18 ? 30 : 38, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
-      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,0.82)' }}>
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
         {shown.map((g, i) => (
           <div key={i} style={{ display: 'flex' }}>
             {g}
@@ -461,7 +461,7 @@ function Crest({ name, logo, size, ring }: { name: string; logo?: string; size: 
 function Scorers({ goals, color = 'rgba(255,255,255,0.82)', align = 'center', size = 22, max = 4 }: { goals: string[]; color?: string; align?: 'center' | 'flex-start' | 'flex-end'; size?: number; max?: number }) {
   const shown = goals.slice(0, max)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: align, gap: 4, fontSize: size, fontWeight: 600, color }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: align, gap: 4, fontFamily: 'DM Sans', fontSize: size, fontWeight: 500, color }}>
       {shown.map((g, i) => (
         <div key={i} style={{ display: 'flex' }}>
           {g}
@@ -487,14 +487,19 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
   const draw = hs === as
   // "vinder" needs a winner: a draw gets the classic design
   const variant: ResultVariant = input.variant === 'vinder' && draw ? 'klassisk' : (input.variant ?? 'klassisk')
-  const top = input.top?.toUpperCase()
+  const top = input.top?.trim()
   const { width: W, height: H } = OG_SIZE
   const nameSize = (n: string, big: number) => (n.length > 18 ? big * 0.78 : big)
   // The layers straight in the picture (not inside a fragment: the renderer measures 100% widths against it as 0)
   const frame = (layers: React.ReactElement, background = BG, color = '#fff') => (
     <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background, color, fontFamily: 'Barlow' }}>{(layers.props as { children: React.ReactNode }).children}</div>
   )
-  const topLine = (color = LIME, y = 40) => top && <div style={{ position: 'absolute', left: 0, top: y, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 2, color }}>{top}</div>
+  const topLine = (color = LIME, y = 40, pill = false) =>
+    top && (
+      <div style={{ position: 'absolute', left: 0, top: y, width: '100%', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, color, ...(pill && { background: BG, padding: '8px 20px', borderRadius: 40 }) }}>{top}</div>
+      </div>
+    )
 
   let picture: React.ReactNode
   switch (variant) {
@@ -511,15 +516,15 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
             <Crest name={wName} logo={wLogo} size={340} />
           </div>
           <div style={{ position: 'absolute', left: 450, top: 70, width: 700, display: 'flex', flexDirection: 'column' }}>
-            {top && <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, letterSpacing: 2, color: LIME }}>{top}</div>}
-            <div style={{ display: 'flex', marginTop: 18, fontSize: 30, fontWeight: 800, letterSpacing: 6, color: 'rgba(255,255,255,0.8)' }}>SEJR TIL</div>
+            {top && <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, color: LIME }}>{top}</div>}
+            <div style={{ display: 'flex', marginTop: 18, fontFamily: 'DM Sans', fontSize: 30, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>Sejr til</div>
             <div style={{ display: 'flex', fontSize: nameSize(wName, 84), fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.5)' }}>{wName.toUpperCase()}</div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 22, gap: 22 }}>
               <div style={{ display: 'flex', fontSize: 120, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME }}>
                 {hs}–{as}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 30, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>
-                MOD
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'DM Sans', fontSize: 28, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                mod
                 <Crest name={lName} logo={lLogo} size={64} />
                 {lName}
               </div>
@@ -538,7 +543,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
       picture = frame(
         <>
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          {topLine('#fff')}
+          {topLine('#fff', 34, true)}
           <div style={{ position: 'absolute', left: 40, top: 110, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Crest name={home} logo={homeLogo} size={210} />
             <div style={{ display: 'flex', marginTop: 16, fontSize: nameSize(home, 38), fontWeight: 800, fontStyle: 'italic', textAlign: 'center' }}>{home.toUpperCase()}</div>
@@ -575,7 +580,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
               </div>
             </div>
             <div style={{ width: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 30 }}>
-              <div style={{ display: 'flex', fontSize: 22, fontWeight: 800, letterSpacing: 4, color: 'rgba(17,19,14,0.7)' }}>SLUT</div>
+              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(17,19,14,0.7)' }}>Slut</div>
               <div style={{ display: 'flex', fontSize: 160, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
                 {hs}–{as}
               </div>
@@ -629,22 +634,32 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
           <div style={{ position: 'absolute', left: x0, top: y - 3, width: x1 - x0, height: 6, borderRadius: 6, background: 'rgba(255,255,255,0.35)', display: 'flex' }} />
           <div style={{ position: 'absolute', left: at(45) - 2, top: y - 16, width: 4, height: 32, background: 'rgba(255,255,255,0.5)', display: 'flex' }} />
           {["0'", "45'", "90'"].map((t, i) => (
-            <div key={t} style={{ position: 'absolute', left: at([0, 45, 90][i]) - 30, top: y + 22, width: 60, display: 'flex', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>
+            <div key={t} style={{ position: 'absolute', left: at([0, 45, 90][i]) - 30, top: y + 22, width: 60, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.55)' }}>
               {t}
             </div>
           ))}
+          {/* Stems and dots first, then every name on top (a later goal's stem never runs through an earlier name) */}
           {placed.map((m, i) => {
             const up = m.side === 'home'
-            const stem = 34 + m.lvl * 38
+            // Below the line, the labels start under the 0'/45'/90' marks
+            const stem = (up ? 34 : 58) + m.lvl * 38
             return (
-              <div key={i} style={{ display: 'flex' }}>
-                <div style={{ position: 'absolute', left: m.x - 11, top: y - 11, width: 22, height: 22, borderRadius: 22, background: up ? LIME : '#fff', border: `3px solid ${BG}`, display: 'flex' }} />
+              <div key={`s${i}`} style={{ display: 'flex' }}>
                 <div style={{ position: 'absolute', left: m.x - 1, top: up ? y - stem : y + 11, width: 2, height: stem - 11, background: 'rgba(255,255,255,0.4)', display: 'flex' }} />
-                <div style={{ position: 'absolute', left: m.x - 110, top: up ? y - stem - 30 : y + stem + 2, width: 220, display: 'flex', justifyContent: 'center', fontSize: 21, fontWeight: 700, color: up ? LIME : '#fff' }}>{m.g}</div>
+                <div style={{ position: 'absolute', left: m.x - 11, top: y - 11, width: 22, height: 22, borderRadius: 22, background: up ? LIME : '#fff', border: `3px solid ${BG}`, display: 'flex' }} />
               </div>
             )
           })}
-          <div style={{ position: 'absolute', left: x0, bottom: 34, display: 'flex', gap: 28, fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+          {placed.map((m, i) => {
+            const up = m.side === 'home'
+            const stem = (up ? 34 : 58) + m.lvl * 38
+            return (
+              <div key={`l${i}`} style={{ position: 'absolute', left: m.x - 110, top: up ? y - stem - 32 : y + stem, width: 220, display: 'flex', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', padding: '2px 10px', borderRadius: 20, background: 'rgba(17,19,14,0.85)', fontFamily: 'DM Sans', fontSize: 21, fontWeight: 600, color: up ? LIME : '#fff' }}>{m.g}</div>
+              </div>
+            )
+          })}
+          <div style={{ position: 'absolute', left: x0, bottom: 34, display: 'flex', gap: 28, fontFamily: 'DM Sans', fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 14, height: 14, borderRadius: 14, background: LIME, display: 'flex' }} />
               {home}
@@ -669,7 +684,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
             {top && (
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
                 <div style={{ width: 48, height: 6, background: LIME, marginRight: 16, display: 'flex' }} />
-                <div style={{ display: 'flex', fontSize: 24, fontWeight: 700, letterSpacing: 2, color: LIME }}>{top}</div>
+                <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 26, fontWeight: 600, color: LIME }}>{top}</div>
               </div>
             )}
             <div style={{ display: 'flex', fontSize: headline.length <= 30 ? 92 : headline.length <= 50 ? 74 : 60, fontWeight: 800, fontStyle: 'italic', lineHeight: 1.02, textShadow: '0 4px 24px rgba(0,0,0,0.5)' }}>{headline.toUpperCase()}</div>
@@ -726,7 +741,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
             </div>
             <div style={{ width: 22, background: ac, display: 'flex' }} />
           </div>
-          <div style={{ position: 'absolute', left: 540, top: 290, width: 120, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME, color: BG, fontSize: 22, fontWeight: 800, letterSpacing: 3, borderRadius: '0 0 10px 10px' }}>SLUT</div>
+          <div style={{ position: 'absolute', left: 540, top: 290, width: 120, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME, color: BG, fontFamily: 'DM Sans', fontSize: 21, fontWeight: 700, borderRadius: '0 0 10px 10px' }}>Slut</div>
           <div style={{ position: 'absolute', left: 110, top: 360, width: 400, display: 'flex' }}>
             <Scorers goals={hg} align="flex-start" size={24} />
           </div>
@@ -746,7 +761,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
           <div style={{ position: 'absolute', left: 0, top: 100, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
             <ResultSide name={home} logo={homeLogo} goals={hg} />
             <div style={{ width: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 40 }}>
-              <div style={{ display: 'flex', fontSize: 22, fontWeight: 800, letterSpacing: 4, color: 'rgba(255,255,255,0.7)' }}>SLUT</div>
+              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slut</div>
               <div style={{ display: 'flex', fontSize: 150, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME, textShadow: '0 6px 30px rgba(0,0,0,0.5)' }}>
                 {hs}–{as}
               </div>
