@@ -155,15 +155,12 @@ ADGANG
      - INGEN citater, og opfind aldrig detaljer om spillet, som kilderne ikke har.
      - Gem med matchly-api nyhed, og ret det røde.
      - Billede: "kind":"resultat" med målscorerne fra incidents som "Navn 12'". Selvmål skrives "Navn (selvmål) 55'", straffe "Navn (str.) 30'".
-     - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
-       - "overskrift": kampens historie i store bogstaver med en resultatbar. Giv "headline" (højst ca. 50 tegn), fx "Myhra reddede straffesparket". Til kampe med én klar historie: en redning, en udvisning, en debut eller en rekord.
-       - "tidslinje": målene på en linje fra 0 til 90 minutter. Til comebacks, sene mål og målrige kampe (3+ mål).
-       - "vinder": vinderens farver og logo fylder. Til en klar sejr eller en vigtig sejr i toppen/bunden. Ikke til uafgjort.
+     - Vælg selv grafikken med "variant", efter kampens historie. Der er 5:
+       - "overskrift": kampens historie i store bogstaver med en resultatbar. Giv "headline" (højst ca. 50 tegn), fx "Myhra reddede straffesparket". Til kampe med én klar historie: en redning, en udvisning, en debut, et comeback, et sent mål eller en overraskelse.
        - "diagonal": klubfarverne delt skråt. Til lokalopgør, topkampe og opgør mellem to kendte klubber.
-       - "lime": Matchlys lime over det hele, stikker ud på Facebook. Til overraskelser og store resultater.
-       - "tv": som et scorebug på TV, målscorerne under. Til almindelige kampe med få mål.
+       - "tv": som et scorebug på TV, målscorerne under. Til almindelige kampe.
        - "minimal": kun navne og stort resultat. Til 0-0 og kampe uden målscorere.
-       - "klassisk": begge logoer og resultatet i midten. Når intet andet passer bedre.
+       - "klassisk": begge logoer og resultatet i midten, målscorerne under. Til målrige kampe, og når intet andet passer bedre.
        - Varier: brug ikke samme variant til to referater i træk (se de seneste referater med matchly-api artikler).
      - Opslag: resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?".
      - Marker det skrevet: matchly-api referat med {"action":"skrevet","slug":"<kampens slug>","id":<kladdens id>}.

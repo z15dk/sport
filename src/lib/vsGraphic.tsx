@@ -375,6 +375,8 @@ export interface ResultInput {
  */
 export const RESULT_VARIANTS = ['klassisk', 'vinder', 'diagonal', 'lime', 'tidslinje', 'overskrift', 'minimal', 'tv'] as const
 export type ResultVariant = (typeof RESULT_VARIANTS)[number]
+/** The designs the owner has approved (9/10-2026) – the only ones James may choose; vinder, lime and tidslinje are being reworked */
+export const RESULT_VARIANTS_IN_USE: ResultVariant[] = ['klassisk', 'diagonal', 'overskrift', 'minimal', 'tv']
 
 /** Two clubs' colours from each top corner on Matchly's dark top, with the dots fading in from the middle top */
 function resultBackground(left: string, right: string): string {
