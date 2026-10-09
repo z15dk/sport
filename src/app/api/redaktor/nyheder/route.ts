@@ -7,7 +7,7 @@ import { indexNowByHand } from '../../../../lib/indexnow'
 import { mailErrorText, sendMail } from '../../../../lib/mail'
 import { SITE_URL, paths } from '../../../../lib/site'
 import { setSocialCaption } from '../../../../lib/socialCaptions'
-import { makeClubGraphic, makeLeagueGraphic, makeResultGraphic, makeTextGraphic, makeVsGraphic } from '../../../../lib/vsGraphic'
+import { makeClubGraphic, makeLeagueGraphic, makeResultGraphic, makeTextGraphic, makeVsGraphic, RESULT_VARIANTS } from '../../../../lib/vsGraphic'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
 // (scoutDrafts in src/lib/datavagt.ts: author "Matchly", no automatic quality mark).
 // GET → { articles } (the newest 40, without text); GET ?id=<id> → one of its own drafts in full.
 // POST { action: 'gem', article } → { article, checks } (the editor's checklist); POST { action: 'mail', ids } sends the approval mail.
-// POST { action: 'billede', id, kind: 'resultat'|'vs'|'tekst'|'klub'|'liga', home, away, hs, as, homeGoals, awayGoals, top, title, sub, club, league, alt } makes the
+// POST { action: 'billede', id, kind: 'resultat'|'vs'|'tekst'|'klub'|'liga', home, away, hs, as, homeGoals, awayGoals, variant, headline, top, title, sub, club, league, alt } makes the
 // draft's picture – Matchly's own graphics only, never a photo; POST { action: 'opslag', id, text } is its social post text.
 // POST { action: 'opdater', id, content, title?, excerpt?, seoTitle?, metaDescription?, why } brings a statistics article
 // (category Statistik, also a published one) up to date – once in six days, no red points, the owner gets a mail.
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       const as = score('as')
       const made =
         kind === 'resultat' && t('home') && t('away') && hs !== undefined && as !== undefined
-          ? await makeResultGraphic({ home: t('home', 60), away: t('away', 60), hs, as, top: t('top', 80) || undefined, homeGoals: lines('homeGoals'), awayGoals: lines('awayGoals') })
+          ? await makeResultGraphic({ home: t('home', 60), away: t('away', 60), hs, as, top: t('top', 80) || undefined, homeGoals: lines('homeGoals'), awayGoals: lines('awayGoals'), variant: RESULT_VARIANTS.find((v) => v === t('variant', 20)), headline: t('headline', 70) || undefined })
           : kind === 'vs' && t('home') && t('away')
           ? await makeVsGraphic({ home: t('home', 60), away: t('away', 60), top: t('top', 80) || undefined })
           : kind === 'klub' && t('club')
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
               : kind === 'tekst' && t('title')
                 ? await makeTextGraphic({ title: t('title', 120), top: t('top', 80) || undefined, sub: t('sub') || undefined })
                 : undefined
-      if (!made) return Response.json({ error: 'Brug kind "resultat" (home, away, hs, as, top, homeGoals, awayGoals), "vs" (home, away, top), "klub" (club), "liga" (league) eller "tekst" (title, top, sub)' }, { status: 400 })
+      if (!made) return Response.json({ error: 'Brug kind "resultat" (home, away, hs, as, top, homeGoals, awayGoals, variant, headline), "vs" (home, away, top), "klub" (club), "liga" (league) eller "tekst" (title, top, sub)' }, { status: 400 })
       const saved = saveArticle({ ...draft, featuredImage: made.url, featuredAlt: t('alt', 160) || draft.title })
       return saved.error ? Response.json({ error: saved.error }, { status: 400 }) : Response.json({ ok: true, url: made.url })
     } catch (e) {
