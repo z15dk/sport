@@ -23,6 +23,9 @@
 #   matchly-api titel <fil.json>     {"action":"titel","path":…,"title":…,"description":…,"faq":[{"q":…,"a":…}],"query":…,"why":…}
 #   matchly-api dom <fil.json>       {"action":"behold"|"fortryd","path":…,"why":…} – the verdict on a 14-day title test
 #   matchly-api dagbog <fil.json>    {"action":"dagbog","text":…,"actions":[…],"numbers":{…}} – today's diary entry
+# The quiz round (QUIZ.md):
+#   matchly-api quiz                 the "Gæt klubben" series so far: the next number, the clubs used, whose answer comes next
+#   matchly-api quiz-afsnit <fil.json> {"action":"afsnit","club":…,"level":…,"clues":[…],"caption":…,"answerNote":…} – the next episode's video
 # Both:
 #   matchly-api tjek </sti>          the HTTP status of a page on matchly.dk (e.g. /klub/ab → 200)
 #   matchly-api side </sti>          a page on matchly.dk as plain text
@@ -60,6 +63,8 @@ case "${1:-}" in
   vaekst) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/vaekst" ;;
   titel|dom|dagbog) jsonfile "${2:-}"; post "/api/redaktor/vaekst" "$2" ;;
   traener|ret) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
+  quiz) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/quiz" ;;
+  quiz-afsnit) jsonfile "${2:-}"; post "/api/redaktor/quiz" "$2" ;;
   tjek) sitepath "${2:-}"; exec curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "${SITE}$2" ;;
   side)
     sitepath "${2:-}"
@@ -67,5 +72,5 @@ case "${1:-}" in
     echo
     ;;
   soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | quiz | quiz-afsnit <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac

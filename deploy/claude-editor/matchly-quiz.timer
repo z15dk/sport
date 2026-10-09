@@ -1,0 +1,9 @@
+[Unit]
+Description=Matchly: James' quiz-afsnit mandag, onsdag og fredag kl. 10
+
+[Timer]
+OnCalendar=Mon,Wed,Fri *-*-* 10:00:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

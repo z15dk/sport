@@ -1164,3 +1164,13 @@ export async function makeTextGraphic(input: TextInput): Promise<{ url: string }
   }
   return { url: saved.url }
 }
+
+/** A club's (or national team's) logo as PNG data drawn to fit a square, and its colour, for other graphics (the quiz reels) */
+export async function clubLogoAndColor(club: string, size: number): Promise<{ logo?: string; color: string; flag: boolean }> {
+  const badges = await getBadges()
+  const flags = nationalTeams()
+  const flag = !badges[club] && !!flags[club]
+  const code = flag ? flagCode(club, true) : undefined
+  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace('/w160/', '/w640/')) : flags[club], size, Math.round((size * 2) / 3), true) : await logoData(badges[club], size, size, false, true)
+  return { logo, color: clubColor(club, flag), flag }
+}
