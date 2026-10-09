@@ -128,7 +128,7 @@ export default async function GrowthPage() {
           <h2 className="panel__title">Ugens opgaver{week ? ` · uge ${week}` : ''}</h2>
           {open.length > 0 && (
             <p className="growth-task__sum">
-              <b>{left}</b> {left === 1 ? 'trin' : 'trin'} til dig · <b>{byClaude}</b> løst af Claude · {open.filter((t) => t.complete).length} af {open.length} opgaver klaret
+              <b>{left}</b> {left === 1 ? 'trin' : 'trin'} til dig · <b>{byClaude}</b> løst af James · {open.filter((t) => t.complete).length} af {open.length} opgaver klaret
             </p>
           )}
           {open.length ? (
@@ -166,7 +166,7 @@ export default async function GrowthPage() {
               </div>
             ))
           ) : (
-            <p className="muted pad">Ingen opgaver endnu – de kommer med Claudes rapport mandag morgen.</p>
+            <p className="muted pad">Ingen opgaver endnu – de kommer med James' rapport mandag morgen.</p>
           )}
         </section>
 

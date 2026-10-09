@@ -249,12 +249,12 @@ ${section(
     return `<strong style="font-size:15px">${esc(a.title)}</strong>${a.excerpt ? `<br><span style="color:#444">${esc(a.excerpt)}</span>` : ''}<br><span style="color:#777;font-size:13px">${esc(d.meta)}</span>${d.sources ? `<br><span style="color:#777;font-size:13px">${esc(d.sources)}</span>` : ''}${d.bad.length ? `<br><span style="color:#c0341d;font-size:13px">${d.bad.map((c) => esc(c.text)).join(' · ')}</span>` : ''}<br><a href="${articleApprovalLink(a.id)}" style="display:inline-block;margin-top:8px;background:#16181a;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Læs og udgiv</a> <a href="${SITE_URL}/admin/artikler/${a.id}" style="margin-left:10px;color:#16181a;font-size:14px">Ret i admin</a>`
   }),
 )}
-${section('Rettet af Claude', '#7bb33a', fixed.map((l) => esc(l.text)))}
+${section('Rettet af James', '#7bb33a', fixed.map((l) => esc(l.text)))}
 ${section('Venter på dig', '#f5c518', open.map((f) => `<strong>${f.url ? `<a href="${f.url}" style="color:#16181a">${esc(f.club)}</a>` : esc(f.club)}</strong> – ${esc(f.text)}`))}
 ${section('Fejl i de automatiske job', '#c0341d', jobs.map(esc))}
 <p style="margin:24px 0 0"><a href="${SITE_URL}/admin/datavagt" style="display:inline-block;background:#16181a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Åbn datavagten</a></p>
-<p style="color:#777;font-size:12px;margin-top:20px">Claude tjekker listen hver morgen kl. 7 og retter det, to kilder er enige om. Resten står her.</p></div>`
-  const text = [`Datavagten ${danishDay(now)}`, '', ...(drafts.length ? ['Nyhedsspejderens kladder:', ...drafts.map((a) => `- ${a.title} (${draftSummary(a).meta})\n  ${articleApprovalLink(a.id)}`), ''] : []), 'Rettet af Claude:', ...fixed.map((l) => `- ${l.text}`), '', 'Venter på dig:', ...open.map((f) => `- ${f.club}: ${f.text}`), ...(jobs.length ? ['', 'Fejl i job:', ...jobs.map((j) => `- ${j}`)] : []), '', `${SITE_URL}/admin/datavagt`].join('\n')
+<p style="color:#777;font-size:12px;margin-top:20px">James tjekker listen hver morgen kl. 7 og retter det, to kilder er enige om. Resten står her.</p></div>`
+  const text = [`Datavagten ${danishDay(now)}`, '', ...(drafts.length ? ['Nyhedsspejderens kladder:', ...drafts.map((a) => `- ${a.title} (${draftSummary(a).meta})\n  ${articleApprovalLink(a.id)}`), ''] : []), 'Rettet af James:', ...fixed.map((l) => `- ${l.text}`), '', 'Venter på dig:', ...open.map((f) => `- ${f.club}: ${f.text}`), ...(jobs.length ? ['', 'Fejl i job:', ...jobs.map((j) => `- ${j}`)] : []), '', `${SITE_URL}/admin/datavagt`].join('\n')
   await sendMail(`Matchly datavagt: ${drafts.length ? `${drafts.length} ${drafts.length === 1 ? 'kladde' : 'kladder'}, ` : ''}${fixed.length} rettet, ${open.length} venter på dig`, html, text)
   return 'sent'
 }

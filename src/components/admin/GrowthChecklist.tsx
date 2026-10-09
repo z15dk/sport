@@ -37,7 +37,7 @@ export function GrowthChecklist({ task, steps, done }: { task: string; steps: { 
               {/* A step Claude has done stays done (it is in the task file, not the admin's ticks) */}
               <input type="checkbox" checked={!!ticks[s.id]} disabled={s.by === 'claude' && !!s.done} onChange={() => void toggle(s.id)} />
               <span>{s.text}</span>
-              <em className={`growth-check__who growth-check__who--${s.by === 'claude' ? 'claude' : 'dig'}`}>{s.by === 'claude' ? 'Claude' : 'Dig'}</em>
+              <em className={`growth-check__who growth-check__who--${s.by === 'claude' ? 'claude' : 'dig'}`}>{s.by === 'claude' ? 'James' : 'Dig'}</em>
             </label>
           </li>
         ))}

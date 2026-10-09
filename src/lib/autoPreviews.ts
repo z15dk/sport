@@ -185,7 +185,7 @@ export async function checkWaitingPreviews(now = Date.now()): Promise<string[]> 
       const was = (mark.facts?.data as { kamp?: { tid?: string | null; stadion?: string | null; tv?: string | null } } | undefined)?.kamp
       if (was && (was.tid !== (fx.time ?? null) || was.stadion !== (fx.venue ?? null) || was.tv !== (fx.tv ?? null))) {
         if (a.status === 'published') saveArticle({ ...a, status: 'draft', publishedAt: undefined })
-        lines.push(`Holdt tilbage: "${a.title}" – tidspunkt, stadion eller TV er ændret, efter Claude skrev den (nu: ${[fx.time, fx.venue, fx.tv].filter(Boolean).join(', ')}). Ret den, før den udgives.`)
+        lines.push(`Holdt tilbage: "${a.title}" – tidspunkt, stadion eller TV er ændret, efter James skrev den (nu: ${[fx.time, fx.venue, fx.tv].filter(Boolean).join(', ')}). Ret den, før den udgives.`)
       }
       continue
     }

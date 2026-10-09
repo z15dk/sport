@@ -17,10 +17,10 @@ export async function POST(request: Request) {
   const go = (q: string) => new Response(null, { status: 303, headers: { Location: back(q) } })
   const a = articleById(id)
   const live = !!a && a.status === 'published' && !!a.publishedAt && Date.parse(a.publishedAt) <= Date.now()
-  if (!a || !qualityOf(id)) return go(`fejl=${encodeURIComponent('Kun automatiske optakter og referater kan skrives om af Claude')}`)
-  if (live) return go(`fejl=${encodeURIComponent('Artiklen er udgivet – Claude retter kun kladder')}`)
+  if (!a || !qualityOf(id)) return go(`fejl=${encodeURIComponent('Kun automatiske optakter og referater kan skrives om af James')}`)
+  if (live) return go(`fejl=${encodeURIComponent('Artiklen er udgivet – James retter kun kladder')}`)
   const text = String(form.get('besked') ?? '').trim()
-  if (!text) return go(`fejl=${encodeURIComponent('Skriv en besked til Claude først')}`)
+  if (!text) return go(`fejl=${encodeURIComponent('Skriv en besked til James først')}`)
   saveNote(id, text, signed && !(await isAdmin()) ? 'mail' : 'admin')
   return go('claude=1')
 }

@@ -30,7 +30,7 @@ export default async function EditorPage({ searchParams }: { searchParams: Promi
         <AdminNav current="/admin/redaktoer" />
         <h1 className="feed__title">James</h1>
         <p className="muted">
-          James er Matchlys Claude-skribent: han skriver de automatiske optakter og referater om som sportsjournalistik. Her står dine faste regler, som han følger i hver artikel. En besked til én bestemt artikel skriver du på artiklen (&quot;Besked til James&quot;).
+          James er Matchlys AI-skribent: han skriver de automatiske optakter og referater om som sportsjournalistik. Her står dine faste regler, som han følger i hver artikel. En besked til én bestemt artikel skriver du på artiklen (&quot;Besked til James&quot;).
         </p>
         <section className="panel pad">
           <h2 className="panel__title">Nyheder nu</h2>

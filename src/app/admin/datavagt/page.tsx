@@ -27,7 +27,7 @@ const short = (ms: number) => {
 
 type Group = 'coach' | 'ground' | 'tv' | 'table' | 'stuck'
 const GROUPS: { key: Group; title: string; hint: string }[] = [
-  { key: 'coach', title: 'Trænere', hint: 'Claude tjekker dem hver morgen og retter selv' },
+  { key: 'coach', title: 'Trænere', hint: 'James tjekker dem hver morgen og retter selv' },
   { key: 'ground', title: 'Stadion', hint: 'Hjemmebanen på klubsiderne' },
   { key: 'table', title: 'Tabel', hint: 'Vores stilling mod API-Sports' },
   { key: 'tv', title: 'TV-kanal', hint: 'Ugens kampe uden kanal i TV-guiden' },
@@ -49,7 +49,7 @@ function sources(text: string) {
   return m ? { dbu: m[1], api: m[2], shown: m[3] } : undefined
 }
 
-const BY: Record<string, string> = { claude: 'Claude', admin: 'Dig', kode: 'Fra start' }
+const BY: Record<string, string> = { claude: 'James', admin: 'Dig', kode: 'Fra start' }
 
 export default async function DatavagtPage() {
   if (!(await isAdmin())) redirect('/admin')
@@ -71,7 +71,7 @@ export default async function DatavagtPage() {
           <div>
             <h1 className="feed__title">Datavagt</h1>
             <p className="muted small">
-              {report.at ? `Seneste tjek ${when(report.at)}` : 'Endnu ikke kørt'} · tjekkes hver nat, Claude retter kl. 7, mail kl. 9
+              {report.at ? `Seneste tjek ${when(report.at)}` : 'Endnu ikke kørt'} · tjekkes hver nat, James retter kl. 7, mail kl. 9
             </p>
           </div>
           <DatavagtRunButton />
@@ -93,7 +93,7 @@ export default async function DatavagtPage() {
           <div className="dash-tile">
             <span className="dash-tile__label">Rettet, 7 dage</span>
             <strong className="dash-tile__value">{week.length}</strong>
-            <span className="dash-tile__sub">{byClaude} af Claude</span>
+            <span className="dash-tile__sub">{byClaude} af James</span>
           </div>
         </div>
 
