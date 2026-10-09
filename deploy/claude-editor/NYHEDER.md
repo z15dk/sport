@@ -21,7 +21,7 @@ ADGANG
   - matchly-api side </sti>: en side på matchly.dk som ren tekst (klubsider, ligasider, kampsider).
   - matchly-api soeg <navn>: sitets søgning med klubbernes og ligaernes slugs.
   - matchly-api vaekst: James' vækstrunde – her bruger du kun diary og dens ideas.
-- Du kan ikke udgive eller slette. Udgivne artikler kan du kun røre i kategorien Statistik (punkt 6). Alt andet, du gemmer, er en kladde.
+- Du kan ikke slette. Du udgiver kun dine egne hurtige referater (punkt 8). Udgivne artikler kan du kun røre i kategorien Statistik (punkt 6). Alt andet, du gemmer, er en kladde.
 
 1. FIND NYHEDERNE (seneste ca. 24 timer)
    - Start med ejerens Google Alert om de danske fodboldligaer: WebFetch https://www.google.com/alerts/feeds/17336130936366264753/9899134086605896615. Det er et Atom-feed. Hver entry har titel, dato og et Google-link, hvor den rigtige adresse står i parameteren url=. Brug feedet som tipliste. Er det tomt, så gå videre.
@@ -158,7 +158,9 @@ ADGANG
      - Opslag: resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?".
      - Marker det skrevet: matchly-api referat med {"action":"skrevet","slug":"<kampens slug>","id":<kladdens id>}.
      - Er der intet at skrive (resultatet ser forkert ud, eller kampen er aflyst): {"action":"spring","slug":…,"why":"…"}.
-   - Til sidst: matchly-api mail <id> [<id>…] med alle referaterne fra runden, så ejeren kan udgive dem med det samme.
+     - Udgiv det selv (ejeren har givet lov 9/10-2026): matchly-api referat med {"action":"udgiv","slug":"<kampens slug>"}. Det kræver billedet og ingen røde punkter på tjeklisten. Referatet går også ud på Facebook med dit opslag, og ejeren får en kort mail.
+     - Er du i tvivl om et faktum (resultat, målscorer, udvisning), så udgiv ikke. Lad det ligge som kladde, og send ejeren den med matchly-api mail <id>.
+   - Kun referaterne må du udgive selv. Alt andet er stadig kladder til ejeren.
    - Kun punkt 8 i denne runde. Referaterne tæller ikke med i grænsen på 4 artikler om dagen.
 
 KØRSLER: Du kører kl. 07, 12 og 19. Den sidste linje i denne instruks siger, hvilken runde det er.

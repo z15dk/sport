@@ -1,12 +1,20 @@
-import { editorAllowed } from '../../../../lib/editorAccess'
+import { articleById } from '../../../../lib/articles'
+import { publishDraft } from '../../../../lib/articleApproval'
 import { scoutDrafts } from '../../../../lib/datavagt'
-import { markFastReport, pendingFastReports } from '../../../../lib/fastReports'
+import { editorAllowed } from '../../../../lib/editorAccess'
+import { fastReportArticle, markFastReport, pendingFastReports } from '../../../../lib/fastReports'
+import { indexNowByHand } from '../../../../lib/indexnow'
+import { sendMail } from '../../../../lib/mail'
+import { seoChecks } from '../../../../lib/seoChecks'
+import { SITE_URL, paths } from '../../../../lib/site'
 
 export const dynamic = 'force-dynamic'
 
 // James' fast match reports (src/lib/fastReports.ts, the referat round in deploy/claude-editor/NYHEDER.md):
 // GET → { matches } the finished Superliga and 1. division matches he should write a report on now.
-// POST { action: 'skrevet', slug, id } marks one written (id: his report draft); { action: 'spring', slug, why } skips one.
+// POST { action: 'skrevet', slug, id } marks one written (id: his report draft); { action: 'spring', slug, why } skips one;
+// { action: 'udgiv', slug } publishes the report written for the match (the owner's word 9/10-2026): only that draft,
+// in category Referater, with a picture and nothing red on the checklist – out on Facebook, Index Now, a short mail to the owner.
 
 export async function GET(request: Request) {
   if (!editorAllowed(request)) return Response.json({ error: 'Ingen adgang' }, { status: 401 })
@@ -29,5 +37,19 @@ export async function POST(request: Request) {
     const r = markFastReport(slug, 0)
     return r.error ? Response.json(r, { status: 400 }) : Response.json({ ok: true })
   }
-  return Response.json({ error: 'Brug skrevet eller spring' }, { status: 400 })
+  if (b.action === 'udgiv') {
+    const id = fastReportArticle(slug)
+    const a = id ? articleById(id) : undefined
+    if (!a || a.status !== 'draft' || a.category?.toLowerCase() !== 'referater') return Response.json({ error: 'Kun dit eget referat til kampen (markeret skrevet) som kladde' }, { status: 400 })
+    if (!a.featuredImage) return Response.json({ error: 'Referatet mangler sin resultatgrafik' }, { status: 422 })
+    const red = seoChecks(a).filter((c) => c.level === 'bad')
+    if (red.length) return Response.json({ error: 'Tjeklisten har røde punkter', red: red.map((c) => c.text) }, { status: 422 })
+    const r = publishDraft(a.id, 'now')
+    if (r.error || !r.article) return Response.json({ error: r.error ?? 'Kunne ikke udgive' }, { status: 400 })
+    const url = `${SITE_URL}${paths.article(a.slug)}`
+    await indexNowByHand([paths.article(a.slug)]).catch(() => undefined)
+    await sendMail(`Matchly: James har udgivet "${a.title}"`, `<p>James har udgivet referatet <a href="${url}">${a.title}</a>. Det går også ud på Facebook.</p>`, `James har udgivet referatet "${a.title}": ${url}`).catch(() => undefined)
+    return Response.json({ ok: true, url })
+  }
+  return Response.json({ error: 'Brug skrevet, spring eller udgiv' }, { status: 400 })
 }

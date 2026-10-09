@@ -10,7 +10,8 @@ import { cacheDir } from './tsdb'
 // noted; 15 minutes after the final whistle (so the goals and cards have settled) the site leaves a request
 // (data/referat-request) and the server starts James (matchly-referat.path → deploy/claude-editor/NYHEDER.md, the
 // referat round), who reads the matches with GET /api/redaktor/referater, writes a report draft with the result
-// graphic and marks it written. Nothing is published by itself. State in data/hurtige-referater.json;
+// graphic, marks it written and publishes it himself (the owner's word 9/10-2026; out on Facebook with his post text) –
+// only when the checklist has nothing red. State in data/hurtige-referater.json;
 // FAST_REPORTS=off stops it.
 
 export const FAST_REPORT_LEAGUES = ['superliga', '1-division']
@@ -93,6 +94,11 @@ export function pendingFastReports(now = Date.now()): FastReportMatch[] {
       incidents: (m.incidents ?? []).map((i) => ({ minute: i.minute, side: i.side, kind: i.kind, player: i.player })),
       matchPage: `/kamp/${m.slug}`,
     }))
+}
+
+/** The report draft James wrote for the match (to publish it himself – only his fast reports) */
+export function fastReportArticle(slug: string): number | undefined {
+  return readState().matches[slug]?.articleId || undefined
 }
 
 /** James has written the report (or found it not worth one: articleId 0) */

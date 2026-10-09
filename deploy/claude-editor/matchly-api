@@ -14,7 +14,7 @@
 #   matchly-api opslag <fil.json>    {"action":"opslag","id":…,"text":…} – the draft's social post text
 #   matchly-api opdater <fil.json>   {"action":"opdater","id":…,"content":…,"why":…} – a statistics article with new numbers
 #   matchly-api referater            the finished Superliga/1. division matches to write a fast report on (the referat round)
-#   matchly-api referat <fil.json>   {"action":"skrevet","slug":…,"id":…} or {"action":"spring","slug":…,"why":…}
+#   matchly-api referat <fil.json>   {"action":"skrevet","slug":…,"id":…}, {"action":"udgiv","slug":…} or {"action":"spring","slug":…,"why":…}
 #   matchly-api datavagt             the night's findings and the coach list
 #   matchly-api traener <fil.json>   {"action":"setCoach",…} or {"action":"removeCoach","slug":…}
 #   matchly-api ret <fil.json>       {"action":"setGround"|"removeGround"|"setTv"|"matchRefetch"|"matchResult"|"matchHide",…,"why":…}
