@@ -19,55 +19,38 @@ export async function JamesStatus() {
   const running = jobs.filter((j) => j.running)
   const upcoming = jobs.filter((j) => j.nextAt).sort((a, b) => a.nextAt! - b.nextAt!)[0]
   return (
-    <section className="panel dash-card" style={{ marginBottom: 16 }}>
+    <section className="panel dash-card">
       <RefreshEvery seconds={30} />
-      <h2 className="panel__title">James lige nu</h2>
-      <p style={{ margin: '4px 0 12px', fontWeight: 700 }}>
-        {running.length ? (
-          <>
-            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 10, background: '#6f8f00', marginRight: 8 }} />
-            Arbejder på {running.map((j) => `${j.label.toLowerCase()} (${minutes(now - (j.startedAt ?? now))})`).join(' og ')}: {running[0].what}
-          </>
-        ) : (
-          <>
-            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 10, background: '#c9cdbd', marginRight: 8 }} />
-            Holder pause{upcoming ? ` – næste: ${upcoming.label.toLowerCase()} ${when(upcoming.nextAt!)}` : ''}
-          </>
-        )}
+      <h2 className="panel__title">James</h2>
+      <p className="small" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ flex: 'none', width: 9, height: 9, borderRadius: 9, background: running.length ? '#6f8f00' : '#c9cdbd' }} />
+        <span>
+          {running.length ? (
+            <>
+              <strong>Arbejder</strong> på {running.map((j) => `${j.label.toLowerCase()} (${minutes(now - (j.startedAt ?? now))})`).join(' og ')}
+            </>
+          ) : (
+            <>
+              <strong>Holder pause</strong>
+              {upcoming ? ` · næste: ${upcoming.label.toLowerCase()} ${when(upcoming.nextAt!)}` : ''}
+            </>
+          )}
+        </span>
       </p>
-      <table className="table" style={{ width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>Job</th>
-            <th style={{ textAlign: 'left' }}>Sidst</th>
-            <th style={{ textAlign: 'left' }}>Næste</th>
-          </tr>
-        </thead>
+      <table className="dash-table">
         <tbody>
           {jobs.map((j) => (
-            <tr key={j.id}>
-              <td>
-                <strong>{j.label}</strong>
-                <div className="muted small">{j.what}</div>
+            <tr key={j.id} title={j.what}>
+              <td>{j.label}</td>
+              <td className={j.running ? undefined : 'muted'} style={j.running ? { color: '#6f8f00', fontWeight: 700 } : j.ok === false ? { color: '#ff4a1f', fontWeight: 700 } : undefined}>
+                {j.running ? 'I gang' : j.ok === false ? 'Fejlede' : j.startedAt ? when(j.startedAt) : '–'}
               </td>
-              <td className="small">
-                {j.running ? (
-                  <span style={{ color: '#6f8f00', fontWeight: 700 }}>I gang siden {clock(j.startedAt ?? now)}</span>
-                ) : j.startedAt ? (
-                  <>
-                    {when(j.startedAt)}
-                    {j.endedAt && ` · ${minutes(j.endedAt - j.startedAt)}`}
-                    {j.ok === false ? <span style={{ color: '#ff4a1f', fontWeight: 700 }}> · fejlede</span> : j.ok ? ' · gik godt' : ''}
-                  </>
-                ) : (
-                  <span className="muted">Ikke kørt endnu</span>
-                )}
-              </td>
-              <td className="small">{j.nextAt ? when(j.nextAt) : <span className="muted">{j.id === 'matchly-referat' ? 'Efter næste kamp' : 'Når du beder om det'}</span>}</td>
+              <td className="muted">{j.nextAt ? when(j.nextAt) : j.id === 'matchly-referat' ? 'efter kamp' : '–'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="muted small">Sidst kørt · næste kørsel. Opdateres hvert 30. sekund.</p>
     </section>
   )
 }

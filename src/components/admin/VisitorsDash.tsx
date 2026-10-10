@@ -18,16 +18,19 @@ const change = (now: number, before: number) => (before ? `${now >= before ? '+'
 
 /**
  * Tiles and cards with the visitors; `href` is the page the period links go to. `children` (the page's
- * own cards) join the same flow, so every card fills the shortest column and the dashboard has no holes
+ * own cards) join the same flow, so every card fills the shortest column and the dashboard has no holes; `lead` comes first
  */
-export function VisitorsDash({ periode, href, children }: { periode?: string; href: string; children?: React.ReactNode }) {
+export function VisitorsDash({ periode, href, children, lead }: { periode?: string; href: string; children?: React.ReactNode; lead?: React.ReactNode }) {
   const period = PERIODS.find((p) => p.key === periode) ?? PERIODS[0]
   const s = visitStats(period.days)
   if (!s)
     return (
       <>
         <p className="unverified">Statistikken kan ikke læses på denne server.</p>
-        <DashFlow>{children}</DashFlow>
+        <DashFlow>
+          {lead}
+          {children}
+        </DashFlow>
       </>
     )
   const hourLabel = (h: number) => `kl. ${String(h).padStart(2, '0')}`
@@ -69,6 +72,7 @@ export function VisitorsDash({ periode, href, children }: { periode?: string; hr
       </div>
 
       <DashFlow>
+        {lead}
         {(() => {
           // Who is on which page right now (the last 5 minutes), as behind "N nu" in the admin bar
           const live = liveVisitors(5)
