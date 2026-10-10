@@ -16,7 +16,9 @@ const shown = (name: string) => shownTeam(name, isNationalTeam(name) ? 'World' :
 
 export function addPreviewResults(now = Date.now()): number {
   let done = 0
-  for (const a of publishedArticles({ category: 'optakter', limit: 100 }).articles) {
+  // The previews, also James' match previews (category Kampoptakter, src/lib/jamesPreviews.ts)
+  const previews = [...publishedArticles({ category: 'optakter', limit: 100 }).articles, ...publishedArticles({ category: 'kampoptakter', limit: 200 }).articles]
+  for (const a of previews) {
     // A round-up of a day's matches is no preview of one match: no result line (and away with one put there before)
     if (isRoundUp(a.content)) {
       if (hasResult(a.content)) saveArticle({ ...a, content: withoutResult(a.content) })

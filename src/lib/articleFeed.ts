@@ -24,7 +24,8 @@ export const feedPath = () => '/artikler/feed.xml'
 
 /** RSS 2.0 of the latest published articles */
 export function rssXml(now = new Date()): string {
-  const articles = publishedArticles({ limit: FEED_ITEMS }).articles
+  // The feed is the article pages' list: without James' previews, reports and search articles
+  const articles = publishedArticles({ limit: FEED_ITEMS, mainStream: true }).articles
   const items = articles.map((a) => {
     const url = `${SITE_URL}${paths.article(a.slug)}`
     const image = a.featuredImage && absolute(a.featuredImage)

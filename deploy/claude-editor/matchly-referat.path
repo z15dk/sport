@@ -1,4 +1,4 @@
-# Når en Superliga- eller 1. divisionskamp har været slut i 15 minutter, skriver sitet /opt/scoreline/data/referat-request
+# Når en dansk kamp har været slut i 15 minutter, skriver sitet /opt/scoreline/data/referat-request
 # (src/lib/fastReports.ts); så startes James med det samme og skriver referatet (matchly-referat.service fjerner filen).
 # Webprocessen får ingen rettigheder.
 [Unit]

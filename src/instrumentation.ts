@@ -58,18 +58,24 @@ export async function register() {
   // Social media posts (does nothing until it is switched on in /admin/sociale)
   const { startSocialEngine } = await import('./lib/socialEngine')
   startSocialEngine()
-  // The weekend's 1. division previews as drafts every Thursday, mailed for publishing from the phone (src/lib/autoPreviews.ts)
-  const { startAutoPreviews } = await import('./lib/autoPreviews')
-  startAutoPreviews()
+  // The template previews and reports (src/lib/autoPreviews.ts) are off since 10/10-2026: James writes a preview and a
+  // report for every Danish match himself (src/lib/jamesPreviews.ts, src/lib/fastReports.ts); AUTO_PREVIEWS=on brings them back
+  if (process.env.AUTO_PREVIEWS === 'on') {
+    const { startAutoPreviews } = await import('./lib/autoPreviews')
+    startAutoPreviews()
+  }
   // The datavagt: the club pages' coaches held up against DBU and API-Sports every night, for Claude to fix (src/lib/datavagt.ts)
   const { startDatavagt } = await import('./lib/datavagt')
   startDatavagt()
   // Published previews get the result at the top once the match is played (src/lib/previewResults.ts)
   const { startPreviewResults } = await import('./lib/previewResults')
   startPreviewResults()
-  // Superliga and 1. division matches: James is started to write the report 15 minutes after the final whistle (src/lib/fastReports.ts)
+  // Every Danish match: James is started to write the report 15 minutes after the final whistle (src/lib/fastReports.ts)
   const { startFastReports } = await import('./lib/fastReports')
   startFastReports()
+  // The owner's morning list of the previews and reports James published himself (src/lib/jamesDigest.ts)
+  const { startJamesDigest } = await import('./lib/jamesDigest')
+  startJamesDigest()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()

@@ -28,7 +28,7 @@ ENV
   grep -q '^EDITOR_TOKEN=' /opt/scoreline/env || echo "EDITOR_TOKEN=$token" >> /opt/scoreline/env
   echo "Ny EDITOR_TOKEN lagt i /etc/matchly-editor.env og /opt/scoreline/env – genstart scoreline: systemctl restart scoreline"
 fi
-install -m 644 "$HERE/matchly-editor.service" "$HERE/matchly-editor.timer" "$HERE/matchly-nyhedsspejder.service" "$HERE/matchly-nyhedsspejder.timer" "$HERE/matchly-editor.path" "$HERE/matchly-nyhedsspejder.path" "$HERE/matchly-vaekst.service" "$HERE/matchly-vaekst.timer" "$HERE/matchly-referat.service" "$HERE/matchly-referat.path" "$HERE/matchly-quiz.service" "$HERE/matchly-quiz.timer" /etc/systemd/system/
+install -m 644 "$HERE/matchly-editor.service" "$HERE/matchly-editor.timer" "$HERE/matchly-nyhedsspejder.service" "$HERE/matchly-nyhedsspejder.timer" "$HERE/matchly-editor.path" "$HERE/matchly-nyhedsspejder.path" "$HERE/matchly-vaekst.service" "$HERE/matchly-vaekst.timer" "$HERE/matchly-referat.service" "$HERE/matchly-referat.path" "$HERE/matchly-quiz.service" "$HERE/matchly-quiz.timer" "$HERE/matchly-optakt.service" "$HERE/matchly-optakt.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable matchly-editor.timer >/dev/null
 # "Skriv om" from admin starts a run right away
@@ -44,5 +44,7 @@ systemctl enable --now matchly-referat.path >/dev/null
 # James' quiz round ("Gæt klubben", QUIZ.md): Monday, Wednesday and Friday at 10; the videos need ffmpeg
 command -v ffmpeg >/dev/null || apt-get install -y ffmpeg >/dev/null
 systemctl enable --now matchly-quiz.timer >/dev/null
+# James' previews for every Danish match (OPTAKT.md): every day at 08.15 and 15.15
+systemctl enable --now matchly-optakt.timer >/dev/null
 echo "Klar. Indsæt CLAUDE_CODE_OAUTH_TOKEN i /etc/matchly-editor.env, og start timeren: systemctl start matchly-editor.timer"
 echo "Prøv en kørsel nu: systemctl start matchly-editor.service && journalctl -u matchly-editor -n 50"

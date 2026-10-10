@@ -23,6 +23,9 @@
 #   matchly-api titel <fil.json>     {"action":"titel","path":…,"title":…,"description":…,"faq":[{"q":…,"a":…}],"query":…,"why":…}
 #   matchly-api dom <fil.json>       {"action":"behold"|"fortryd","path":…,"why":…} – the verdict on a 14-day title test
 #   matchly-api dagbog <fil.json>    {"action":"dagbog","text":…,"actions":[…],"numbers":{…}} – today's diary entry
+# The preview round (OPTAKT.md):
+#   matchly-api optakter             the Danish matches in 2–36 hours without a preview
+#   matchly-api optakt <fil.json>    {"action":"skrevet","slug":…,"id":…}, {"action":"udgiv","slug":…} or {"action":"spring","slug":…,"why":…}
 # The quiz round (QUIZ.md):
 #   matchly-api quiz                 the "Gæt klubben" series so far: the next number, the clubs used, whose answer comes next
 #   matchly-api quiz-afsnit <fil.json> {"action":"afsnit","club":…,"level":…,"clues":[…],"caption":…,"answerNote":…} – the next episode's video
@@ -64,6 +67,8 @@ case "${1:-}" in
   titel|dom|dagbog) jsonfile "${2:-}"; post "/api/redaktor/vaekst" "$2" ;;
   traener|ret) jsonfile "${2:-}"; post "/api/redaktor/datavagt" "$2" ;;
   quiz) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/quiz" ;;
+  optakter) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/optakter" ;;
+  optakt) jsonfile "${2:-}"; post "/api/redaktor/optakter" "$2" ;;
   quiz-afsnit) jsonfile "${2:-}"; post "/api/redaktor/quiz" "$2" ;;
   tjek) sitepath "${2:-}"; exec curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "${SITE}$2" ;;
   side)
@@ -72,5 +77,5 @@ case "${1:-}" in
     echo
     ;;
   soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | quiz | quiz-afsnit <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | quiz | quiz-afsnit <fil.json> | optakter | optakt <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac

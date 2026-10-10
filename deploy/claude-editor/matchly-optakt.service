@@ -1,8 +1,7 @@
-# James' hurtige referater (matchly-referat.path): når en dansk kamp er slut, lægger sitet
-# /opt/scoreline/data/referat-request (src/lib/fastReports.ts), og James skriver referatet som kladde. Samme bruger, nøgle og
-# spærringer som nyhedsspejderen, men egen mappe, så de kan køre samtidig. Lav prioritet, så siden altid går forud.
+# Optakt-runden (matchly-optakt.timer): James skriver optakter med research til alle danske kampe de næste 36 timer
+# (deploy/claude-editor/OPTAKT.md) og udgiver dem selv – ikke på Facebook. Samme bruger, nøgle og spærringer som de andre runder.
 [Unit]
-Description=Matchly: James skriver referater af danske kampe
+Description=Matchly: James skriver optakter til de danske kampe
 After=network-online.target scoreline.service
 Wants=network-online.target
 
@@ -13,16 +12,13 @@ Group=matchly-editor
 WorkingDirectory=/var/lib/matchly-editor
 EnvironmentFile=/etc/matchly-editor.env
 Environment=HOME=/var/lib/matchly-editor
-Environment=ROUND=referat
 # The newest script and prompt from the live release, copied as root into the editor's own folder before each run
-# The request goes first, so a match finishing during the run starts the next run
-ExecStartPre=+/bin/rm -f /opt/scoreline/data/referat-request
-ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/referat-bin /opt/scoreline/current/deploy/claude-editor/run-nyheder.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/NYHEDER.md
-ExecStart=/var/lib/matchly-editor/referat-bin/run-nyheder.sh
+ExecStartPre=+/usr/bin/install -D -o matchly-editor -g matchly-editor -m 500 -t /var/lib/matchly-editor/optakt-bin /opt/scoreline/current/deploy/claude-editor/run-optakt.sh /opt/scoreline/current/deploy/claude-editor/matchly-api /opt/scoreline/current/deploy/claude-editor/OPTAKT.md
+ExecStart=/var/lib/matchly-editor/optakt-bin/run-optakt.sh
 Nice=15
 CPUQuota=50%
 MemoryMax=900M
-TimeoutStartSec=40min
+TimeoutStartSec=150min
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

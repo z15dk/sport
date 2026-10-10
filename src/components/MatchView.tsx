@@ -65,6 +65,8 @@ interface Props {
   related?: Match[]
   /** Shown between the match and the round's other matches (the widget advert) */
   promo?: React.ReactNode
+  /** James' written preview and report for the match (src/lib/jamesPreviews.ts) */
+  stories?: { kind: 'optakt' | 'referat'; title: string; excerpt?: string; href: string; image?: string }[]
   /** The advertising space at the top of the page (AdSlot 'match', rendered on the server) */
   topAd?: React.ReactNode
   /** The page of every meeting between the two clubs (/opgoer/…), when they have one */
@@ -76,7 +78,7 @@ interface Props {
 }
 
 /** Match page body. Regenerates the match as time passes so live scores tick. */
-export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, subs, absent, related, promo, h2hHref, ticketHref, deep, topAd }: Props) {
+export function MatchView({ slug, date, initialNow, realH2h, extra, events, stats, cup, lineups, subs, absent, related, promo, h2hHref, ticketHref, deep, topAd, stories }: Props) {
   const now = useNow(30_000, initialNow)
   const match = findMatch(slug, date, now)
   // While the match is on, its statistics, line-ups and timeline from the server are fetched anew now and then
@@ -93,7 +95,7 @@ export function MatchView({ slug, date, initialNow, realH2h, extra, events, stat
   const shown = lineups?.length && withEvents.incidents?.length ? { ...withEvents, incidents: withEvents.incidents.map((e) => (e.player ? { ...e, player: spell(e.player) } : e)) } : withEvents
   return (
     <>
-      <MatchBody match={shown} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={lineups?.length ? subs?.map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) })) : subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} deep={deep} topAd={topAd} />
+      <MatchBody match={shown} now={now} realH2h={realH2h} extra={extra} stats={stats} cup={cup} lineups={lineups} subs={lineups?.length ? subs?.map((x) => ({ ...x, on: spell(x.on), off: spell(x.off) })) : subs} absent={absent} promo={promo} h2hHref={h2hHref} ticketHref={ticketHref} deep={deep} topAd={topAd} stories={stories} />
       {related && related.length > 0 && (
         <section className="league match-related" aria-labelledby="related-title">
           <header className="league__header">
@@ -164,6 +166,7 @@ function MatchBody({
   subs,
   absent,
   promo,
+  stories,
   h2hHref,
   ticketHref,
   deep,
@@ -180,6 +183,8 @@ function MatchBody({
   subs?: Substitution[]
   absent?: { home: Injury[]; away: Injury[] }
   promo?: React.ReactNode
+  /** James' written preview and report for the match (src/lib/jamesPreviews.ts) */
+  stories?: { kind: 'optakt' | 'referat'; title: string; excerpt?: string; href: string; image?: string }[]
   h2hHref?: string
   ticketHref?: string
   deep?: MatchDeep
@@ -393,6 +398,26 @@ function MatchBody({
         </section>
       )}
       </div>
+
+      {/* James' own preview and report: the journalism, linked high on the page */}
+      {stories && stories.length > 0 && (
+        <section className="panel mx-stories" aria-label="Artikler om kampen" style={{ display: 'grid', gap: 12, padding: 16 }}>
+          {stories.map((st) => (
+            <a key={st.href} href={st.href} style={{ display: 'grid', gridTemplateColumns: st.image ? 'minmax(0, 160px) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 14, alignItems: 'center', color: 'inherit', textDecoration: 'none' }}>
+              {st.image && (
+                // eslint-disable-next-line @next/next/no-img-element -- the article's own picture
+                <img src={st.image} alt="" width={160} height={84} style={{ width: '100%', height: 'auto', borderRadius: 12, objectFit: 'cover' }} loading="lazy" />
+              )}
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span className="muted small" style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{st.kind === 'optakt' ? 'Optakt' : 'Referat'}</span>
+                <strong style={{ fontSize: 18, lineHeight: 1.2 }}>{st.title}</strong>
+                {st.excerpt && <span className="muted small">{st.excerpt}</span>}
+                <span style={{ fontWeight: 700, textDecoration: 'underline' }}>{st.kind === 'optakt' ? 'Læs optakten' : 'Læs referatet'} →</span>
+              </span>
+            </a>
+          ))}
+        </section>
+      )}
 
       {/* "Kort fortalt" as an ordinary box under the summary and the preview, not in the middle of them */}
       {brief.length > 0 && (

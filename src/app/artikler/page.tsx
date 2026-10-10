@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { allTags, categories, publishedArticles } from '../../lib/articles'
+import { allTags, categories, publishedArticles, isHiddenCategory } from '../../lib/articles'
 import { ArticleCards, ArticlesHero, ArticleTopics, Pager } from '../../components/ArticleList'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../lib/jsonld'
 import { SITE_NAME, paths } from '../../lib/site'
@@ -24,7 +24,10 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 export default async function ArticlesPage({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, Number((await searchParams).side) || 1)
   const { articles, total } = publishedArticles({ limit: PER_PAGE, offset: (page - 1) * PER_PAGE, mainStream: true })
-  const cats = categories().map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total })).filter((c) => c.count > 0)
+  const cats = categories()
+    .filter((c) => !isHiddenCategory(c.slug))
+    .map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total }))
+    .filter((c) => c.count > 0)
   const tags = allTags().slice(0, 24)
   const names = new Map(cats.map((c) => [c.slug, c.name]))
   // The top's three: the most read this week, else the newest after the top story

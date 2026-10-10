@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { allTags, categories, publishedArticles } from '../../../../lib/articles'
+import { allTags, categories, publishedArticles, isHiddenCategory, type Article } from '../../../../lib/articles'
 import { ArticleCards, ArticlesHero, ArticleTopics, Pager } from '../../../../components/ArticleList'
 import { JsonLd, breadcrumbLd, webPageLd } from '../../../../lib/jsonld'
 import { paths } from '../../../../lib/site'
@@ -35,13 +35,20 @@ export default async function ArticleGroup({ params, searchParams }: { params: P
   const slug = (await params).slug
   const page = Math.max(1, Number((await searchParams).side) || 1)
   const name = nameOf(slug)
-  if (!name) notFound()
-  const { articles, total } = publishedArticles({ [KIND === 'kategori' ? 'category' : 'tag']: slug, limit: PER_PAGE, offset: (page - 1) * PER_PAGE })
-  const cats = categories().map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total })).filter((c) => c.count > 0)
+  // James' previews, reports and search articles are not listed here (only on the match, club and league pages)
+  if (!name || (KIND === 'kategori' && isHiddenCategory(slug))) notFound()
+  const listed = (list: Article[]) => list.filter((x) => !isHiddenCategory(x.category))
+  const all = listed(publishedArticles({ [KIND === 'kategori' ? 'category' : 'tag']: slug }).articles)
+  const articles = all.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+  const total = all.length
+  const cats = categories()
+    .filter((c) => !isHiddenCategory(c.slug))
+    .map((c) => ({ ...c, count: publishedArticles({ category: c.slug, limit: 0 }).total }))
+    .filter((c) => c.count > 0)
   const tags = allTags().slice(0, 24)
   const names = new Map(cats.map((c) => [c.slug, c.name]))
   // The top's three: the most read in this group, else its newest after the top story
-  const group = publishedArticles({ [KIND === 'kategori' ? 'category' : 'tag']: slug }).articles
+  const group = all
   const read = mostRead(group)
   const picks = (read.length ? read.map((r) => r.article) : group.slice(1, 4)).map((a) => ({
     slug: a.slug,

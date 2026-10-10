@@ -1,12 +1,13 @@
 import 'server-only'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { getMatches, isWomenMatch } from '../data/matches'
+import { getMatches } from '../data/matches'
+import { danishCompetition } from './danishMatches'
 import type { Match } from '../types'
 import { isoDate } from './time'
 import { cacheDir } from './tsdb'
 
-// James' fast match reports: every 5 minutes the finished Superliga and 1. division matches of the last hours are
+// James' fast match reports: every 5 minutes the finished Danish matches (src/lib/danishMatches.ts) of the last hours are
 // noted; 15 minutes after the final whistle (so the goals and cards have settled) the site leaves a request
 // (data/referat-request) and the server starts James (matchly-referat.path → deploy/claude-editor/NYHEDER.md, the
 // referat round), who reads the matches with GET /api/redaktor/referater, writes a report draft with the result
@@ -14,13 +15,16 @@ import { cacheDir } from './tsdb'
 // only when the checklist has nothing red. State in data/hurtige-referater.json;
 // FAST_REPORTS=off stops it.
 
-export const FAST_REPORT_LEAGUES = ['superliga', '1-division']
+/** The competitions whose reports also go out on Facebook; the rest only on the site (the owner's word 10/10-2026) */
+export const FAST_REPORT_SOCIAL = new Set(['superliga', '1-division'])
 const SETTLE = 15 * 60_000
 const WINDOW = 8 * 3_600_000
 
 interface Seen {
   /** When the match was first seen finished */
   finishedAt: number
+  /** Its competition (src/lib/danishMatches.ts), for whether the report goes out on Facebook */
+  competition?: string
   /** When James was asked to write it */
   requestedAt?: number
   /** The draft he wrote */
@@ -55,12 +59,17 @@ function finishedMatches(now: number): Match[] {
   const days = new Set([isoDate(new Date(now)), isoDate(new Date(now - WINDOW))])
   return [...days]
     .flatMap((d) => getMatches(d, 'soccer', now))
-    .filter((m) => FAST_REPORT_LEAGUES.includes(m.leagueSlug ?? '') && m.state === 'finished' && m.home.score != null && m.away.score != null && !isWomenMatch(m) && now - m.kickoff.getTime() < WINDOW)
+    // Every Danish match James covers (src/lib/danishMatches.ts): the four divisions, the A-Liga, the cup and the national teams
+    .filter((m) => !!danishCompetition(m) && m.state === 'finished' && m.home.score != null && m.away.score != null && now - m.kickoff.getTime() < WINDOW)
 }
 
 export interface FastReportMatch {
   slug: string
   league: string
+  /** superliga, 1-division, 2-division, 3-division, a-liga, pokalen or landshold */
+  competition: string
+  /** Whether the report also goes out on Facebook (only the Superliga and 1. division) */
+  facebook: boolean
   kickoff: string
   round?: number
   venue?: string
@@ -84,6 +93,8 @@ export function pendingFastReports(now = Date.now()): FastReportMatch[] {
     .map((m) => ({
       slug: m.slug,
       league: m.league,
+      competition: danishCompetition(m)!,
+      facebook: FAST_REPORT_SOCIAL.has(danishCompetition(m)!),
       kickoff: m.kickoff.toISOString(),
       round: m.round,
       venue: m.venue,
@@ -94,6 +105,12 @@ export function pendingFastReports(now = Date.now()): FastReportMatch[] {
       incidents: (m.incidents ?? []).map((i) => ({ minute: i.minute, side: i.side, kind: i.kind, player: i.player })),
       matchPage: `/kamp/${m.slug}`,
     }))
+}
+
+/** Whether a match's report goes out on Facebook (the Superliga and 1. division only) */
+export function fastReportSocial(slug: string): boolean {
+  const c = readState().matches[slug]?.competition
+  return !c || FAST_REPORT_SOCIAL.has(c)
 }
 
 /** The report draft James wrote for the match (to publish it himself – only his fast reports) */
@@ -119,7 +136,7 @@ export function checkFastReports(now = Date.now()): number {
   for (const m of finishedMatches(now)) {
     const s = state.matches[m.slug]
     if (!s) {
-      state.matches[m.slug] = { finishedAt: now }
+      state.matches[m.slug] = { finishedAt: now, competition: danishCompetition(m) }
       changed = true
     } else if (!s.requestedAt && !s.articleId && now - s.finishedAt >= SETTLE) {
       s.requestedAt = now

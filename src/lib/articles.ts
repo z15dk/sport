@@ -180,6 +180,12 @@ const isLive = (a: Article, now = Date.now()) => a.status === 'published' && !!a
 /** Published articles, newest first (scheduled ones only from their time) */
 /** Categories kept out of the article list's main stream and "Læs også" (still on their own tab, club pages, feed and sitemap) */
 export const OWN_TAB_CATEGORIES = ['referater']
+/**
+ * James' match previews and reports and the growth round's search articles (the owner's word 10/10-2026): on the match,
+ * club and league pages and in Google, never in the article pages' lists (/artikler, its categories and tags, the feed)
+ */
+export const HIDDEN_CATEGORIES = ['kampoptakter', 'referater', 'guides']
+export const isHiddenCategory = (category?: string) => HIDDEN_CATEGORIES.includes((category ?? '').toLowerCase())
 
 export function publishedArticles(opts: { category?: string; tag?: string; limit?: number; offset?: number; mainStream?: boolean } = {}): { articles: Article[]; total: number } {
   const all = open(
@@ -191,7 +197,7 @@ export function publishedArticles(opts: { category?: string; tag?: string; limit
       (!opts.category || a.category === opts.category) &&
       (!opts.tag || a.tags.some((t) => slugify(t) === opts.tag)) &&
       // The match reports have their own tab: not in the main list (opts.mainStream)
-      (!opts.mainStream || !OWN_TAB_CATEGORIES.includes(a.category ?? '')),
+      (!opts.mainStream || (!OWN_TAB_CATEGORIES.includes(a.category ?? '') && !isHiddenCategory(a.category))),
   )
   const offset = opts.offset ?? 0
   return { articles: all.slice(offset, offset + (opts.limit ?? all.length)), total: all.length }

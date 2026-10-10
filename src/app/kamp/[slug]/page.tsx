@@ -39,6 +39,7 @@ import { matchFaq } from '../../../lib/faq'
 import { summary } from '../../../lib/matchText'
 import { formatFull, isoDate, formatNumeric } from '../../../lib/time'
 import { paths } from '../../../lib/site'
+import { matchArticles } from '../../../lib/jamesPreviews'
 import { JsonLd, breadcrumbLd, matchLd, webPageLd } from '../../../lib/jsonld'
 import { withSeoOverride } from '../../../lib/seoOverrides'
 
@@ -285,7 +286,7 @@ async function MatchPageInner({ params }: { params: Params }) {
         // Both clubs' leagues in full: the table, the form and the clubs' other matches
         leagues={clubLeagues([homeClub?.id, awayClub?.id].filter((x): x is string => !!x))}
       />
-      <MatchView topAd={<AdSlot placement="match" />} deep={deep} slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} promo={
+      <MatchView topAd={<AdSlot placement="match" />} deep={deep} slug={slug} date={date} initialNow={now} ticketHref={ticketUrl ? ticketClickPath({ kamp: match.slug }) : undefined} h2hHref={homeClub && awayClub ? rivalryPath(homeClub.slug, awayClub.slug) : undefined} realH2h={realH2h} h2hSource={h2hSource} extra={extra} events={events} stats={stats} cup={cup} lineups={lineupPhotos(lineups?.length ? lineups : (dbuLineups(match) ?? dbuMatchLineups({ names: [match.home.name, ...(homeClub ? clubNames(homeClub) : [])], team: match.home.name }, { names: [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], team: match.away.name }, match.kickoff)))?.map((l) => ({ ...l, team: shownTeam(l.team, match.country) }))} subs={(game ? savedSubs(game.id) : undefined) ?? details?.subs} absent={absent} related={related} stories={matchStories(match.slug)} promo={
         <WidgetPromo
             wide
             title={['Kampprogrammet', 'på din side.']}
@@ -308,6 +309,14 @@ async function PastMatchPage(props: { game: PastGame; match: Match }) {
 }
 
 /** MatchPage with the visitor's right to spend API calls (crawlers use what is saved: src/lib/visitorBudget.ts) */
+/** James' published preview and report for the match, newest first (the report once it is played) */
+function matchStories(slug: string) {
+  const { preview, report } = matchArticles(slug)
+  return [report && { kind: 'referat' as const, a: report }, preview && { kind: 'optakt' as const, a: preview }]
+    .filter((x): x is { kind: 'referat' | 'optakt'; a: NonNullable<typeof preview> } => !!x)
+    .map(({ kind, a }) => ({ kind, title: a.title, excerpt: a.excerpt || undefined, href: paths.article(a.slug), image: a.featuredImage || undefined }))
+}
+
 export default async function MatchPage(props: { params: Params }) {
   return forVisitor(() => MatchPageInner(props))
 }

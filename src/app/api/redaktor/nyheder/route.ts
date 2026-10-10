@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic'
 // (category Statistik, also a published one) up to date – once in six days, no red points, the owner gets a mail.
 // GET ?id= also gives a statistics article in full.
 
-const CATEGORIES = ['Nyheder', 'Optakter', 'Referater']
+const CATEGORIES = ['Nyheder', 'Optakter', 'Referater', 'Kampoptakter', 'Guides']
 const own = (id: number) => scoutDrafts().find((a) => a.id === id)
 /** The statistics articles (category Statistik) James keeps fresh with new numbers – also once they are published */
 const statArticle = (id: number) => {

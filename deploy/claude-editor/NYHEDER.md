@@ -25,7 +25,7 @@ ADGANG
 
 1. FIND NYHEDERNE (seneste ca. 24 timer)
    - Start med ejerens Google Alert om de danske fodboldligaer: WebFetch https://www.google.com/alerts/feeds/17336130936366264753/9899134086605896615. Det er et Atom-feed. Hver entry har titel, dato og et Google-link, hvor den rigtige adresse står i parameteren url=. Brug feedet som tipliste. Er det tomt, så gå videre.
-   - Se også James' vækstidéer: matchly-api vaekst giver diary (hans seneste notater) med "ideas" – søgninger, Matchly ikke har en god side til, med en vinkel. Morgenrunden kan gøre den bedste af dem til en af dagens artikler, når den er aktuel og kan skrives med fakta fra mindst to kilder.
+   - Se også James' vækstidéer: matchly-api vaekst giver diary (hans seneste notater) med "ideas" – søgninger, Matchly ikke har en god side til, med en vinkel. Morgenrunden kan gøre den bedste af dem til en af dagens artikler, når den er aktuel og kan skrives med fakta fra mindst to kilder. En artikel ud fra en vækstidé får kategorien "Guides" – den skal ikke stå i artikellisten (ejerens ønske 10/10-2026), kun på klub- og ligasiderne og i Google.
    - Søg efter danske fodboldnyheder om Superligaen, Betinia Liga (1. division), CampoBet 2. division, pokalen og landsholdene. Det kan være trænerskifter, fyringer, ansættelser, store skader og karantæner før weekenden, rekorder, store resultater og klubkriser.
    - Gode kilder:
      - klubbernes egne hjemmesider (pressemeddelelser er bedst);
@@ -90,7 +90,8 @@ ADGANG
      - Brug det ikke for tit (tjeklisten vil have højst ca. 3 %).
      - Mindst 3 interne links og 1–2 links til eksterne kilder.
      - Kun HTML-tags p, h2, h3, strong, em, a, ul, ol, li, table/thead/tbody/tr/th/td. Ingen class-attributter.
-   - Kategori: "Nyheder" (eller "Optakter", og "Referater" for referaterne i punkt 8). Tags: klubberne, ligaen og hovedpersonen.
+   - Kategori: "Nyheder" (eller "Optakter" til rundeoptakterne i punkt 7, "Referater" for referaterne i punkt 8, og "Guides" for artikler ud fra James' vækstidéer). Tags: klubberne, ligaen og hovedpersonen.
+   - Referater, kampoptakter og guides står ikke i artikellisten, men på kamp-, klub- og ligasiderne og i Google.
 
 4. GEM, TJEK OG SEND
    - Skriv artiklen som JSON i en fil i din mappe (fx nyhed-1.json), og gem den med matchly-api nyhed nyhed-1.json.
@@ -141,7 +142,8 @@ ADGANG
    - Kun punkt 7 i denne runde.
 
 8. REFERAT-RUNDEN: HURTIGE REFERATER (startes af sitet, når en kamp er slut)
-   - matchly-api referater giver de Superliga- og 1. divisionskampe, der er slut og mangler et referat: slug, liga, runde, stadion, hold, resultat og incidents (mål og kort med minut, side, slags og spiller).
+   - matchly-api referater giver de danske kampe, der er slut og mangler et referat: Superligaen, 1., 2. og 3. division, A-Ligaen, DBU Pokalen og landsholdene. For hver: slug, liga, competition, facebook (true/false), runde, stadion, hold, resultat og incidents (mål og kort med minut, side, slags og spiller).
+   - I de små rækker har kilderne ofte færre detaljer. Så skriv kortere (200–350 ord) og brug klubbens egen side og lokalavisen til at finde det, der gør kampen til en historie.
    - Er listen tom, så stop.
    - For hver kamp:
      - Læs kampsiden (matchly-api side /kamp/<slug>) og ligasiden for stillingen efter kampen.
@@ -167,10 +169,10 @@ ADGANG
        - "minimal": kun navne og stort resultat. Til 0-0 og kampe uden målscorere.
        - "klassisk": begge logoer og resultatet i midten. Når intet andet passer bedre.
        - Varier: brug ikke samme variant til to referater i træk, og helst ikke samme variant to gange samme dag (se de seneste referater med matchly-api artikler).
-     - Opslag: resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?".
+     - Opslag KUN når facebook er true (Superligaen og 1. division): resultatet og én pointe, fx "AGF tog sejren mod FCK i sidste minut. Var det fortjent?". De andre referater skal ikke på Facebook – skriv intet opslag til dem.
      - Marker det skrevet: matchly-api referat med {"action":"skrevet","slug":"<kampens slug>","id":<kladdens id>}.
      - Er der intet at skrive (resultatet ser forkert ud, eller kampen er aflyst): {"action":"spring","slug":…,"why":"…"}.
-     - Udgiv det selv (ejeren har givet lov 9/10-2026): matchly-api referat med {"action":"udgiv","slug":"<kampens slug>"}. Det kræver billedet og ingen røde punkter på tjeklisten. Referatet går også ud på Facebook med dit opslag, og ejeren får en kort mail.
+     - Udgiv det selv (ejeren har givet lov 9/10-2026): matchly-api referat med {"action":"udgiv","slug":"<kampens slug>"}. Det kræver billedet og ingen røde punkter på tjeklisten. Superligaens og 1. divisions referater går også ud på Facebook med dit opslag, og ejeren får en kort mail; de andre står kun på sitet og kommer i ejerens daglige liste.
      - Er du i tvivl om et faktum (resultat, målscorer, udvisning), så udgiv ikke. Lad det ligge som kladde, og send ejeren den med matchly-api mail <id>.
    - Kun referaterne må du udgive selv. Alt andet er stadig kladder til ejeren.
    - Kun punkt 8 i denne runde. Referaterne tæller ikke med i grænsen på 4 artikler om dagen.

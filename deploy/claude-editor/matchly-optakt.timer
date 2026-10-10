@@ -1,0 +1,10 @@
+[Unit]
+Description=Matchly: James' optakter hver dag kl. 08.15 og 15.15
+
+[Timer]
+OnCalendar=*-*-* 08:15:00 Europe/Copenhagen
+OnCalendar=*-*-* 15:15:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target
