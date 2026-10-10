@@ -6,6 +6,7 @@ import { SETTINGS } from '../../../data/settingsDef'
 import { SettingToggle } from '../../../components/admin/SettingToggle'
 import { AdminNav } from '../../../components/admin/AdminNav'
 import { VisitorsDash } from '../../../components/admin/VisitorsDash'
+import { JamesStatus } from '../../../components/admin/JamesStatus'
 import { NewsFeedsAdmin } from '../../../components/admin/NewsFeedsAdmin'
 import { TrackingAdmin } from '../../../components/admin/TrackingAdmin'
 import { trackingConfig } from '../../../lib/tracking'
@@ -60,6 +61,7 @@ export default async function AdminSettings({ searchParams }: { searchParams: Pr
           <h1 className="feed__title">Generelt</h1>
           <p className="muted small">Besøgende uden cookies · søgemaskiner og dine egne besøg tælles ikke med · en besøgende genkendes kun inden for samme døgn</p>
         </div>
+        <JamesStatus />
         <VisitorsDash periode={params.periode} href="/admin/indstillinger">
           <section className="panel dash-card">
             <h2 className="panel__title">Funktioner på siden</h2>
