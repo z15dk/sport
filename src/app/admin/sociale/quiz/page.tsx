@@ -46,7 +46,8 @@ export default async function QuizPage() {
               </p>
               <ol style={{ margin: 0, paddingLeft: 20 }}>
                 {e.clues.map((c) => (
-                  <li key={c}>{c}</li>
+                  // The words James marked (**…**) get the lime marker in the video: bold here
+                  <li key={c}>{c.split(/(\*\*[^*]+\*\*)/).map((part, k) => (part.startsWith('**') ? <b key={k}>{part.slice(2, -2)}</b> : part))}</li>
                 ))}
               </ol>
               <label className="small">

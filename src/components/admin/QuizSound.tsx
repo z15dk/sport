@@ -18,7 +18,7 @@ export function QuizSound({ has }: { has: boolean }) {
     const res = await fetch('/api/admin/quiz/lyd', { method: 'POST', body: form }).catch(() => undefined)
     const r = ((await res?.json().catch(() => ({}))) ?? {}) as { error?: string; episodes?: number }
     setBusy(false)
-    if (!res?.ok || r.error) return setMsg({ text: r.error ?? 'Det gik ikke', error: true })
+    if (!res?.ok || r.error) return setMsg({ text: r.error ?? (res?.status === 413 ? 'Filen er for stor til serveren' : `Det gik ikke (fejl ${res?.status ?? 'uden forbindelse'})`), error: true })
     setMsg({ text: `Lyden er gemt og lagt på ${r.episodes ?? 0} afsnit` })
     router.refresh()
   }
