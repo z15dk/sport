@@ -121,7 +121,8 @@ export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
   const flags = nationalTeams()
   // A national team's flag when the name is one (our clubs' logos win, e.g. a club named like a country)
   const isFlag = (name: string) => !badges[name] && !!flags[name]
-  const logoOf = (name: string) => (isFlag(name) ? logoData(flags[name], 600, 400, true) : logoData(badges[name] ?? flags[name], 560, 560))
+  // A national team's flag; else our club's logo, or the team's crest from the sources (women's and youth national teams, the A-Liga)
+  const logoOf = async (name: string) => (isFlag(name) ? logoData(flags[name], 600, 400, true) : ((await logoData(badges[name] ?? flags[name], 560, 560)) ?? (await teamCrest(name, 560))))
   const [homeLogo, awayLogo, photo] = await Promise.all([logoOf(home), logoOf(away), photoData(input.bg)])
   const top = input.top?.trim()
   const res = new ImageResponse(
@@ -486,7 +487,9 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
   const away = input.away.trim()
   if (!home || !away) throw new Error('Begge hold skal med')
   const badges = await getBadges()
-  const [homeLogo, awayLogo] = await Promise.all([logoData(badges[input.homeLogo ?? home] ?? badges[home], 420, 420), logoData(badges[input.awayLogo ?? away] ?? badges[away], 420, 420)])
+  // The crests: a logo chosen in the editor, else the team's own (our clubs, a national team's flag – also women's and youth teams – or the sources')
+  const crest = async (chosen: string | undefined, name: string) => (chosen && badges[chosen] ? logoData(badges[chosen], 420, 420) : await teamCrest(name, 420))
+  const [homeLogo, awayLogo] = await Promise.all([crest(input.homeLogo, home), crest(input.awayLogo, away)])
   const hc = clubColor(input.homeLogo ?? home, false)
   const ac = clubColor(input.awayLogo ?? away, false)
   const hg = input.homeGoals ?? []
@@ -1071,6 +1074,40 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
   }
   const res = new ImageResponse(picture as React.ReactElement, { ...OG_SIZE, fonts: ogFonts() })
   return Buffer.from(await res.arrayBuffer())
+}
+
+
+/** A national team's country for its flag: "Danmark (K)", "Danmark U21", "Denmark W" -> "Danmark" */
+const nationOf = (name: string) => name.replace(/\s*\(k\)$/i, '').replace(/\s+(u-?\s?\d{2}|w|women|ol|olympics?)$/i, '').trim()
+
+/** A flag as a round badge (cut to a circle), so it sits like a club's crest */
+async function flagBadge(src: string, size: number): Promise<string | undefined> {
+  try {
+    const bytes = await ownPicture(src)
+    if (!bytes) return undefined
+    const square = await sharp(bytes, { density: 300 }).resize(size, size, { fit: 'cover' }).png().toBuffer()
+    const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#fff"/></svg>`)
+    const round = await sharp(square).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer()
+    return `data:image/png;base64,${round.toString('base64')}`
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Any team's crest for the graphics: our clubs' logos (admin), a national team's flag as a round badge – also the women's
+ * and youth teams ("Danmark (K)", "Danmark U21") – else the sources' own logo for the team (the A-Liga, clubs abroad)
+ */
+export async function teamCrest(name: string, size: number): Promise<string | undefined> {
+  const badges = await getBadges()
+  if (badges[name]) return logoData(badges[name], size, size, false, true)
+  const nation = nationOf(name)
+  const flags = nationalTeams()
+  const code = flags[nation] || flags[name] ? flagCode(nation, true) : undefined
+  if (code) return flagBadge(proxyImage(flagSource(code).replace('/w160/', '/w640/')), size)
+  if (flags[nation]) return flagBadge(flags[nation], size)
+  const team = allTeams().find((t) => t.logo && (t.name === name || t.names?.includes(name)))
+  return team?.logo ? logoData(team.logo, size, size, false, true) : undefined
 }
 
 /** The result graphic saved as an upload (in the photo archive as a graphic credited Matchly.dk), ready as the report's picture */
