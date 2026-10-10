@@ -187,14 +187,28 @@ function teamSignature(external: ExternalGame[] | undefined): number {
 }
 
 // Rebuilt when the season changes, or the teams in the real data do (not for every new score)
-let cache: { clubs: ReturnType<typeof seasonClubs>; signature: number; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry>; byLeagueName: Map<string, TeamEntry> } | undefined
+type Register = { clubs: ReturnType<typeof seasonClubs>; signature: number; external?: ExternalGame[]; list: TeamEntry[]; bySlug: Map<string, TeamEntry>; byName: Map<string, TeamEntry>; byLeagueName: Map<string, TeamEntry> }
+let cache: Register | undefined
+// The last few registers by what they were built from: the site process swings between two sets of games (the merged
+// data from the job, and the same with the live games the pages fetch every 15 seconds, some without their logos), and
+// each swing rebuilt the register – 0.7 seconds with every page waiting, every minute or two on a match evening
+const recent: Register[] = []
 function teams() {
   const clubs = seasonClubs()
   const external = getRealData()?.external
   // The signature is only worked out when the data is another object (also when a page adds games in the browser)
   const signature = cache && cache.external === external && cache.clubs === clubs ? cache.signature : teamSignature(external)
   if (!cache || cache.clubs !== clubs || cache.signature !== signature) {
+    const known = recent.find((r) => r.clubs === clubs && r.signature === signature)
+    if (known) {
+      cache = known
+      cache.external = external
+      return cache
+    }
+    const started = Date.now()
+    const why = !cache ? 'første gang' : cache.clubs !== clubs ? 'ny sæsondata' : `nye hold (signatur ${cache.signature} → ${signature})`
     const list = build()
+    if (typeof window === 'undefined' && Date.now() - started > 500) console.log(`[data] klubregister bygget forfra (${why}), ${Date.now() - started} ms`)
     // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
     const byName = new Map<string, TeamEntry>()
     // And by league and name: the same name is another team in another league or sport (AGF's handball team is not AGF's footballers)
@@ -205,6 +219,8 @@ function teams() {
         if (t.leagueSlug && !byLeagueName.has(`${t.leagueSlug}|${n}`)) byLeagueName.set(`${t.leagueSlug}|${n}`, t)
       }
     cache = { clubs, signature, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName, byLeagueName }
+    recent.unshift(cache)
+    recent.length = Math.min(recent.length, 4)
   } else if (cache.external !== external) {
     cache.external = external
   }
