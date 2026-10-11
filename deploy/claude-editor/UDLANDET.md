@@ -10,13 +10,15 @@ ADGANG
 - matchly-api:
   - matchly-api udlandet: listen og opsamlingen, som de står nu.
   - matchly-api udlandet-ret <fil.json>: {"action":"spillere","players":[…]} erstatter HELE listen (send altid alle spillere), eller {"action":"opsamling","html":"…"}.
+  - matchly-api udlandet-billeder: spillerne, der mangler billede, hver med klubbens trup (id og navn).
   - matchly-api soeg <navn>: klubbens navn, som Matchly skriver det. Brug præcis det navn i "club".
   - matchly-api side </sti>: en side på matchly.dk som ren tekst (klubsider, kampsider, ligaer, og /danskere-i-udlandet).
 
 1. LISTEN
    - matchly-api udlandet. Er listen tom, så byg den: de danske A-landsholdsspillere og de vigtigste andre danskere i udenlandske klubber (mænd og kvinder, gerne 40–80 spillere). Start med de store ligaer (England, Tyskland, Spanien, Italien, Frankrig, Holland, Portugal, Skotland, Belgien, Norge, Sverige, Tyrkiet, Grækenland, USA). Kilder: DBU's landsholdstrup, klubbernes egne sider, transfermarkt, bold.dk og tipsbladet.dk.
    - Er listen der, så tjek den: nye skifter, lejeaftaler, spillere der er vendt hjem til Danmark (de skal af listen), og nye danskere i udlandet.
-   - Hver spiller: {"name":"<fulde navn>","club":"<klubben, som matchly-api soeg skriver den>","position":"<Målmand|Forsvar|Midtbane|Angreb>","note":"<én linje, højst 220 tegn>"}.
+   - Hver spiller: {"name":"<fulde navn>","club":"<klubben, som matchly-api soeg skriver den>","position":"<Målmand|Forsvar|Midtbane|Angreb>","note":"<én linje, højst 220 tegn>","apiId":<tal, valgfrit>}.
+   - Billeder: siden finder selv spillerens billede i klubbens trup ud fra navnet. Kør matchly-api udlandet-billeder bagefter. For hver spiller, der mangler, så find ham i "squad" (fx "K. Dolberg Rasmussen" for Kasper Dolberg), og giv ham "apiId" med hans id. Er truppen tom, eller står han der ikke, så lad det være. Behold apiId, når du sender listen igen.
    - Kvindespillere: klubbens kvindehold, som Matchly skriver det (fx med (K)). Findes holdet ikke, så lad spilleren vente.
    - Findes klubben ikke i matchly-api soeg, så lad spilleren vente til næste gang, og nævn det til sidst.
 

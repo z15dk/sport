@@ -33,6 +33,7 @@
 #   matchly-api trend <fil.json>     {"action":"skrevet","id":…,"articleId":…}, {"action":"udgiv","id":…} or {"action":"spring","id":…,"why":…}
 # The Danes abroad (UDLANDET.md):
 #   matchly-api udlandet             the list of Danish players abroad and the weekly roundup as they stand
+#   matchly-api udlandet-billeder    the players without a photo, each with his club's squad (id, name) to find his apiId
 #   matchly-api udlandet-ret <fil.json> {"action":"spillere","players":[{name,club,position,note}]} (the whole list) or {"action":"opsamling","html":…}
 # The quiz round (QUIZ.md):
 #   matchly-api quiz                 the "Gæt klubben" series so far: the next number, the clubs used, whose answer comes next
@@ -82,6 +83,7 @@ case "${1:-}" in
   trends) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/trends" ;;
   trend) jsonfile "${2:-}"; post "/api/redaktor/trends" "$2" ;;
   udlandet) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/udlandet" ;;
+  udlandet-billeder) exec curl -sS "${auth[@]}" "${SITE}/api/redaktor/udlandet?billeder=1" ;;
   udlandet-ret) jsonfile "${2:-}"; post "/api/redaktor/udlandet" "$2" ;;
   quiz-afsnit) jsonfile "${2:-}"; post "/api/redaktor/quiz" "$2" ;;
   tjek) sitepath "${2:-}"; exec curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "${SITE}$2" ;;
@@ -91,5 +93,5 @@ case "${1:-}" in
     echo
     ;;
   soeg) exec curl -sS --get --data-urlencode "q=${2:-}" "${SITE}/api/search" ;;
-  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | quiz | quiz-afsnit <fil.json> | optakter | optakt <fil.json> | tv | tv-tekst <fil.json> | trends | trend <fil.json> | udlandet | udlandet-ret <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
+  *) echo "Brug: matchly-api kladder | alle | gem <id> <fil.json> | artikler | artikel <id> | nyhed <fil.json> | billede <fil.json> | opslag <fil.json> | opdater <fil.json> | mail <id>… | referater | referat <fil.json> | datavagt | traener <fil.json> | ret <fil.json> | vaekst | titel <fil.json> | quiz | quiz-afsnit <fil.json> | optakter | optakt <fil.json> | tv | tv-tekst <fil.json> | trends | trend <fil.json> | udlandet | udlandet-billeder | udlandet-ret <fil.json> | dom <fil.json> | dagbog <fil.json> | tjek </sti> | side </sti> | soeg <navn>" >&2; exit 2 ;;
 esac

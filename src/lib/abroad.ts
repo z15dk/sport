@@ -17,6 +17,8 @@ export interface AbroadPlayer {
   position?: string
   /** James' line on how it goes, e.g. "Scorede i 2-1-sejren over Lyon – tre mål i fire kampe" */
   note?: string
+  /** The player's id at the match data's source (his photo and page), when the club's squad doesn't find him by name */
+  apiId?: number
 }
 
 export interface Abroad {
@@ -58,7 +60,8 @@ export function setAbroadPlayers(list: unknown, now = Date.now()): { error?: str
   const players: AbroadPlayer[] = []
   const unknown: string[] = []
   for (const raw of list as Record<string, unknown>[]) {
-    const p = { name: str(raw?.name, 60), club: str(raw?.club, 60), position: str(raw?.position, 30) || undefined, note: str(raw?.note, 220) || undefined }
+    const apiId = Number(raw?.apiId)
+    const p = { name: str(raw?.name, 60), club: str(raw?.club, 60), position: str(raw?.position, 30) || undefined, note: str(raw?.note, 220) || undefined, ...(Number.isInteger(apiId) && apiId > 0 && { apiId }) }
     if (!p.name || !p.club) return { error: 'Hver spiller skal have name og club' }
     if (!abroadTeam(p.club)) unknown.push(p.club)
     players.push(p)

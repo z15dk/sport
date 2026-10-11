@@ -3241,22 +3241,57 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .rv-comps th .badge { vertical-align: middle; }
 
 /* Danskere i udlandet (src/app/danskere-i-udlandet) */
-.abroad__roundup { padding: 18px 20px; font-size: 16px; line-height: 1.6; margin-bottom: 18px; }
-.abroad__roundup p { margin: 0 0 10px; }
-.abroad__roundup h2, .abroad__roundup h3 { margin: 16px 0 8px; font-size: 18px; }
-.abroad__roundup a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* James' weekly roundup: a panel with Matchly's title, the text in two newspaper columns on a wide screen */
+.abroad__roundup { margin-bottom: 8px; }
+.abroad__roundup-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-right: 22px; }
+.abroad__roundup-head .panel__title { padding-left: 22px; }
+.abroad__roundup-date { font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.abroad__roundup-body { padding: 4px 22px 22px; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+.abroad__roundup-body > :first-child { margin-top: 0; }
+.abroad__roundup-body p { margin: 0 0 10px; }
+.abroad__roundup-body > p:first-child { font-size: 18px; line-height: 1.5; font-weight: 600; color: var(--ink); }
+.abroad__roundup-body h2, .abroad__roundup-body h3 {
+  position: relative; margin: 18px 0 8px; padding-left: 18px; break-after: avoid;
+  font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 19px; line-height: 1.1; color: var(--ink);
+}
+.abroad__roundup-body h2::before, .abroad__roundup-body h3::before { content: ''; position: absolute; left: 0; top: 0.3em; width: 9px; height: 9px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
+.abroad__roundup-body ul { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.abroad__roundup-body li { position: relative; padding-left: 18px; }
+.abroad__roundup-body li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
+.abroad__roundup-body strong { color: var(--ink); }
+.abroad__roundup-body a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--lime-deep); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.abroad__roundup-body p, .abroad__roundup-body ul { break-inside: avoid; }
+@media (min-width: 1100px) { .abroad__roundup-body { columns: 2; column-gap: 48px; column-rule: 1px solid var(--line); } }
 .abroad__empty { padding: 18px 20px; }
 .abroad__league { margin-top: 22px; }
-.abroad__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 12px; }
-.abroad__player { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.abroad__who { display: flex; flex-direction: column; gap: 2px; }
-.abroad__name { margin: 0; font-size: 18px; }
-.abroad__club { font-size: 14px; opacity: .75; }
+.abroad__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+.abroad__player { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.abroad__who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.abroad__face { width: 56px; height: 56px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: var(--surface-2); }
+.abroad__face--none { display: grid; place-items: center; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; color: var(--ink-2); }
+.abroad__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.abroad__name { margin: 0; font-size: 18px; line-height: 1.2; }
+.abroad__name a { color: inherit; text-decoration: none; }
+.abroad__name a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.abroad__club { font-size: 14px; color: var(--ink-2); }
 .abroad__club a { text-decoration: underline; text-underline-offset: 3px; }
 .abroad__note { margin: 0; font-size: 15px; line-height: 1.5; }
-.abroad__match { display: flex; flex-direction: column; gap: 4px; }
-.abroad__label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
-@media (max-width: 600px) { .abroad__list { grid-template-columns: 1fr; } }
+.abroad__matches { display: grid; gap: 10px; margin-top: auto; }
+.abroad__match { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.abroad__match ul { margin: 0; padding: 0; list-style: none; }
+/* The narrow card: the team names get the room, the channel and the score only what they need */
+.abroad__match .match { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; padding: 8px 10px; }
+.abroad__match .match__right { grid-template-columns: auto auto; gap: 8px; }
+.abroad__match .match__result--score { grid-template-columns: auto auto; }
+.abroad__label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.abroad__updated { margin-top: 18px; }
+@media (max-width: 600px) {
+  .abroad__list { grid-template-columns: 1fr; }
+  .abroad__roundup-head { flex-direction: column; align-items: flex-start; gap: 0; padding-right: 18px; }
+  .abroad__roundup-head .panel__title { padding-left: 18px; }
+  .abroad__roundup-date { padding: 0 18px 6px; }
+  .abroad__roundup-body { padding: 4px 18px 18px; }
+}
 
 /* James' preview and report on the match page: a small card – on a phone only a thumbnail and the title */
 .mx-stories { display: grid; gap: 12px; padding: 16px; }
