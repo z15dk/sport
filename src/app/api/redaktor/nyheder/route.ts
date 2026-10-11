@@ -7,7 +7,7 @@ import { indexNowByHand } from '../../../../lib/indexnow'
 import { mailErrorText, sendMail } from '../../../../lib/mail'
 import { SITE_URL, paths } from '../../../../lib/site'
 import { setSocialCaption } from '../../../../lib/socialCaptions'
-import { makeClubGraphic, makeLeagueGraphic, makeResultGraphic, makeTextGraphic, makeVsGraphic, RESULT_VARIANTS, RESULT_VARIANTS_IN_USE } from '../../../../lib/vsGraphic'
+import { makeClubGraphic, makeLeagueGraphic, makeResultGraphic, makeTextGraphic, makeVsGraphic, RESULT_VARIANTS, RESULT_VARIANTS_IN_USE, VS_VARIANTS } from '../../../../lib/vsGraphic'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         kind === 'resultat' && t('home') && t('away') && hs !== undefined && as !== undefined
           ? await makeResultGraphic({ home: t('home', 60), away: t('away', 60), hs, as, top: t('top', 80) || undefined, homeGoals: lines('homeGoals'), awayGoals: lines('awayGoals'), variant: (process.env.RESULT_PREVIEW_ALL === '1' ? RESULT_VARIANTS : RESULT_VARIANTS_IN_USE).find((v) => v === t('variant', 20)), headline: t('headline', 70) || undefined, hero: t('hero', 40) || undefined })
           : kind === 'vs' && t('home') && t('away')
-          ? await makeVsGraphic({ home: t('home', 60), away: t('away', 60), top: t('top', 80) || undefined })
+          ? await makeVsGraphic({ home: t('home', 60), away: t('away', 60), top: t('top', 80) || undefined, variant: VS_VARIANTS.find((v) => v === t('variant', 20)) })
           : kind === 'klub' && t('club')
             ? await makeClubGraphic({ club: t('club', 60) })
             : kind === 'liga' && t('league')

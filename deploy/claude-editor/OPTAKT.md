@@ -52,7 +52,17 @@ ADGANG
 4. GEM, BILLEDE, TJEK
    - Skriv JSON'en i en fil og gem med matchly-api nyhed <fil.json> (som en nyhed, med "category":"Kampoptakter").
    - Ret alt rødt på tjeklisten og så meget gult som muligt. Send hele artiklen igen med "id".
-   - Billede: matchly-api billede med {"action":"billede","id":<id>,"kind":"vs","home":"<hjemmehold>","away":"<udehold>","top":"<liga · dag dato kl. tid>","alt":"<kort beskrivelse>"}. Brug holdnavnene, som Matchly skriver dem.
+   - Billede: matchly-api billede med {"action":"billede","id":<id>,"kind":"vs","home":"<hjemmehold>","away":"<udehold>","top":"<liga · dag dato kl. tid>","variant":"<se nedenfor>","alt":"<kort beskrivelse>"}. Brug holdnavnene, som Matchly skriver dem.
+     - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
+       - "klassisk": de to logoer og VS på mørk bund – det sikre valg.
+       - "diagonal": klubfarverne skåret skråt med VS i midten – til lokalopgør og rivaliseringer.
+       - "plakat": et kæmpe VS og holdene stablet – til de store kampe (top mod top, derby, landskamp).
+       - "bane": banen med kampstart i midtercirklen – til en almindelig ligakamp.
+       - "billet": en kampbillet med dag og tid på stubben – til pokalkampe og kampe, folk skal ud og se.
+       - "logoer": kæmpe logoer ud over kanten – når klubberne er historien (gammel klub, rivaler).
+       - "tv": TV-bjælken med tiden – når kampen vises på TV.
+       - "nedtaelling": kampstarten i kæmpe tal – til kampe i dag eller i aften.
+       - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og nedtaelling.
    - INGEN opslag til Facebook – optakterne skal ikke på Facebook.
    - Marker den skrevet: matchly-api optakt med {"action":"skrevet","slug":"<kampens slug>","id":<id>}.
 

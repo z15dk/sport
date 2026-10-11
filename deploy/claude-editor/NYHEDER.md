@@ -98,7 +98,17 @@ ADGANG
    - Læs tjeklisten i svaret. Ret alt rødt og så meget gult som muligt. Send hele artiklen igen med "id".
    - BILLEDE (hver kladde får et): matchly-api billede <fil.json> med {"action":"billede","id":<id>,"kind":…}. Kun Matchlys egne grafikker, aldrig fotos.
      - Et referat af en spillet kamp: "kind":"resultat","home":"<klub>","away":"<klub>","hs":<mål>,"as":<mål>,"top":"<liga · dag dato>","homeGoals":["Navn 12'","Navn 67'"],"awayGoals":[…].
-     - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>". Brug klubbernes navne, som Matchly skriver dem.
+     - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>","variant":"<design>". Brug klubbernes navne, som Matchly skriver dem.
+       - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
+         - "klassisk": de to logoer og VS på mørk bund – det sikre valg.
+         - "diagonal": klubfarverne skåret skråt med VS i midten – til lokalopgør og rivaliseringer.
+         - "plakat": et kæmpe VS og holdene stablet – til de store kampe (top mod top, derby, landskamp).
+         - "bane": banen med kampstart i midtercirklen – til en almindelig ligakamp.
+         - "billet": en kampbillet med dag og tid på stubben – til pokalkampe og kampe, folk skal ud og se.
+         - "logoer": kæmpe logoer ud over kanten – når klubberne er historien (gammel klub, rivaler).
+         - "tv": TV-bjælken med tiden – når kampen vises på TV.
+         - "nedtaelling": kampstarten i kæmpe tal – til kampe i dag eller i aften.
+         - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og nedtaelling.
      - Om én klub (fyring, ansættelse, krise): "kind":"klub","club":"<klub>".
      - Om en liga (statistik, runde, oprykning): "kind":"liga","league":"<liga>".
      - Alt andet: "kind":"tekst","title":"<kort rubrik, højst 8 ord>","top":"<lille linje, fx ligaen>","sub":"<valgfri linje>".

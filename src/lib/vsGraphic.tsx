@@ -35,7 +35,13 @@ export interface VsInput {
   top?: string
   /** A picture from our own site behind the logos ("/uploads/<fil>.webp") */
   bg?: string
+  /** Which of the eight designs (VS_VARIANTS); the classic one when unset */
+  variant?: VsVariant
 }
+
+/** The VS graphic's eight designs, for James to choose by the match (deploy/claude-editor: OPTAKT.md, NYHEDER.md) */
+export const VS_VARIANTS = ['klassisk', 'diagonal', 'plakat', 'bane', 'billet', 'logoer', 'tv', 'nedtaelling'] as const
+export type VsVariant = (typeof VS_VARIANTS)[number]
 
 const BG = '#11130e'
 const LIME = '#c6f135'
@@ -117,6 +123,8 @@ export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
   const home = input.home.trim()
   const away = input.away.trim()
   if (!home || !away) throw new Error('Vælg begge klubber')
+  // The other seven designs (the classic one below takes a photo behind it)
+  if (input.variant && input.variant !== 'klassisk' && VS_VARIANTS.includes(input.variant)) return vsVariantPng({ ...input, home, away }, input.variant)
   const badges = await getBadges()
   const flags = nationalTeams()
   // A national team's flag when the name is one (our clubs' logos win, e.g. a club named like a country)
@@ -1003,7 +1011,7 @@ export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
           <div style={{ position: 'absolute', left: -170, top: 35, display: 'flex', opacity: 0.9 }}>
             <Crest name={home} logo={homeLogo} size={560} />
           </div>
-          <div style={{ position: 'absolute', right: -170, top: 35, display: 'flex', opacity: 0.9 }}>
+          <div style={{ position: 'absolute', left: 810, top: 35, display: 'flex', opacity: 0.9 }}>
             <Crest name={away} logo={awayLogo} size={560} />
           </div>
           <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: 'linear-gradient(90deg, rgba(17,19,14,0) 0%, rgba(17,19,14,0.92) 22%, rgba(17,19,14,0.92) 78%, rgba(17,19,14,0) 100%)' }} />
@@ -1217,4 +1225,239 @@ export async function clubLogoAndColor(club: string, size: number): Promise<{ lo
 /** Every team name with a logo the graphics can draw: our clubs, the national teams, and the sources' teams (women's teams too) */
 export async function namesWithLogo(): Promise<Set<string>> {
   return new Set([...Object.keys(await getBadges()), ...Object.keys(nationalTeams()), ...allTeams().filter((t) => t.logo).map((t) => t.name)])
+}
+
+
+// ---------------------------------------------------------------- the VS graphic's other designs
+
+/** A coming match in one of the seven designs besides the classic one (VS_VARIANTS): logos, colours, the day and the time */
+async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassisk'>): Promise<Buffer> {
+  const { home, away } = input
+  const [homeLogo, awayLogo] = await Promise.all([teamCrest(home, 420), teamCrest(away, 420)])
+  const hc = clubColor(home, false)
+  const ac = clubColor(away, false)
+  const top = input.top?.trim()
+  // The kick-off from the top line ("Superliga · søn. 11. okt. kl. 16.00"): the time, and the line without it
+  const time = /(?:kl\.?\s*)?(\d{1,2}[.:]\d{2})\b/.exec(top ?? '')?.[1]?.replace(':', '.')
+  const parts = (top ?? '').split('·').map((x) => x.trim()).filter(Boolean)
+  const league = parts.length > 1 ? parts[0] : undefined
+  const day = (parts.length > 1 ? parts.slice(1).join(' · ') : (parts[0] ?? '')).replace(/\s*kl\.?\s*\d{1,2}[.:]\d{2}\b/, '').trim()
+  const { width: W, height: H } = OG_SIZE
+  const nameSize = (n: string, big: number) => (n.length > 18 ? big * 0.78 : big)
+  const frame = (layers: React.ReactElement, background = BG, color = '#fff') => (
+    <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background, color, fontFamily: 'Barlow' }}>{(layers.props as { children: React.ReactNode }).children}</div>
+  )
+  const Name = ({ name, size = 40, align = 'center' }: { name: string; size?: number; align?: 'center' | 'left' | 'right' }) => (
+    <div style={{ display: 'flex', fontSize: nameSize(name, size), fontWeight: 800, fontStyle: 'italic', textAlign: align, lineHeight: 1 }}>{name.toUpperCase()}</div>
+  )
+  const Line = ({ text, color = LIME, size = 24 }: { text?: string; color?: string; size?: number }) => (text ? <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: size, fontWeight: 600, color }}>{text}</div> : null)
+  const Vs = ({ size = 120, color = LIME }: { size?: number; color?: string }) => <div style={{ display: 'flex', fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color }}>VS</div>
+
+  let picture: React.ReactElement
+  switch (variant) {
+    case 'diagonal': {
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><polygon points="0,0 ${W * 0.58},0 ${W * 0.42},${H} 0,${H}" fill="${shade(hc)}"/><polygon points="${W * 0.58},0 ${W},0 ${W},${H} ${W * 0.42},${H}" fill="${shade(ac)}"/><line x1="${W * 0.58}" y1="0" x2="${W * 0.42}" y2="${H}" stroke="${LIME}" stroke-width="8"/><rect width="${W}" height="${H}" fill="#000" fill-opacity="0.18"/></svg>`)
+      picture = frame(
+        <>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 40, top: 120, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+            <Crest name={home} logo={homeLogo} size={230} />
+            <Name name={home} size={40} />
+          </div>
+          <div style={{ position: 'absolute', left: 780, top: 120, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+            <Crest name={away} logo={awayLogo} size={230} />
+            <Name name={away} size={40} />
+          </div>
+          <div style={{ position: 'absolute', left: 485, top: 205, width: 230, height: 170, borderRadius: 26, background: BG, border: `4px solid ${LIME}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Vs size={110} />
+          </div>
+          {top && (
+            <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', background: BG, padding: '8px 22px', borderRadius: 40 }}>
+                <Line text={top} color="#fff" />
+              </div>
+            </div>
+          )}
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'plakat': {
+      const team = (name: string, logo: string | undefined) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 24 }}>
+          <Crest name={name} logo={logo} size={82} />
+          <Name name={name} size={62} align="left" />
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 700, top: 20, display: 'flex' }}>
+            <Vs size={420} />
+          </div>
+          <div style={{ position: 'absolute', left: 70, top: 250, width: 780, display: 'flex', flexDirection: 'column' }}>
+            <Line text={league ?? top} />
+            {team(home, homeLogo)}
+            {team(away, awayLogo)}
+            {league && day && <div style={{ display: 'flex', marginTop: 22, fontSize: 40, fontWeight: 800, fontStyle: 'italic', color: '#fff' }}>{[day, time].filter(Boolean).join(' · ').toUpperCase()}</div>}
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'bane': {
+      const stripes = Array.from({ length: 12 }, (_, i) => `<rect x="${i * 100}" width="100" height="${H}" fill="${i % 2 ? '#14200d' : '#172510'}"/>`).join('')
+      const ln = 'stroke="#ffffff" stroke-opacity="0.28" stroke-width="3" fill="none"'
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${stripes}<rect x="30" y="30" width="${W - 60}" height="${H - 60}" ${ln}/><line x1="${W / 2}" y1="30" x2="${W / 2}" y2="${H - 30}" ${ln}/><circle cx="${W / 2}" cy="${H / 2}" r="120" ${ln}/><rect x="30" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="30" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect x="${W - 200}" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="${W - 90}" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect width="${W}" height="${H}" fill="#000" fill-opacity="0.15"/></svg>`)
+      const side = (name: string, logo: string | undefined, cx: number) => (
+        <div style={{ position: 'absolute', left: cx - 190, top: 140, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <Crest name={name} logo={logo} size={200} />
+          <Name name={name} size={38} />
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          {top && (
+            <div style={{ position: 'absolute', left: 0, top: 46, width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', background: BG, padding: '8px 22px', borderRadius: 40 }}>
+                <Line text={league ?? top} color="#fff" />
+              </div>
+            </div>
+          )}
+          {side(home, homeLogo, 330)}
+          {side(away, awayLogo, 870)}
+          <div style={{ position: 'absolute', left: W / 2 - 112, top: H / 2 - 112, width: 224, height: 224, borderRadius: 224, background: BG, border: `4px solid ${LIME}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            {time ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: 216, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{day || 'Kampstart'}</div>
+                <div style={{ width: 216, display: 'flex', justifyContent: 'center', fontSize: 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME }}>{time}</div>
+              </div>
+            ) : (
+              <Vs size={90} />
+            )}
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'billet': {
+      const paper = '#f4f5ef'
+      const row = (name: string, logo: string | undefined) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 18 }}>
+          <Crest name={name} logo={logo} size={92} />
+          <div style={{ display: 'flex', fontSize: nameSize(name, 50), fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{name.toUpperCase()}</div>
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 90, top: 110, width: 1020, height: 410, display: 'flex', borderRadius: 26, background: paper, color: BG, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }}>
+            <div style={{ width: 740, display: 'flex', flexDirection: 'column', padding: '34px 44px' }}>
+              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(17,19,14,0.6)' }}>{league ?? 'Kampbillet'}</div>
+              {row(home, homeLogo)}
+              <div style={{ display: 'flex', marginTop: 14, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, color: 'rgba(17,19,14,0.45)' }}>MOD</div>
+              {row(away, awayLogo)}
+            </div>
+            <div style={{ width: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderLeft: '4px dashed rgba(17,19,14,0.25)', padding: '0 18px' }}>
+              <div style={{ display: 'flex', padding: '4px 16px', borderRadius: 20, background: BG, color: LIME, fontFamily: 'DM Sans', fontSize: 20, fontWeight: 700 }}>Kampstart</div>
+              {day && <div style={{ display: 'flex', marginTop: 12, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>{day}</div>}
+              <div style={{ display: 'flex', marginTop: 6, fontSize: time ? 92 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
+              <div style={{ display: 'flex', marginTop: 14, fontSize: 26, fontWeight: 800, fontStyle: 'italic' }}>
+                MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 - 22, width: 44, height: 44, borderRadius: 44, background: BG, display: 'flex' }} />
+          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 + 410 - 22, width: 44, height: 44, borderRadius: 44, background: BG, display: 'flex' }} />
+        </>,
+      )
+      break
+    }
+    case 'logoer': {
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: -170, top: 35, display: 'flex', opacity: 0.9 }}>
+            <Crest name={home} logo={homeLogo} size={560} />
+          </div>
+          <div style={{ position: 'absolute', left: 810, top: 35, display: 'flex', opacity: 0.9 }}>
+            <Crest name={away} logo={awayLogo} size={560} />
+          </div>
+          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: 'linear-gradient(90deg, rgba(17,19,14,0) 0%, rgba(17,19,14,0.92) 22%, rgba(17,19,14,0.92) 78%, rgba(17,19,14,0) 100%)' }} />
+          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <Line text={league ?? top} />
+            <Vs size={200} color="#fff" />
+            <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, fontStyle: 'italic', textAlign: 'center' }}>
+              {home.toUpperCase()} – {away.toUpperCase()}
+            </div>
+            {league && (day || time) && <Line text={[day, time && `kl. ${time}`].filter(Boolean).join(' ')} color="rgba(255,255,255,0.75)" size={22} />}
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'tv': {
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <img src={mOutline('rgba(198,241,53,0.10)', 0.45)} width={700} height={504} alt="" style={{ position: 'absolute', left: 250, top: 60 }} />
+          <div style={{ position: 'absolute', left: 0, top: 120, width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <Line text={league ?? top} />
+          </div>
+          <div style={{ position: 'absolute', left: 60, top: 170, width: 1080, height: 130, display: 'flex', alignItems: 'stretch', borderRadius: 16, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.5)' }}>
+            <div style={{ width: 22, background: hc, display: 'flex' }} />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 18, padding: '0 22px', background: '#f4f5ef', color: BG }}>
+              <Crest name={home} logo={homeLogo} size={90} />
+              <Name name={home} size={40} align="left" />
+            </div>
+            <div style={{ width: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: BG, color: LIME }}>
+              <div style={{ display: 'flex', fontSize: time ? 72 : 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
+            </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: '#f4f5ef', color: BG }}>
+              <Name name={away} size={40} align="right" />
+              <Crest name={away} logo={awayLogo} size={90} />
+            </div>
+            <div style={{ width: 22, background: ac, display: 'flex' }} />
+          </div>
+          <div style={{ position: 'absolute', left: 520, top: 300, width: 160, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME, color: BG, fontFamily: 'DM Sans', fontSize: 21, fontWeight: 700, borderRadius: '0 0 10px 10px' }}>Kampstart</div>
+          {day && (
+            <div style={{ position: 'absolute', left: 0, top: 380, width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', fontSize: 44, fontWeight: 800, fontStyle: 'italic' }}>{day.toUpperCase()}</div>
+            </div>
+          )}
+          <Brand />
+        </>,
+      )
+      break
+    }
+    case 'nedtaelling': {
+      picture = frame(
+        <>
+          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 70, top: 56, display: 'flex', alignItems: 'center', gap: 22 }}>
+            <Crest name={home} logo={homeLogo} size={92} />
+            <Name name={home} size={44} align="left" />
+            <div style={{ display: 'flex', fontSize: 34, fontWeight: 800, fontStyle: 'italic', color: LIME, margin: '0 6px' }}>VS</div>
+            <Name name={away} size={44} align="left" />
+            <Crest name={away} logo={awayLogo} size={92} />
+          </div>
+          <div style={{ position: 'absolute', left: 64, top: 170, display: 'flex' }}>
+            <div style={{ display: 'flex', fontSize: time ? 330 : 280, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME, letterSpacing: -8 }}>{time ?? 'VS'}</div>
+          </div>
+          <div style={{ position: 'absolute', left: 74, top: 510, display: 'flex', gap: 16 }}>
+            <Line text={[day, league].filter(Boolean).join(' · ') || top} color="#fff" size={26} />
+          </div>
+          <Brand />
+        </>,
+      )
+      break
+    }
+  }
+  const res = new ImageResponse(picture, { ...OG_SIZE, fonts: ogFonts() })
+  return Buffer.from(await res.arrayBuffer())
 }
