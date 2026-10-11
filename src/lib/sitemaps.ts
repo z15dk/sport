@@ -1,4 +1,5 @@
 import 'server-only'
+import { readAbroad } from './abroad'
 import { LEAGUE_SUBPAGES } from '../components/LeagueSubPage'
 import { rivalryPairs } from './rivalry'
 import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -46,6 +47,8 @@ export function pageEntries(): SitemapEntry[] {
     // The TV guide: today, and each league's coming matches on TV
     { path: paths.tv() },
     ...Object.keys(TV_PERIODS).map((p) => ({ path: paths.tv(p) })),
+    // The Danes abroad, once James has made the list (src/lib/abroad.ts)
+    ...(readAbroad().players.length >= 5 ? [{ path: '/danskere-i-udlandet' }] : []),
     ...tvLeagues().map((l) => ({ path: paths.tv(l.slug) })),
     ...shownDivisions().map((d) => ({ path: paths.league(d.slug) })),
     // Head-to-heads between clubs of the same league with a few meetings (src/lib/rivalry.ts)

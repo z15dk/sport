@@ -4,7 +4,9 @@ import { TV_DAYS, TV_PERIODS, byDay, footballCount, leagueChannels, periodDates,
 import { TvAdFallback, TvDayNav, TvDays, TvLeagueChannels, TvMatches, tvAdPlans } from './TvGuide'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../lib/jsonld'
 import { paths } from '../lib/site'
-import { formatDayMonth, formatLong, isoDate } from '../lib/time'
+import { addDays, formatDayMonth, formatLong, isoDate } from '../lib/time'
+import { tvText } from '../lib/tvText'
+import { TvIntro } from './TvIntro'
 
 // "Fodbold i TV i morgen" (/tv/i-morgen) and "Fodbold i TV i weekenden"
 // (/tv/weekenden): the same guide as /tv for the days people also search for.
@@ -65,6 +67,7 @@ export function TvPeriodPage({ period: p }: { period: TvPeriod }) {
           </p>
         </div>
         <TvDayNav current={p} />
+        {p === 'i-morgen' && <TvIntro html={tvText(addDays(today, 1))} />}
         {football.length > 0 ? (
           <TvDays matches={football} today={today} ads={plans.slice(0, days.length)} />
         ) : (

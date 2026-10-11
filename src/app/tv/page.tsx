@@ -4,6 +4,8 @@ import { TV_DAYS, byDay, footballCount, leagueChannels, tvMatchText, tvMatches }
 import { TvAdFallback, TvDayNav, TvDays, TvLeagueChannels, TvMatches, tvAdPlans } from '../../components/TvGuide'
 import { JsonLd, breadcrumbLd, matchListLd, webPageLd } from '../../lib/jsonld'
 import { paths } from '../../lib/site'
+import { tvText } from '../../lib/tvText'
+import { TvIntro } from '../../components/TvIntro'
 import { addDays, formatFull, formatLong, isoDate } from '../../lib/time'
 
 // "Fodbold i TV i dag": today's football on TV with the channels, then the
@@ -58,6 +60,7 @@ export default function TvPage() {
           </p>
         </div>
         <TvDayNav />
+        <TvIntro html={tvText(today)} />
         {todays.length > 0 ? (
           <TvMatches matches={todays} empty="" ads={adsToday} />
         ) : (

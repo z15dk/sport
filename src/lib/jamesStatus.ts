@@ -21,7 +21,9 @@ export interface JamesJob {
 
 const JOBS: { id: string; label: string; what: string }[] = [
   { id: 'matchly-referat', label: 'Hurtige referater', what: 'skriver referatet 15 minutter efter hver dansk kamp' },
-  { id: 'matchly-optakt', label: 'Optakter', what: 'skriver optakter med research til alle danske kampe de næste 36 timer' },
+  { id: 'matchly-optakt', label: 'Optakter', what: 'skriver optakter med research til alle danske kampe de næste 36 timer og teksten til Fodbold i TV' },
+  { id: 'matchly-trend', label: 'Trendjæger', what: 'skriver en hurtig nyhed, når danskerne søger på noget om fodbold' },
+  { id: 'matchly-udlandet', label: 'Danskere i udlandet', what: 'holder listen og ugens opsamling opdateret' },
   { id: 'matchly-nyhedsspejder', label: 'Nyhedsspejder', what: 'finder nyheder og skriver kladder til dig' },
   { id: 'matchly-editor', label: 'Skribent', what: 'skriver de automatiske kladder om' },
   { id: 'matchly-vaekst', label: 'Vækstrunden', what: 'læser tallene, sætter bedre titler og skriver dagbog' },

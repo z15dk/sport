@@ -444,6 +444,11 @@ table.visually-hidden { display: block; }
 .tv-day-block { display: flex; flex-direction: column; gap: 10px; }
 .tv-next { padding: 18px; font-size: 16px; line-height: 1.5; }
 .tv-next a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* James' text about the day's football on TV */
+.tv-intro { padding: 18px 20px; font-size: 16px; line-height: 1.6; }
+.tv-intro p { margin: 0 0 10px; }
+.tv-intro p:last-child { margin-bottom: 0; }
+.tv-intro a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .tv-links { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 18px 18px; }
 .tv-links .pill { background: var(--surface-2); }
 .tv-links .pill.is-active { background: var(--ink); }
@@ -3234,3 +3239,21 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .rv-records dt { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .rv-records dd { margin: 3px 0 0; font-size: 14px; font-weight: 700; }
 .rv-comps th .badge { vertical-align: middle; }
+
+/* Danskere i udlandet (src/app/danskere-i-udlandet) */
+.abroad__roundup { padding: 18px 20px; font-size: 16px; line-height: 1.6; margin-bottom: 18px; }
+.abroad__roundup p { margin: 0 0 10px; }
+.abroad__roundup h2, .abroad__roundup h3 { margin: 16px 0 8px; font-size: 18px; }
+.abroad__roundup a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.abroad__empty { padding: 18px 20px; }
+.abroad__league { margin-top: 22px; }
+.abroad__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 12px; }
+.abroad__player { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.abroad__who { display: flex; flex-direction: column; gap: 2px; }
+.abroad__name { margin: 0; font-size: 18px; }
+.abroad__club { font-size: 14px; opacity: .75; }
+.abroad__club a { text-decoration: underline; text-underline-offset: 3px; }
+.abroad__note { margin: 0; font-size: 15px; line-height: 1.5; }
+.abroad__match { display: flex; flex-direction: column; gap: 4px; }
+.abroad__label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
+@media (max-width: 600px) { .abroad__list { grid-template-columns: 1fr; } }

@@ -16,6 +16,16 @@ ADGANG
   - matchly-api artikler: de nyeste artikler (så du ikke skriver det samme to gange).
   - matchly-api soeg <navn>: sitets søgning (klubbernes slug).
 
+0. TV-TEKSTEN (først, hver runde – ejerens ønske 11/10-2026)
+   - matchly-api tv giver i dag og i morgen: om teksten er skrevet ("written"), siden (/tv eller /tv/i-morgen) og dagens fodbold i TV (tid, liga, hold, kanaler, kampside).
+   - Morgenrunden skriver teksten for i dag, hvis den mangler. Eftermiddagsrunden skriver teksten for i morgen, hvis den mangler. Er der ingen fodbold i TV den dag, så spring den over.
+   - Teksten står øverst på siden over kamplisten. Den skal svare på "fodbold i TV i dag": 2–3 korte afsnit, 250–1.400 tegn i alt.
+     - Start med dagens største kamp: hvem, hvornår (kl.) og hvilken kanal – og hvorfor den er værd at se (stilling, form, en dansker, et opgør med historie). Brug kampsiden og ligaens stilling (matchly-api side).
+     - Nævn derefter 2–4 andre kampe med tid og kanal, gerne de danske først.
+     - Link til kampsiderne (/kamp/<slug>) med <a href>. Kun HTML-tags p, strong, em, a.
+     - Samme sprogregler som optakterne. Ingen odds. Skriv ikke "Matchly anbefaler".
+   - Gem: matchly-api tv-tekst <fil.json> med {"action":"tekst","date":"<YYYY-MM-DD>","html":"<p>…</p><p>…</p>"}. Tjek bagefter siden med matchly-api side /tv (eller /tv/i-morgen).
+
 1. HENT KAMPENE: matchly-api optakter
    - Tag dem i den rækkefølge, de kommer (de tidligste først). Skriv så mange, du kan nå med god kvalitet.
    - Spring en kamp over kun hvis den er aflyst eller ikke findes: matchly-api optakt med {"action":"spring","slug":…,"why":…}.

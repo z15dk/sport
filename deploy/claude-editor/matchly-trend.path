@@ -1,0 +1,12 @@
+# James' trendjæger: når sitet ser en ny fodboldsøgning i Google Trends Danmark (kl. 07–22, højst hver halve time), skriver
+# det /opt/scoreline/data/trend-request (src/lib/trendWatch.ts); så startes James med det samme (matchly-trend.service
+# fjerner filen). Webprocessen får ingen rettigheder.
+[Unit]
+Description=Matchly: James ser på fodboldsøgninger, der trender
+
+[Path]
+PathExists=/opt/scoreline/data/trend-request
+Unit=matchly-trend.service
+
+[Install]
+WantedBy=multi-user.target

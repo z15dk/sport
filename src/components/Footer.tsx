@@ -77,6 +77,7 @@ export function Footer() {
             <Link href="/kampe/i-gaar">I går</Link>
             <Link href="/kampe/i-morgen">I morgen</Link>
             <Link href={paths.tv()}>Fodbold i TV</Link>
+            <Link href="/danskere-i-udlandet">Danskere i udlandet</Link>
             <Link href={paths.women()}>Kvindesport</Link>
             <Link href={paths.clubs()}>Klubber</Link>
             <Link href={paths.articles()}>Artikler</Link>

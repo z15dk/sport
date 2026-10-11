@@ -1,0 +1,9 @@
+[Unit]
+Description=Matchly: Danskere i udlandet mandag og torsdag kl. 09.30
+
+[Timer]
+OnCalendar=Mon,Thu *-*-* 09:30:00 Europe/Copenhagen
+Persistent=false
+
+[Install]
+WantedBy=timers.target

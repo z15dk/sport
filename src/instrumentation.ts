@@ -76,6 +76,9 @@ export async function register() {
   // The owner's morning list of the previews and reports James published himself (src/lib/jamesDigest.ts)
   const { startJamesDigest } = await import('./lib/jamesDigest')
   startJamesDigest()
+  // James' trend hunter: Google's trending football searches in Denmark (src/lib/trendWatch.ts)
+  const { startTrendWatch } = await import('./lib/trendWatch')
+  startTrendWatch()
   // The background process: the merged data and its own status for the site process
   if (process.env.SCORELINE_ROLE === 'worker') {
     startSnapshotWriter()
