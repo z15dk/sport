@@ -94,6 +94,14 @@ export async function growthBrief(now = Date.now()) {
     .sort((a, b) => b.impressions - a.impressions)
     .slice(0, 25)
 
+  // On page 1 already (position under 7) with views but no clicks: the quickest clicks there are – a title that doesn't
+  // answer the search, or a page about someone else than the one searched for ("emma nastasic" on M. Nastasic's page)
+  const page1NoClicks = [...byPage.values()]
+    .filter((e) => e.position > 0 && e.position < 7 && e.impressions >= 15 && e.clicks === 0 && !locked.has(e.page))
+    .map((e) => ({ ...e, queries: e.queries.sort((a, b) => b.impressions - a.impressions).slice(0, 5), title: overrides.pages[e.page]?.title }))
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 10)
+
   const change = [...new Set([...pages7.keys(), ...pagesPrev7.keys()])].map((page) => {
     const a = pages7.get(page)
     const b = pagesPrev7.get(page)
@@ -130,6 +138,7 @@ export async function growthBrief(now = Date.now()) {
       ? { fetchedAt: g.fetchedAt, error: g.error, last7: g.last7, prev7: g.prev7, perDay: g.perDay.slice(-14), topQueries: g.topQueries }
       : { error: 'Ingen Google-tal (nøglen mangler på serveren)' },
     closeToPage1: close,
+    page1NoClicks,
     rising,
     falling,
     unserved,

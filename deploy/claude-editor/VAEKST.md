@@ -20,11 +20,12 @@ ADGANG
 1. LÆS TALLENE: matchly-api vaekst
    - views: sidevisninger i går, i forgårs og samme dag sidste uge, de seneste 14 dage, kilder og mest sete sider de seneste 7 dage.
    - google: Search Console for de seneste 7 dage mod de 7 før (klik, visninger, placering) og de mest sete søgninger.
-   - closeToPage1: sider på plads 7–20 med de søgninger, der giver dem visninger. Det er her, de hurtigste klik ligger.
+   - page1NoClicks: sider, der allerede står på side 1 (plads 1–6) med visninger, men 0 klik. Det er de allerhurtigste klik.
+   - closeToPage1: sider på plads 7–20 med de søgninger, der giver dem visninger. Det er her, de næste klik ligger.
    - rising / falling: sider, hvis visninger stiger eller falder kraftigt.
    - unserved: søgninger, hvor Matchly kun ligger efter plads 20. Det er idéer til artikler.
    - titleTests: dine titler med tallene, da du satte dem (before), og de seneste 7 dage (last7). dueForVerdict betyder, at de er 14 dage gamle.
-   - limits.titlesLeftToday: hvor mange nye titler du må sætte i dag (højst 5).
+   - limits.titlesLeftToday: hvor mange nye titler du må sætte i dag (højst 8).
    - diary: dine seneste notater. Læs dem, så du bygger videre og ikke gentager dig.
 
 2. DØM GAMLE TITELTESTS (dem med dueForVerdict)
@@ -32,8 +33,11 @@ ADGANG
    - Behold, hvis klikraten eller klikkene er steget, eller placeringen er klart bedre. Fortryd, hvis det er blevet dårligere. Er tallene for små til at sige noget (under ca. 20 visninger), så behold og skriv det.
    - Skriv altid tallene i "why".
 
-3. NYE TITLER (højst limits.titlesLeftToday, gerne 3–5)
-   - Vælg sider fra closeToPage1 med flest visninger og lav klikrate. Læs siden med matchly-api side, så titlen passer til indholdet.
+3. NYE TITLER (højst limits.titlesLeftToday – brug dem alle, når der er sider nok; ejeren vil have vækst hver dag)
+   - Tag page1NoClicks FØRST. En side på side 1 uden klik har et af to problemer:
+     - Titlen eller beskrivelsen svarer ikke på søgningen (fx søger folk "stillinger", men titlen siger "kampe"). Ret den.
+     - Siden handler om noget andet end det, folk søger (fx søgningen "emma nastasic" lander på en side om en anden spiller med samme efternavn). Sæt IKKE en titel, der lover noget, siden ikke har. Skriv det i dagbogen under ideas som "Forkert side: <søgning> → <sti> – <hvad der er galt>", så ejeren eller nyhedsspejderen kan lave den rigtige side.
+   - Derefter closeToPage1 med flest visninger og lav klikrate. Læs siden med matchly-api side, så titlen passer til indholdet.
    - Titlen skal svare præcist på det, folk søger. Den vigtigste søgning skal stå forrest, med de samme ord. Tilføj det, der får folk til at klikke: sæson (2026/27), "i dag", "TV", "stilling", "kampprogram", "resultater", "live".
    - Højst 60 tegn og uden "| Matchly" (siden sætter det på selv). Beskrivelsen skal være 120–160 tegn, svare på søgningen og love noget konkret, fx næste kamp, TV-kanal, stilling eller topscorere.
    - Regler, der altid gælder:
@@ -55,7 +59,7 @@ ADGANG
    - Spørgsmålet skal ligne søgningen og ende med "?" (10–120 tegn). Svaret er 1–3 sætninger (20–400 tegn), uden links.
    - Svar kun med det, siden faktisk viser, eller det, der ikke ændrer sig (regler, stadion, by). Skriv ikke datoer eller stillinger, der er forældede om en uge. Skriv hellere "Se kampprogrammet øverst på siden" end en dato, der bliver forkert.
    - Siden har allerede sine egne spørgsmål (læs dem med matchly-api side). Stil ikke de samme igen.
-   - Det tæller som sidens ændring: én ændring pr. side på 14 dage, og højst 5 om dagen tilsammen med titlerne. Dommen efter 14 dage gælder det hele.
+   - Det tæller som sidens ændring: én ændring pr. side på 14 dage, og højst 8 om dagen tilsammen med titlerne. Dommen efter 14 dage gælder det hele.
 
 4. IDÉER TIL ARTIKLER (højst 3)
    - Se i unserved og rising efter søgninger, som en artikel kunne svare på, og som Matchly ikke har (tjek matchly-api artikler).

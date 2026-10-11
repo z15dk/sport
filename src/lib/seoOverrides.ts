@@ -11,7 +11,7 @@ import { cacheDir } from './tsdb'
 // numbers since and keeps or undoes it. At most 5 new a day, and a page is left alone for 14 days after a change.
 // The pages apply them in their generateMetadata (withSeoOverride).
 
-export const DAILY_TITLES = 5
+export const DAILY_TITLES = 8
 export const LOCK_DAYS = 14
 
 export interface SeoBaseline {
