@@ -40,7 +40,7 @@ export interface VsInput {
 }
 
 /** The VS graphic's eight designs, for James to choose by the match (deploy/claude-editor: OPTAKT.md, NYHEDER.md) */
-export const VS_VARIANTS = ['klassisk', 'kort', 'plakat', 'bane', 'billet', 'farver', 'tv', 'stribe'] as const
+export const VS_VARIANTS = ['klassisk', 'kort', 'plakat', 'bane', 'billet', 'banner', 'tv', 'stribe'] as const
 export type VsVariant = (typeof VS_VARIANTS)[number]
 
 const BG = '#11130e'
@@ -1387,25 +1387,27 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       )
       break
     }
-    case 'farver': {
-      // The two clubs' colours as two soft, flat halves, the crests on white circles and a lime VS in the seam
-      const half = (name: string, logo: string | undefined, color: string, x: number) => (
-        <div style={{ position: 'absolute', left: x, top: 0, width: W / 2, height: H, background: tint(onLight(color), 0.72), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-          <Crest name={name} logo={logo} size={250} ring="#fff" />
-          <Name name={name} size={42} />
-        </div>
-      )
+    case 'banner': {
+      // The two crests side by side on white circles, under them a black banner with the match and the kick-off on lime
       picture = frame(
         <>
-          {half(home, homeLogo, hc, 0)}
-          {half(away, awayLogo, ac, W / 2)}
-          <div style={{ position: 'absolute', left: W / 2 - 3, top: 0, width: 6, height: H, background: INK, display: 'flex' }} />
-          <div style={{ position: 'absolute', left: W / 2 - 75, top: H / 2 - 105, display: 'flex' }}>
-            <VsBadge size={150} />
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 0, top: 70, width: W, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 40 }}>
+            <Crest name={home} logo={homeLogo} size={250} ring="#fff" />
+            <div style={{ display: 'flex', fontSize: 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>VS</div>
+            <Crest name={away} logo={awayLogo} size={250} ring="#fff" />
           </div>
-          {top && (
-            <Centered y={40}>
-              <Pill text={top} />
+          <div style={{ position: 'absolute', left: 0, top: 380, width: W, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '18px 30px', background: INK, color: '#fff', fontSize: nameSize(`${home}${away}`, 48), fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+                {home.toUpperCase()} – {away.toUpperCase()}
+              </div>
+              {time && <div style={{ display: 'flex', alignItems: 'center', padding: '18px 26px', background: LIME, fontSize: 48, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time}</div>}
+            </div>
+          </div>
+          {(league || day) && (
+            <Centered y={480}>
+              <div style={{ display: 'flex', fontSize: 28, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1, color: MUTED }}>{[league, day].filter(Boolean).join(' · ').toUpperCase()}</div>
             </Centered>
           )}
           <Brand color={INK} />
@@ -1490,15 +1492,6 @@ function onLight(hex: string): string {
   const n = parseInt(m[1], 16)
   const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)
   return lum > 215 ? INK : hex
-}
-
-/** A colour mixed with white (f: how much white) */
-function tint(hex: string, f: number): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
-  if (!m) return '#e4e8d8'
-  const n = parseInt(m[1], 16)
-  const c = (v: number) => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')
-  return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`
 }
 
 /** The VS designs' background: light and flat, an even dot pattern and the two clubs' colours as a bar along the top */

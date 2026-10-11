@@ -59,7 +59,7 @@ ADGANG
        - "plakat": holdene stablet og et kæmpe VS på lime – til de store kampe (top mod top, derby, landskamp).
        - "bane": en lys grøn bane med kampstart i midtercirklen – til en almindelig ligakamp.
        - "billet": en kampbillet med dag og tid på den lime stub – til pokalkampe og kampe, folk skal ud og se.
-       - "farver": klubbernes farver som to lyse halvdele – når klubberne er historien (gammel klub, traditionsklubber).
+       - "banner": de to logoer store og kampen på et sort banner – når klubberne er historien (gammel klub, traditionsklubber).
        - "tv": TV-bjælken med tiden – når kampen vises på TV.
        - "stribe": et bredt lime bånd med VS og kampstart – til kampe i dag eller i aften.
        - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og stribe.
