@@ -3,6 +3,8 @@ import type { LeagueGroup } from '../types'
 import { paths } from '../lib/site'
 import { TeamBadge } from './TeamBadge'
 import { Flag, hasFlag } from './Flag'
+import { flagCode } from '../data/flagCodes'
+import { flagImage } from '../lib/imageSize'
 import { competitionLabel } from '../data/leagues'
 import { danishCountry } from '../data/countries'
 import { usePersistentState } from '../hooks/usePersistentState'
@@ -113,8 +115,12 @@ export function Sidebar({ groups, pinned, selected, onSelect }: Props) {
                     <span className="side-country__flag">
                       {hasFlag(country) ? (
                         <Flag country={country} />
-                      ) : ['Europa', 'Verden', 'Øvrige'].includes(country) ? (
+                      ) : ['Europa', 'Verden', 'Øvrige', 'Asien', 'Afrika', 'Nordamerika', 'Sydamerika', 'Oceanien', 'Mellemamerika'].includes(country) ? (
                         '🌍'
+                      ) : flagCode(country, true) ? (
+                        // Every other country's flag from our own domain (the drawn ones are only the most common)
+                        // eslint-disable-next-line @next/next/no-img-element -- a small flag, already sized
+                        <img className="flag side-country__img" src={flagImage(flagCode(country, true)!, 18)} alt="" width={18} height={13} loading="lazy" />
                       ) : (
                         <span className="side-country__code">{country.slice(0, 2).toUpperCase()}</span>
                       )}

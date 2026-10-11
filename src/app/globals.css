@@ -1351,6 +1351,7 @@ html:has(#tidligere-saesoner:target) .kh-nav a[data-kh='tidligere-saesoner'] { c
 .side-country__head:hover { background: var(--surface-2); }
 .side-country__flag { flex: none; width: 20px; display: grid; place-items: center; }
 .side-country__flag .flag { width: 18px; height: auto; border-radius: 2px; }
+.side-country__img { height: 13px; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
 .side-country__name { flex: 1; min-width: 0; font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-country__head .live-dot { width: 7px; height: 7px; }
 .side-country__chevron { flex: none; width: 22px; text-align: center; color: var(--ink-3); font-size: 12px; transition: transform 0.15s; transform: rotate(-90deg); }
