@@ -2254,6 +2254,17 @@ export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; h
  * shown old while new ones are fetched). Only on the paid plan, above the
  * reserve kept for live games.
  */
+/**
+ * The players in the saved line-ups (every match we have kept: leagues, cups, national teams) whose name has `word` in
+ * it, with their id – "J. Maehle" from Denmark's games, when the player search can't find him (src/lib/abroadPhotos.ts).
+ */
+export function lineupPlayersNamed(word: string): { id: number; name: string }[] {
+  const out = new Map<number, string>()
+  for (const e of extrasStore().search('football|lineups|', word, 40))
+    for (const l of e.lineups ?? []) for (const p of [...l.startXI, ...l.substitutes]) if (p.id && p.name.toLowerCase().includes(word.toLowerCase())) out.set(p.id, p.name)
+  return [...out].map(([id, name]) => ({ id, name }))
+}
+
 /** A player as API-Sports' player search lists him */
 export interface PlayerProfile {
   id: number

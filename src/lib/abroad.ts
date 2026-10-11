@@ -1,7 +1,7 @@
 import 'server-only'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { teamByName, type TeamEntry } from '../data/teams'
+import { allTeams, teamByName, type TeamEntry } from '../data/teams'
 import { cleanHtml } from './articles'
 import { cacheDir } from './tsdb'
 
@@ -47,7 +47,11 @@ function save(a: Abroad) {
 
 /** A player's club in our register (the football one) */
 export const abroadTeam = (club: string): TeamEntry | undefined => {
-  const t = teamByName(club)
+  // The club in its own league, not in a tournament it also plays (Lyon in Ligue 1, not the Europa League), so every
+  // player stands once, under his league
+  const all = allTeams().filter((t) => t.sport === 'soccer' && (t.name === club || t.names?.includes(club)))
+  const home = all.find((t) => t.leagueSlug && !/^x-world-|uefa|champions|europa|conference|cup|pokal/i.test(`${t.leagueSlug} ${t.league}`))
+  const t = home ?? teamByName(club)
   return t && t.sport === 'soccer' ? t : undefined
 }
 

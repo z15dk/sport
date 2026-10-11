@@ -4,7 +4,7 @@ import { normalize } from '../data/aliases'
 import { playerPath } from '../data/player'
 import type { TeamEntry } from '../data/teams'
 import { abroadTeam, readAbroad, setAbroadIds } from './abroad'
-import { apiSearchPlayers, apiTeamIdOf, apiTeamPlayers, apiTeamSquad, externalLeague, type SquadPlayer } from './apisports'
+import { apiSearchPlayers, apiTeamIdOf, lineupPlayersNamed, apiTeamPlayers, apiTeamSquad, externalLeague, type SquadPlayer } from './apisports'
 import { proxyImage } from './imageProxy'
 
 // The Danes abroad's photos and player pages (/danskere-i-udlandet): each player's id at the match data's source – the
@@ -72,6 +72,15 @@ async function squadId(name: string, team: TeamEntry | undefined): Promise<numbe
   return (await abroadSquad(team).catch(() => [])).find((p) => sameName(name, p.name))?.id
 }
 
+/** The player's id from the saved line-ups (Denmark's games, the clubs' games): by his last name as written and without Danish letters ("Maehle") */
+function lineupId(name: string): number | undefined {
+  const last = name.trim().split(/\s+/).at(-1) ?? ''
+  const plain = last.replace(/æ/gi, 'ae').replace(/ø/gi, 'o').replace(/å/gi, 'a')
+  const ids = new Set<number>()
+  for (const term of new Set([last, plain])) if (term.length >= 3) for (const p of lineupPlayersNamed(term)) if (sameName(name, p.name)) ids.add(p.id)
+  return ids.size === 1 ? [...ids][0] : undefined
+}
+
 /** A word as the source's search takes it: letters a–z only ("Mæhle" → "Maehle") */
 const searchable = (w: string) =>
   w
@@ -101,7 +110,7 @@ export function resolveAbroadIds(): Promise<{ found: number; missing: string[] }
     const missing: string[] = []
     for (const p of readAbroad().players) {
       if (p.apiId) continue
-      const id = (await squadId(p.name, abroadTeam(p.club))) ?? (await searchId(p.name).catch(() => undefined))
+      const id = (await squadId(p.name, abroadTeam(p.club))) ?? lineupId(p.name) ?? (await searchId(p.name).catch(() => undefined))
       if (id) found[p.name] = id
       else missing.push(`${p.name} (${p.club})`)
     }

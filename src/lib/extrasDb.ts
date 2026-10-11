@@ -13,6 +13,7 @@ type Row = Record<string, unknown>
 interface Stmt {
   get(...p: unknown[]): Row | undefined
   run(...p: unknown[]): unknown
+  all(...p: unknown[]): Row[]
 }
 interface Db {
   exec(sql: string): void
@@ -29,6 +30,8 @@ export interface KvStore<E extends { fetchedAt: number }> {
   flush(): void
   /** Writes the changes (also to `spent`) in a moment */
   touch(): void
+  /** The saved entries under a key prefix whose stored text has `text` in it (at most `limit`), for a rare search */
+  search(prefix: string, text: string, limit?: number): E[]
 }
 
 const CACHE = 400
@@ -167,11 +170,22 @@ export function kvStore<E extends { fetchedAt: number }>(file: string, legacyJso
     has: (_t, key) => typeof key === 'string' && read(key) !== undefined,
   })
 
+  const searchStmt = db?.prepare("SELECT data FROM entries WHERE key LIKE ? ESCAPE '\\' AND data LIKE ? ESCAPE '\\' LIMIT ?")
+  const like = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`)
+  const search = (prefix: string, text: string, limit = 20): E[] => {
+    try {
+      return (searchStmt?.all(`${like(prefix)}%`, `%${like(text)}%`, limit) ?? []).flatMap((r) => (r.data ? [JSON.parse(String(r.data)) as E] : []))
+    } catch {
+      return []
+    }
+  }
+
   return {
     entries,
     spent,
     flush,
     touch: later,
+    search,
   }
 }
 
