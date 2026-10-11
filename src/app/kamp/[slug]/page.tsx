@@ -188,7 +188,11 @@ async function MatchPageInner({ params }: { params: Params }) {
   const dbu = !fromEvents?.some((e) => e.player) && !match.incidents?.some((e) => e.player) ? dbuGoals(match) : undefined
   // 1.–3. division: the referee, the pitch, the cards and the substitutions from DBU's match page (read by the photo job, src/lib/dbuSquad.ts)
   const details = dbuMatchDetails([match.home.name, ...(homeClub ? clubNames(homeClub) : [])], [match.away.name, ...(awayClub ? clubNames(awayClub) : [])], match.kickoff)
-  const goalEvents = dbu?.length ? dbu : fromEvents?.length ? fromEvents : game && !match.incidents?.length ? observedGoals(game) : undefined
+  // The match's own goals (API-Sports' merged into the season: in 2. division often without the scorer) whenever no source
+  // names them – with DBU's cards beside them, only the goals (the cards come named from DBU)
+  const isGoal = (k: string) => k === 'goal' || k === 'penalty' || k === 'own-goal'
+  const ownGoals = details?.cards.length ? match.incidents?.filter((i) => isGoal(i.kind)) : match.incidents
+  const goalEvents = dbu?.length ? dbu : fromEvents?.length ? fromEvents : ownGoals?.length ? ownGoals : game && !match.incidents?.length ? observedGoals(game) : undefined
   const events = details?.cards.length ? [...(goalEvents ?? []), ...details.cards.filter((c) => !goalEvents?.some((e) => e.kind === c.kind && e.player === c.player && e.minute === c.minute))].sort((a, b) => a.minute - b.minute) : goalEvents
   // Shots, possession and expected goals (API-Sports' paid plan)
   const stats = game ? await within(apiMatchStats(game, match.incidents?.length ? match.incidents : fromEvents)) : undefined
