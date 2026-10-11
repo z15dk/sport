@@ -55,7 +55,7 @@ import { dbuHomeGround } from '../../../lib/channels'
 import { homeGround } from '../../../lib/ground'
 import { dbuClubCoach, dbuClubSquad } from '../../../lib/dbuSquad'
 import { knownCoach, knownGround } from '../../../lib/rettelser'
-import { NEW_CLUB_PAGE_DIVISIONS, NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../../../data/nyKlubside'
+import { NEW_CLUB_PAGE_DIVISIONS, hasNewClubPage } from '../../../data/nyKlubside'
 import { ClubSquad } from '../../../components/ClubSquad'
 import { playerPath } from '../../../data/player'
 import { KlubHeader } from '../../../components/KlubHeader'
@@ -111,7 +111,7 @@ async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
         ...(empty && { robots: { index: false, follow: true } }),
       }
     }
-    if (team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer') {
+    if (team.leagueSlug && hasNewClubPage(team.leagueSlug) && team.sport === 'soccer') {
       // The new design: "kampprogram" in the title, the next match with day, time and channel in the description
       const next = coming.find((m) => m.state === 'upcoming' && m.kickoff.getTime() > Date.now())
       const home = !!next && names.has(normalize(next.home.name))
@@ -568,7 +568,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
   const lastMatch = around.filter((m) => m.state === 'finished').at(-1)
   const sport = sportById(team.sport)
   // The new design (KlubHeader, the squad, the extra questions, the ad in the column) for chosen leagues, src/data/nyKlubside.ts
-  const newPage = national || (!!team.leagueSlug && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(team.leagueSlug) && team.sport === 'soccer')
+  const newPage = national || (!!team.leagueSlug && hasNewClubPage(team.leagueSlug) && team.sport === 'soccer')
   const apiTeam = newPage && league ? apiTeamIdOf(league.id, names) : undefined
   // The whole squad with this season's statistics from API-Sports' player list, else the players of the saved line-ups (the days kept)
   const lineupSquad = newPage && league && apiTeam ? apiTeamSquad(league.id, apiTeam) : []

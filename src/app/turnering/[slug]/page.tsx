@@ -316,7 +316,9 @@ async function externalLeaguePage(slug: string) {
   let view: ExternalLeagueView | undefined
   // A football tournament with groups of three or more (Nations League): the same top and boxes over all its teams, the groups kept
   const groupStage = !cup && !friendly && !knockout && found.sport === 'soccer' && groups.length > 1 && groups.every((g) => g.length >= 3)
-  if ((!tournament && !knockout && groups.length === 1 && groups[0].length > 3) || groupStage) {
+  // A tournament's league phase in one table (the Champions League's 36 clubs): the same top and boxes, no relegation
+  const leaguePhase = tournament && !cup && !friendly && !knockout && found.sport === 'soccer' && groups.length === 1 && groups[0].length >= 8
+  if ((!tournament && !knockout && groups.length === 1 && groups[0].length > 3) || groupStage || leaguePhase) {
     const table = groupStage
       ? groups.flat().sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.for ?? 0) - (b.against ?? 0) - ((a.for ?? 0) - (a.against ?? 0)) || (b.for ?? 0) - (a.for ?? 0))
       : groups[0]
@@ -360,7 +362,7 @@ async function externalLeaguePage(slug: string) {
     const deep = await externalLeagueDeep(found, games, { teams, played: Math.max(...table.map((r) => r.played)) }, now)
     const scorer = leaders?.scorers[0]
     const topScorer = scorer ? { name: scorer.name, club: scorer.team, goals: scorer.value, photo: scorer.photo } : undefined
-    view = { rows: boxRows, deep, topScorer, groups: groupStage, brief: leagueBrief({ name: league.name, rows: boxRows, stats, deep, topScorer, groups: groupStage, bottom: !groupStage }) }
+    view = { rows: boxRows, deep, topScorer, groups: groupStage, brief: leagueBrief({ name: league.name, rows: boxRows, stats, deep, topScorer, groups: groupStage, bottom: !groupStage && !leaguePhase }) }
   }
   return (
     <ExternalLeaguePage

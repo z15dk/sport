@@ -10,7 +10,7 @@ import { shownTeam } from '../data/countries'
 import { alike } from '../data/aliases'
 import { normalize } from '../data/aliases'
 import { squadFromApi } from '../data/squadApi'
-import { NEW_CLUB_PAGE_EXTERNAL_LEAGUES } from '../data/nyKlubside'
+import { SQUAD_PRIORITY_LEAGUES, hasNewClubPage } from '../data/nyKlubside'
 import { takeRefetchRequests } from './matchOverrides'
 import { estimateXg, lineupSpelling, type FormGame, type Leaders, type LeaderRow, type Lineup, type LineupPlayer, type MatchExtra, type MatchStats, type Substitution, type TableRow } from '../data/matchExtra'
 import { addDays, isoDate } from './time'
@@ -1214,7 +1214,7 @@ async function tick() {
         }
       }
     }
-    // The squads of the clubs in the outside leagues with the new club page (paid plans), three teams a run, down to the reserve
+    // The squads of the clubs in the outside leagues (every football league has the new club page), three teams a run, down to the reserve
     {
       const s = mem.store.football
       const left = s?.quotaDay === utcDay() ? (s.remaining ?? 0) : (s?.limit ?? 0)
@@ -2707,18 +2707,23 @@ async function loadTeamPlayers(key: string, leagueId: string, teamId: number, se
  */
 async function refreshSquads(s: ApiState): Promise<boolean> {
   const store = extrasStore()
-  const leagues = externalLeagues().filter((l) => l.api === 'football' && NEW_CLUB_PAGE_EXTERNAL_LEAGUES.has(l.key))
+  const leagues = externalLeagues().filter((l) => l.api === 'football' && hasNewClubPage(l.key))
   if (!leagues.length) return false
   const season = SEASON.slice(0, 4)
-  const teams = new Map<string, { leagueId: string; teamId: number }>()
+  const byId = new Map(leagues.map((l) => [l.id, l]))
+  const teams = new Map<string, { leagueId: string; teamId: number; priority: boolean }>()
   for (const d of Object.values(s.days))
     for (const g of d.games) {
-      if (!leagues.some((l) => l.id === String(g.league.id))) continue
-      for (const t of [g.home, g.away]) if (t.id) teams.set(`football|squad|${g.league.id}|${season}|${t.id}`, { leagueId: String(g.league.id), teamId: t.id })
+      const l = byId.get(String(g.league.id))
+      if (!l) continue
+      for (const t of [g.home, g.away]) if (t.id) teams.set(`football|squad|${g.league.id}|${season}|${t.id}`, { leagueId: l.id, teamId: t.id, priority: SQUAD_PRIORITY_LEAGUES.has(l.key) })
     }
+  // The first leagues every day, the rest once a week (squads change slowly, and the day's budget is shared); the
+  // ones never fetched and the priority leagues first, then the oldest
+  const DAY = 24 * 3_600_000
   const due = [...teams]
-    .filter(([key]) => Date.now() - (store.entries[key]?.fetchedAt ?? 0) > 24 * 3_600_000)
-    .sort((a, b) => (store.entries[a[0]]?.fetchedAt ?? 0) - (store.entries[b[0]]?.fetchedAt ?? 0))
+    .filter(([key, t]) => Date.now() - (store.entries[key]?.fetchedAt ?? 0) > (t.priority ? DAY : 7 * DAY))
+    .sort((a, b) => Number(!!store.entries[a[0]]) - Number(!!store.entries[b[0]]) || Number(b[1].priority) - Number(a[1].priority) || (store.entries[a[0]]?.fetchedAt ?? 0) - (store.entries[b[0]]?.fetchedAt ?? 0))
     .slice(0, 3)
   for (const [key, t] of due) {
     // A failed fetch is tried again a little later (the entry's time is not touched; a team with no list stays in the queue)
