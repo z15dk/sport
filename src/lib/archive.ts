@@ -693,6 +693,36 @@ export function archiveMissingPlayers(limit: number): string[] {
   }
 }
 
+/**
+ * The players in the saved matches whose name has `word` in it: id, name, their latest team and match date – to find a
+ * player's id (photo, page) by his name (Danskere i udlandet, src/lib/abroadPhotos.ts). Newest first.
+ */
+export function archivePlayersNamed(word: string, limit = 40): { id: number; name: string; team: string; last: string }[] {
+  const lib = sqlite()
+  if (!lib || !existsFile(archiveFile()) || word.length < 3) return []
+  let db: Db
+  try {
+    db = new lib.DatabaseSync(archiveFile(), { readOnly: true })
+  } catch {
+    return []
+  }
+  try {
+    return db
+      .prepare(
+        `SELECT p.player_id, p.name, p.team, MAX(m.start_date) AS last
+           FROM player_games p JOIN matches m ON m.event_id = p.event_id
+          WHERE p.name LIKE ? AND p.player_id IS NOT NULL
+          GROUP BY p.player_id ORDER BY last DESC LIMIT ?`,
+      )
+      .all(`%${word.replace(/[%_]/g, '')}%`, limit)
+      .map((r) => ({ id: Number(r.player_id), name: String(r.name ?? ''), team: String(r.team ?? ''), last: String(r.last ?? '') }))
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
 /** A player's matches with the match itself, newest first */
 export function playerGames(playerId: number, limit = 400): (PlayerGame & { date: Date; tournament: string; home: string; away: string; homeScore: number; awayScore: number })[] {
   const lib = sqlite()

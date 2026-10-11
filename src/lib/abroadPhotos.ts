@@ -4,12 +4,14 @@ import { normalize } from '../data/aliases'
 import { playerPath } from '../data/player'
 import type { TeamEntry } from '../data/teams'
 import { abroadTeam, readAbroad, setAbroadIds } from './abroad'
+import { archivePlayersNamed } from './archive'
 import { apiSearchPlayers, apiTeamIdOf, lineupPlayersNamed, apiTeamPlayers, apiTeamSquad, externalLeague, type SquadPlayer } from './apisports'
 import { proxyImage } from './imageProxy'
 
 // The Danes abroad's photos and player pages (/danskere-i-udlandet): each player's id at the match data's source – the
 // one saved on him (James', or found by resolveAbroadIds), else found in his club's squad by name ("Pierre-Emile
-// Højbjerg" is "P. Højbjerg" there). resolveAbroadIds looks up the rest in the source's player search (a Dane with the
+// Højbjerg" is "P. Højbjerg" there). resolveAbroadIds looks up the rest in our own match archive and saved line-ups,
+// then the source's player search (a Dane with the
 // same last name and first initial) and saves the ids, so the page never waits on it. The source has a photo of every
 // player under his id.
 
@@ -81,6 +83,22 @@ function lineupId(name: string): number | undefined {
   return ids.size === 1 ? [...ids][0] : undefined
 }
 
+/**
+ * The player's id from our own match archive (every saved match with its players): by his last name, as written and
+ * without Danish letters; when two players fit, the one at his club now, else the one who played last.
+ */
+function archiveId(name: string, club: string): number | undefined {
+  const last = name.trim().split(/\s+/).at(-1) ?? ''
+  const plain = last.replace(/æ/gi, 'ae').replace(/ø/gi, 'o').replace(/å/gi, 'a')
+  const hits = new Map<number, { team: string; last: string }>()
+  for (const term of new Set([last, plain])) for (const p of archivePlayersNamed(term)) if (sameName(name, p.name) && !hits.has(p.id)) hits.set(p.id, p)
+  if (hits.size <= 1) return [...hits.keys()][0]
+  const clubWords = words(club.replace(/\(k\)/i, ''))
+  const atClub = [...hits].filter(([, p]) => words(p.team).some((w) => w.length > 2 && clubWords.includes(w)))
+  if (atClub.length === 1) return atClub[0][0]
+  return [...hits].sort((a, b) => b[1].last.localeCompare(a[1].last))[0][0]
+}
+
 /** A word as the source's search takes it: letters a–z only ("Mæhle" → "Maehle") */
 const searchable = (w: string) =>
   w
@@ -110,7 +128,7 @@ export function resolveAbroadIds(): Promise<{ found: number; missing: string[] }
     const missing: string[] = []
     for (const p of readAbroad().players) {
       if (p.apiId) continue
-      const id = (await squadId(p.name, abroadTeam(p.club))) ?? lineupId(p.name) ?? (await searchId(p.name).catch(() => undefined))
+      const id = (await squadId(p.name, abroadTeam(p.club))) ?? archiveId(p.name, p.club) ?? lineupId(p.name) ?? (await searchId(p.name).catch(() => undefined))
       if (id) found[p.name] = id
       else missing.push(`${p.name} (${p.club})`)
     }
