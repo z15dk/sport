@@ -1254,7 +1254,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   )
   const Pill = ({ text, dark = true }: { text?: string; dark?: boolean }) =>
     text ? (
-      <div style={{ display: 'flex', padding: '8px 22px', borderRadius: 40, background: dark ? INK : '#fff', color: dark ? '#fff' : INK, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600 }}>{text}</div>
+      <div style={{ display: 'flex', padding: '8px 20px', background: dark ? INK : '#fff', color: dark ? '#fff' : INK, fontFamily: 'Barlow', fontSize: 24, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>{text.toUpperCase()}</div>
     ) : null
   const Centered = ({ y, children }: { y: number; children: React.ReactNode }) => <div style={{ position: 'absolute', left: 0, top: y, width: '100%', display: 'flex', justifyContent: 'center' }}>{children}</div>
   const VsBadge = ({ size }: { size: number }) => (
@@ -1373,7 +1373,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
               {row(away, awayLogo)}
             </div>
             <div style={{ width: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: LIME, borderLeft: '4px dashed rgba(17,19,14,0.35)', padding: '0 18px' }}>
-              <div style={{ display: 'flex', padding: '4px 16px', borderRadius: 20, background: INK, color: '#fff', fontFamily: 'DM Sans', fontSize: 20, fontWeight: 700 }}>Kampstart</div>
+              <div style={{ display: 'flex', padding: '4px 14px', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>KAMPSTART</div>
               {day && <div style={{ display: 'flex', marginTop: 12, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>{day}</div>}
               <div style={{ display: 'flex', marginTop: 6, fontSize: time ? 92 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
               <div style={{ display: 'flex', marginTop: 14, fontSize: 26, fontWeight: 800, fontStyle: 'italic' }}>
@@ -1436,7 +1436,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
             </div>
             <div style={{ width: 24, background: onLight(ac), display: 'flex' }} />
           </div>
-          <div style={{ position: 'absolute', left: 520, top: 310, width: 160, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: INK, color: '#fff', fontFamily: 'DM Sans', fontSize: 21, fontWeight: 700, borderRadius: '0 0 12px 12px' }}>Kampstart</div>
+          <div style={{ position: 'absolute', left: 520, top: 310, width: 160, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>KAMPSTART</div>
           {day && (
             <Centered y={400}>
               <div style={{ display: 'flex', fontSize: 46, fontWeight: 800, fontStyle: 'italic' }}>{day.toUpperCase()}</div>
