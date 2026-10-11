@@ -31,16 +31,14 @@ export const SOUTHERN: Division[] = [
       ca('es-get', 'Getafe', 'Getafe', 'Getafe', '#005999', '#ffffff'),
       ca('es-osa', 'Osasuna', 'Osasuna', 'Pamplona', '#d91a21', '#0a346f'),
       ca('es-ray', 'Rayo Vallecano', 'Rayo Vallecano', 'Madrid', '#ffffff', '#e53027'),
-      ca('es-mll', 'RCD Mallorca', 'Mallorca', 'Palma', '#e20613', '#111111'),
-      ca('es-gir', 'Girona', 'Girona', 'Girona', '#cd2534', '#ffffff'),
       ca('es-esp', 'Espanyol', 'Espanyol', 'Barcelona', '#007fc8', '#ffffff'),
       ca('es-ala', 'Deportivo Alavés', 'Alaves', 'Vitoria-Gasteiz', '#0761af', '#ffffff'),
       ca('es-elc', 'Elche', 'Elche', 'Elche', '#05642c', '#ffffff'),
       ca('es-lev', 'Levante', 'Levante', 'Valencia', '#b4053f', '#1d3d8f'),
-      ca('es-ovi', 'Real Oviedo', 'Real Oviedo', 'Oviedo', '#003c80', '#ffffff'),
       ca('es-mal', 'Málaga CF', 'Málaga', 'Málaga', '#5bc2e7', '#ffffff'),
       ca('es-rac', 'Racing de Santander', 'Racing de Santander', 'Santander', '#00843d', '#ffffff'),
       ca('es-dep', 'Deportivo de La Coruña', 'Deportivo de A Coruña', 'A Coruña', '#0055a4', '#ffffff'),
+      // Mallorca, Girona and Real Oviedo went down in 2025/26 (the data watch, 11/10-2026: 23 clubs against 20 in the table)
     ],
   },
   {

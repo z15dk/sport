@@ -59,11 +59,15 @@ export function incidentsOf(e: ApiEvent): Incident[] | undefined {
 
 const FINISHED = new Set(['FT', 'AET', 'PEN', 'AP', 'Match Finished', 'Finished'])
 const UPCOMING = new Set(['', 'NS', 'Not Started', 'TBD', 'Time to be defined'])
-const POSTPONED = new Set(['PST', 'CANC', 'ABD', 'Postponed', 'Cancelled', 'Abandoned'])
+const POSTPONED = new Set(['PST', 'POST', 'CANC', 'ABD', 'AWD', 'WO', 'Postponed', 'Cancelled', 'Abandoned'])
+// Stopped during the match (weather, crowd trouble): live while it may still go on, then off – Rayo–Athletic stood as
+// live for a day on 10/10-2026 with "INT"
+const STOPPED = new Set(['INT', 'SUSP', 'Interrupted', 'Suspended'])
 
-export function toState(e: ApiEvent): MatchState {
+export function toState(e: ApiEvent, now = Date.now()): MatchState {
   const status = (e.strStatus ?? '').trim()
   if (e.strPostponed === 'yes' || POSTPONED.has(status)) return 'postponed'
+  if (STOPPED.has(status) || STOPPED.has((e.strProgress ?? '').trim())) return now - toKickoff(e).getTime() > 3 * 3_600_000 ? 'postponed' : 'live'
   if (FINISHED.has(status)) return 'finished'
   if (UPCOMING.has(status)) return 'upcoming'
   return 'live'

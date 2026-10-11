@@ -69,6 +69,9 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
     const team: TeamEntry = { slug, name: shown, ...e, names: shown === name ? [name] : [name, shown] }
     // The address it had for some hours on 4 October 2026, made from our Danish name for the league: sent on to the real one
     if (e.slugLeague && e.slugLeague !== e.league && slug.endsWith(`-${slugify(e.slugLeague)}`)) movedSlugs.set(`${slugify(name)}-${slugify(e.league)}`, slug)
+    // A club that left one of our leagues (relegated from La Liga) had its address with the league added while it looked
+    // like ours: that address still finds it under the plain name
+    if (slug === slugify(name)) movedSlugs.set(`${slug}-${slugify(e.slugLeague ?? e.league)}`, slug)
     out.set(key, team)
     if (e.leagueSlug) (inLeagueSlug.get(e.leagueSlug) ?? inLeagueSlug.set(e.leagueSlug, []).get(e.leagueSlug)!).push(team)
   }
