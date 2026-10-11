@@ -101,14 +101,14 @@ ADGANG
      - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>","variant":"<design>". Brug klubbernes navne, som Matchly skriver dem.
        - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
          - "klassisk": de to logoer og VS på mørk bund – det sikre valg.
-         - "diagonal": klubfarverne skåret skråt med VS i midten – til lokalopgør og rivaliseringer.
-         - "plakat": et kæmpe VS og holdene stablet – til de store kampe (top mod top, derby, landskamp).
-         - "bane": banen med kampstart i midtercirklen – til en almindelig ligakamp.
-         - "billet": en kampbillet med dag og tid på stubben – til pokalkampe og kampe, folk skal ud og se.
-         - "logoer": kæmpe logoer ud over kanten – når klubberne er historien (gammel klub, rivaler).
+         - "kort": to hvide kort med klubbernes farver og et VS imellem – til lokalopgør og rivaliseringer.
+         - "plakat": holdene stablet og et kæmpe VS på lime – til de store kampe (top mod top, derby, landskamp).
+         - "bane": en lys grøn bane med kampstart i midtercirklen – til en almindelig ligakamp.
+         - "billet": en kampbillet med dag og tid på den lime stub – til pokalkampe og kampe, folk skal ud og se.
+         - "farver": klubbernes farver som to lyse halvdele – når klubberne er historien (gammel klub, traditionsklubber).
          - "tv": TV-bjælken med tiden – når kampen vises på TV.
-         - "nedtaelling": kampstarten i kæmpe tal – til kampe i dag eller i aften.
-         - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og nedtaelling.
+         - "stribe": et bredt lime bånd med VS og kampstart – til kampe i dag eller i aften.
+         - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og stribe.
      - Om én klub (fyring, ansættelse, krise): "kind":"klub","club":"<klub>".
      - Om en liga (statistik, runde, oprykning): "kind":"liga","league":"<liga>".
      - Alt andet: "kind":"tekst","title":"<kort rubrik, højst 8 ord>","top":"<lille linje, fx ligaen>","sub":"<valgfri linje>".

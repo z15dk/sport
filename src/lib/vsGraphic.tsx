@@ -40,7 +40,7 @@ export interface VsInput {
 }
 
 /** The VS graphic's eight designs, for James to choose by the match (deploy/claude-editor: OPTAKT.md, NYHEDER.md) */
-export const VS_VARIANTS = ['klassisk', 'diagonal', 'plakat', 'bane', 'billet', 'logoer', 'tv', 'nedtaelling'] as const
+export const VS_VARIANTS = ['klassisk', 'kort', 'plakat', 'bane', 'billet', 'farver', 'tv', 'stribe'] as const
 export type VsVariant = (typeof VS_VARIANTS)[number]
 
 const BG = '#11130e'
@@ -98,7 +98,7 @@ async function photoData(src: string | undefined): Promise<string | undefined> {
   }
 }
 
-function Club({ name, logo, flag }: { name: string; logo?: string; flag: boolean }) {
+function Club({ name, logo, flag, light }: { name: string; logo?: string; flag: boolean; light?: boolean }) {
   const size = name.length > 16 ? 34 : 44
   return (
     <div style={{ width: 330, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -113,7 +113,7 @@ function Club({ name, logo, flag }: { name: string; logo?: string; flag: boolean
           {name.slice(0, 2).toUpperCase()}
         </div>
       )}
-      <div style={{ marginTop: 22, fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
+      <div style={{ marginTop: 22, fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', ...(light ? {} : { textShadow: '0 4px 20px rgba(0,0,0,0.6)' }) }}>{name.toUpperCase()}</div>
     </div>
   )
 }
@@ -135,20 +135,21 @@ export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
   const top = input.top?.trim()
   const res = new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: photo ? BG : VS_BG, color: '#fff', fontFamily: 'Barlow' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: photo ? BG : LIGHT, color: photo ? '#fff' : INK, fontFamily: 'Barlow' }}>
+        {!photo && <img src={lightBackground(onLight(clubColor(home, isFlag(home))), onLight(clubColor(away, isFlag(away))))} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />}
         {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
         {/* The photo darkened just enough for the logos and text to stand out – a little more at the top line and the edges – so the photo is still clearly seen */}
         {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'linear-gradient(180deg, rgba(17,19,14,0.55) 0%, rgba(17,19,14,0.3) 30%, rgba(17,19,14,0.3) 70%, rgba(17,19,14,0.5) 100%)' }} />}
         {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'radial-gradient(ellipse at center, rgba(17,19,14,0) 45%, rgba(17,19,14,0.35) 100%)' }} />}
         {/* The big M behind the clubs, as an outline */}
-        <img src={mOutline(photo ? 'rgba(198,241,53,0.18)' : '#363c2b', 0.5)} width={1000} height={720} alt="" style={{ position: 'absolute', left: 100, top: -60 }} />
+        <img src={mOutline(photo ? 'rgba(198,241,53,0.18)' : '#e9ebe2', 0.5)} width={1000} height={720} alt="" style={{ position: 'absolute', left: 100, top: -60 }} />
         {top && (
-          <div style={{ position: 'absolute', left: 0, top: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 20, fontWeight: 700, letterSpacing: 2, color: LIME }}>{top.toUpperCase()}</div>
+          <div style={{ position: 'absolute', left: 0, top: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 20, fontWeight: 700, letterSpacing: 2, color: photo ? LIME : MUTED }}>{top.toUpperCase()}</div>
         )}
         <div style={{ position: 'absolute', left: 0, top: 110, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Club name={home} logo={homeLogo} flag={isFlag(home)} />
-          <div style={{ display: 'flex', margin: '0 70px', fontSize: 150, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME, textShadow: '0 6px 30px rgba(0,0,0,0.5)' }}>VS</div>
-          <Club name={away} logo={awayLogo} flag={isFlag(away)} />
+          <Club name={home} logo={homeLogo} flag={isFlag(home)} light={!photo} />
+          <div style={{ display: 'flex', margin: '0 70px', fontSize: 150, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, ...(photo ? { color: LIME, textShadow: '0 6px 30px rgba(0,0,0,0.5)' } : { color: INK }) }}>VS</div>
+          <Club name={away} logo={awayLogo} flag={isFlag(away)} light={!photo} />
         </div>
         <div style={{ position: 'absolute', right: 56, bottom: 30, display: 'flex', fontSize: 26, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
           MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
@@ -1230,7 +1231,7 @@ export async function namesWithLogo(): Promise<Set<string>> {
 
 // ---------------------------------------------------------------- the VS graphic's other designs
 
-/** A coming match in one of the seven designs besides the classic one (VS_VARIANTS): logos, colours, the day and the time */
+/** A coming match in one of the seven designs besides the classic one (VS_VARIANTS), light and bright (the owner's word 11/10-2026, no gradients): logos, colours, the day and the time */
 async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassisk'>): Promise<Buffer> {
   const { home, away } = input
   const [homeLogo, awayLogo] = await Promise.all([teamCrest(home, 420), teamCrest(away, 420)])
@@ -1242,101 +1243,110 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   const parts = (top ?? '').split('·').map((x) => x.trim()).filter(Boolean)
   const league = parts.length > 1 ? parts[0] : undefined
   const day = (parts.length > 1 ? parts.slice(1).join(' · ') : (parts[0] ?? '')).replace(/\s*kl\.?\s*\d{1,2}[.:]\d{2}\b/, '').trim()
+  const when = [day, time && `kl. ${time}`].filter(Boolean).join(' ')
   const { width: W, height: H } = OG_SIZE
   const nameSize = (n: string, big: number) => (n.length > 18 ? big * 0.78 : big)
-  const frame = (layers: React.ReactElement, background = BG, color = '#fff') => (
+  const frame = (layers: React.ReactElement, background = LIGHT, color = INK) => (
     <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background, color, fontFamily: 'Barlow' }}>{(layers.props as { children: React.ReactNode }).children}</div>
   )
-  const Name = ({ name, size = 40, align = 'center' }: { name: string; size?: number; align?: 'center' | 'left' | 'right' }) => (
-    <div style={{ display: 'flex', fontSize: nameSize(name, size), fontWeight: 800, fontStyle: 'italic', textAlign: align, lineHeight: 1 }}>{name.toUpperCase()}</div>
+  const Name = ({ name, size = 40, align = 'center', color }: { name: string; size?: number; align?: 'center' | 'left' | 'right'; color?: string }) => (
+    <div style={{ display: 'flex', fontSize: nameSize(name, size), fontWeight: 800, fontStyle: 'italic', textAlign: align, lineHeight: 1, ...(color ? { color } : {}) }}>{name.toUpperCase()}</div>
   )
-  const Line = ({ text, color = LIME, size = 24 }: { text?: string; color?: string; size?: number }) => (text ? <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: size, fontWeight: 600, color }}>{text}</div> : null)
-  const Vs = ({ size = 120, color = LIME }: { size?: number; color?: string }) => <div style={{ display: 'flex', fontSize: size, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color }}>VS</div>
+  const Pill = ({ text, dark = true }: { text?: string; dark?: boolean }) =>
+    text ? (
+      <div style={{ display: 'flex', padding: '8px 22px', borderRadius: 40, background: dark ? INK : '#fff', color: dark ? '#fff' : INK, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600 }}>{text}</div>
+    ) : null
+  const Centered = ({ y, children }: { y: number; children: React.ReactNode }) => <div style={{ position: 'absolute', left: 0, top: y, width: '100%', display: 'flex', justifyContent: 'center' }}>{children}</div>
+  const VsBadge = ({ size }: { size: number }) => (
+    <div style={{ width: size, height: size, borderRadius: size, background: LIME, border: `6px solid ${INK}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.42, fontWeight: 800, fontStyle: 'italic', color: INK }}>VS</div>
+  )
+  const bg = lightBackground(onLight(hc), onLight(ac))
 
   let picture: React.ReactElement
   switch (variant) {
-    case 'diagonal': {
-      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><polygon points="0,0 ${W * 0.58},0 ${W * 0.42},${H} 0,${H}" fill="${shade(hc)}"/><polygon points="${W * 0.58},0 ${W},0 ${W},${H} ${W * 0.42},${H}" fill="${shade(ac)}"/><line x1="${W * 0.58}" y1="0" x2="${W * 0.42}" y2="${H}" stroke="${LIME}" stroke-width="8"/></svg>`)
+    case 'kort': {
+      // Two white cards, each with its club's colour along the top, and a lime VS between them
+      const card = (name: string, logo: string | undefined, color: string, x: number) => (
+        <div style={{ position: 'absolute', left: x, top: 120, width: 440, height: 400, borderRadius: 28, overflow: 'hidden', background: '#fff', boxShadow: '0 18px 40px rgba(17,19,14,0.14)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22 }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, width: 440, height: 16, background: onLight(color), display: 'flex' }} />
+          <Crest name={name} logo={logo} size={210} />
+          <Name name={name} size={40} />
+        </div>
+      )
       picture = frame(
         <>
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: 40, top: 120, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
-            <Crest name={home} logo={homeLogo} size={230} />
-            <Name name={home} size={40} />
+          <Centered y={48}>
+            <Pill text={top} />
+          </Centered>
+          {card(home, homeLogo, hc, 90)}
+          {card(away, awayLogo, ac, 670)}
+          <div style={{ position: 'absolute', left: W / 2 - 80, top: 240, display: 'flex' }}>
+            <VsBadge size={160} />
           </div>
-          <div style={{ position: 'absolute', left: 780, top: 120, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
-            <Crest name={away} logo={awayLogo} size={230} />
-            <Name name={away} size={40} />
-          </div>
-          <div style={{ position: 'absolute', left: 485, top: 205, width: 230, height: 170, borderRadius: 26, background: BG, border: `4px solid ${LIME}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Vs size={110} />
-          </div>
-          {top && (
-            <div style={{ position: 'absolute', left: 0, top: 40, width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', background: BG, padding: '8px 22px', borderRadius: 40 }}>
-                <Line text={top} color="#fff" />
-              </div>
-            </div>
-          )}
-          <Brand />
+          <Brand color={INK} />
         </>,
       )
       break
     }
     case 'plakat': {
+      // The teams stacked on the left, a lime panel with a huge VS on the right
       const team = (name: string, logo: string | undefined) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 24 }}>
-          <Crest name={name} logo={logo} size={82} />
-          <Name name={name} size={62} align="left" />
-        </div>
-      )
-      picture = frame(
-        <>
-          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: 700, top: 20, display: 'flex' }}>
-            <Vs size={420} />
-          </div>
-          <div style={{ position: 'absolute', left: 70, top: 250, width: 780, display: 'flex', flexDirection: 'column' }}>
-            <Line text={league ?? top} />
-            {team(home, homeLogo)}
-            {team(away, awayLogo)}
-            {league && day && <div style={{ display: 'flex', marginTop: 22, fontSize: 40, fontWeight: 800, fontStyle: 'italic', color: '#fff' }}>{[day, time].filter(Boolean).join(' · ').toUpperCase()}</div>}
-          </div>
-          <Brand />
-        </>,
-      )
-      break
-    }
-    case 'bane': {
-      const stripes = Array.from({ length: 12 }, (_, i) => `<rect x="${i * 100}" width="100" height="${H}" fill="${i % 2 ? '#1f3214' : '#243a18'}"/>`).join('')
-      const ln = 'stroke="#ffffff" stroke-opacity="0.28" stroke-width="3" fill="none"'
-      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${stripes}<rect x="30" y="30" width="${W - 60}" height="${H - 60}" ${ln}/><line x1="${W / 2}" y1="30" x2="${W / 2}" y2="${H - 30}" ${ln}/><circle cx="${W / 2}" cy="${H / 2}" r="120" ${ln}/><rect x="30" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="30" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect x="${W - 200}" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="${W - 90}" y="${H / 2 - 90}" width="60" height="180" ${ln}/></svg>`)
-      const side = (name: string, logo: string | undefined, cx: number) => (
-        <div style={{ position: 'absolute', left: cx - 190, top: 140, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <Crest name={name} logo={logo} size={200} />
-          <Name name={name} size={38} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 22 }}>
+          <Crest name={name} logo={logo} size={86} />
+          <Name name={name} size={60} align="left" />
         </div>
       )
       picture = frame(
         <>
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 780, top: 0, width: 420, height: H, background: LIME, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', fontSize: 280, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: INK }}>VS</div>
+          </div>
+          <div style={{ position: 'absolute', left: 70, top: 150, width: 690, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, color: MUTED }}>{league ?? top}</div>
+            {team(home, homeLogo)}
+            {team(away, awayLogo)}
+            {league && day && <div style={{ display: 'flex', marginTop: 30, fontSize: 40, fontWeight: 800, fontStyle: 'italic' }}>{[day, time].filter(Boolean).join(' · ').toUpperCase()}</div>}
+          </div>
+          <div style={{ position: 'absolute', left: 70, bottom: 30, display: 'flex', fontSize: 26, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
+            MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
+          </div>
+        </>,
+      )
+      break
+    }
+    case 'bane': {
+      // A bright, striped pitch with the kick-off in the centre circle
+      const stripes = Array.from({ length: 12 }, (_, i) => `<rect x="${i * 100}" width="100" height="${H}" fill="${i % 2 ? '#4f9a3c' : '#58a744'}"/>`).join('')
+      const ln = 'stroke="#ffffff" stroke-opacity="0.7" stroke-width="4" fill="none"'
+      const pitch = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${stripes}<rect x="30" y="30" width="${W - 60}" height="${H - 60}" ${ln}/><line x1="${W / 2}" y1="30" x2="${W / 2}" y2="${H - 30}" ${ln}/><circle cx="${W / 2}" cy="${H / 2}" r="125" ${ln}/><rect x="30" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="30" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect x="${W - 200}" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="${W - 90}" y="${H / 2 - 90}" width="60" height="180" ${ln}/></svg>`)
+      const side = (name: string, logo: string | undefined, cx: number) => (
+        <div style={{ position: 'absolute', left: cx - 190, top: 140, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <Crest name={name} logo={logo} size={200} />
+          <div style={{ display: 'flex', padding: '6px 16px', borderRadius: 10, background: '#fff' }}>
+            <Name name={name} size={34} />
+          </div>
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={pitch} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           {top && (
-            <div style={{ position: 'absolute', left: 0, top: 46, width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', background: BG, padding: '8px 22px', borderRadius: 40 }}>
-                <Line text={league ?? top} color="#fff" />
-              </div>
-            </div>
+            <Centered y={46}>
+              <Pill text={league ?? top} dark={false} />
+            </Centered>
           )}
           {side(home, homeLogo, 330)}
           {side(away, awayLogo, 870)}
-          <div style={{ position: 'absolute', left: W / 2 - 112, top: H / 2 - 112, width: 224, height: 224, borderRadius: 224, background: BG, border: `4px solid ${LIME}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', left: W / 2 - 112, top: H / 2 - 112, width: 224, height: 224, borderRadius: 224, background: '#fff', border: `8px solid ${LIME}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {time ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 216, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{day || 'Kampstart'}</div>
-                <div style={{ width: 216, display: 'flex', justifyContent: 'center', fontSize: 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME }}>{time}</div>
+                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 19, fontWeight: 600, color: MUTED }}>{day || 'Kampstart'}</div>
+                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontSize: 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time}</div>
               </div>
             ) : (
-              <Vs size={90} />
+              <div style={{ display: 'flex', fontSize: 90, fontWeight: 800, fontStyle: 'italic' }}>VS</div>
             )}
           </div>
           <Brand />
@@ -1345,7 +1355,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       break
     }
     case 'billet': {
-      const paper = '#f4f5ef'
+      // A match ticket: the teams on the white part, the day and time on the lime stub
       const row = (name: string, logo: string | undefined) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 18 }}>
           <Crest name={name} logo={logo} size={92} />
@@ -1354,16 +1364,16 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       )
       picture = frame(
         <>
-          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: 90, top: 110, width: 1020, height: 410, display: 'flex', borderRadius: 26, background: paper, color: BG, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }}>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 90, top: 110, width: 1020, height: 410, display: 'flex', borderRadius: 26, overflow: 'hidden', background: '#fff', boxShadow: '0 18px 44px rgba(17,19,14,0.16)' }}>
             <div style={{ width: 740, display: 'flex', flexDirection: 'column', padding: '34px 44px' }}>
-              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(17,19,14,0.6)' }}>{league ?? 'Kampbillet'}</div>
+              <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: MUTED }}>{league ?? 'Kampbillet'}</div>
               {row(home, homeLogo)}
-              <div style={{ display: 'flex', marginTop: 14, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, color: 'rgba(17,19,14,0.45)' }}>MOD</div>
+              <div style={{ display: 'flex', marginTop: 14, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, color: 'rgba(17,19,14,0.4)' }}>MOD</div>
               {row(away, awayLogo)}
             </div>
-            <div style={{ width: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderLeft: '4px dashed rgba(17,19,14,0.25)', padding: '0 18px' }}>
-              <div style={{ display: 'flex', padding: '4px 16px', borderRadius: 20, background: BG, color: LIME, fontFamily: 'DM Sans', fontSize: 20, fontWeight: 700 }}>Kampstart</div>
+            <div style={{ width: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: LIME, borderLeft: '4px dashed rgba(17,19,14,0.35)', padding: '0 18px' }}>
+              <div style={{ display: 'flex', padding: '4px 16px', borderRadius: 20, background: INK, color: '#fff', fontFamily: 'DM Sans', fontSize: 20, fontWeight: 700 }}>Kampstart</div>
               {day && <div style={{ display: 'flex', marginTop: 12, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>{day}</div>}
               <div style={{ display: 'flex', marginTop: 6, fontSize: time ? 92 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
               <div style={{ display: 'flex', marginTop: 14, fontSize: 26, fontWeight: 800, fontStyle: 'italic' }}>
@@ -1371,88 +1381,94 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
               </div>
             </div>
           </div>
-          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 - 22, width: 44, height: 44, borderRadius: 44, background: BG, display: 'flex' }} />
-          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 + 410 - 22, width: 44, height: 44, borderRadius: 44, background: BG, display: 'flex' }} />
+          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 - 22, width: 44, height: 44, borderRadius: 44, background: LIGHT, display: 'flex' }} />
+          <div style={{ position: 'absolute', left: 90 + 740 - 22, top: 110 + 410 - 22, width: 44, height: 44, borderRadius: 44, background: LIGHT, display: 'flex' }} />
         </>,
       )
       break
     }
-    case 'logoer': {
+    case 'farver': {
+      // The two clubs' colours as two soft, flat halves, the crests on white circles and a lime VS in the seam
+      const half = (name: string, logo: string | undefined, color: string, x: number) => (
+        <div style={{ position: 'absolute', left: x, top: 0, width: W / 2, height: H, background: tint(onLight(color), 0.72), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+          <Crest name={name} logo={logo} size={250} ring="#fff" />
+          <Name name={name} size={42} />
+        </div>
+      )
       picture = frame(
         <>
-          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: -150, top: 45, display: 'flex', opacity: 0.9 }}>
-            <Crest name={home} logo={homeLogo} size={500} />
+          {half(home, homeLogo, hc, 0)}
+          {half(away, awayLogo, ac, W / 2)}
+          <div style={{ position: 'absolute', left: W / 2 - 3, top: 0, width: 6, height: H, background: INK, display: 'flex' }} />
+          <div style={{ position: 'absolute', left: W / 2 - 75, top: H / 2 - 105, display: 'flex' }}>
+            <VsBadge size={150} />
           </div>
-          <div style={{ position: 'absolute', left: 850, top: 45, display: 'flex', opacity: 0.9 }}>
-            <Crest name={away} logo={awayLogo} size={500} />
-          </div>
-          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: VS_BG, borderLeft: `6px solid ${LIME}`, borderRight: `6px solid ${LIME}` }} />
-          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <Line text={league ?? top} />
-            <Vs size={200} color="#fff" />
-            <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, fontStyle: 'italic', textAlign: 'center' }}>
-              {home.toUpperCase()} – {away.toUpperCase()}
-            </div>
-            {league && (day || time) && <Line text={[day, time && `kl. ${time}`].filter(Boolean).join(' ')} color="rgba(255,255,255,0.75)" size={22} />}
-          </div>
-          <Brand />
+          {top && (
+            <Centered y={40}>
+              <Pill text={top} />
+            </Centered>
+          )}
+          <Brand color={INK} />
         </>,
       )
       break
     }
     case 'tv': {
+      // A TV lower third: white team bars with the clubs' colours at the ends, the time on lime in the middle
       picture = frame(
         <>
-          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <img src={mOutline('rgba(198,241,53,0.10)', 0.45)} width={700} height={504} alt="" style={{ position: 'absolute', left: 250, top: 60 }} />
-          <div style={{ position: 'absolute', left: 0, top: 120, width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <Line text={league ?? top} />
-          </div>
-          <div style={{ position: 'absolute', left: 60, top: 170, width: 1080, height: 130, display: 'flex', alignItems: 'stretch', borderRadius: 16, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.5)' }}>
-            <div style={{ width: 22, background: hc, display: 'flex' }} />
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 18, padding: '0 22px', background: '#f4f5ef', color: BG }}>
-              <Crest name={home} logo={homeLogo} size={90} />
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <Centered y={110}>
+            <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, color: MUTED }}>{league ?? top}</div>
+          </Centered>
+          <div style={{ position: 'absolute', left: 60, top: 170, width: 1080, height: 140, display: 'flex', alignItems: 'stretch', borderRadius: 18, overflow: 'hidden', boxShadow: '0 16px 40px rgba(17,19,14,0.16)' }}>
+            <div style={{ width: 24, background: onLight(hc), display: 'flex' }} />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 18, padding: '0 22px', background: '#fff' }}>
+              <Crest name={home} logo={homeLogo} size={96} />
               <Name name={home} size={40} align="left" />
             </div>
-            <div style={{ width: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: BG, color: LIME }}>
-              <div style={{ display: 'flex', fontSize: time ? 72 : 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
+            <div style={{ width: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME }}>
+              <div style={{ display: 'flex', fontSize: time ? 76 : 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
             </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: '#f4f5ef', color: BG }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: '#fff' }}>
               <Name name={away} size={40} align="right" />
-              <Crest name={away} logo={awayLogo} size={90} />
+              <Crest name={away} logo={awayLogo} size={96} />
             </div>
-            <div style={{ width: 22, background: ac, display: 'flex' }} />
+            <div style={{ width: 24, background: onLight(ac), display: 'flex' }} />
           </div>
-          <div style={{ position: 'absolute', left: 520, top: 300, width: 160, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME, color: BG, fontFamily: 'DM Sans', fontSize: 21, fontWeight: 700, borderRadius: '0 0 10px 10px' }}>Kampstart</div>
+          <div style={{ position: 'absolute', left: 520, top: 310, width: 160, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: INK, color: '#fff', fontFamily: 'DM Sans', fontSize: 21, fontWeight: 700, borderRadius: '0 0 12px 12px' }}>Kampstart</div>
           {day && (
-            <div style={{ position: 'absolute', left: 0, top: 380, width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', fontSize: 44, fontWeight: 800, fontStyle: 'italic' }}>{day.toUpperCase()}</div>
-            </div>
+            <Centered y={400}>
+              <div style={{ display: 'flex', fontSize: 46, fontWeight: 800, fontStyle: 'italic' }}>{day.toUpperCase()}</div>
+            </Centered>
           )}
-          <Brand />
+          <Brand color={INK} />
         </>,
       )
       break
     }
-    case 'nedtaelling': {
+    case 'stribe': {
+      // A wide lime band across the middle with VS and the kick-off, the crests standing on it
       picture = frame(
         <>
-          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: 70, top: 56, display: 'flex', alignItems: 'center', gap: 22 }}>
-            <Crest name={home} logo={homeLogo} size={92} />
-            <Name name={home} size={44} align="left" />
-            <div style={{ display: 'flex', fontSize: 34, fontWeight: 800, fontStyle: 'italic', color: LIME, margin: '0 6px' }}>VS</div>
-            <Name name={away} size={44} align="left" />
-            <Crest name={away} logo={awayLogo} size={92} />
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: 0, top: 230, width: W, height: 150, background: LIME, display: 'flex' }} />
+          <Centered y={60}>
+            <Pill text={league ?? top} />
+          </Centered>
+          <div style={{ position: 'absolute', left: 70, top: 195, width: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+            <Crest name={home} logo={homeLogo} size={220} ring="#fff" />
+            <Name name={home} size={38} />
           </div>
-          <div style={{ position: 'absolute', left: 64, top: 170, display: 'flex' }}>
-            <div style={{ display: 'flex', fontSize: time ? 330 : 280, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: LIME, letterSpacing: -8 }}>{time ?? 'VS'}</div>
+          <div style={{ position: 'absolute', left: 770, top: 195, width: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+            <Crest name={away} logo={awayLogo} size={220} ring="#fff" />
+            <Name name={away} size={38} />
           </div>
-          <div style={{ position: 'absolute', left: 74, top: 510, display: 'flex', gap: 16 }}>
-            <Line text={[day, league].filter(Boolean).join(' · ') || top} color="#fff" size={26} />
+          <div style={{ position: 'absolute', left: 430, top: 230, width: 340, height: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', fontSize: 100, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>VS</div>
+            {when && league && <div style={{ display: 'flex', marginTop: 4, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700 }}>{when}</div>}
           </div>
-          <Brand />
+          <Brand color={INK} />
         </>,
       )
       break
@@ -1462,11 +1478,31 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   return Buffer.from(await res.arrayBuffer())
 }
 
-/** The VS designs' flat base: a little lighter than the site's dark (the owner's word 11/10-2026) */
-const VS_BG = '#272c1e'
+/** The VS designs' light palette (the owner's word 11/10-2026: light, bright colours, no gradients) */
+const LIGHT = '#f3f4ee'
+const INK = '#11130e'
+const MUTED = 'rgba(17,19,14,0.55)'
 
-/** The VS designs' background without gradients (the owner's word 11/10-2026): flat dark, an even dot pattern and the two clubs' colours as a bar along the top */
-function flatBackground(left: string, right: string): string {
+/** A club colour that shows on the light designs: near-white colours (FC København) become the dark ink */
+function onLight(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return INK
+  const n = parseInt(m[1], 16)
+  const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)
+  return lum > 215 ? INK : hex
+}
+
+/** A colour mixed with white (f: how much white) */
+function tint(hex: string, f: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return '#e4e8d8'
+  const n = parseInt(m[1], 16)
+  const c = (v: number) => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')
+  return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`
+}
+
+/** The VS designs' background: light and flat, an even dot pattern and the two clubs' colours as a bar along the top */
+function lightBackground(left: string, right: string): string {
   const { width: w, height: h } = OG_SIZE
-  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.16"/></pattern></defs><rect width="${w}" height="${h}" fill="${VS_BG}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="12" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="12" fill="${right}"/></svg>`)
+  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="${INK}" fill-opacity="0.07"/></pattern></defs><rect width="${w}" height="${h}" fill="${LIGHT}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="14" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="14" fill="${right}"/></svg>`)
 }
