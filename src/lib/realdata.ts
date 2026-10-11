@@ -11,7 +11,7 @@ import { hashString } from '../data/fixtures'
 import { cacheDir, tsdb } from './tsdb'
 import { databaseSeason, matchKey } from './history'
 import { archiveFinished } from './archive'
-import { externalGames, seasonGames, tableTeams } from './apisports'
+import { externalGames, seasonGames, seasonProgramme, tableTeams } from './apisports'
 import { divisionOfGame } from '../data/ourLeagues'
 import { addDays, isoDate } from './time'
 import { clubNameOverrides } from './clubNames'
@@ -149,7 +149,7 @@ function sameLeague<G extends { league: { name: string; country?: string; logo?:
 let seasonMerge: { key: string; leagues: Record<string, RealEvent[]> } | undefined
 function mergedLeagues(tsdbData: RealData | undefined, db: ReturnType<typeof databaseSeason>): Record<string, RealEvent[]> {
   const h = timed('Fletning: sæsonens kampe tjekkes', () => {
-    const season = seasonGames()
+    const season = [...seasonGames(), ...seasonProgramme()]
     let h = season.length
     for (const g of season) {
       const s = `${g.id}${g.state}${g.homeScore ?? ''}${g.awayScore ?? ''}${g.incidents?.length ?? 0}`
@@ -312,12 +312,16 @@ const goalsComplete = (e: Pick<RealEvent, 'incidents' | 'homeScore' | 'awayScore
 function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
   const status: Record<string, ApiMergeStatus> = {}
   const byDivision = new Map<string, ReturnType<typeof seasonGames>>()
-  for (const g of seasonGames()) {
+  // The played games, and the coming ones of the seasons' programmes (only added where we don't have the match)
+  const ids = new Set<string>()
+  for (const g of [...seasonGames(), ...seasonProgramme()]) {
     const d = divisionOfGame(g)?.d
-    if (d) byDivision.set(d.id, [...(byDivision.get(d.id) ?? []), g])
+    if (!d || ids.has(g.id)) continue
+    ids.add(g.id)
+    byDivision.set(d.id, [...(byDivision.get(d.id) ?? []), g])
   }
   for (const [id, games] of byDivision) {
-    const st: ApiMergeStatus = (status[id] = { games: games.length, withIncidents: games.filter((g) => g.incidents?.length).length, matched: 0, added: 0, usedIncidents: 0, keptOwn: 0, skipped: [] })
+    const st: ApiMergeStatus = (status[id] = { games: games.filter((g) => g.state === 'finished').length, withIncidents: games.filter((g) => g.incidents?.length).length, matched: 0, added: 0, usedIncidents: 0, keptOwn: 0, skipped: [] })
     const events = [...(leagues[id] ?? [])]
     // This season only: from the first match after the last break of more than 45 days – among the matches played so
     // far, as the coming winter break (the Danish leagues, December to February) would put the start in next spring
@@ -335,6 +339,9 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
       byDay.set(d, [...(byDay.get(d) ?? []), i])
     })
     const knownNames = new Set(events.flatMap((e) => [e.home, e.away]))
+    // The coming games only for a league whose source gives no programme at all (3. Liga): where it has one, a game moved
+    // to another day at one source would otherwise stand twice
+    const haveProgramme = events.some((e) => e.state === 'upcoming' && Date.parse(e.kickoff) > now)
     for (const g of games) {
       if (Date.parse(g.kickoff) < start) continue
       const day = isoDate(new Date(g.kickoff))
@@ -370,7 +377,7 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
       }
       // A match we don't have: played (with its result), or coming (the season's programme where our source has none, the
       // 3. Liga); not a live or called-off one
-      if (!played && g.state !== 'upcoming') continue
+      if (!played && (g.state !== 'upcoming' || haveProgramme)) continue
       const added = events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: played ? g.homeScore : undefined, awayScore: played ? g.awayScore : undefined, state: played ? 'finished' : 'upcoming', venue: g.venue, incidents: played && g.incidents?.length ? g.incidents : undefined, ht: played ? g.ht : undefined })
       st.added++
       if (played && g.incidents?.length) st.usedIncidents++

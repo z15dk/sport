@@ -372,6 +372,8 @@ interface ApiState {
   days: Record<string, DayData>
   /** Finished games in our leagues, by day, kept after the day leaves the window */
   past?: Record<string, ExternalGame[]>
+  /** Our leagues' coming games from the whole season's fixtures, by league id (the programme where TheSportsDB has none) */
+  programme?: Record<string, ExternalGame[]>
   /** Days before the window fetched once for the past games */
   backfilled?: Record<string, number>
   /** Days the plan gives access to, relative to today (the free plan: yesterday to tomorrow) */
@@ -541,6 +543,14 @@ export function seasonGames(): ExternalGame[] {
   mem.season = [...byId.values()]
   mem.seasonFor = mem.mtime
   return mem.season
+}
+
+/** Our leagues' coming games from the seasons' fixtures (not yet played; those already past their time left out) */
+export function seasonProgramme(now = Date.now()): ExternalGame[] {
+  load()
+  const out: ExternalGame[] = []
+  for (const s of Object.values(mem.store)) for (const games of Object.values(s.programme ?? {})) for (const g of games) if (Date.parse(g.kickoff) > now - 3 * 3_600_000) out.push(g)
+  return out
 }
 
 // ---------------------------------------------------------------- fetching
@@ -1083,6 +1093,10 @@ async function fetchSeason(api: Api, due: { league: string }) {
   const other = all.filter((g) => !inOurLeague(g) && !divisionOfGame(g) && !wholeSeason(g))
   if (other.length) archiveSeason(`ext-${api}-${due.league}`, other[0].league.name, SEASON.slice(0, 4), other)
   const games = all.filter(inOurLeague)
+  // The season's coming games in our leagues, for the programme (src/lib/realdata.ts fills in what our source lacks)
+  const coming = all.filter((g) => g.state === 'upcoming' && !!divisionOfGame(g))
+  if (coming.length) (s.programme ??= {})[due.league] = coming
+  else if (s.programme?.[due.league] && all.length) delete s.programme[due.league]
   const byDay = new Map<string, ExternalGame[]>()
   for (const g of games) {
     const day = isoDate(new Date(g.kickoff))
