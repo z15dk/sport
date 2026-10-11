@@ -1292,7 +1292,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       )
       picture = frame(
         <>
-          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <div style={{ position: 'absolute', left: 700, top: 20, display: 'flex' }}>
             <Vs size={420} />
           </div>
@@ -1354,7 +1354,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       )
       picture = frame(
         <>
-          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <div style={{ position: 'absolute', left: 90, top: 110, width: 1020, height: 410, display: 'flex', borderRadius: 26, background: paper, color: BG, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }}>
             <div style={{ width: 740, display: 'flex', flexDirection: 'column', padding: '34px 44px' }}>
               <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 22, fontWeight: 600, color: 'rgba(17,19,14,0.6)' }}>{league ?? 'Kampbillet'}</div>
@@ -1380,14 +1380,14 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
     case 'logoer': {
       picture = frame(
         <>
-          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-          <div style={{ position: 'absolute', left: -170, top: 35, display: 'flex', opacity: 0.9 }}>
-            <Crest name={home} logo={homeLogo} size={560} />
+          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ position: 'absolute', left: -150, top: 45, display: 'flex', opacity: 0.9 }}>
+            <Crest name={home} logo={homeLogo} size={500} />
           </div>
-          <div style={{ position: 'absolute', left: 810, top: 35, display: 'flex', opacity: 0.9 }}>
-            <Crest name={away} logo={awayLogo} size={560} />
+          <div style={{ position: 'absolute', left: 850, top: 45, display: 'flex', opacity: 0.9 }}>
+            <Crest name={away} logo={awayLogo} size={500} />
           </div>
-          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: 'linear-gradient(90deg, rgba(17,19,14,0) 0%, rgba(17,19,14,0.92) 22%, rgba(17,19,14,0.92) 78%, rgba(17,19,14,0) 100%)' }} />
+          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: BG, borderLeft: `6px solid ${LIME}`, borderRight: `6px solid ${LIME}` }} />
           <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <Line text={league ?? top} />
             <Vs size={200} color="#fff" />
@@ -1404,7 +1404,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
     case 'tv': {
       picture = frame(
         <>
-          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <img src={mOutline('rgba(198,241,53,0.10)', 0.45)} width={700} height={504} alt="" style={{ position: 'absolute', left: 250, top: 60 }} />
           <div style={{ position: 'absolute', left: 0, top: 120, width: '100%', display: 'flex', justifyContent: 'center' }}>
             <Line text={league ?? top} />
@@ -1438,7 +1438,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
     case 'nedtaelling': {
       picture = frame(
         <>
-          <img src={resultBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <img src={flatBackground(hc, ac)} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <div style={{ position: 'absolute', left: 70, top: 56, display: 'flex', alignItems: 'center', gap: 22 }}>
             <Crest name={home} logo={homeLogo} size={92} />
             <Name name={home} size={44} align="left" />
@@ -1460,4 +1460,10 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   }
   const res = new ImageResponse(picture, { ...OG_SIZE, fonts: ogFonts() })
   return Buffer.from(await res.arrayBuffer())
+}
+
+/** The VS designs' background without gradients (the owner's word 11/10-2026): flat dark, an even dot pattern and the two clubs' colours as a bar along the top */
+function flatBackground(left: string, right: string): string {
+  const { width: w, height: h } = OG_SIZE
+  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.1"/></pattern></defs><rect width="${w}" height="${h}" fill="${BG}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="12" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="12" fill="${right}"/></svg>`)
 }
