@@ -57,13 +57,14 @@ export async function abroadFace(name: string, team: TeamEntry | undefined, apiI
   return id ? { photo: proxyImage(`https://media.api-sports.io/football/players/${id}.png`), href: playerPath(id, name) } : {}
 }
 
-/** A search hit is the player: a Dane whose full name at the source has every word of ours ("Joakim Mæhle" is "Joakim Mæhle Pedersen") with the same first name */
+/** A search hit is the player: a Dane whose full name at the source has every word of ours ("Joakim Mæhle" is "Joakim Mæhle Pedersen"), the first name at least as its start */
 function sameProfile(full: string, p: { name: string; firstname?: string; lastname?: string; nationality?: string }): boolean {
   if (p.nationality && p.nationality !== 'Denmark') return false
   if (sameName(full, p.name)) return true
   const ours = words(full)
   const theirs = words(`${p.firstname ?? ''} ${p.lastname ?? ''}`)
-  return ours.length > 1 && theirs[0] === ours[0] && ours.every((w) => theirs.includes(w))
+  // "Matt" is "Matthew" there, "Jonas Wind" is "Jonas Older Wind"
+  return ours.length > 1 && !!theirs[0]?.startsWith(ours[0]) && ours.slice(1).every((w) => theirs.includes(w))
 }
 
 /** The player's id in his club's squad, by name */
@@ -83,7 +84,8 @@ const searchable = (w: string) =>
 /** The player's id from the source's player search: by each of his names, the last first (it searches last names) */
 async function searchId(name: string): Promise<number | undefined> {
   const parts = name.trim().split(/[\s-]+/).filter(Boolean)
-  const terms = [...new Set([...parts.slice(1).reverse(), parts[0]].map(searchable).filter((t) => t.length >= 3))].slice(0, 3)
+  // The search takes 4+ letters and no Danish ones ("Bah" and "Rønnow" are found by the first name)
+  const terms = [...new Set([...parts.slice(1).reverse(), parts[0]].filter((w) => !/[æøå]/i.test(w) || w === parts[0]).map(searchable).filter((t) => t.length >= 4))].slice(0, 3)
   for (const term of terms) {
     const hits = ((await apiSearchPlayers(term)) ?? []).filter((p) => sameProfile(name, p))
     if (hits.length === 1) return hits[0].id
