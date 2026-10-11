@@ -9,7 +9,8 @@ import { cacheDir } from './tsdb'
 // Denmark (the public RSS feed) and keeps those about football – a club, a league or a football word in the search
 // or its news. A new one, between 07 and 22, leaves a request (data/trend-request); the server then starts James
 // (matchly-trend.path → deploy/claude-editor/TREND.md), who reads them with GET /api/redaktor/trends, writes a quick
-// news draft on the best one while the search is hot, and mails it to the owner. At most 3 a day (the API refuses
+// news on the best one while the search is hot and publishes it himself (the owner's word 11/10-2026; on the site, not
+// on Facebook – the owner gets a short mail). At most 3 a day (the API refuses
 // more), and a request at most every 30 minutes. State in data/trends.json; TREND_WATCH=off stops it.
 
 const FEED = 'https://trends.google.com/trending/rss?geo=DK'
@@ -181,6 +182,9 @@ export function markTrend(id: string, done: { articleId: number } | { why: strin
   saveState(s, now)
   return {}
 }
+
+/** The draft James wrote on a search (to publish it himself) */
+export const trendArticle = (id: string): number | undefined => (readState().trends[id]?.state === 'skrevet' ? readState().trends[id].articleId : undefined)
 
 let timer: ReturnType<typeof setInterval> | undefined
 /** Starts the watch in the worker (instrumentation.ts) */

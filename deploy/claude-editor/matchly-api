@@ -30,7 +30,7 @@
 #   matchly-api tv-tekst <fil.json>  {"action":"tekst","date":"YYYY-MM-DD","html":…} – the text over /tv or /tv/i-morgen
 # The trend hunter (TREND.md):
 #   matchly-api trends               the football searches trending in Denmark not looked at yet, and how many may be written today
-#   matchly-api trend <fil.json>     {"action":"skrevet","id":…,"articleId":…} or {"action":"spring","id":…,"why":…}
+#   matchly-api trend <fil.json>     {"action":"skrevet","id":…,"articleId":…}, {"action":"udgiv","id":…} or {"action":"spring","id":…,"why":…}
 # The Danes abroad (UDLANDET.md):
 #   matchly-api udlandet             the list of Danish players abroad and the weekly roundup as they stand
 #   matchly-api udlandet-ret <fil.json> {"action":"spillere","players":[{name,club,position,note}]} (the whole list) or {"action":"opsamling","html":…}

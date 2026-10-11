@@ -1,6 +1,6 @@
 # James' trendjæger (matchly-trend.path): når danskerne pludselig søger på noget om fodbold, lægger sitet
-# /opt/scoreline/data/trend-request (src/lib/trendWatch.ts), og James skriver en hurtig nyhed som kladde og mailer den til
-# ejeren (TREND.md). Samme bruger, nøgle og spærringer som de andre runder.
+# /opt/scoreline/data/trend-request (src/lib/trendWatch.ts), og James skriver en hurtig nyhed og udgiver den selv – ikke på
+# Facebook (TREND.md). Samme bruger, nøgle og spærringer som de andre runder.
 [Unit]
 Description=Matchly: James skriver om fodboldsøgninger, der trender i Danmark
 After=network-online.target scoreline.service
