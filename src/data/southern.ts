@@ -68,8 +68,9 @@ export const SOUTHERN: Division[] = [
       ca('pt-aro', 'Arouca', 'Arouca', 'Arouca', '#ffd100', '#1d428a'),
       ca('pt-nac', 'Nacional', 'Nacional', 'Funchal', '#111111', '#ffffff'),
       ca('pt-ema', 'Estrela da Amadora', 'Estrela Amadora', 'Amadora', '#e30613', '#00843d'),
-      ca('pt-avs', 'AVS', 'AVS', 'Vila das Aves', '#ffd200', '#e30613'),
-      ca('pt-ton', 'Tondela', 'Tondela', 'Tondela', '#009a44', '#ffd200'),
+      // Up from Liga 2 for 2026/27 in place of AVS and Tondela (data watch 11/10-2026)
+      ca('pt-mar', 'Marítimo', 'Marítimo', 'Funchal', '#00843d', '#e30613'),
+      ca('pt-acv', 'Académico de Viseu', 'Académico de Viseu', 'Viseu', '#111111', '#ffffff'),
       ca('pt-alv', 'Alverca', 'Alverca', 'Alverca do Ribatejo', '#e30613', '#1d428a'),
     ],
   },

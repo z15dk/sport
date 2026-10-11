@@ -319,8 +319,13 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
   for (const [id, games] of byDivision) {
     const st: ApiMergeStatus = (status[id] = { games: games.length, withIncidents: games.filter((g) => g.incidents?.length).length, matched: 0, added: 0, usedIncidents: 0, keptOwn: 0, skipped: [] })
     const events = [...(leagues[id] ?? [])]
-    // This season only: from the first match after the last break of more than 45 days
-    const days = [...events.map((e) => e.kickoff), ...games.map((g) => g.kickoff)].map((k) => Date.parse(k)).sort((a, b) => a - b)
+    // This season only: from the first match after the last break of more than 45 days – among the matches played so
+    // far, as the coming winter break (the Danish leagues, December to February) would put the start in next spring
+    const now = Date.now()
+    const days = [...events.map((e) => e.kickoff), ...games.map((g) => g.kickoff)]
+      .map((k) => Date.parse(k))
+      .filter((t) => t <= now)
+      .sort((a, b) => a - b)
     let start = days[0] ?? 0
     for (let i = 1; i < days.length; i++) if (days[i] - days[i - 1] > 45 * 86_400_000) start = days[i]
     // By day, so each game is only compared with the same day's matches
@@ -338,10 +343,15 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
       const both = same.find((j) => alike(clubNames(events[j].home), g.home.name) && alike(clubNames(events[j].away), g.away.name))
       const either = same.filter((j) => alike(clubNames(events[j].home), g.home.name) || alike(clubNames(events[j].away), g.away.name))
       const i = both ?? (either.length === 1 ? either[0] : -1)
+      const played = g.state === 'finished' && g.homeScore !== undefined
       if (i >= 0) {
         const e = events[i]
-        if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
         st.matched++
+        // Called off or stopped for good at API-Sports while ours still says live or coming (Rayo–Athletic, 10/10-2026)
+        if (g.state === 'postponed' && e.state !== 'finished' && Date.parse(e.kickoff) < now) events[i] = { ...e, state: 'postponed', progress: undefined }
+        // A coming or running game tells nothing more about our match
+        if (!played) continue
+        if (e.state !== 'finished' || e.homeScore === undefined) events[i] = { ...e, state: 'finished', homeScore: g.homeScore, awayScore: g.awayScore, progress: undefined }
         // Goals and cards from API-Sports where our source has none, or only some of the goals
         const ours = events[i]
         if (g.incidents?.length && (!ours.incidents?.length || (!goalsComplete(ours) && goalsComplete(g)))) {
@@ -358,9 +368,12 @@ function fillFromApiSports(leagues: Record<string, RealEvent[]>) {
         const same = [...knownNames].filter((n) => alike([n], name))
         return same.length === 1 ? same[0] : name
       }
-      const added = events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: g.homeScore, awayScore: g.awayScore, state: 'finished', venue: g.venue, incidents: g.incidents?.length ? g.incidents : undefined, ht: g.ht })
+      // A match we don't have: played (with its result), or coming (the season's programme where our source has none, the
+      // 3. Liga); not a live or called-off one
+      if (!played && g.state !== 'upcoming') continue
+      const added = events.push({ id: g.id, round: 0, home: nameOf(g.home.name), away: nameOf(g.away.name), kickoff: g.kickoff, homeScore: played ? g.homeScore : undefined, awayScore: played ? g.awayScore : undefined, state: played ? 'finished' : 'upcoming', venue: g.venue, incidents: played && g.incidents?.length ? g.incidents : undefined, ht: played ? g.ht : undefined })
       st.added++
-      if (g.incidents?.length) st.usedIncidents++
+      if (played && g.incidents?.length) st.usedIncidents++
       byDay.set(day, [...(byDay.get(day) ?? []), added - 1])
       knownNames.add(events[added - 1].home).add(events[added - 1].away)
     }

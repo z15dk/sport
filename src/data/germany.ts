@@ -91,7 +91,7 @@ export const GERMANY: Division[] = [
       ca('fci', 'FC Ingolstadt 04', 'FC Ingolstadt', 'Ingolstadt', '#111111', '#e2001a'),
       ca('sww', 'SV Wehen Wiesbaden', 'Wehen Wiesbaden', 'Wiesbaden', '#e2001a', '#111111'),
       ca('ssv', 'SSV Jahn Regensburg', 'Jahn Regensburg', 'Regensburg', '#d0021b'),
-      ca('rwe', 'Rot-Weiss Essen', 'Rot-Weiss Essen', 'Essen', '#e2001a'),
+      ca('rwe', 'Rot-Weiss Essen', 'Rot-Weiß Essen', 'Essen', '#e2001a'),
       ca('msv', 'MSV Duisburg', 'MSV Duisburg', 'Duisburg', '#004e9e'),
       ca('ala', 'Alemannia Aachen', 'Alemannia Aachen', 'Aachen', '#ffd200', '#111111'),
       ca('scv', 'SC Verl', 'SC Verl', 'Verl', '#111111'),

@@ -119,7 +119,7 @@ const DENMARK: Division[] = [
       c('hb', 'Holstebro Boldklub', 'Holstebro', '#ffffff', '#d0021b'),
       c('rif', 'Ringsted IF', 'Ringsted', '#0b2a7a'),
       c('asa', 'ASA Aarhus', 'Aarhus', '#0057b8'),
-      c('vej', 'Vejgaard BK', 'Aalborg', '#00843d', '#ffffff', true),
+      // Vejgaard BK was on the list unverified; the 2026/27 table has 12 clubs without it (data watch 11/10-2026)
       c('naes', 'Næsby BK', 'Odense', '#5c6157'),
     ],
   },
