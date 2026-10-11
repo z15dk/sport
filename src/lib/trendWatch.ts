@@ -34,6 +34,8 @@ export interface Trend {
   seenAt: number
   /** new → James has not looked at it; skrevet (with his draft) or spring (with why) */
   state: 'new' | 'skrevet' | 'spring'
+  /** When James was first asked to look at it: a search he leaves waiting doesn't start him again by itself */
+  offeredAt?: number
   articleId?: number
   why?: string
   at?: number
@@ -146,10 +148,12 @@ export async function checkTrends(now = Date.now()): Promise<{ added: string[]; 
   }
   const hour = hourInDenmark(now)
   const written = writtenToday(s, now)
-  const waiting = Object.values(s.trends).some((t) => t.state === 'new' && now - t.seenAt < 6 * 3_600_000)
+  const fresh = Object.values(s.trends).filter((t) => t.state === 'new' && !t.offeredAt && now - t.seenAt < 6 * 3_600_000)
+  const waiting = fresh.length > 0
   const requested = waiting && hour >= 7 && hour < 22 && written < TRENDS_PER_DAY && (!s.requestedAt || now - s.requestedAt > REQUEST_GAP)
   if (requested) {
     s.requestedAt = now
+    for (const t of fresh) t.offeredAt = now
     writeFileSync(requestFile(), new Date(now).toISOString())
   }
   saveState(s, now)
