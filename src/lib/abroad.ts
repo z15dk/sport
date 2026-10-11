@@ -67,6 +67,9 @@ export function setAbroadPlayers(list: unknown, now = Date.now()): { error?: str
     players.push(p)
   }
   if (unknown.length) return { error: 'Klubber, Matchly ikke kender – find navnet med matchly-api soeg', unknownClubs: [...new Set(unknown)] }
+  // An id found before stays with the player when James sends the list without it
+  const known = new Map(readAbroad().players.filter((p) => p.apiId).map((p) => [p.name.toLowerCase(), p.apiId!]))
+  for (const p of players) if (!p.apiId && known.has(p.name.toLowerCase())) p.apiId = known.get(p.name.toLowerCase())
   const names = new Set<string>()
   for (const p of players) {
     if (names.has(p.name.toLowerCase())) return { error: `${p.name} står der to gange` }
@@ -74,6 +77,12 @@ export function setAbroadPlayers(list: unknown, now = Date.now()): { error?: str
   }
   save({ ...readAbroad(), players, playersAt: now })
   return { count: players.length }
+}
+
+/** Saves the ids found for players (by name) – src/lib/abroadPhotos.ts resolveAbroadIds */
+export function setAbroadIds(ids: Record<string, number>) {
+  const a = readAbroad()
+  save({ ...a, players: a.players.map((p) => (!p.apiId && ids[p.name] ? { ...p, apiId: ids[p.name] } : p)) })
 }
 
 /** Saves the weekly roundup: a few paragraphs (HTML), links only as in articles */

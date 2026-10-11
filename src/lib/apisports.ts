@@ -1391,7 +1391,7 @@ export function apiSportsStatus() {
 // budget per API and are never fetched when the day's quota runs low.
 
 interface ExtraStore {
-  entries: Record<string, { fetchedAt: number; squad?: SquadPlayer[]; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[] }>
+  entries: Record<string, { fetchedAt: number; squad?: SquadPlayer[]; games?: ExternalGame[]; table?: TableRow[][]; incidents?: Incident[]; final?: boolean; stats?: Record<'home' | 'away', Record<string, string | number | null>>; catalog?: CatalogLeague[]; lineups?: Lineup[]; leaders?: Leaders; player?: PlayerData; teamStats?: TeamStats; injuries?: Injury[]; subs?: Substitution[]; profiles?: PlayerProfile[] }>
   /** Requests spent on extras per API and UTC day */
   spent: Record<string, { day: string; count: number }>
 }
@@ -2254,6 +2254,40 @@ export function apiGameFor(match: { id: string; sport: SportId; kickoff: Date; h
  * shown old while new ones are fetched). Only on the paid plan, above the
  * reserve kept for live games.
  */
+/** A player as API-Sports' player search lists him */
+export interface PlayerProfile {
+  id: number
+  name: string
+  firstname?: string
+  lastname?: string
+  nationality?: string
+}
+
+/**
+ * API-Sports' player search by a last name (3+ letters): every player with it, with nationality – to find a player's
+ * id (his photo and page) when his club's squad doesn't have him (Danskere i udlandet, src/lib/abroadPhotos.ts). One
+ * request from the day's extras, kept 30 days (an empty answer a week).
+ */
+export async function apiSearchPlayers(term: string): Promise<PlayerProfile[] | undefined> {
+  const q = term.trim()
+  if (q.length < 3) return []
+  const key = `football|search|${q.toLowerCase()}`
+  const store = extrasStore()
+  const entry = store.entries[key]
+  if (entry?.profiles && Date.now() - entry.fetchedAt < (entry.profiles.length ? 30 : 7) * 86_400_000) return entry.profiles
+  load()
+  if (!keyFor('football') || !spendExtra('football', 1, 'players')) return entry?.profiles
+  const r = await call('football', `/players/profiles?search=${encodeURIComponent(q)}`, 10_000)
+  if (r.error || !r.response) return entry?.profiles
+  const profiles: PlayerProfile[] = r.response
+    .map((x) => x.player as Raw | undefined)
+    .filter((p): p is Raw => !!p && Number.isInteger(Number(p.id)))
+    .map((p) => ({ id: Number(p.id), name: String(p.name ?? ''), firstname: p.firstname ?? undefined, lastname: p.lastname ?? undefined, nationality: p.nationality ?? undefined }))
+  store.entries[key] = { fetchedAt: Date.now(), profiles }
+  saveExtras()
+  return profiles
+}
+
 export async function apiPlayer(id: number): Promise<PlayerData | undefined> {
   const p = await apiPlayerRaw(id)
   return (

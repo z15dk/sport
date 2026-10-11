@@ -3242,27 +3242,53 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .rv-comps th .badge { vertical-align: middle; }
 
 /* Danskere i udlandet (src/app/danskere-i-udlandet) */
-/* James' weekly roundup: a panel with Matchly's title, the text in two newspaper columns on a wide screen */
-.abroad__roundup { margin-bottom: 8px; }
-.abroad__roundup-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-right: 22px; }
-.abroad__roundup-head .panel__title { padding-left: 22px; }
-.abroad__roundup-date { font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
-.abroad__roundup-body { padding: 4px 22px 22px; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
-.abroad__roundup-body > :first-child { margin-top: 0; }
-.abroad__roundup-body p { margin: 0 0 10px; }
-.abroad__roundup-body > p:first-child { font-size: 18px; line-height: 1.5; font-weight: 600; color: var(--ink); }
-.abroad__roundup-body h2, .abroad__roundup-body h3 {
-  position: relative; margin: 18px 0 8px; padding-left: 18px; break-after: avoid;
-  font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 19px; line-height: 1.1; color: var(--ink);
+/* The header: dark like the club pages' (KlubHeader), two skewed stripes in Dannebrog's colours, the players' faces and the numbers */
+.ab-hero { --ab-red: #c8102e; container: abhero / inline-size; border-radius: var(--radius); overflow: hidden; background: var(--ink); color: #fff; margin-bottom: 28px; }
+.ab-hero__top { position: relative; padding: 34px 32px 30px; overflow: hidden; border-bottom: 3px solid var(--ab-red); }
+.ab-stripe { position: absolute; top: 0; bottom: 0; z-index: 0; transform: skewX(-14deg); transform-origin: 50% 100%; }
+.ab-stripe--red { right: -60px; width: 260px; background: var(--ab-red); }
+.ab-stripe--white { right: 214px; width: 26px; background: #fff; }
+.ab-hero__id { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; max-width: min(720px, calc(100% - 300px)); }
+.ab-hero__eyebrow { margin: 0; color: var(--lime); font-size: 15px; font-weight: 600; }
+.ab-hero__title { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; line-height: 0.9; font-size: clamp(40px, 7cqi, 88px); }
+.ab-hero__lead { margin: 0; font-size: 18px; line-height: 1.5; font-weight: 500; color: #dfe2d6; }
+.ab-faces { display: flex; align-items: center; margin: 6px 0 0; padding: 0 0 0 8px; list-style: none; }
+.ab-faces li { margin-left: -8px; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; border: 2px solid var(--ink); background: #2a2e22; flex: none; }
+.ab-faces img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.ab-faces__more { display: grid; place-items: center; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 15px; color: var(--ink); background: var(--lime) !important; }
+.ab-hero__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; background: #14170f; }
+.ab-stat { padding: 16px 32px; border-left: 1px solid #33382a; }
+.ab-stat:first-child { border-left: 0; }
+.ab-stat dt { font-size: 12px; color: #a3a995; }
+.ab-stat dd { margin: 4px 0 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ab-stat--lime dd { color: var(--lime); }
+@container abhero (max-width: 700px) {
+  .ab-hero__top { padding: 26px 20px 24px; }
+  .ab-hero__id { max-width: none; }
+  .ab-stripe--red { width: 90px; right: -50px; opacity: .9; }
+  .ab-stripe--white { right: 34px; width: 10px; }
+  .ab-hero__lead { font-size: 16px; }
+  .ab-hero__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ab-stat { padding: 12px 20px; }
+  .ab-stat:nth-child(3) { border-left: 0; }
+  .ab-stat:nth-child(n + 3) { border-top: 1px solid #33382a; }
+  .ab-stat dd { font-size: 28px; }
+  /* Seven faces and the count on a phone */
+  .ab-faces li:nth-child(n + 8):not(.ab-faces__more) { display: none; }
 }
-.abroad__roundup-body h2::before, .abroad__roundup-body h3::before { content: ''; position: absolute; left: 0; top: 0.3em; width: 9px; height: 9px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
-.abroad__roundup-body ul { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
-.abroad__roundup-body li { position: relative; padding-left: 18px; }
-.abroad__roundup-body li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
-.abroad__roundup-body strong { color: var(--ink); }
-.abroad__roundup-body a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--lime-deep); text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.abroad__roundup-body p, .abroad__roundup-body ul { break-inside: avoid; }
-@media (min-width: 1100px) { .abroad__roundup-body { columns: 2; column-gap: 48px; column-rule: 1px solid var(--line); } }
+/* James' week: one card per section of his roundup */
+.ab-week { margin-bottom: 8px; }
+.ab-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.ab-card { position: relative; padding: 20px 22px 18px; border-top: 4px solid var(--lime); font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.ab-card--intro { margin-bottom: 12px; border-top-color: var(--ink); }
+.ab-card__title { margin: 0 0 10px; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 22px; line-height: 1; color: var(--ink); }
+.ab-card p { margin: 0 0 8px; }
+.ab-card p:last-child, .ab-card ul:last-child { margin-bottom: 0; }
+.ab-card ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ab-card li { position: relative; padding-left: 16px; }
+.ab-card li::before { content: ''; position: absolute; left: 1px; top: 0.6em; width: 6px; height: 6px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
+.ab-card strong { color: var(--ink); }
+.ab-card a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--lime-deep); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .abroad__empty { padding: 18px 20px; }
 .abroad__league { margin-top: 22px; }
 .abroad__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
@@ -3288,10 +3314,6 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .abroad__updated { margin-top: 18px; }
 @media (max-width: 600px) {
   .abroad__list { grid-template-columns: 1fr; }
-  .abroad__roundup-head { flex-direction: column; align-items: flex-start; gap: 0; padding-right: 18px; }
-  .abroad__roundup-head .panel__title { padding-left: 18px; }
-  .abroad__roundup-date { padding: 0 18px 6px; }
-  .abroad__roundup-body { padding: 4px 18px 18px; }
 }
 
 /* James' preview and report on the match page: a small card – on a phone only a thumbnail and the title */
