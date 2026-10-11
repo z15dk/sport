@@ -3257,3 +3257,22 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .abroad__match { display: flex; flex-direction: column; gap: 4px; }
 .abroad__label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
 @media (max-width: 600px) { .abroad__list { grid-template-columns: 1fr; } }
+
+/* James' preview and report on the match page: a small card – on a phone only a thumbnail and the title */
+.mx-stories { display: grid; gap: 12px; padding: 16px; }
+.mx-story { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr); gap: 14px; align-items: center; color: inherit; text-decoration: none; }
+.mx-story--text { grid-template-columns: minmax(0, 1fr); }
+.mx-story__img { width: 100%; height: auto; border-radius: 12px; object-fit: cover; }
+.mx-story__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mx-story__kind { font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.mx-story__title { font-size: 18px; line-height: 1.2; }
+.mx-story__more { font-weight: 700; text-decoration: underline; }
+@media (max-width: 600px) {
+  .mx-stories { padding: 12px; gap: 10px; }
+  .mx-story { grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+  .mx-story__img { border-radius: 8px; }
+  .mx-story__body { gap: 2px; }
+  .mx-story__kind { font-size: 11px; }
+  .mx-story__title { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .mx-story__excerpt, .mx-story__more { display: none; }
+}

@@ -401,18 +401,18 @@ function MatchBody({
 
       {/* James' own preview and report: the journalism, linked high on the page */}
       {stories && stories.length > 0 && (
-        <section className="panel mx-stories" aria-label="Artikler om kampen" style={{ display: 'grid', gap: 12, padding: 16 }}>
+        <section className="panel mx-stories" aria-label="Artikler om kampen">
           {stories.map((st) => (
-            <a key={st.href} href={st.href} style={{ display: 'grid', gridTemplateColumns: st.image ? 'minmax(0, 160px) minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 14, alignItems: 'center', color: 'inherit', textDecoration: 'none' }}>
+            <a key={st.href} href={st.href} className={`mx-story${st.image ? '' : ' mx-story--text'}`}>
               {st.image && (
                 // eslint-disable-next-line @next/next/no-img-element -- the article's own picture
-                <img src={st.image} alt="" width={160} height={84} style={{ width: '100%', height: 'auto', borderRadius: 12, objectFit: 'cover' }} loading="lazy" />
+                <img src={st.image} alt="" width={160} height={84} className="mx-story__img" loading="lazy" />
               )}
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span className="muted small" style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{st.kind === 'optakt' ? 'Optakt' : 'Referat'}</span>
-                <strong style={{ fontSize: 18, lineHeight: 1.2 }}>{st.title}</strong>
-                {st.excerpt && <span className="muted small">{st.excerpt}</span>}
-                <span style={{ fontWeight: 700, textDecoration: 'underline' }}>{st.kind === 'optakt' ? 'Læs optakten' : 'Læs referatet'} →</span>
+              <span className="mx-story__body">
+                <span className="mx-story__kind muted small">{st.kind === 'optakt' ? 'Optakt' : 'Referat'}</span>
+                <strong className="mx-story__title">{st.title}</strong>
+                {st.excerpt && <span className="mx-story__excerpt muted small">{st.excerpt}</span>}
+                <span className="mx-story__more">{st.kind === 'optakt' ? 'Læs optakten' : 'Læs referatet'} →</span>
               </span>
             </a>
           ))}
