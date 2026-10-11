@@ -80,8 +80,12 @@ function margin(score: string | undefined, at: 'home' | 'away'): { score: string
   const m = /^(\d+)\s*-\s*(\d+)$/.exec(score ?? '')
   if (!m) return undefined
   const [own, other] = at === 'home' ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
-  return { score: score!, by: own - other, goals: own }
+  // From the team's side: the source writes an away win the home team's goals first ("0-3")
+  return { score: `${own}-${other}`, by: own - other, goals: own }
 }
+
+/** A home or away result from the team's side ("0-3" away is "3-0") */
+export const fromTeam = (score: string | undefined, at: 'home' | 'away'): string | undefined => margin(score, at)?.score ?? score
 
 /** The bigger of the home and the away result: the wider margin, then the most goals ("0-5" away beats "3-1" at home) */
 export function biggestOf(pair: { home?: string; away?: string } | undefined): string | undefined {
