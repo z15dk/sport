@@ -214,7 +214,7 @@ function clubColor(name: string, flag: boolean): string {
 }
 
 /** The club picture as PNG (1200×630): only the club's logo (or a national team's flag) on Matchly's dark top */
-export async function clubGraphicPng(input: { club: string; bg?: string }): Promise<Buffer> {
+export async function clubGraphicPng(input: { club: string; bg?: string; light?: boolean }): Promise<Buffer> {
   const club = input.club.trim()
   if (!club) throw new Error('Vælg en klub')
   const badges = await getBadges()
@@ -224,14 +224,16 @@ export async function clubGraphicPng(input: { club: string; bg?: string }): Prom
   const code = flag ? flagCode(club, true) : undefined
   const photo = await photoData(input.bg)
   const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace("/w160/", "/w640/")) : flags[club], 630, 420, true) : await logoData(badges[club], 680, 680, false, true)
+  // The light design (a preview for the owner, 11/10-2026): flat light, dots and the club's colour along the top
+  const light = !!input.light && !photo
   const res = new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: light ? LIGHT : BG, color: light ? INK : '#fff', fontFamily: 'Barlow' }}>
         {/* A photo of our own behind it, seen through the dark top (the colour, dots and M lie over it) */}
         {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
-        <img src={clubBackground(clubColor(club, flag), !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        <img src={light ? lightBackground(onLight(clubColor(club, flag)), onLight(clubColor(club, flag))) : clubBackground(clubColor(club, flag), !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
         {/* The big M as on the league pages' top: an outline, cut off at the bottom right */}
-        <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
+        <img src={mOutline(light ? '#e4e7db' : 'rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
         <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {logo ? (
             flag ? (
@@ -300,7 +302,7 @@ export async function leagueLogos(): Promise<Record<string, string>> {
 }
 
 /** The league picture as PNG (1200×630): the league's logo and its name on Matchly's dark top, as the club picture */
-export async function leagueGraphicPng(input: { league: string; card?: boolean; bg?: string }): Promise<Buffer> {
+export async function leagueGraphicPng(input: { league: string; card?: boolean; bg?: string; light?: boolean }): Promise<Buffer> {
   const league = input.league.trim()
   if (!league) throw new Error('Vælg en liga')
   const logos = await leagueLogos()
@@ -309,24 +311,26 @@ export async function leagueGraphicPng(input: { league: string; card?: boolean; 
   const [logo, photo] = await Promise.all([logoData(logos[league], 920, 640, false, true), photoData(input.bg)])
   // The name without the country added to tell two leagues apart
   const name = league.replace(/\s*\([^)]*\)$/, '')
+  // The light design (a preview for the owner, 11/10-2026)
+  const light = !!input.light && !photo
   const res = new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: light ? LIGHT : BG, color: light ? INK : '#fff', fontFamily: 'Barlow' }}>
         {/* A photo of our own behind it, seen through the dark top */}
         {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
-        <img src={clubBackground('#2c3a0c', !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
-        <img src={mOutline('rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
+        <img src={light ? lightBackground(LIME, LIME) : clubBackground('#2c3a0c', !!photo)} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+        <img src={mOutline(light ? '#e4e7db' : 'rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
         <div style={{ position: 'absolute', left: 0, top: 20, width: '100%', height: 510, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           {logo &&
             (card ? (
               // A light card behind the logo (the default): many league logos are dark and would vanish on the dark top
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 520, height: 360, borderRadius: 40, background: '#f4f5f1', boxShadow: '0 18px 50px rgba(0,0,0,0.5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 520, height: 360, borderRadius: 40, background: light ? '#fff' : '#f4f5f1', boxShadow: light ? '0 18px 44px rgba(17,19,14,0.14)' : '0 18px 50px rgba(0,0,0,0.5)' }}>
                 <img src={logo} width={460} height={300} alt="" style={{ objectFit: 'contain' }} />
               </div>
             ) : (
               <img src={logo} width={460} height={360} alt="" style={{ objectFit: 'contain' }} />
             ))}
-          <div style={{ display: 'flex', marginTop: logo ? 34 : 0, fontSize: name.length > 22 ? 48 : 64, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>{name.toUpperCase()}</div>
+          <div style={{ display: 'flex', marginTop: logo ? 34 : 0, fontSize: name.length > 22 ? 48 : 64, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center', ...(light ? {} : { textShadow: '0 4px 20px rgba(0,0,0,0.6)' }) }}>{name.toUpperCase()}</div>
         </div>
         <div style={{ position: 'absolute', left: 0, bottom: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 50, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
           MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
@@ -1232,9 +1236,14 @@ export async function namesWithLogo(): Promise<Set<string>> {
 // ---------------------------------------------------------------- the VS graphic's other designs
 
 /** A coming match in one of the seven designs besides the classic one (VS_VARIANTS), light and bright (the owner's word 11/10-2026, no gradients): logos, colours, the day and the time */
-async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassisk'>): Promise<Buffer> {
+async function vsVariantPng(input: VsInput, variant: VsVariant, score?: LightScore): Promise<Buffer> {
   const { home, away } = input
   const [homeLogo, awayLogo] = await Promise.all([teamCrest(home, 420), teamCrest(away, 420)])
+  // A played match (the light result designs): the score instead of VS and the kick-off, and the goals
+  const res = score && `${score.hs}–${score.as}`
+  const hg = score?.homeGoals ?? []
+  const ag = score?.awayGoals ?? []
+  const Goals = ({ goals, align = 'center' }: { goals: string[]; align?: 'center' | 'flex-start' | 'flex-end' }) => (goals.length ? <Scorers goals={goals} color={MUTED} align={align} size={20} max={3} /> : null)
   const hc = clubColor(home, false)
   const ac = clubColor(away, false)
   const top = input.top?.trim()
@@ -1258,19 +1267,46 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
     ) : null
   const Centered = ({ y, children }: { y: number; children: React.ReactNode }) => <div style={{ position: 'absolute', left: 0, top: y, width: '100%', display: 'flex', justifyContent: 'center' }}>{children}</div>
   const VsBadge = ({ size }: { size: number }) => (
-    <div style={{ width: size, height: size, borderRadius: size, background: LIME, border: `6px solid ${INK}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.42, fontWeight: 800, fontStyle: 'italic', color: INK }}>VS</div>
+    <div style={{ width: size, height: size, borderRadius: size, background: LIME, border: `6px solid ${INK}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * (res ? 0.3 : 0.42), fontWeight: 800, fontStyle: 'italic', color: INK }}>{res ?? 'VS'}</div>
   )
   const bg = lightBackground(onLight(hc), onLight(ac))
 
   let picture: React.ReactElement
   switch (variant) {
+    case 'klassisk': {
+      // The classic, light: the crests, the score between them and the goals under the names
+      const side = (name: string, logo: string | undefined, goals: string[], x: number) => (
+        <div style={{ position: 'absolute', left: x, top: 120, width: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <Crest name={name} logo={logo} size={230} />
+          <Name name={name} size={42} />
+          <Goals goals={goals} />
+        </div>
+      )
+      picture = frame(
+        <>
+          <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
+          <Centered y={48}>
+            <Pill text={top} />
+          </Centered>
+          {side(home, homeLogo, hg, 70)}
+          {side(away, awayLogo, ag, 730)}
+          <div style={{ position: 'absolute', left: 470, top: 175, width: 260, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ display: 'flex', fontSize: res ? 140 : 150, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? 'VS'}</div>
+            {res && <div style={{ display: 'flex', marginTop: 8, padding: '4px 14px', background: LIME, fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>SLUT</div>}
+          </div>
+          <Brand color={INK} />
+        </>,
+      )
+      break
+    }
     case 'kort': {
       // Two white cards, each with its club's colour along the top, and a lime VS between them
       const card = (name: string, logo: string | undefined, color: string, x: number) => (
         <div style={{ position: 'absolute', left: x, top: 120, width: 440, height: 400, borderRadius: 28, overflow: 'hidden', background: '#fff', boxShadow: '0 18px 40px rgba(17,19,14,0.14)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22 }}>
           <div style={{ position: 'absolute', left: 0, top: 0, width: 440, height: 16, background: onLight(color), display: 'flex' }} />
-          <Crest name={name} logo={logo} size={210} />
+          <Crest name={name} logo={logo} size={score ? 170 : 210} />
           <Name name={name} size={40} />
+          <Goals goals={name === home ? hg : ag} />
         </div>
       )
       picture = frame(
@@ -1301,13 +1337,13 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
         <>
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <div style={{ position: 'absolute', left: 780, top: 0, width: 420, height: H, background: LIME, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', fontSize: 280, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: INK }}>VS</div>
+            <div style={{ display: 'flex', fontSize: res ? 190 : 280, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, color: INK }}>{res ?? 'VS'}</div>
           </div>
           <div style={{ position: 'absolute', left: 70, top: 150, width: 690, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontFamily: 'DM Sans', fontSize: 24, fontWeight: 600, color: MUTED }}>{league ?? top}</div>
             {team(home, homeLogo)}
             {team(away, awayLogo)}
-            {league && day && <div style={{ display: 'flex', marginTop: 30, fontSize: 40, fontWeight: 800, fontStyle: 'italic' }}>{[day, time].filter(Boolean).join(' · ').toUpperCase()}</div>}
+            {league && day && <div style={{ display: 'flex', marginTop: 30, fontSize: 40, fontWeight: 800, fontStyle: 'italic' }}>{(res ? `Slut · ${day}` : [day, time].filter(Boolean).join(' · ')).toUpperCase()}</div>}
           </div>
           <div style={{ position: 'absolute', left: 70, bottom: 30, display: 'flex', fontSize: 26, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
             MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
@@ -1340,10 +1376,10 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
           {side(home, homeLogo, 330)}
           {side(away, awayLogo, 870)}
           <div style={{ position: 'absolute', left: W / 2 - 112, top: H / 2 - 112, width: 224, height: 224, borderRadius: 224, background: '#fff', border: `8px solid ${LIME}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {time ? (
+            {res || time ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 19, fontWeight: 600, color: MUTED }}>{day || 'Kampstart'}</div>
-                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontSize: 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time}</div>
+                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontFamily: 'DM Sans', fontSize: 19, fontWeight: 600, color: MUTED }}>{res ? 'Slut' : day || 'Kampstart'}</div>
+                <div style={{ width: 200, display: 'flex', justifyContent: 'center', fontSize: 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? time}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', fontSize: 90, fontWeight: 800, fontStyle: 'italic' }}>VS</div>
@@ -1373,9 +1409,9 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
               {row(away, awayLogo)}
             </div>
             <div style={{ width: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: LIME, borderLeft: '4px dashed rgba(17,19,14,0.35)', padding: '0 18px' }}>
-              <div style={{ display: 'flex', padding: '4px 14px', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>KAMPSTART</div>
+              <div style={{ display: 'flex', padding: '4px 14px', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>{res ? 'SLUT' : 'KAMPSTART'}</div>
               {day && <div style={{ display: 'flex', marginTop: 12, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>{day}</div>}
-              <div style={{ display: 'flex', marginTop: 6, fontSize: time ? 92 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
+              <div style={{ display: 'flex', marginTop: 6, fontSize: res || time ? 92 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? time ?? 'VS'}</div>
               <div style={{ display: 'flex', marginTop: 14, fontSize: 26, fontWeight: 800, fontStyle: 'italic' }}>
                 MATCHLY<span style={{ color: '#ff4a1f' }}>.</span>
               </div>
@@ -1394,7 +1430,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
           <div style={{ position: 'absolute', left: 0, top: 70, width: W, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 40 }}>
             <Crest name={home} logo={homeLogo} size={250} ring="#fff" />
-            <div style={{ display: 'flex', fontSize: 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>VS</div>
+            <div style={{ display: 'flex', fontSize: res ? 110 : 70, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? 'VS'}</div>
             <Crest name={away} logo={awayLogo} size={250} ring="#fff" />
           </div>
           <div style={{ position: 'absolute', left: 0, top: 380, width: W, display: 'flex', justifyContent: 'center' }}>
@@ -1402,7 +1438,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
               <div style={{ display: 'flex', alignItems: 'center', padding: '18px 30px', background: INK, color: '#fff', fontSize: nameSize(`${home}${away}`, 48), fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
                 {home.toUpperCase()} – {away.toUpperCase()}
               </div>
-              {time && <div style={{ display: 'flex', alignItems: 'center', padding: '18px 26px', background: LIME, fontSize: 48, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time}</div>}
+              {(res || time) && <div style={{ display: 'flex', alignItems: 'center', padding: '18px 26px', background: LIME, fontSize: 48, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ? 'SLUT' : time}</div>}
             </div>
           </div>
           {(league || day) && (
@@ -1430,7 +1466,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
               <Name name={home} size={40} align="left" />
             </div>
             <div style={{ width: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', background: LIME }}>
-              <div style={{ display: 'flex', fontSize: time ? 76 : 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{time ?? 'VS'}</div>
+              <div style={{ display: 'flex', fontSize: res || time ? 76 : 80, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? time ?? 'VS'}</div>
             </div>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: '#fff' }}>
               <Name name={away} size={40} align="right" />
@@ -1438,8 +1474,17 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
             </div>
             <div style={{ width: 24, background: onLight(ac), display: 'flex' }} />
           </div>
-          <div style={{ position: 'absolute', left: 520, top: 310, width: 160, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>KAMPSTART</div>
-          {day && (
+          <div style={{ position: 'absolute', left: 520, top: 310, width: 160, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: INK, color: '#fff', fontSize: 22, fontWeight: 800, fontStyle: 'italic', letterSpacing: 1 }}>{res ? 'SLUT' : 'KAMPSTART'}</div>
+          {score ? (
+            <>
+              <div style={{ position: 'absolute', left: 110, top: 380, width: 400, display: 'flex' }}>
+                <Goals goals={hg} align="flex-start" />
+              </div>
+              <div style={{ position: 'absolute', left: 690, top: 380, width: 400, display: 'flex', justifyContent: 'flex-end' }}>
+                <Goals goals={ag} align="flex-end" />
+              </div>
+            </>
+          ) : day && (
             <Centered y={400}>
               <div style={{ display: 'flex', fontSize: 46, fontWeight: 800, fontStyle: 'italic' }}>{day.toUpperCase()}</div>
             </Centered>
@@ -1467,8 +1512,8 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
             <Name name={away} size={38} />
           </div>
           <div style={{ position: 'absolute', left: 430, top: 230, width: 340, height: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', fontSize: 100, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>VS</div>
-            {when && league && <div style={{ display: 'flex', marginTop: 4, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700 }}>{when}</div>}
+            <div style={{ display: 'flex', fontSize: 100, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>{res ?? 'VS'}</div>
+            {(res ? day : when) && league && <div style={{ display: 'flex', marginTop: 4, fontFamily: 'DM Sans', fontSize: 22, fontWeight: 700 }}>{res ? `Slut · ${day}` : when}</div>}
           </div>
           <Brand color={INK} />
         </>,
@@ -1476,8 +1521,8 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       break
     }
   }
-  const res = new ImageResponse(picture, { ...OG_SIZE, fonts: ogFonts() })
-  return Buffer.from(await res.arrayBuffer())
+  const image = new ImageResponse(picture, { ...OG_SIZE, fonts: ogFonts() })
+  return Buffer.from(await image.arrayBuffer())
 }
 
 /** The VS designs' light palette (the owner's word 11/10-2026: light, bright colours, no gradients) */
@@ -1498,4 +1543,17 @@ function onLight(hex: string): string {
 function lightBackground(left: string, right: string): string {
   const { width: w, height: h } = OG_SIZE
   return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="${INK}" fill-opacity="0.07"/></pattern></defs><rect width="${w}" height="${h}" fill="${LIGHT}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="14" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="14" fill="${right}"/></svg>`)
+}
+
+/** A played match's score and goals for the light designs */
+interface LightScore {
+  hs: number
+  as: number
+  homeGoals?: string[]
+  awayGoals?: string[]
+}
+
+/** A preview: the result in one of the light VS designs (not in use yet – the owner is to see it first, 11/10-2026) */
+export async function lightResultPng(input: ResultInput, design: VsVariant): Promise<Buffer> {
+  return vsVariantPng({ home: input.home.trim(), away: input.away.trim(), top: input.top }, design, { hs: input.hs, as: input.as, homeGoals: input.homeGoals, awayGoals: input.awayGoals })
 }
