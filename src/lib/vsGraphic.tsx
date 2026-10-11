@@ -135,13 +135,13 @@ export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
   const top = input.top?.trim()
   const res = new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: BG, color: '#fff', fontFamily: 'Barlow' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', background: photo ? BG : VS_BG, color: '#fff', fontFamily: 'Barlow' }}>
         {photo && <img src={photo} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: 'absolute', left: 0, top: 0, objectFit: 'cover' }} />}
         {/* The photo darkened just enough for the logos and text to stand out – a little more at the top line and the edges – so the photo is still clearly seen */}
         {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'linear-gradient(180deg, rgba(17,19,14,0.55) 0%, rgba(17,19,14,0.3) 30%, rgba(17,19,14,0.3) 70%, rgba(17,19,14,0.5) 100%)' }} />}
         {photo && <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', background: 'radial-gradient(ellipse at center, rgba(17,19,14,0) 45%, rgba(17,19,14,0.35) 100%)' }} />}
         {/* The big M behind the clubs, as an outline */}
-        <img src={mOutline(photo ? 'rgba(198,241,53,0.18)' : '#23271a', 0.5)} width={1000} height={720} alt="" style={{ position: 'absolute', left: 100, top: -60 }} />
+        <img src={mOutline(photo ? 'rgba(198,241,53,0.18)' : '#363c2b', 0.5)} width={1000} height={720} alt="" style={{ position: 'absolute', left: 100, top: -60 }} />
         {top && (
           <div style={{ position: 'absolute', left: 0, top: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 20, fontWeight: 700, letterSpacing: 2, color: LIME }}>{top.toUpperCase()}</div>
         )}
@@ -1256,7 +1256,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   let picture: React.ReactElement
   switch (variant) {
     case 'diagonal': {
-      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><polygon points="0,0 ${W * 0.58},0 ${W * 0.42},${H} 0,${H}" fill="${shade(hc)}"/><polygon points="${W * 0.58},0 ${W},0 ${W},${H} ${W * 0.42},${H}" fill="${shade(ac)}"/><line x1="${W * 0.58}" y1="0" x2="${W * 0.42}" y2="${H}" stroke="${LIME}" stroke-width="8"/><rect width="${W}" height="${H}" fill="#000" fill-opacity="0.18"/></svg>`)
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><polygon points="0,0 ${W * 0.58},0 ${W * 0.42},${H} 0,${H}" fill="${shade(hc)}"/><polygon points="${W * 0.58},0 ${W},0 ${W},${H} ${W * 0.42},${H}" fill="${shade(ac)}"/><line x1="${W * 0.58}" y1="0" x2="${W * 0.42}" y2="${H}" stroke="${LIME}" stroke-width="8"/></svg>`)
       picture = frame(
         <>
           <img src={bg} width={W} height={H} alt="" style={{ position: 'absolute', left: 0, top: 0 }} />
@@ -1308,9 +1308,9 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
       break
     }
     case 'bane': {
-      const stripes = Array.from({ length: 12 }, (_, i) => `<rect x="${i * 100}" width="100" height="${H}" fill="${i % 2 ? '#14200d' : '#172510'}"/>`).join('')
+      const stripes = Array.from({ length: 12 }, (_, i) => `<rect x="${i * 100}" width="100" height="${H}" fill="${i % 2 ? '#1f3214' : '#243a18'}"/>`).join('')
       const ln = 'stroke="#ffffff" stroke-opacity="0.28" stroke-width="3" fill="none"'
-      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${stripes}<rect x="30" y="30" width="${W - 60}" height="${H - 60}" ${ln}/><line x1="${W / 2}" y1="30" x2="${W / 2}" y2="${H - 30}" ${ln}/><circle cx="${W / 2}" cy="${H / 2}" r="120" ${ln}/><rect x="30" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="30" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect x="${W - 200}" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="${W - 90}" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect width="${W}" height="${H}" fill="#000" fill-opacity="0.15"/></svg>`)
+      const bg = svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${stripes}<rect x="30" y="30" width="${W - 60}" height="${H - 60}" ${ln}/><line x1="${W / 2}" y1="30" x2="${W / 2}" y2="${H - 30}" ${ln}/><circle cx="${W / 2}" cy="${H / 2}" r="120" ${ln}/><rect x="30" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="30" y="${H / 2 - 90}" width="60" height="180" ${ln}/><rect x="${W - 200}" y="${H / 2 - 190}" width="170" height="380" ${ln}/><rect x="${W - 90}" y="${H / 2 - 90}" width="60" height="180" ${ln}/></svg>`)
       const side = (name: string, logo: string | undefined, cx: number) => (
         <div style={{ position: 'absolute', left: cx - 190, top: 140, width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <Crest name={name} logo={logo} size={200} />
@@ -1387,7 +1387,7 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
           <div style={{ position: 'absolute', left: 850, top: 45, display: 'flex', opacity: 0.9 }}>
             <Crest name={away} logo={awayLogo} size={500} />
           </div>
-          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: BG, borderLeft: `6px solid ${LIME}`, borderRight: `6px solid ${LIME}` }} />
+          <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', background: VS_BG, borderLeft: `6px solid ${LIME}`, borderRight: `6px solid ${LIME}` }} />
           <div style={{ position: 'absolute', left: 330, top: 0, width: 540, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <Line text={league ?? top} />
             <Vs size={200} color="#fff" />
@@ -1462,8 +1462,11 @@ async function vsVariantPng(input: VsInput, variant: Exclude<VsVariant, 'klassis
   return Buffer.from(await res.arrayBuffer())
 }
 
+/** The VS designs' flat base: a little lighter than the site's dark (the owner's word 11/10-2026) */
+const VS_BG = '#272c1e'
+
 /** The VS designs' background without gradients (the owner's word 11/10-2026): flat dark, an even dot pattern and the two clubs' colours as a bar along the top */
 function flatBackground(left: string, right: string): string {
   const { width: w, height: h } = OG_SIZE
-  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.1"/></pattern></defs><rect width="${w}" height="${h}" fill="${BG}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="12" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="12" fill="${right}"/></svg>`)
+  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.2" fill="#c6f135" fill-opacity="0.16"/></pattern></defs><rect width="${w}" height="${h}" fill="${VS_BG}"/><rect width="${w}" height="${h}" fill="url(#dots)"/><rect width="${w / 2}" height="12" fill="${left}"/><rect x="${w / 2}" width="${w / 2}" height="12" fill="${right}"/></svg>`)
 }
