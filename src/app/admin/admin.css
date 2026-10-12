@@ -745,7 +745,7 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .ko-more summary { cursor: pointer; font-weight: 700; font-size: 13px; }
 .ko-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-width: 680px; }
 .ko-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.ko-form input, .ko-form textarea { font: inherit; font-size: 14px; font-weight: 400; color: var(--ink); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ko-form input, .ko-form textarea, .ko-form select { font: inherit; font-size: 14px; font-weight: 400; color: var(--ink); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .ko-form textarea { line-height: 1.5; resize: vertical; }
 .ko-form .pill { align-self: flex-start; }
 .ko-form--note { flex-direction: row; align-items: flex-end; flex-wrap: wrap; }

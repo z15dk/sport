@@ -7,7 +7,7 @@ import { ConsentSettingsLink } from '../../components/ConsentBanner'
 
 export const metadata: Metadata = {
   title: { absolute: `Privatliv og cookies · ${SITE_NAME}` },
-  description: `Sådan behandler ${SITE_NAME} oplysninger og cookies: ingen brugerkonti, statistik og annoncemåling kun med dit samtykke, og dine hold gemmes kun i din egen browser.`,
+  description: `Sådan behandler ${SITE_NAME} oplysninger og cookies: ingen brugerkonti, statistik og annoncemåling kun med dit samtykke, dine hold gemmes kun i din egen browser, og klubmailen kan afmeldes med ét klik.`,
   alternates: { canonical: paths.privacy() },
   // Not for search results (the owner's choice); links from it are still followed
   robots: { index: false, follow: true },
@@ -31,7 +31,8 @@ export default function PrivacyPage() {
         <section className="panel prose__section">
           <h2 className="panel__title">Kort fortalt</h2>
           <p>
-            {SITE_NAME} har ingen brugerkonti og beder dig ikke om oplysninger, og vi sælger ikke oplysninger til nogen.
+            {SITE_NAME} har ingen brugerkonti og beder kun om din mailadresse, hvis du selv vil have den ugentlige mail om din klub. Vi sælger ikke oplysninger til
+            nogen.
             {tracked
               ? ' Statistik- og marketingcookies fra Google og Meta bruges kun, hvis du siger ja i cookie-banneret, og du kan altid ændre dit valg.'
               : ' Vi sporer dig ikke på tværs af andre hjemmesider.'}
@@ -43,6 +44,21 @@ export default function PrivacyPage() {
           <p>
             Følger du et hold med ★ Mine hold, gemmes holdene (og små valg, fx at du har lukket et tip) kun i din egen browser (localStorage), så forsiden kan vise dem næste gang. De sendes ikke til os, og du
             sletter dem ved at fjerne holdene igen eller rydde browserens data.
+          </p>
+        </section>
+
+        <section className="panel prose__section" id="klubmail">
+          <h2 className="panel__title">Din klub i indbakken (mail)</h2>
+          <p>
+            Tilmelder du dig den ugentlige mail om en klub, gemmer vi din mailadresse, hvilke klubber du vil have mail om, og hvornår du tilmeldte og
+            bekræftede dig – samt et tilfældigt link til at bekræfte og et til at afmelde. Vi bruger det kun til at sende dig mailen hver mandag (sidste
+            resultat, næste kamp og stillingen) og til at undgå, at nogen tilmelder andres adresse: du får først mailen, når du har bekræftet via linket i en
+            mail fra os. Grundlaget er dit samtykke (GDPR art. 6, stk. 1, litra a).
+          </p>
+          <p>
+            Hver mail har et link, så du kan afmelde dig med ét klik uden login. Så sletter vi din mailadresse med det samme. Bekræfter du ikke tilmeldingen,
+            sletter vi adressen efter 7 dage. Mailene sendes gennem vores mailudbyder; adressen deles ikke med andre og bruges ikke til reklame. Vi gemmer ikke,
+            om du åbner mailen.
           </p>
         </section>
 
@@ -119,7 +135,7 @@ export default function PrivacyPage() {
           <p>
             Du har ret til at få indsigt i de oplysninger, vi har om dig, og til at få dem rettet, slettet eller begrænset, til at gøre indsigelse og til at få
             dem udleveret (dataportabilitet). Et samtykke kan altid trækkes tilbage{tracked ? ' under Cookie-indstillinger' : ''}. Da vi ikke har brugerkonti og
-            ikke gemmer IP-adresser, kan vi kun finde oplysninger, der kan knyttes til dig{tracked ? ', fx via dit samtykke-id' : ''}.
+            ikke gemmer IP-adresser, kan vi kun finde oplysninger, der kan knyttes til dig, fx via {tracked ? 'dit samtykke-id eller ' : ''}din mailadresse, hvis du har tilmeldt dig klubmailen.
           </p>
           <p>
             Er du utilfreds med, hvordan vi behandler oplysninger, kan du klage til Datatilsynet,{' '}

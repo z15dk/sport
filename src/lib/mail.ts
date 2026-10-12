@@ -32,8 +32,11 @@ export function mailErrorText(err: unknown) {
   return parts.join(' · ')
 }
 
-/** A mail to the owner (the address on /admin/sociale/indstillinger), or with `to` to someone else (the clubs on /admin/klubkontakt) */
-export async function sendMail(subject: string, html: string, text: string, opts: { to?: string; replyTo?: string } = {}): Promise<MailResult> {
+/**
+ * A mail to the owner (the address on /admin/sociale/indstillinger), or with `to` to someone else (the clubs on
+ * /admin/klubkontakt, the club mail's subscribers); `headers` adds headers of its own (the club mail's List-Unsubscribe)
+ */
+export async function sendMail(subject: string, html: string, text: string, opts: { to?: string; replyTo?: string; headers?: Record<string, string> } = {}): Promise<MailResult> {
   const { email } = socialConfig()
   if (!mailReady()) throw new Error('Mail er ikke sat op')
   const nodemailer = (await import('nodemailer')).default
@@ -49,7 +52,7 @@ export async function sendMail(subject: string, html: string, text: string, opts
   })
   const from = email.from || email.user
   const to = opts.to ?? email.to
-  const info = await transport.sendMail({ from, to, subject, html, text, ...(opts.replyTo && { replyTo: opts.replyTo }) })
+  const info = await transport.sendMail({ from, to, subject, html, text, ...(opts.replyTo && { replyTo: opts.replyTo }), ...(opts.headers && { headers: opts.headers }) })
   return {
     from,
     to,
