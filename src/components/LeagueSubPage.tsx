@@ -14,7 +14,7 @@ import type { Leaders } from '../data/matchExtra'
 import type { Match } from '../types'
 import { MatchRow } from './MatchRow'
 import { TeamBadge } from './TeamBadge'
-import { LeagueLeaders } from './LeagueLeaders'
+import { LeagueLeaders, ourName } from './LeagueLeaders'
 import { TopScorersList } from './TopScorersList'
 import { Faq } from './Faq'
 import { AdSlot } from './AdSlot'
@@ -109,7 +109,7 @@ async function scorers(division: Division): Promise<{ dbu?: TopScorer[]; leaders
 }
 
 const topOf = (s: Awaited<ReturnType<typeof scorers>>) =>
-  s.dbu?.[0] ? { name: s.dbu[0].name, team: s.dbu[0].club ?? s.dbu[0].team, goals: s.dbu[0].goals } : s.leaders?.scorers[0] ? { name: s.leaders.scorers[0].name, team: s.leaders.scorers[0].team, goals: s.leaders.scorers[0].value } : s.own?.[0] ? { name: s.own[0].name, team: s.own[0].team, goals: s.own[0].goals } : undefined
+  s.dbu?.[0] ? { name: s.dbu[0].name, team: s.dbu[0].club ?? s.dbu[0].team, goals: s.dbu[0].goals } : s.leaders?.scorers[0] ? { name: s.leaders.scorers[0].name, team: ourName(s.leaders.scorers[0].team), goals: s.leaders.scorers[0].value } : s.own?.[0] ? { name: s.own[0].name, team: s.own[0].team, goals: s.own[0].goals } : undefined
 
 export async function leagueSubMetadata(division: Division, page: LeagueSubPage): Promise<Metadata> {
   const name = division.name
