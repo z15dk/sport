@@ -63,12 +63,14 @@ const head = (title: string) => `<head><meta charset="utf-8"><meta name="viewpor
 @media (prefers-color-scheme:dark){.m-bg{background:${C.bg}!important}.m-card{background:${C.surface}!important}.m-lime{background:${C.lime}!important}.m-ink{color:${C.ink}!important}.m-ink2{color:${C.ink2}!important}}
 [data-ogsc] .m-bg{background:${C.bg}!important}[data-ogsc] .m-card{background:${C.surface}!important}[data-ogsc] .m-lime{background:${C.lime}!important}[data-ogsc] .m-ink{color:${C.ink}!important}</style></head>`
 
-/** The top of every mail: the lime band with the logo, as the site's own top */
-const logoBand = (site: string, label: string, line?: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-lime" style="border-collapse:separate;background:${C.lime};border-radius:16px"><tr><td style="padding:20px 22px">
+/** The top of every mail: the lime band with the logo and the big outlined M cut off at the bottom, as the site's own top (public/mail/m-outline.png – mail apps don't show SVG) */
+const logoBand = (site: string, label: string, line?: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-lime" style="border-collapse:separate;background:${C.lime};border-radius:16px"><tr><td style="padding:20px 0 20px 22px;vertical-align:top">
 <a href="${esc(tracked(`${site}/`))}" class="m-ink" style="font-family:${FONT};font-size:28px;font-weight:900;font-style:italic;letter-spacing:-0.5px;color:${C.ink};text-decoration:none">MATCHLY<span style="color:${DOT}">.</span></a>
 <p class="m-ink" style="margin:6px 0 0;font-family:${FONT};font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.ink}">${esc(label)}</p>${line ? `
 <p class="m-ink" style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:${C.ink}">${line}</p>` : ''}
-</td></tr></table>`
+</td>
+<td width="150" style="padding:0 6px 0 0;vertical-align:bottom;text-align:right"><img src="${esc(`${site}/mail/m-outline.png`)}" width="150" height="100" alt="" style="display:block;border:0;width:150px;height:100px"></td>
+</tr></table>`
 
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
