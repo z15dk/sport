@@ -139,20 +139,82 @@ export default async function GrowthPage() {
                 <h2 className="panel__title">James' dagbog</h2>
                 {diary.length ? (
                   <ol className="jd-list">
-                    {diary.map((e) => (
-                      <li key={e.day}>
-                        <span className="jd-day">{formatNumeric(new Date(e.at))}</span>
-                        <p>{e.text}</p>
-                        {e.actions.length > 0 && (
-                          <ul className="jd-actions">
-                            {e.actions.map((a) => (
-                              <li key={a}>{a}</li>
+                    {diary.map((e) => {
+                      const n = e.numbers
+                      const diff = n ? n.viewsYesterday - n.viewsDayBefore : 0
+                      // His actions by kind, counted in the summary and listed when opened
+                      const groups = [
+                        { label: 'Titler og tekster', items: e.actions.filter((a) => /^Ny titel|^Nye? sp|tekst/i.test(a)) },
+                        { label: 'Interne links', items: e.actions.filter((a) => /^Link|link /i.test(a) && !/^Ny titel/i.test(a)) },
+                        { label: 'Konkurrenter', items: e.actions.filter((a) => /^Konkurrent/i.test(a)) },
+                        { label: 'Domme', items: e.actions.filter((a) => /^(Behold|Fortryd|Dom)/i.test(a)) },
+                      ]
+                      const sorted = new Set(groups.flatMap((g) => g.items))
+                      groups.push({ label: 'Andet', items: e.actions.filter((a) => !sorted.has(a)) })
+                      const shown = groups.filter((g) => g.items.length)
+                      return (
+                        <li key={e.day}>
+                          <details className="jd-entry">
+                            <summary>
+                              <span className="jd-head">
+                                <span className="jd-day">{formatNumeric(new Date(e.at))}</span>
+                                {n && (
+                                  <span className="jd-nums">
+                                    <span className="jd-num">
+                                      <b>{n.viewsYesterday}</b> visninger{' '}
+                                      <em className={diff > 0 ? 'is-up' : diff < 0 ? 'is-down' : ''}>
+                                        {diff > 0 ? '▲' : diff < 0 ? '▼' : '='}
+                                        {Math.abs(diff)}
+                                      </em>
+                                    </span>
+                                    {n.clicks7 !== undefined && (
+                                      <span className="jd-num">
+                                        <b>{n.clicks7}</b> klik/7 d
+                                      </span>
+                                    )}
+                                    {n.impressions7 !== undefined && (
+                                      <span className="jd-num">
+                                        <b>{n.impressions7.toLocaleString('da-DK')}</b> i Google/7 d
+                                      </span>
+                                    )}
+                                    {n.position7 !== undefined && (
+                                      <span className="jd-num">
+                                        plads <b>{String(n.position7).replace('.', ',')}</b>
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="jd-text">{e.text}</span>
+                              <span className="jd-more">
+                                {shown.map((g) => `${g.items.length} ${g.label.toLowerCase()}`).join(' · ')}
+                                {e.ideas?.length ? `${shown.length ? ' · ' : ''}${e.ideas.length} idéer` : ''}
+                              </span>
+                            </summary>
+                            {shown.map((g) => (
+                              <div key={g.label} className="jd-group">
+                                <h3>{g.label}</h3>
+                                <ul className="jd-actions">
+                                  {g.items.map((a) => (
+                                    <li key={a}>{a}</li>
+                                  ))}
+                                </ul>
+                              </div>
                             ))}
-                          </ul>
-                        )}
-                        {e.ideas && e.ideas.length > 0 && <p className="jd-ideas">💡 Idéer til nyhedsspejderen: {e.ideas.join(' · ')}</p>}
-                      </li>
-                    ))}
+                            {e.ideas && e.ideas.length > 0 && (
+                              <div className="jd-group">
+                                <h3>💡 Idéer til nyhedsspejderen</h3>
+                                <ul className="jd-actions">
+                                  {e.ideas.map((x) => (
+                                    <li key={x}>{x}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </details>
+                        </li>
+                      )
+                    })}
                   </ol>
                 ) : (
                   <p className="muted">James skriver her hver morgen kl. 06.30: hvad tallene siger, og hvad han har gjort ved det.</p>
