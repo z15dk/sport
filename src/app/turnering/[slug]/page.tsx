@@ -102,7 +102,7 @@ async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
         : friendly
           ? `${name} – stilling, resultater og kampprogram`
           : `${name} stillinger${season ? ` ${season}` : ''}${where} – tabel, resultater og kampprogram`,
-      description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : `Stillingen i ${name}, seneste resultater og kommende kampe.`,
+      description: cup ? `Alle kampe i ${name}: resultater fra hver runde og kommende kampe.` : await leagueDescription(league, name, season),
       alternates: { canonical: paths.league(slug) },
     }
   }
@@ -117,6 +117,24 @@ async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
     description: `${tier ? `${division.name} er Danmarks ${tier.words} fodboldrække. ` : ''}Stillingen i ${division.name} ${seasonOf(division)} efter ${rounds} runder: ${leader.club.name} fører med ${leader.points} point. Alle ${division.clubs.length} klubber, resultater, kampprogram og topscorere.`,
     alternates: { canonical: paths.league(division.slug) },
   }
+}
+
+/**
+ * A foreign league's description with the table's own news – who leads, by how many points, after how many rounds –
+ * so the search result answers "<liga> stillinger" before the click (week 42: 95 impressions on Segunda División, 0 clicks).
+ * The table is the page's own (cached for hours); waited for a moment at most, else the plain sentence.
+ */
+async function leagueDescription(league: NonNullable<ReturnType<typeof knownLeague>>, name: string, season?: string): Promise<string> {
+  const plain = `Stillingen i ${name}${season ? ` ${season}` : ''}, seneste resultater og kommende kampe.`
+  if (!league.id) return plain
+  const groups = await Promise.race([apiLeagueTable(league).catch(() => undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 800))])
+  const rows = groups?.length === 1 ? groups[0] : undefined
+  const [first, second] = rows ?? []
+  if (!first || !second || first.points === undefined || second.points === undefined || !first.played) return plain
+  const rounds = Math.max(...rows!.map((r) => r.played))
+  const lead = first.points - second.points
+  const race = lead > 0 ? `${lead} point foran ${second.name}` : `lige med ${second.name}`
+  return `${name} stillinger${season ? ` ${season}` : ''} efter ${rounds} runder: ${first.name} fører med ${first.points} point, ${race}. Tabel, resultater og kampprogram.`
 }
 
 /** Countries whose football leagues play in calendar years (spring to autumn) */

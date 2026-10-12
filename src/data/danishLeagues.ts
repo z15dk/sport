@@ -50,6 +50,8 @@ export function danishLeagueName(name: string, country?: string): string | undef
   } else if (lower === 'world cup') n = 'VM'
   else if (lower === 'euro championship') n = 'EM'
   else if (lower === 'nba' && women) return 'WNBA'
+  // Turkey's lower leagues by their own full names, as people search for them ("tff 1. lig stillinger")
+  else if (/^turkey$/i.test(country ?? '') && /^[1-3]\. lig$/.test(lower)) n = `TFF ${n}`
   n = n.replace(/\s+-\s+group\s+(\w+)$/i, ', gruppe $1')
   if (/^(denmark|danmark)$/i.test(country ?? '')) n = n.replace(/\bEast\b/, 'Øst').replace(/\bWest\b/, 'Vest')
   if (women && !SAYS_WOMEN.test(n)) n = `${n}, kvinder`

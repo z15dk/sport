@@ -53,3 +53,9 @@ test('friendlies, World Cup and Euro with their qualifying, groups, and east and
   assert.equal(danishLeagueName('Superliga', 'Denmark'), undefined)
   assert.equal(danishLeagueName('Serie A', 'Italy'), undefined)
 })
+
+test("Turkey's lower leagues carry TFF, as people search for them", () => {
+  assert.equal(danishLeagueName('1. Lig', 'Turkey'), 'TFF 1. Lig')
+  assert.equal(danishLeagueName('2. Lig', 'Turkey'), 'TFF 2. Lig')
+  assert.equal(danishLeagueName('Süper Lig', 'Turkey'), undefined)
+})
