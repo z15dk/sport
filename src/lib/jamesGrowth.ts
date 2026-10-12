@@ -84,6 +84,12 @@ export async function growthBrief(now = Date.now()) {
     const e = byPage.get(page) ?? byPage.set(page, { page, impressions: 0, clicks: 0, position: 0, queries: [] }).get(page)!
     e.queries.push({ query, impressions: r.impressions, clicks: r.clicks, position: r.position })
   }
+  // The page's own numbers from its searches (Google's page list is short: a page missing from it had position 0 and
+  // fell out of the lists below), then Google's page numbers where it has them
+  for (const e of byPage.values()) {
+    const shown = e.queries.reduce((n, q) => n + q.impressions, 0)
+    Object.assign(e, { impressions: shown, clicks: e.queries.reduce((n, q) => n + q.clicks, 0), position: shown ? e.queries.reduce((n, q) => n + q.position * q.impressions, 0) / shown : 0 })
+  }
   for (const r of g?.pages ?? []) {
     const e = byPage.get(r.key)
     if (e) Object.assign(e, { impressions: r.impressions, clicks: r.clicks, position: r.position })
