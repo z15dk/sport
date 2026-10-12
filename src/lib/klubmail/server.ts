@@ -193,7 +193,16 @@ export function klubmailConfirm(token: string, now = Date.now()): { clubs: { slu
   store?.expire(now)
   const s = store?.confirm(token, now)
   if (!s) return undefined
-  return { clubs: s.clubs.map((slug) => teamBySlug(slug)).filter((t): t is TeamEntry => !!t).map((t) => ({ slug: t.slug, name: klubmailName(t) })) }
+  const clubs = s.clubs.map((slug) => teamBySlug(slug)).filter((t): t is TeamEntry => !!t).map((t) => ({ slug: t.slug, name: klubmailName(t) }))
+  // The very first confirmed subscriber: a mail to the owner (their wish 12/10-2026), once
+  if (store && !store.getMeta<number>('firstConfirmedMailed') && mailReady()) {
+    store.setMeta('firstConfirmedMailed', now)
+    const names = clubs.map((c) => c.name).join(', ') || 'en klub'
+    const text = `Den første har tilmeldt sig og bekræftet "Din klub i indbakken": ${maskEmail(s.email)} følger ${names}.\n\nSe tallene: ${SITE_URL}/admin/klubmail\n\nJames, Matchly`
+    const html = `<p>Den første har tilmeldt sig og bekræftet <b>Din klub i indbakken</b>: ${maskEmail(s.email)} følger <b>${names.replace(/[<>&]/g, '')}</b>.</p><p><a href="${SITE_URL}/admin/klubmail">Se tallene på /admin/klubmail</a></p><p>James, Matchly</p>`
+    sendMail('Matchly: den første har tilmeldt sig klubmailen', html, text).catch((e) => console.log(`[klubmail] mail om første tilmelding fejlede: ${e instanceof Error ? e.message : e}`))
+  }
+  return { clubs }
 }
 
 /** The unsubscribe link: the address is deleted; the clubs it had, or undefined when the link is unknown */
