@@ -3395,3 +3395,44 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
 .klubmail--compact .klubmail__done strong { color: var(--ink); }
 .my-teams__mail { margin-top: 10px; }
 .my-teams__mail > summary { cursor: pointer; display: inline-block; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ------------------------------------------------------------------ the club mail's thank-you page (/klubmail/bekraeft) */
+.tak {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; align-items: center;
+  padding: 34px 34px 38px; border-radius: var(--radius); background: var(--lime); color: var(--ink);
+}
+.tak__m {
+  position: absolute; right: 120px; bottom: -110px; pointer-events: none; font-family: var(--display); font-style: italic; font-weight: 800;
+  font-size: 360px; line-height: 0.8; color: transparent; -webkit-text-stroke: 2px rgba(15, 17, 12, 0.16);
+}
+.tak__copy { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 620px; }
+.tak__kicker { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.tak__title { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 64px; line-height: 0.92; overflow-wrap: anywhere; }
+.tak__lead { font-size: 17px; line-height: 1.5; }
+.tak__club { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 26px; border-radius: var(--radius-sm); background: var(--surface); min-width: 180px; }
+.tak__clubname { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 22px; line-height: 1; text-align: center; }
+.tak__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.tak__card { padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; }
+.tak__label { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.tak__big { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 28px; line-height: 1; }
+.tak__small { font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.tak__link { margin-top: auto; padding-top: 6px; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.tak__more { margin-top: 16px; padding: 22px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.tak__h2 { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 26px; line-height: 1; margin-bottom: 6px; }
+.tak__actions { position: relative; display: flex; flex-wrap: wrap; gap: 10px; }
+.tak__btn {
+  display: inline-flex; align-items: center; height: 46px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: #fff;
+  font-weight: 700; font-size: 15px; text-decoration: none;
+}
+.tak__more .tak__btn { background: var(--lime); color: var(--ink); }
+.tak__more .tak__btn--ghost, .tak__btn--ghost { background: var(--surface-2); color: var(--ink); }
+.tak--fejl { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 760px) {
+  .tak { grid-template-columns: minmax(0, 1fr); padding: 26px 20px 28px; }
+  .tak__m { right: -30px; bottom: -70px; font-size: 240px; }
+  .tak__title { font-size: 44px; }
+  .tak__lead { font-size: 16px; }
+  .tak__club { flex-direction: row; justify-content: flex-start; min-width: 0; padding: 14px 16px; }
+  .tak__grid { grid-template-columns: minmax(0, 1fr); }
+  .tak__more { flex-direction: column; align-items: flex-start; }
+}
