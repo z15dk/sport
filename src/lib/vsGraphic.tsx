@@ -9,7 +9,7 @@ import { proxiedPicture, proxyImage } from './imageProxy'
 import { nationalTeams } from './nationalTeams'
 import { mOutline, OG_SIZE, ogFonts } from './ogImage'
 import { withPhotoDb } from './photos/server'
-import { allTeams } from '../data/teams'
+import { allTeams, teamBySlug } from '../data/teams'
 import { externalLeagueKey } from '../data/external'
 import { shownDivisions } from '../data/leagues'
 import { divisionOfGame } from '../data/ourLeagues'
@@ -214,8 +214,19 @@ function clubColor(name: string, flag: boolean): string {
 }
 
 /** The club picture as PNG (1200×630): only the club's logo (or a national team's flag) on Matchly's dark top */
+/**
+ * The club as the graphics know it. James sometimes sends the club page's address ("/klub/manchester-city") or its
+ * slug instead of the name (12/10-2026 the Schmeichel news got a picture saying "/KLUB/MANCHESTER-CITY"): that is the
+ * team's name.
+ */
+function clubName(input: string): string {
+  const club = input.trim()
+  const slug = /^(?:https?:\/\/[^/]+)?\/?klub\/([a-z0-9-]+)\/?$/i.exec(club)?.[1] ?? (/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(club) ? club : undefined)
+  return (slug && teamBySlug(slug.toLowerCase())?.name) || club
+}
+
 export async function clubGraphicPng(input: { club: string; bg?: string; light?: boolean }): Promise<Buffer> {
-  const club = input.club.trim()
+  const club = clubName(input.club)
   if (!club) throw new Error('Vælg en klub')
   const badges = await getBadges()
   const flags = nationalTeams()
@@ -223,7 +234,11 @@ export async function clubGraphicPng(input: { club: string; bg?: string; light?:
   // A flag drawn big from its source (the national teams' list keeps only a small copy)
   const code = flag ? flagCode(club, true) : undefined
   const photo = await photoData(input.bg)
-  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace("/w160/", "/w640/")) : flags[club], 630, 420, true) : await logoData(badges[club], 680, 680, false, true)
+  // Our clubs' logos first, else the sources' logo for the team (clubs abroad, the A-Liga's teams)
+  const own = badges[club] ?? (flag ? undefined : allTeams().find((t) => t.logo && (t.name === club || t.names?.includes(club)))?.logo)
+  const logo = flag ? await logoData(code ? proxyImage(flagSource(code).replace("/w160/", "/w640/")) : flags[club], 630, 420, true) : await logoData(own, 680, 680, false, true)
+  // No logo: no picture of the name in big letters (it looked like an error) – the caller picks another graphic
+  if (!logo) throw new Error(`Intet logo for "${club}" – skriv klubbens navn, som Matchly skriver det, eller brug "kind":"tekst"`)
   // The light design (a preview for the owner, 11/10-2026): flat light, dots and the club's colour along the top
   const light = !!input.light && !photo
   const res = new ImageResponse(
@@ -235,14 +250,10 @@ export async function clubGraphicPng(input: { club: string; bg?: string; light?:
         {/* The big M as on the league pages' top: an outline, cut off at the bottom right */}
         <img src={mOutline(light ? '#e4e7db' : 'rgba(198,241,53,0.14)', 0.45)} width={900} height={648} alt="" style={{ position: 'absolute', left: 420, top: 150 }} />
         <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {logo ? (
-            flag ? (
-              <img src={logo} width={420} height={280} alt="" style={{ borderRadius: 18, objectFit: 'cover', boxShadow: '0 14px 40px rgba(0,0,0,0.55)' }} />
-            ) : (
-              <img src={logo} width={340} height={340} alt="" style={{ objectFit: 'contain' }} />
-            )
+          {flag ? (
+            <img src={logo} width={420} height={280} alt="" style={{ borderRadius: 18, objectFit: 'cover', boxShadow: '0 14px 40px rgba(0,0,0,0.55)' }} />
           ) : (
-            <div style={{ display: 'flex', fontSize: 120, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, textAlign: 'center' }}>{club.toUpperCase()}</div>
+            <img src={logo} width={340} height={340} alt="" style={{ objectFit: 'contain' }} />
           )}
         </div>
         <div style={{ position: 'absolute', left: 0, bottom: 44, width: '100%', display: 'flex', justifyContent: 'center', fontSize: 50, fontWeight: 800, fontStyle: 'italic', lineHeight: 1 }}>
@@ -264,7 +275,7 @@ export async function makeClubGraphic(input: { club: string; bg?: string }): Pro
     const name = saved.url.replace('/uploads/', '')
     withPhotoDb((db) => {
       const id = registerArticleUpload(db, name)
-      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(input.club.trim(), id)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(clubName(input.club), id)
     })
   } catch {
     // the article still gets its picture
