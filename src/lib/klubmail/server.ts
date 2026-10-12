@@ -23,6 +23,7 @@ import { cacheDir } from '../tsdb'
 import type { Match } from '../../types'
 import { buildConfirmMail, buildWeeklyMail, hasNews, type ClubDigest, type DigestMatch, type DigestRow, type MailParts } from './build'
 import { getBadges } from '../badges'
+import { proxyImage } from '../imageProxy'
 import { KlubmailStore, isoWeek, maskEmail, runWeekly, sendWindow, validEmail, type Db, type RunResult, type Subscriber } from './core'
 
 // "Din klub i indbakken", the server side: the subscribers in SQLite klubmail.db (KLUBMAIL_DB; shared by the site
@@ -91,6 +92,13 @@ const asDigestMatch = (m: Match, isOwn: (name: string) => boolean): DigestMatch 
   }
 }
 
+/** The two teams' logos on a match in the mail */
+async function withMatchLogos(d: DigestMatch, m: Match, isOwn: (name: string) => boolean): Promise<DigestMatch> {
+  const [mine, theirs] = isOwn(m.home.name) ? [m.home, m.away] : [m.away, m.home]
+  const [clubLogo, opponentLogo] = await Promise.all([logoOf(mine.name, mine.badge), logoOf(theirs.name, theirs.badge)])
+  return { ...d, clubLogo, opponentLogo }
+}
+
 /** The club's row and the two above and below (five rows; at the top or bottom the five nearest) */
 function around<T>(rows: T[], i: number): T[] {
   if (i < 0) return []
@@ -110,8 +118,18 @@ function mailLogo(url?: string): string | undefined {
     u.searchParams.set('format', 'png')
     return u.toString()
   }
-  if (url.startsWith('/')) return /\.(png|jpe?g)(\?|$)/i.test(url) ? `${SITE_URL}${url}` : undefined
-  return /^https:\/\/.+\.(png|jpe?g)(\?|$)/i.test(url) ? url : undefined
+  // Another source's logo through our own domain (/billede/<id>), as a small PNG
+  const own = url.startsWith('http') ? proxyImage(url) : url
+  const id = /^\/billede\/([a-f0-9]{20})/.exec(own)?.[1]
+  if (id) return `${SITE_URL}/billede/${id}-64.png`
+  if (own.startsWith('/')) return /\.(png|jpe?g)(\?|$)/i.test(own) ? `${SITE_URL}${own}` : undefined
+  return undefined
+}
+
+/** A team's logo for the mail, by the name the site shows (the logos the site's own badges use) */
+async function logoOf(name: string, fallback?: string): Promise<string | undefined> {
+  const badges = await getBadges().catch(() => ({}) as Record<string, string>)
+  return mailLogo(badges[name] ?? fallback)
 }
 
 /** Our clubs' logos (the admin's, as on the site's table) on the mail's table rows */
@@ -164,8 +182,8 @@ export async function clubDigest(slug: string, now = Date.now()): Promise<ClubDi
       slug: t.slug,
       name,
       league: division.name,
-      last: last && asDigestMatch(last, own),
-      next: next && asDigestMatch(next, own),
+      last: last && (await withMatchLogos(asDigestMatch(last, own), last, own)),
+      next: next && (await withMatchLogos(asDigestMatch(next, own), next, own)),
       table: played
         ? await withLogos(around(rows.map((r, k) => ({ rank: k + 1, name: r.club.name, played: r.played, points: r.points, goalDiff: r.goalsFor - r.goalsAgainst, form: r.form.slice(-5), me: r.club.id === club.id })), i))
         : undefined,
@@ -181,8 +199,8 @@ export async function clubDigest(slug: string, now = Date.now()): Promise<ClubDi
     slug: t.slug,
     name,
     league: t.league,
-    last: last && asDigestMatch(last, own),
-    next: next && asDigestMatch(next, own),
+    last: last && (await withMatchLogos(asDigestMatch(last, own), last, own)),
+    next: next && (await withMatchLogos(asDigestMatch(next, own), next, own)),
     table: await externalTable(t, own).catch(() => undefined),
     articles: [],
   }

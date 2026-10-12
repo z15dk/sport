@@ -17,6 +17,9 @@ export interface DigestMatch {
   goalsFor?: number
   goalsAgainst?: number
   tv?: string
+  /** The two teams' logos as absolute PNG addresses (mail apps show neither WebP nor SVG) */
+  clubLogo?: string
+  opponentLogo?: string
 }
 
 export interface DigestRow {
@@ -139,31 +142,46 @@ function label(text: string) {
   return `<p style="margin:18px 0 6px;font-family:${FONT};font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:${C.ink2}">${esc(text)}</p>`
 }
 
-function lastHtml(d: ClubDigest, site: string) {
-  const m = d.last
-  if (!played(m)) return ''
-  const o = outcome(m)
-  const color = o === 'V' ? C.win : o === 'T' ? C.loss : C.draw
-  const word = o === 'V' ? 'Sejr' : o === 'T' ? 'Nederlag' : 'Uafgjort'
+const dayFmt = new Intl.DateTimeFormat('da-DK', { timeZone: 'Europe/Copenhagen', weekday: 'short', day: 'numeric', month: 'short' })
+
+/**
+ * A match as a row of the site's match list: the day and time (or "Slut") on the left, the two teams under each other
+ * with their logos, and the score (or the TV channel) on the right. Plain lines, no coloured boxes.
+ */
+function matchHtml(m: DigestMatch, club: string, site: string) {
+  const done = m.goalsFor !== undefined && m.goalsAgainst !== undefined
   const href = m.slug ? tracked(`${site}/kamp/${m.slug}`) : undefined
+  const sides = [
+    { name: club, logo: m.clubLogo, goals: m.goalsFor },
+    { name: m.opponent, logo: m.opponentLogo, goals: m.goalsAgainst },
+  ]
+  const [home, away] = m.home ? sides : [sides[1], sides[0]]
+  const won = (a: typeof home, b: typeof home) => done && (a.goals ?? 0) > (b.goals ?? 0)
+  const badge = (logo?: string) =>
+    logo
+      ? `<img src="${esc(logo)}" width="20" height="20" alt="" style="display:block;border:0;width:20px;height:20px">`
+      : `<span style="display:block;width:20px;height:20px;border-radius:999px;background:${C.line}"></span>`
+  const team = (t: typeof home, other: typeof home) =>
+    `<tr><td width="28" style="padding:3px 0;vertical-align:middle">${badge(t.logo)}</td><td class="m-ink" style="padding:3px 0;font-family:${FONT};font-size:15px;line-height:1.3;color:${C.ink};${won(t, other) ? 'font-weight:bold;' : ''}vertical-align:middle">${esc(t.name)}</td>${done ? `<td align="right" class="m-ink" style="padding:3px 0 3px 10px;font-family:${FONT};font-size:16px;font-weight:bold;color:${C.ink};vertical-align:middle">${t.goals ?? ''}</td>` : ''}</tr>`
+  const when = `${esc(dayFmt.format(new Date(m.kickoff)).replace(/\.$/, ''))}<br>${done ? 'Slut' : esc(formatTime(new Date(m.kickoff)))}`
+  const tv = !done && m.tv ? `<td align="right" style="padding:12px 0 12px 10px;vertical-align:middle;white-space:nowrap"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${C.soft};font-family:${FONT};font-size:12px;font-weight:bold;color:${C.ink}">${esc(m.tv)}</span></td>` : ''
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-top:1px solid ${C.line};border-bottom:1px solid ${C.line}"><tr>
+<td width="74" class="m-ink2" style="padding:12px 10px 12px 0;vertical-align:middle;font-family:${FONT};font-size:12px;line-height:1.4;color:${C.ink2}">${when}</td>
+<td style="padding:9px 0;vertical-align:middle"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${team(home, away)}${team(away, home)}</table></td>
+${tv}</tr></table>
+<p style="margin:6px 0 0;font-family:${FONT};font-size:12px;color:${C.ink2}">${esc(m.league)}${href ? ` · ${link(href, done ? 'Se kampen' : 'Til kampen', 'font-size:12px')}` : ''}</p>`
+}
+
+function lastHtml(d: ClubDigest, site: string) {
+  if (!played(d.last)) return ''
   return `${label('Seneste resultat')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${C.soft};border-radius:12px"><tr>
-<td width="64" style="padding:12px 0 12px 12px;vertical-align:middle"><span style="display:inline-block;min-width:44px;padding:8px 6px;border-radius:10px;background:${color};color:#ffffff;font-family:${FONT};font-size:20px;font-weight:bold;font-style:italic;text-align:center">${esc(score(m))}</span></td>
-<td style="padding:12px;vertical-align:middle;font-family:${FONT};font-size:15px;line-height:1.4;color:${C.ink}"><strong>${word} ${m.home ? 'hjemme' : 'ude'} mod ${esc(m.opponent)}</strong><br><span style="font-size:13px;color:${C.ink2}">${esc(longFmt.format(new Date(m.kickoff)))} · ${esc(m.league)}</span>${href ? `<br>${link(href, 'Se kampen →', 'font-size:13px')}` : ''}</td>
-</tr></table>`
+${matchHtml(d.last, d.name, site)}`
 }
 
 function nextHtml(d: ClubDigest, site: string) {
-  const m = d.next
-  if (!m) return ''
-  const href = m.slug ? tracked(`${site}/kamp/${m.slug}`) : undefined
+  if (!d.next) return ''
   return `${label('Næste kamp')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.soft};border-left:6px solid ${C.lime};border-radius:12px"><tr>
-<td class="m-ink" style="padding:14px 16px;font-family:${FONT};font-size:15px;line-height:1.45;color:${C.ink}">
-<span style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.limeDeep}">${esc(whenLong(m.kickoff))}</span><br>
-<strong style="font-size:17px">${m.home ? 'Hjemme' : 'Ude'} mod ${esc(m.opponent)}</strong><br>
-<span class="m-ink2" style="font-size:13px;color:${C.ink2}">${esc(m.league)}${m.tv ? ` · TV: <strong style="color:${C.ink}">${esc(m.tv)}</strong>` : ''}</span>${href ? `<br><a href="${esc(href)}" style="font-size:13px;font-weight:bold;color:${C.ink};text-decoration:underline">Til kampen →</a>` : ''}
-</td></tr></table>`
+${matchHtml(d.next, d.name, site)}`
 }
 
 /** The table as on the site (src/components/StandingsTable.tsx): #, logo and club, K, +/-, P and the form as small coloured
