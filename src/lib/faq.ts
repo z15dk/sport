@@ -81,10 +81,20 @@ export function matchFaq(match: Match, h2h: PastMatch[], home?: ClubStats, away?
     })
   }
   if (home && away) {
-    items.push({
-      q: `Hvor ligger ${h.name} og ${a.name} i tabellen?`,
-      a: `${h.name} ligger nr. ${home.position} med ${home.row.points} point, og ${a.name} ligger nr. ${away.position} med ${away.row.points} point.`,
-    })
+    // The same league: one table. Different leagues (a European or cup match, FCK–Braga): each in its own league,
+    // named, so it doesn't read as a table of the tournament (James' data watch 12/10-2026)
+    const same = home.division.id === away.division.id
+    items.push(
+      same
+        ? {
+            q: `Hvor ligger ${h.name} og ${a.name} i tabellen?`,
+            a: `${h.name} ligger nr. ${home.position} med ${home.row.points} point, og ${a.name} ligger nr. ${away.position} med ${away.row.points} point i ${home.division.name}.`,
+          }
+        : {
+            q: `Hvor ligger ${h.name} og ${a.name} i deres ligaer?`,
+            a: `${h.name} ligger nr. ${home.position} i ${home.division.name} med ${home.row.points} point, og ${a.name} ligger nr. ${away.position} i ${away.division.name} med ${away.row.points} point.`,
+          },
+    )
   }
   // Where to watch it, before and while it is played
   if (more?.channels?.length && match.state !== 'finished')

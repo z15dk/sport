@@ -74,7 +74,15 @@ function meetingsOf(a: Club, b: Club, now: number, links: boolean): PastMatch[] 
   const season: PastMatch[] = pairFixtures(a, b)
     .filter((f) => isFinished(f) && f.kickoff.getTime() <= now && !seen.has(`${isoDate(f.kickoff)}|${f.score[0]}-${f.score[1]}`))
     .map((f) => ({ date: f.kickoff, competition: f.competition, home: f.home.name, away: f.away.name, homeScore: f.score[0], awayScore: f.score[1], slug: f.slug }))
-  const all = [...season, ...db].sort((x, y) => y.date.getTime() - x.date.getTime())
+  // Two clubs meet once a day: the same day from two sources (the match database's "1. Division" and the statistics
+  // bank's "Betinia Liga", James' data watch 12/10-2026) is one meeting – the one with a match page, else the first
+  const byDay = new Map<string, PastMatch>()
+  for (const m of [...season, ...db]) {
+    const day = isoDate(m.date)
+    const had = byDay.get(day)
+    if (!had || (!had.slug && m.slug)) byDay.set(day, m)
+  }
+  const all = [...byDay.values()].sort((x, y) => y.date.getTime() - x.date.getTime())
   return links ? withMatchLinks(all) : all
 }
 
