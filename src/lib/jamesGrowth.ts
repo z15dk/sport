@@ -96,7 +96,7 @@ export async function growthBrief(now = Date.now()) {
   }
   const close = [...byPage.values()]
     .filter((e) => e.position >= 7 && e.position <= 20 && e.impressions >= 5 && !locked.has(e.page))
-    .map((e) => ({ ...e, queries: e.queries.sort((a, b) => b.impressions - a.impressions).slice(0, 5), title: overrides.pages[e.page]?.title }))
+    .map((e) => ({ ...e, queries: e.queries.sort((a, b) => b.impressions - a.impressions).slice(0, 5), title: overrides.pages[e.page]?.title, hasText: !!overrides.pages[e.page]?.intro }))
     .sort((a, b) => b.impressions - a.impressions)
     .slice(0, 25)
 

@@ -2,6 +2,7 @@ import 'server-only'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Metadata } from 'next'
+import { cleanHtml } from './articles'
 import { checkOverride } from './seoOverrideRules'
 import { cacheDir } from './tsdb'
 
@@ -26,6 +27,8 @@ export interface SeoOverride {
   description?: string
   /** Questions and answers added to the page's FAQ (club, league and head-to-head pages) */
   faq?: { q: string; a: string }[]
+  /** James' text on the page (club, league, player and head-to-head pages): a heading with the search in it and 150–350 words */
+  intro?: { heading: string; html: string }
   /** The search the change is for */
   query?: string
   why: string
@@ -92,6 +95,9 @@ export function withSeoFaq<T extends { q: string; a: string }>(pagePath: string,
   return [...extra, ...items.filter((f) => !same.has(f.q.toLowerCase()))]
 }
 
+/** James' text for a page, when he has written one (src/components/PageStory.tsx) */
+export const seoIntro = (pagePath: string): SeoOverride['intro'] => readSeoOverrides().pages[pagePath]?.intro
+
 const danishDay = (ms: number) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Copenhagen' }).format(new Date(ms))
 
 /** New titles set today (Danish day) */
@@ -99,7 +105,7 @@ export function setToday(store = readSeoOverrides(), now = Date.now()) {
   return store.log.filter((l) => l.text.startsWith('Ny titel') && danishDay(l.at) === danishDay(now)).length
 }
 
-export function setSeoOverride(input: { path: string; title?: string; description?: string; faq?: { q: string; a: string }[]; query?: string; why: string }, by: string, before?: SeoBaseline): { error?: string } {
+export function setSeoOverride(input: { path: string; title?: string; description?: string; faq?: { q: string; a: string }[]; intro?: { heading: string; html: string }; query?: string; why: string }, by: string, before?: SeoBaseline): { error?: string } {
   const bad = checkOverride(input)
   if (bad) return { error: bad }
   if (!input.why?.trim()) return { error: 'Skriv hvorfor (fx søgningen og placeringen)' }
@@ -109,10 +115,24 @@ export function setSeoOverride(input: { path: string; title?: string; descriptio
   if (old && now - old.at < LOCK_DAYS * 86_400_000) return { error: `Siden blev ændret ${danishDay(old.at)} – vent ${LOCK_DAYS} dage, så tallene kan måles` }
   if (setToday(store, now) >= DAILY_TITLES) return { error: `Der er sat ${DAILY_TITLES} nye titler i dag – resten i morgen` }
   const faq = input.faq?.map((f) => ({ q: f.q.trim(), a: f.a.trim() }))
-  store.pages[input.path] = { title: input.title?.trim(), description: input.description?.trim(), faq: faq?.length ? faq : undefined, query: input.query?.trim(), why: input.why.trim().slice(0, 400), by, at: now, before }
-  store.log.push({ at: now, by, path: input.path, text: `Ny titel${input.title ? `: "${input.title.trim()}"` : ''}${input.description ? ' + beskrivelse' : ''}${faq?.length ? ` + ${faq.length} spørgsmål` : ''}${input.query ? ` (søgning: ${input.query.trim()})` : ''}` })
+  const intro = input.intro && { heading: input.intro.heading.trim(), html: cleanHtml(input.intro.html) }
+  store.pages[input.path] = { title: input.title?.trim(), description: input.description?.trim(), faq: faq?.length ? faq : undefined, intro, query: input.query?.trim(), why: input.why.trim().slice(0, 400), by, at: now, before }
+  store.log.push({ at: now, by, path: input.path, text: `Ny titel${input.title ? `: "${input.title.trim()}"` : ''}${input.description ? ' + beskrivelse' : ''}${faq?.length ? ` + ${faq.length} spørgsmål` : ''}${intro ? ' + tekst' : ''}${input.query ? ` (søgning: ${input.query.trim()})` : ''}` })
   save(store)
   return {}
+}
+
+/** Internal links James may add to his own articles a day (his growth round) */
+export const DAILY_LINKS = 10
+
+/** Internal links added today (Danish day) */
+export const linksToday = (store = readSeoOverrides(), now = Date.now()) => store.log.filter((l) => l.text.startsWith('Link') && danishDay(l.at) === danishDay(now)).length
+
+/** Notes an internal link in the log (so the day's limit and the owner can see it) */
+export function logLink(articlePath: string, text: string, by: string) {
+  const store = readSeoOverrides()
+  store.log.push({ at: Date.now(), by, path: articlePath, text: `Link: ${text}` })
+  save(store)
 }
 
 /** After the 14 days: keep it (with what the numbers showed) or undo it (the page's own title again) */

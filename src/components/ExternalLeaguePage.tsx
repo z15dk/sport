@@ -1,3 +1,5 @@
+import { seoIntro } from '../lib/seoOverrides'
+import { PageStory } from './PageStory'
 import type { ReactNode } from 'react'
 import type { LeagueDeep, LeagueRow } from '../data/leagueDeep'
 import { AttackDefenceBox, FormTableBox, LeagueBriefBox, LeagueHero, LeagueOutBox, LeaguePlayersBox } from './league/LeagueDeepBoxes'
@@ -222,6 +224,7 @@ export function ExternalLeaguePage({ view, league, groups, source, matches, sinc
           </p>
         )}
         <Updated at={now} />
+        <PageStory story={seoIntro(path)} eyebrow={`Matchly om ${league.name}`} />
         <CalendarButton kind="turnering" slug={league.key} name={league.name} />
         <LiveNow matches={upcoming} />
 

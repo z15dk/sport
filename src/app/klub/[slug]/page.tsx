@@ -67,7 +67,8 @@ import { clubFaq, teamFaq } from '../../../lib/faq'
 import { formatDayMonth, formatLong, formatShortYear, formatTime, isoDate } from '../../../lib/time'
 import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
-import { withSeoFaq, withSeoOverride } from '../../../lib/seoOverrides'
+import { seoIntro, withSeoFaq, withSeoOverride } from '../../../lib/seoOverrides'
+import { PageStory } from '../../../components/PageStory'
 
 /** A men's football national team ("Luxembourg"), not a youth or women's team ("Danmark U19", "Danmark (K)") */
 const seniorNationalTeam = (name: string, sport?: string) => sport === 'soccer' && isNationalTeam(name) && !/\b(u\d{2}|w)$|\(k\)$/i.test(name.trim())
@@ -310,6 +311,7 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
           {sport === 'basketball' ? ' samlet score' : ' målscore'} på {r.goalsFor}-{r.goalsAgainst}.
         </p>
         <Updated at={now} />
+        <PageStory story={seoIntro(paths.club(club.slug))} eyebrow={`Matchly om ${club.name}`} />
         {/* In the new header these are in the menu and the table row */}
         {!newHeader && <CalendarButton kind="klub" slug={club.slug} name={club.name} />}
         {(() => {
@@ -711,6 +713,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
           {!live[0] && next && ` Næste kamp er mod ${own(next.home.name) ? next.away.name : next.home.name} ${formatLong(next.kickoff)}.`}
         </p>
         <Updated at={now} />
+        <PageStory story={seoIntro(paths.club(team.slug))} eyebrow={`Matchly om ${shownName(team)}`} />
         {!newPage && <CalendarButton kind="klub" slug={team.slug} name={team.name} />}
 
         {!newPage && (row || n > 0) && (

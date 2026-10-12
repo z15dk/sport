@@ -10,12 +10,18 @@ const FORBIDDEN = /fodboldlandshold|\bDBU\b|API-?Sports|TheSportsDB|SofaScore|Z-
 /** The pages that show James' questions and answers (the club, league and head-to-head pages' FAQ) */
 export const FAQ_PATHS = /^\/(klub|turnering|opgoer)\/[a-z0-9-]+$/
 
-export function checkOverride(input: { path: string; title?: string; description?: string; faq?: { q: string; a: string }[] }): string | undefined {
+/** The pages that show James' text (the club and league pages, src/components/PageStory.tsx) */
+export const INTRO_PATHS = /^\/(klub|turnering)\/[a-z0-9-]+$/
+
+const plain = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim()
+
+export function checkOverride(input: { path: string; title?: string; description?: string; faq?: { q: string; a: string }[]; intro?: { heading: string; html: string } }): string | undefined {
   if (!OVERRIDE_PATHS.test(input.path)) return 'Kun klub-, turnerings-, kamp-, artikel-, opgørs- og spillersider'
   const title = input.title?.trim()
   const description = input.description?.trim()
   const faq = input.faq ?? []
-  if (!title && !description && !faq.length) return 'Giv en titel, en beskrivelse og/eller spørgsmål og svar'
+  const intro = input.intro
+  if (!title && !description && !faq.length && !intro) return 'Giv en titel, en beskrivelse, spørgsmål og svar og/eller en tekst'
   if (title && (title.length < 15 || title.length > 60)) return `Titlen skal være 15–60 tegn (er ${title.length}) – "| Matchly" sættes på af siden selv`
   if (description && (description.length < 70 || description.length > 160)) return `Beskrivelsen skal være 70–160 tegn (er ${description.length})`
   if (faq.length) {
@@ -29,6 +35,15 @@ export function checkOverride(input: { path: string; title?: string; description
       if (/https?:\/\/|www\./i.test(a)) return 'Ingen links i svarene'
     }
   }
-  for (const text of [title, description, ...faq.flatMap((f) => [f.q, f.a])]) if (text && FORBIDDEN.test(text)) return `"${FORBIDDEN.exec(text)?.[0]}" må ikke stå i titler og beskrivelser`
+  if (intro) {
+    if (!INTRO_PATHS.test(input.path)) return 'Tekst kun på klub- og ligasider'
+    const heading = intro.heading?.trim() ?? ''
+    const text = plain(intro.html ?? '')
+    if (heading.length < 15 || heading.length > 70) return `Tekstens rubrik skal være 15–70 tegn (er ${heading.length})`
+    if (text.length < 500 || text.length > 2200) return `Teksten skal være 500–2.200 tegn, ca. 90–350 ord (er ${text.length})`
+    if (/<(h[1-6]|img|table|script|iframe)\b/i.test(intro.html)) return 'Kun afsnit (p), fed, kursiv, links og en kort liste (ul/li) i teksten'
+    if (/href\s*=\s*["'](?!\/)/i.test(intro.html)) return 'Kun links til Matchlys egne sider (/klub/…, /turnering/…, /kamp/…) i teksten'
+  }
+  for (const text of [title, description, ...faq.flatMap((f) => [f.q, f.a]), intro?.heading, intro && plain(intro.html)]) if (text && FORBIDDEN.test(text)) return `"${FORBIDDEN.exec(text)?.[0]}" må ikke stå i titler og beskrivelser`
   return undefined
 }

@@ -1,3 +1,5 @@
+import { seoIntro } from '../../../lib/seoOverrides'
+import { PageStory } from '../../../components/PageStory'
 import type { Metadata } from 'next'
 import type { ExternalLeagueView } from '../../../components/ExternalLeaguePage'
 import type { LeagueRow } from '../../../data/leagueDeep'
@@ -466,6 +468,7 @@ async function LeaguePageInner({ params }: { params: Params }) {
         </div>
 
         <Updated at={now} />
+        <PageStory story={seoIntro(paths.league(division.slug))} eyebrow={`Matchly om ${division.name}`} />
         <CalendarButton kind="turnering" slug={division.slug} name={division.name} />
         <LiveNow matches={todays} />
 

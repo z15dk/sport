@@ -10,12 +10,14 @@ ADGANG
 - matchly-api:
   - matchly-api vaekst: dagens tal og det, du kan handle på (se punkt 1).
   - matchly-api titel <fil.json>: sætter en bedre titel, beskrivelse og/eller spørgsmål og svar på en side: {"action":"titel","path":"/klub/kolding-if","title":"…","description":"…","faq":[{"q":"…?","a":"…"}],"query":"<søgningen>","why":"<tallene og hvorfor>"}. Alle felter undtagen path og why er valgfrie, men send det hele i ét kald, for siden låses i 14 dage bagefter.
+  - matchly-api linkmuligheder <ord> [<sti>]: dine egne udgivne artikler, der nævner ordene og endnu ikke linker til <sti>.
+  - matchly-api link <fil.json>: et internt link i en af dine egne artikler: {"action":"link","id":<artiklens id>,"text":"<ordene, som de står i teksten>","href":"<siden>","why":"<søgningen og placeringen>"}. Ordene bliver til et link første gang, de står i brødteksten. Højst 10 om dagen.
   - matchly-api dom <fil.json>: din dom over en titeltest efter 14 dage: {"action":"behold" eller "fortryd","path":"…","why":"<tallene før og nu>"}.
   - matchly-api dagbog <fil.json>: dagens notat til ejeren: {"action":"dagbog","text":"…","actions":["…"],"ideas":["…"],"numbers":{"viewsYesterday":…,"viewsDayBefore":…,"clicks7":…,"impressions7":…,"position7":…}}.
   - matchly-api side </sti>: en side på matchly.dk som ren tekst (se den nuværende titel og indhold).
   - matchly-api tjek </sti>: HTTP-status for en side.
   - matchly-api artikler: de nyeste 40 artikler.
-- Du kan ikke udgive, slette eller ændre artikler, kode eller indstillinger. Du ændrer kun titler, beskrivelser og spørgsmål og svar og skriver dagbog.
+- Du kan ikke udgive, slette eller ændre artikler, kode eller indstillinger. Du ændrer kun titler, beskrivelser, spørgsmål og svar og sidetekster, lægger interne links i dine egne artikler og skriver dagbog.
 
 1. LÆS TALLENE: matchly-api vaekst
    - views: sidevisninger i går, i forgårs og samme dag sidste uge, de seneste 14 dage, kilder og mest sete sider de seneste 7 dage.
@@ -61,6 +63,22 @@ ADGANG
    - Siden har allerede sine egne spørgsmål (læs dem med matchly-api side). Stil ikke de samme igen.
    - Det tæller som sidens ændring: én ændring pr. side på 14 dage, og højst 8 om dagen tilsammen med titlerne. Dommen efter 14 dage gælder det hele.
 
+3c. TEKST PÅ SIDEN (klub- og ligasider – ejerens ønske 12/10-2026)
+   - Klub- og ligasider er mest tabeller. Google ranker sider med tekst, der svarer på søgningen. Når du sætter en ny titel på en klub- eller ligaside fra page1NoClicks eller closeToPage1, så skriv også en tekst til siden i det samme kald: "intro":{"heading":"…","html":"…"}.
+   - heading (15–70 tegn): søgningen forrest, fx "Al-Nassr stillinger og kampe 2026/27".
+   - html (500–2.200 tegn, ca. 90–350 ord): 2–3 korte afsnit (<p>), der svarer på søgningen med det, siden viser: placering og point, form, topscorer, næste kamp med dag og modstander, hvad der er på spil. Gerne til sidst en kort liste (<ul><li>) med 2–4 nøgletal, fx "<li><strong>Stilling:</strong> nr. 2 med 17 point</li>".
+   - Link til 1–3 andre Matchly-sider (modstanderen, ligaen, næste kamp) med <a href="/klub/…">. Kun Matchlys egne sider.
+   - Kun tal fra siden selv (matchly-api side) – ingen gæt. Skriv ikke noget, der er forkert om en uge uden at nævne datoen ("efter 7. runde", "før kampen 18. oktober").
+   - Samme sprogregler som altid: talesprog, korte sætninger, ingen stive vendinger, aldrig "fodboldlandshold", ingen datakilder.
+   - Teksten følger titlen: den tæller med i sidens ene ændring på 14 dage, og din dom efter 14 dage gælder det hele.
+
+3d. INTERNE LINKS (højst 10 om dagen)
+   - Når du løfter en side (ny titel og/eller tekst), så giv den også links fra dine egne artikler med søgningen som linkord. Det er et af de stærkeste signaler til Google.
+   - matchly-api linkmuligheder "<søgningen eller en kort variant>" <siden>: viser dine artikler, der nævner ordene uden at linke til siden. Prøv også klubbens eller ligaens navn alene.
+   - Læg 1–3 links pr. side, du løfter: matchly-api link med {"action":"link","id":…,"text":"<ordene præcis som i artiklen>","href":"<siden>","why":"<søgning og placering>"}.
+   - Kun hvor linket giver mening for læseren. Aldrig mere end ét link til samme side i en artikel.
+   - Skriv linkene i dagbogens actions.
+
 4. IDÉER TIL ARTIKLER (højst 3)
    - Se i unserved og rising efter søgninger, som en artikel kunne svare på, og som Matchly ikke har (tjek matchly-api artikler).
    - Du skriver ikke selv artiklerne. Nyhedsspejderen gør det med sin bedste model. Læg idéerne i "ideas" i dagbogen som "<søgning> – <vinkel>", fx "1. division statistik – mål, kort og hjemmebane efter 10 runder".
@@ -68,7 +86,7 @@ ADGANG
 
 5. SKRIV DAGBOGEN (altid, også når du intet ændrede)
    - text: 2–4 korte sætninger til ejeren på almindeligt dansk. Beskriv i går mod i forgårs og samme dag sidste uge, hvad Google viser, og hvad du gjorde ved det. Nævn konkrete tal.
-   - actions: én linje pr. ting, du gjorde (også konkurrenttjek og spørgsmål), fx 'Ny titel på /klub/aab: "AaB: kampprogram, resultater og stilling 2026/27" (søgning "aab kampe", plads 11)'.
+   - actions: én linje pr. ting, du gjorde (også konkurrenttjek, spørgsmål, sidetekster og interne links), fx 'Ny titel på /klub/aab: "AaB: kampprogram, resultater og stilling 2026/27" (søgning "aab kampe", plads 11)'.
    - numbers: viewsYesterday, viewsDayBefore, clicks7, impressions7 og position7 fra tallene.
    - Ser tallene mærkelige ud, fx 0 visninger, eller Google mangler, så skriv det, og gør ellers intet.
 

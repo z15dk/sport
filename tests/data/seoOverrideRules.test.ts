@@ -34,3 +34,16 @@ test('questions and answers for the FAQ', () => {
   assert.match(checkOverride({ path: '/klub/kolding-if', faq: Array(5).fill(faq[0]) })!, /Højst 4/)
   assert.match(checkOverride({ path: '/klub/kolding-if', faq: [{ q: faq[0].q, a: 'Kampene ses på DBU og alle andre steder, hvor man følger fodbold.' }] })!, /DBU/)
 })
+
+test("James' text on club and league pages", () => {
+  const body = `<p><strong>Kolding IF</strong> ligger nr. 4 i Betinia Liga. ${'Holdet har vundet tre af de seneste fem kampe og scoret i alle hjemmekampe. '.repeat(8)}</p><p>Næste kamp er mod <a href="/klub/hobro-ik">Hobro IK</a>.</p>`
+  const intro = { heading: 'Kolding IF stilling og kampe 2026/27', html: body }
+  assert.equal(checkOverride({ path: '/klub/kolding-if', intro }), undefined)
+  assert.equal(checkOverride({ path: '/turnering/1-division', intro }), undefined)
+  assert.match(checkOverride({ path: '/opgoer/fc-kobenhavn-mod-brondby-if', intro })!, /klub- og ligasider/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', intro: { ...intro, html: '<p>For kort.</p>' } })!, /500–2.200/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', intro: { ...intro, heading: 'Kort' } })!, /15–70/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', intro: { ...intro, html: body.replace('/klub/hobro-ik', 'https://example.com') } })!, /egne sider/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', intro: { ...intro, html: `<h2>Rubrik</h2>${body}` } })!, /Kun afsnit/)
+  assert.match(checkOverride({ path: '/klub/kolding-if', intro: { ...intro, html: body.replace('Betinia Liga', 'Betinia Liga (data fra DBU)') } })!, /DBU/)
+})

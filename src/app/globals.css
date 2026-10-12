@@ -3334,3 +3334,16 @@ a.lx-hero__status:hover { text-decoration: underline; text-underline-offset: 3px
   .mx-story__title { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .mx-story__excerpt, .mx-story__more { display: none; }
 }
+
+/* James' text on a club, league, player or head-to-head page (src/components/PageStory.tsx): the page's own box – the
+   same panel, title and spacing as "Kampe" and "Stilling" beside it, the text at the size of the boxes' content */
+.page-story { margin: 16px 0; }
+.page-story__body { padding: 0 18px 18px; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+.page-story__body > * { max-width: 90ch; }
+.page-story__body p { margin: 0 0 10px; }
+.page-story__body p:last-child { margin-bottom: 0; }
+.page-story__body strong { color: var(--ink); }
+.page-story__body a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--lime-deep); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.page-story__body ul { margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); list-style: none; display: flex; flex-wrap: wrap; gap: 6px 22px; max-width: none; }
+.page-story__body li { position: relative; padding-left: 14px; font-size: 14px; }
+.page-story__body li::before { content: ''; position: absolute; left: 1px; top: 0.6em; width: 6px; height: 6px; border-radius: 2px; background: var(--lime-deep); transform: rotate(45deg); }
