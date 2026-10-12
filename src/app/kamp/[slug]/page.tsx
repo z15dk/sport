@@ -57,8 +57,11 @@ async function pastMetadata(slug: string): Promise<Metadata> {
   const { game: raw, match } = past
   // National teams by their Danish names in the title too
   const g = { ...raw, home: shownTeam(raw.home, 'World'), away: shownTeam(raw.away, 'World') }
-  // As people search for it: teams, score, "resultat" (and "målscorere" when we have them), a numeric date
-  const title = `${g.home} – ${g.away} ${g.homeScore}-${g.awayScore}: resultat${match.incidents?.some((i) => i.player) ? ' og målscorere' : ''} · ${formatNumeric(g.date)}`
+  // As people search for it ("X mod Y", "opstilling for X mod Y"): teams, score, "resultat", the line-ups when saved
+  // (else "målscorere" when we have them), a numeric date
+  const lineupsSaved = !!g.source.archive && /^football-\d+$/.test(g.source.archive)
+  const extra = lineupsSaved ? ' og opstillinger' : match.incidents?.some((i) => i.player) ? ' og målscorere' : ''
+  const title = `${g.home} mod ${g.away} ${g.homeScore}-${g.awayScore}: resultat${extra} · ${formatNumeric(g.date)}`
   const result = g.homeScore === g.awayScore ? `endte ${g.homeScore}-${g.awayScore}` : `${g.homeScore > g.awayScore ? g.home : g.away} vandt ${Math.max(g.homeScore, g.awayScore)}-${Math.min(g.homeScore, g.awayScore)}`
   const description = `${g.home} mod ${g.away} i ${g.tournament} ${g.season} (${formatFull(g.date)}): ${result}.${match.incidents?.length ? ' Målscorere, kort' : ' Resultat'}, spillere og tidligere opgør mellem holdene.`
   return {
@@ -118,12 +121,12 @@ async function baseMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { match } = found
   const score =
     match.state === 'upcoming' ? '' : ` ${match.home.score ?? 0}-${match.away.score ?? 0}`
-  // As people search for it: "live" before and during the match, "resultat" (and "målscorere") after it
-  const scorers = match.incidents?.some((i) => i.player)
+  // As people search for it ("X mod Y stillinger", "opstilling for X mod Y" – Search Console, week 42): "mod" between the
+  // teams, "live" before and during the match, "resultat" after it, and the line-ups and table every match page shows
   const title =
     match.state === 'finished'
-      ? `${match.home.name} – ${match.away.name}${score}: resultat${scorers ? ' og målscorere' : ''} · ${formatNumeric(match.kickoff)}`
-      : `${match.home.name} – ${match.away.name} live · ${match.league} ${formatNumeric(match.kickoff)}`
+      ? `${match.home.name} mod ${match.away.name}${score}: resultat, opstillinger og stilling · ${formatNumeric(match.kickoff)}`
+      : `${match.home.name} mod ${match.away.name} live: opstillinger og stilling · ${formatNumeric(match.kickoff)}`
   const description = summary(match, clubStats(match.home.name, found.now), clubStats(match.away.name, found.now))
   return {
     title: { absolute: title },
