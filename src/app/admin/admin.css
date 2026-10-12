@@ -775,6 +775,10 @@ section > .ads-admin__form { padding: 0 18px 18px; }
 .jd-num em.is-down { color: #c62f35; }
 .jd-text { line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .jd-entry[open] .jd-text { display: block; -webkit-line-clamp: unset; }
+/* The days before: only the date, the numbers and the count on one line, until opened */
+.jd-list > li + li .jd-entry:not([open]) .jd-text { display: none; }
+.jd-list > li + li .jd-entry:not([open]) > summary { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.jd-list > li + li { padding: 8px 0; }
 .jd-more { font-size: 12px; font-weight: 700; color: var(--ink-3); }
 .jd-more::after { content: ' · Vis alt ▾'; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .jd-entry[open] .jd-more::after { content: ' · Skjul ▴'; }
