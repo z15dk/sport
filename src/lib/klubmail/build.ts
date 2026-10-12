@@ -50,6 +50,25 @@ export const hasNews = (d: ClubDigest) => !!(d.last || d.next || d.table?.length
 
 const C = { bg: '#eceee7', ink: '#0f110c', ink2: '#5a5f55', line: '#e1e4da', lime: '#c6f135', limeDeep: '#5d7800', surface: '#ffffff', soft: '#f4f5f0', win: '#2fa84f', draw: '#8a8f82', loss: '#e0401a' }
 const FONT = "Arial,'Helvetica Neue',Helvetica,sans-serif"
+/** The logo's dot, as on the site */
+const DOT = '#ff4a1f'
+
+/**
+ * The mails' <head>: always the light Matchly design. Mail apps in dark mode (Apple Mail, Outlook) otherwise turn the
+ * light grey and white into dark grey (the owner saw the confirmation mail dark, 12/10-2026); "light only" asks them not to,
+ * and the classes hold the colours where an app still tries.
+ */
+const head = (title: string) => `<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>${esc(title)}</title>
+<style>:root{color-scheme:light only;supported-color-schemes:light}
+@media (prefers-color-scheme:dark){.m-bg{background:${C.bg}!important}.m-card{background:${C.surface}!important}.m-lime{background:${C.lime}!important}.m-ink{color:${C.ink}!important}.m-ink2{color:${C.ink2}!important}}
+[data-ogsc] .m-bg{background:${C.bg}!important}[data-ogsc] .m-card{background:${C.surface}!important}[data-ogsc] .m-lime{background:${C.lime}!important}[data-ogsc] .m-ink{color:${C.ink}!important}</style></head>`
+
+/** The top of every mail: the lime band with the logo, as the site's own top */
+const logoBand = (site: string, label: string, line?: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-lime" style="border-collapse:separate;background:${C.lime};border-radius:16px"><tr><td style="padding:20px 22px">
+<a href="${esc(tracked(`${site}/`))}" class="m-ink" style="font-family:${FONT};font-size:28px;font-weight:900;font-style:italic;letter-spacing:-0.5px;color:${C.ink};text-decoration:none">MATCHLY<span style="color:${DOT}">.</span></a>
+<p class="m-ink" style="margin:6px 0 0;font-family:${FONT};font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.ink}">${esc(label)}</p>${line ? `
+<p class="m-ink" style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:${C.ink}">${line}</p>` : ''}
+</td></tr></table>`
 
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -130,11 +149,11 @@ function nextHtml(d: ClubDigest, site: string) {
   if (!m) return ''
   const href = m.slug ? tracked(`${site}/kamp/${m.slug}`) : undefined
   return `${label('Næste kamp')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${C.ink};border-radius:12px"><tr>
-<td style="padding:14px 16px;font-family:${FONT};font-size:15px;line-height:1.45;color:#ffffff">
-<span style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.lime}">${esc(whenLong(m.kickoff))}</span><br>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.soft};border-left:6px solid ${C.lime};border-radius:12px"><tr>
+<td class="m-ink" style="padding:14px 16px;font-family:${FONT};font-size:15px;line-height:1.45;color:${C.ink}">
+<span style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.limeDeep}">${esc(whenLong(m.kickoff))}</span><br>
 <strong style="font-size:17px">${m.home ? 'Hjemme' : 'Ude'} mod ${esc(m.opponent)}</strong><br>
-<span style="font-size:13px;color:#c9cdbd">${esc(m.league)}${m.tv ? ` · TV: <strong style="color:#ffffff">${esc(m.tv)}</strong>` : ''}</span>${href ? `<br><a href="${esc(href)}" style="font-size:13px;font-weight:bold;color:${C.lime};text-decoration:underline">Til kampen →</a>` : ''}
+<span class="m-ink2" style="font-size:13px;color:${C.ink2}">${esc(m.league)}${m.tv ? ` · TV: <strong style="color:${C.ink}">${esc(m.tv)}</strong>` : ''}</span>${href ? `<br><a href="${esc(href)}" style="font-size:13px;font-weight:bold;color:${C.ink};text-decoration:underline">Til kampen →</a>` : ''}
 </td></tr></table>`
 }
 
@@ -165,15 +184,15 @@ ${d.articles.map((a) => `<p style="margin:0 0 8px;font-family:${FONT};font-size:
 function clubHtml(d: ClubDigest, site: string) {
   const empty = !hasNews(d)
   return `<tr><td style="padding:0 16px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td style="padding:20px 20px 22px">
-<h2 style="margin:0;font-family:${FONT};font-size:24px;line-height:1.15;font-style:italic;font-weight:bold;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td class="m-ink" style="padding:20px 20px 22px">
+<h2 class="m-ink" style="margin:0;font-family:${FONT};font-size:24px;line-height:1.15;font-style:italic;font-weight:900;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
 ${d.league ? `<p style="margin:4px 0 0;font-family:${FONT};font-size:13px;color:${C.ink2}">${esc(d.league)}</p>` : ''}
 ${empty ? `<p style="margin:14px 0 0;font-family:${FONT};font-size:15px;color:${C.ink}">Ingen kampe i kalenderen lige nu. Vi skriver igen, når der er nyt.</p>` : ''}
 ${lastHtml(d, site)}
 ${nextHtml(d, site)}
 ${tableHtml(d)}
 ${articlesHtml(d, site)}
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px"><tr><td style="background:${C.lime};border-radius:999px"><a href="${esc(tracked(`${site}/klub/${d.slug}`))}" style="display:inline-block;padding:11px 20px;font-family:${FONT};font-size:14px;font-weight:bold;color:${C.ink};text-decoration:none">Alt om ${esc(d.name)} →</a></td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px"><tr><td class="m-lime" style="background:${C.lime};border-radius:999px"><a href="${esc(tracked(`${site}/klub/${d.slug}`))}" style="display:inline-block;padding:11px 20px;font-family:${FONT};font-size:14px;font-weight:bold;color:${C.ink};text-decoration:none">Alt om ${esc(d.name)} →</a></td></tr></table>
 </td></tr></table>
 </td></tr>`
 }
@@ -192,17 +211,13 @@ export function buildWeeklyMail(digests: ClubDigest[], o: { site: string; unsubs
   const weekNo = Number(o.week.split('-W')[1])
   const pre = `Ugens overblik over ${who}: resultat, næste kamp og stillingen.`
   const html = `<!doctype html>
-<html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.bg}">
+<html lang="da">${head(subject)}
+<body class="m-bg" style="margin:0;padding:0;background:${C.bg}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(pre)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg}"><tr><td align="center" style="padding:16px 8px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:${C.bg}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-bg" style="background:${C.bg}"><tr><td align="center" style="padding:16px 8px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-bg" style="max-width:600px;background:${C.bg}">
 <tr><td style="padding:0 16px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;background:${C.ink};border-radius:16px"><tr><td style="padding:22px 20px">
-<a href="${esc(tracked(`${o.site}/`))}" style="font-family:${FONT};font-size:26px;font-weight:bold;font-style:italic;letter-spacing:-0.5px;color:#ffffff;text-decoration:none">MATCHLY<span style="color:${C.lime}">.</span></a>
-<p style="margin:8px 0 0;font-family:${FONT};font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.lime}">Din klub i indbakken · uge ${weekNo}</p>
-<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:#ffffff">Godmorgen. Her er ugens overblik over ${esc(who)}.</p>
-</td></tr></table>
+${logoBand(o.site, `Din klub i indbakken · uge ${weekNo}`, `Godmorgen. Her er ugens overblik over ${esc(who)}.`)}
 </td></tr>
 ${digests.map((d) => clubHtml(d, o.site)).join('\n')}
 <tr><td style="padding:4px 28px 28px;font-family:${FONT};font-size:15px;line-height:1.5;color:${C.ink}">
@@ -251,19 +266,30 @@ function buildWeeklyText(digests: ClubDigest[], o: { site: string; unsubscribeUr
 export function buildConfirmMail(names: string[], o: { confirmUrl: string; site: string }): MailParts {
   const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} og ${names.at(-1)}`
   const subject = `Bekræft: ${who} i din indbakke hver mandag`
+  const perk = (title: string, text: string) => `<tr><td width="34" style="padding:6px 0;vertical-align:top"><span class="m-lime" style="display:inline-block;width:24px;height:24px;border-radius:999px;background:${C.lime};font-family:${FONT};font-size:14px;font-weight:bold;line-height:24px;text-align:center;color:${C.ink}">✓</span></td><td class="m-ink" style="padding:6px 0;font-family:${FONT};font-size:15px;line-height:1.45;color:${C.ink}"><strong>${title}</strong><br><span class="m-ink2" style="font-size:13px;color:${C.ink2}">${text}</span></td></tr>`
   const html = `<!doctype html>
-<html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.bg}">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg}"><tr><td align="center" style="padding:16px 8px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td style="padding:26px 24px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.ink}">
-<p style="margin:0 0 16px;font-size:24px;font-weight:bold;font-style:italic">MATCHLY<span style="color:${C.limeDeep}">.</span></p>
-<p style="margin:0 0 14px">Hej</p>
-<p style="margin:0 0 14px">Tak fordi du vil have <strong>${esc(who)}</strong> i din indbakke. Tryk på knappen for at bekræfte, så får du den første mail næste mandag morgen: sidste resultat, næste kamp med TV-kanal og stillingen.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 18px"><tr><td style="background:${C.ink};border-radius:999px"><a href="${esc(o.confirmUrl)}" style="display:inline-block;padding:13px 24px;font-family:${FONT};font-size:15px;font-weight:bold;color:${C.lime};text-decoration:none">Ja tak, bekræft min tilmelding</a></td></tr></table>
-<p style="margin:0 0 14px;font-size:13px;color:${C.ink2}">Virker knappen ikke, så kopier linket: ${esc(o.confirmUrl)}</p>
-<p style="margin:0 0 14px;font-size:13px;color:${C.ink2}">Har du ikke selv bedt om det, så gør ingenting. Uden bekræftelse sletter vi adressen igen efter 7 dage.</p>
+<html lang="da">${head(subject)}
+<body class="m-bg" style="margin:0;padding:0;background:${C.bg}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">Ét klik, så får du ${esc(who)} hver mandag morgen.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-bg" style="background:${C.bg}"><tr><td align="center" style="padding:16px 8px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-bg" style="max-width:560px;background:${C.bg}">
+<tr><td style="padding:0 0 12px">${logoBand(o.site, 'Din klub i indbakken')}</td></tr>
+<tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td class="m-ink" style="padding:26px 24px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.ink}">
+<h1 class="m-ink" style="margin:0 0 12px;font-family:${FONT};font-size:26px;line-height:1.1;font-weight:900;font-style:italic;text-transform:uppercase;color:${C.ink}">${esc(who)} i din indbakke</h1>
+<p style="margin:0 0 16px">Tak fordi du vil følge med. Bekræft med ét klik, så kommer den første mail næste mandag morgen.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px">
+${perk('Sidste resultat', 'resultatet og et link til kampen')}
+${perk('Næste kamp', 'dag, tid og TV-kanal')}
+${perk('Stillingen', 'din klub og holdene lige omkring den')}
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px"><tr><td class="m-lime" style="background:${C.lime};border-radius:999px"><a href="${esc(o.confirmUrl)}" class="m-ink" style="display:inline-block;padding:14px 26px;font-family:${FONT};font-size:16px;font-weight:bold;color:${C.ink};text-decoration:none">Ja tak, bekræft min tilmelding →</a></td></tr></table>
+<p class="m-ink2" style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${C.ink2}">Virker knappen ikke, så kopier linket:<br><a href="${esc(o.confirmUrl)}" style="color:${C.ink2};text-decoration:underline;word-break:break-all">${esc(o.confirmUrl)}</a></p>
+<p class="m-ink2" style="margin:0 0 18px;font-size:13px;line-height:1.5;color:${C.ink2}">Har du ikke selv bedt om det, så gør ingenting. Uden bekræftelse sletter vi adressen igen efter 7 dage.</p>
 <p style="margin:0">Hilsen<br><strong>James, Matchly</strong></p>
 </td></tr></table>
+</td></tr>
+</table>
 </td></tr></table>
 </body></html>`
   const text = `Hej

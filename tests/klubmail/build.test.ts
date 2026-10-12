@@ -53,7 +53,11 @@ test('ugens mail: links med utm, afmeldingslink, James og ingen kilder', () => {
     assert.doesNotMatch(m.text, word)
   }
   // Gmail: tables and inline styles, no <style> block or scripts
-  assert.doesNotMatch(m.html, /<style|<script/)
+  // No scripts; the only <style> is the head's light-design guard, the layout itself is inline styles
+  assert.doesNotMatch(m.html, /<script/)
+  assert.equal((m.html.match(/<style/g) ?? []).length, 1)
+  assert.ok(m.html.indexOf('<style') < m.html.indexOf('</head>'))
+  assert.match(m.html, /color-scheme" content="light only"/)
 })
 
 test('en klub uden kampe og tabel', () => {
