@@ -110,26 +110,26 @@ function around<T>(rows: T[], i: number): T[] {
  * A logo for the mail: an absolute PNG address. Our own logos (/api/logo/…) are asked for as a small PNG (the site serves
  * WebP or SVG, which many mail apps don't show); a source's own address is used when it already is a PNG or JPG.
  */
-function mailLogo(url?: string): string | undefined {
+function mailLogo(url?: string, width = 64): string | undefined {
   if (!url) return undefined
   if (url.startsWith('/api/logo/')) {
     const u = new URL(url, SITE_URL)
-    u.searchParams.set('w', '64')
+    u.searchParams.set('w', String(width))
     u.searchParams.set('format', 'png')
     return u.toString()
   }
   // Another source's logo through our own domain (/billede/<id>), as a small PNG
   const own = url.startsWith('http') ? proxyImage(url) : url
   const id = /^\/billede\/([a-f0-9]{20})/.exec(own)?.[1]
-  if (id) return `${SITE_URL}/billede/${id}-64.png`
+  if (id) return `${SITE_URL}/billede/${id}-${width}.png`
   if (own.startsWith('/')) return /\.(png|jpe?g)(\?|$)/i.test(own) ? `${SITE_URL}${own}` : undefined
   return undefined
 }
 
 /** A team's logo for the mail, by the name the site shows (the logos the site's own badges use) */
-async function logoOf(name: string, fallback?: string): Promise<string | undefined> {
+async function logoOf(name: string, fallback?: string, width = 64): Promise<string | undefined> {
   const badges = await getBadges().catch(() => ({}) as Record<string, string>)
-  return mailLogo(badges[name] ?? fallback)
+  return mailLogo(badges[name] ?? fallback, width)
 }
 
 /** Our clubs' logos (the admin's, as on the site's table) on the mail's table rows */
@@ -181,6 +181,7 @@ export async function clubDigest(slug: string, now = Date.now()): Promise<ClubDi
     return {
       slug: t.slug,
       name,
+      logo: await logoOf(club.name, undefined, 128),
       league: division.name,
       last: last && (await withMatchLogos(asDigestMatch(last, own), last, own)),
       next: next && (await withMatchLogos(asDigestMatch(next, own), next, own)),
@@ -198,6 +199,7 @@ export async function clubDigest(slug: string, now = Date.now()): Promise<ClubDi
   return {
     slug: t.slug,
     name,
+    logo: await logoOf(t.name, t.logo, 128),
     league: t.league,
     last: last && (await withMatchLogos(asDigestMatch(last, own), last, own)),
     next: next && (await withMatchLogos(asDigestMatch(next, own), next, own)),

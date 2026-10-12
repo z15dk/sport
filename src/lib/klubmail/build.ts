@@ -46,6 +46,8 @@ export interface ClubDigest {
   slug: string
   /** As the site shows it ("Brøndby IF (K)", "Danmarks landshold") */
   name: string
+  /** The club's own logo (absolute PNG address), at the top of its part of the mail */
+  logo?: string
   league?: string
   last?: DigestMatch
   next?: DigestMatch
@@ -225,8 +227,11 @@ function clubHtml(d: ClubDigest, site: string) {
   const empty = !hasNews(d)
   return `<tr><td style="padding:0 16px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td class="m-ink" style="padding:20px 20px 22px">
-<h2 class="m-ink" style="margin:0;font-family:${DISPLAY};font-size:28px;line-height:1.15;font-style:italic;font-weight:900;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
-${d.league ? `<p style="margin:4px 0 0;font-family:${FONT};font-size:13px;color:${C.ink2}">${esc(d.league)}</p>` : ''}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+${d.logo ? `<td width="62" style="padding:0 14px 0 0;vertical-align:middle"><img src="${esc(d.logo)}" width="48" height="48" alt="${esc(d.name)}" style="display:block;border:0;width:48px;height:48px"></td>` : ''}
+<td style="vertical-align:middle"><h2 class="m-ink" style="margin:0;font-family:${DISPLAY};font-size:28px;line-height:1.1;font-style:italic;font-weight:900;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
+${d.league ? `<p class="m-ink2" style="margin:3px 0 0;font-family:${FONT};font-size:13px;color:${C.ink2}">${esc(d.league)}</p>` : ''}</td>
+</tr></table>
 ${empty ? `<p style="margin:14px 0 0;font-family:${FONT};font-size:15px;color:${C.ink}">Ingen kampe i kalenderen lige nu. Vi skriver igen, når der er nyt.</p>` : ''}
 ${lastHtml(d, site)}
 ${nextHtml(d, site)}
