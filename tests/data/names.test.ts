@@ -69,13 +69,13 @@ const source: TeamStats = {
   formations: [],
 }
 
-test('the biggest win is the widest margin, home or away', () => {
-  assert.equal(biggestOf({ home: '3-1', away: '0-5' }), '0-5')
+test('the biggest win is the widest margin, home or away – from the team\'s side', () => {
+  assert.equal(biggestOf({ home: '3-1', away: '0-5' }), '5-0')
   assert.equal(biggestOf({ home: '4-0', away: '1-3' }), '4-0')
   // The same margin: the most goals
-  assert.equal(biggestOf({ home: '2-0', away: '1-3' }), '1-3')
+  assert.equal(biggestOf({ home: '2-0', away: '1-3' }), '3-1')
   assert.equal(biggestOf({ home: '3-1' }), '3-1')
-  assert.equal(biggestOf({ away: '0-2' }), '0-2')
+  assert.equal(biggestOf({ away: '0-2' }), '2-0')
   assert.equal(biggestOf(undefined), undefined)
 })
 
