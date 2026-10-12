@@ -11,6 +11,7 @@ const sized = new Map<string, Buffer>()
  * Serves a logo uploaded in the admin pages. With ?w= (sizedImage adds it) a
  * small WebP in the width it is shown at, so a page doesn't load the full upload
  * for a 20 px badge; an SVG stays as it is (it is small and sharp at any size).
+ * &format=png gives a PNG instead (the club mail: many mail apps show neither WebP nor SVG).
  */
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug
@@ -25,8 +26,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   }
   // A small SVG is sent as it is (sharp at any size); a big one (a wrapped photo or a complex crest, hundreds of KB) is drawn as a small WebP like the raster logos
   const svg = logo.type === 'image/svg+xml'
-  if (WIDTHS.has(w) && (!svg || logo.bytes.length > SMALL_SVG)) {
-    const key = `${slug}|${url.searchParams.get('v') ?? ''}|${w}`
+  const png = url.searchParams.get('format') === 'png'
+  if (WIDTHS.has(w) && (png || !svg || logo.bytes.length > SMALL_SVG)) {
+    const key = `${slug}|${url.searchParams.get('v') ?? ''}|${w}|${png ? 'png' : 'webp'}`
     let bytes = sized.get(key)
     if (!bytes) {
       try {
@@ -35,9 +37,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
           const meta = await sharp(logo.bytes).metadata()
           const base = Math.max(meta.width ?? 0, meta.height ?? 0) || 512
           const density = Math.min(2400, Math.max(72, Math.ceil((72 * w) / base)))
-          bytes = await sharp(logo.bytes, { density }).resize({ width: w, height: w, fit: 'inside' }).webp({ quality: 85, alphaQuality: 90 }).toBuffer()
+          const drawn = sharp(logo.bytes, { density }).resize({ width: w, height: w, fit: 'inside' })
+          bytes = await (png ? drawn.png() : drawn.webp({ quality: 85, alphaQuality: 90 })).toBuffer()
         } else {
-          bytes = await sharp(logo.bytes).resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true }).webp({ quality: 85, alphaQuality: 90 }).toBuffer()
+          const drawn = sharp(logo.bytes).resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true })
+          bytes = await (png ? drawn.png() : drawn.webp({ quality: 85, alphaQuality: 90 })).toBuffer()
         }
         sized.set(key, bytes)
       } catch (err) {
@@ -45,7 +49,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         bytes = undefined
       }
     }
-    if (bytes) return new Response(new Uint8Array(bytes), { headers: { ...headers, 'Content-Type': 'image/webp' } })
+    if (bytes) return new Response(new Uint8Array(bytes), { headers: { ...headers, 'Content-Type': png ? 'image/png' : 'image/webp' } })
   }
   return new Response(new Uint8Array(logo.bytes), {
     headers: {

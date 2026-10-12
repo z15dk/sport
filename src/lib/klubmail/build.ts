@@ -24,6 +24,12 @@ export interface DigestRow {
   name: string
   played: number
   points?: number
+  /** Goals for minus against, when known */
+  goalDiff?: number
+  /** The last five results, oldest first, as on the site's table */
+  form?: ('V' | 'U' | 'T')[]
+  /** The club's logo as an absolute PNG/JPG address (mail apps show neither WebP nor SVG) */
+  logo?: string
   /** The club itself */
   me: boolean
 }
@@ -50,8 +56,8 @@ export const hasNews = (d: ClubDigest) => !!(d.last || d.next || d.table?.length
 
 const C = { bg: '#eceee7', ink: '#0f110c', ink2: '#5a5f55', line: '#e1e4da', lime: '#c6f135', limeDeep: '#5d7800', surface: '#ffffff', soft: '#f4f5f0', win: '#2fa84f', draw: '#8a8f82', loss: '#e0401a' }
 const FONT = "Arial,'Helvetica Neue',Helvetica,sans-serif"
-/** The logo's dot, as on the site */
-const DOT = '#ff4a1f'
+/** The site's headline font where the mail app loads web fonts (Apple Mail, iOS); others fall back to Arial */
+const DISPLAY = "'Barlow Condensed','Arial Narrow',Arial,sans-serif"
 
 /**
  * The mails' <head>: always the light Matchly design. Mail apps in dark mode (Apple Mail, Outlook) otherwise turn the
@@ -59,14 +65,15 @@ const DOT = '#ff4a1f'
  * and the classes hold the colours where an app still tries.
  */
 const head = (title: string) => `<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>${esc(title)}</title>
-<style>:root{color-scheme:light only;supported-color-schemes:light}
+<style>@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&display=swap');:root{color-scheme:light only;supported-color-schemes:light}
 @media (prefers-color-scheme:dark){.m-bg{background:${C.bg}!important}.m-card{background:${C.surface}!important}.m-lime{background:${C.lime}!important}.m-ink{color:${C.ink}!important}.m-ink2{color:${C.ink2}!important}}
-[data-ogsc] .m-bg{background:${C.bg}!important}[data-ogsc] .m-card{background:${C.surface}!important}[data-ogsc] .m-lime{background:${C.lime}!important}[data-ogsc] .m-ink{color:${C.ink}!important}</style></head>`
+[data-ogsc] .m-bg{background:${C.bg}!important}[data-ogsc] .m-card{background:${C.surface}!important}[data-ogsc] .m-lime{background:${C.lime}!important}[data-ogsc] .m-ink{color:${C.ink}!important}
+@media (max-width:420px){.m-hide{display:none!important}}</style></head>`
 
-/** The top of every mail: the lime band with the logo and the big outlined M cut off at the bottom, as the site's own top (public/mailgrafik/m-outline.png; not under /mail/, which nginx sends elsewhere – mail apps don't show SVG) */
+/** The top of every mail: the lime band with the logo (public/mailgrafik/matchly-logo.png, the site's Barlow Condensed 800 italic drawn as PNG, since mail apps can't load the font) and the big outlined M cut off at the bottom, as the site's own top (public/mailgrafik/m-outline.png; not under /mail/, which nginx sends elsewhere – mail apps don't show SVG) */
 const logoBand = (site: string, label: string, line?: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-lime" style="border-collapse:separate;background:${C.lime};border-radius:16px"><tr><td style="padding:20px 0 20px 22px;vertical-align:top">
-<a href="${esc(tracked(`${site}/`))}" class="m-ink" style="font-family:${FONT};font-size:28px;font-weight:900;font-style:italic;letter-spacing:-0.5px;color:${C.ink};text-decoration:none">MATCHLY<span style="color:${DOT}">.</span></a>
-<p class="m-ink" style="margin:6px 0 0;font-family:${FONT};font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.ink}">${esc(label)}</p>${line ? `
+<a href="${esc(tracked(`${site}/`))}" style="text-decoration:none"><img src="${esc(`${site}/mailgrafik/matchly-logo.png`)}" width="144" height="32" alt="MATCHLY." style="display:block;border:0;width:144px;height:32px;font-family:${FONT};font-size:24px;font-weight:900;font-style:italic;color:${C.ink}"></a>
+<p class="m-ink" style="margin:10px 0 0;font-family:${FONT};font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${C.ink}">${esc(label)}</p>${line ? `
 <p class="m-ink" style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:${C.ink}">${line}</p>` : ''}
 </td>
 <td width="150" style="padding:0 6px 0 0;vertical-align:bottom;text-align:right"><img src="${esc(`${site}/mailgrafik/m-outline.png`)}" width="150" height="100" alt="" style="display:block;border:0;width:150px;height:100px"></td>
@@ -159,19 +166,32 @@ function nextHtml(d: ClubDigest, site: string) {
 </td></tr></table>`
 }
 
+/** The table as on the site (src/components/StandingsTable.tsx): #, logo and club, K, +/-, P and the form as small coloured
+ * squares; the club's own row on lime. A table for the mail: no flexbox, inline styles only */
 function tableHtml(d: ClubDigest) {
   const rows = d.table
   if (!rows?.length) return ''
   const me = rows.find((r) => r.me)
   const pts = rows.some((r) => r.points !== undefined)
-  const cell = `font-family:${FONT};font-size:14px;padding:7px 8px;border-bottom:1px solid ${C.line}`
+  const diff = rows.some((r) => r.goalDiff !== undefined)
+  const form = rows.some((r) => r.form?.length)
+  const cell = `font-family:${FONT};font-size:14px;padding:9px 6px;border-bottom:1px solid ${C.line};vertical-align:middle`
+  const head = `font-family:${FONT};font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;color:${C.ink2};padding:6px;border-bottom:1px solid ${C.line}`
+  const chip = (r: 'V' | 'U' | 'T') =>
+    `<span style="display:inline-block;width:16px;height:16px;margin-left:2px;border-radius:4px;background:${r === 'V' ? C.win : r === 'T' ? C.loss : C.draw};color:#ffffff;font-family:${FONT};font-size:10px;font-weight:bold;line-height:16px;text-align:center">${r}</span>`
+  const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
   return `${label(me ? `Stillingen · nr. ${me.rank}${me.points !== undefined ? ` med ${me.points} point` : ''}` : 'Stillingen')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
-<tr><td style="${cell};font-size:11px;color:${C.ink2};width:28px">#</td><td style="${cell};font-size:11px;color:${C.ink2}">Hold</td><td style="${cell};font-size:11px;color:${C.ink2};text-align:right;width:32px">K</td>${pts ? `<td style="${cell};font-size:11px;color:${C.ink2};text-align:right;width:36px">P</td>` : ''}</tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0">
+<tr><td style="${head};width:22px">#</td><td style="${head}">Klub</td><td style="${head};text-align:center;width:26px">K</td>${diff ? `<td style="${head};text-align:center;width:34px">+/-</td>` : ''}${pts ? `<td style="${head};text-align:center;width:28px">P</td>` : ''}${form ? `<td style="${head};text-align:right;width:96px" class="m-hide">Form</td>` : ''}</tr>
 ${rows
   .map((r) => {
-    const bg = r.me ? `background:${C.lime};font-weight:bold;` : ''
-    return `<tr><td style="${cell};${bg}">${r.rank}</td><td style="${cell};${bg}">${esc(r.name)}</td><td style="${cell};${bg}text-align:right">${r.played}</td>${pts ? `<td style="${cell};${bg}text-align:right;font-weight:bold">${r.points ?? ''}</td>` : ''}</tr>`
+    const bg = r.me ? `background:${C.lime};` : ''
+    const strong = r.me ? 'font-weight:bold;' : ''
+    const edge = (side: 'left' | 'right') => (r.me ? `border-top-${side}-radius:10px;border-bottom-${side}-radius:10px;` : '')
+    const badge = r.logo
+      ? `<img src="${esc(r.logo)}" width="20" height="20" alt="" style="display:inline-block;vertical-align:middle;border:0;width:20px;height:20px;margin-right:8px">`
+      : ''
+    return `<tr class="${r.me ? 'm-lime' : ''}"><td style="${cell};${bg}${edge('left')}font-weight:bold;color:${C.ink}">${r.rank}</td><td style="${cell};${bg}${strong}color:${C.ink}">${badge}${esc(r.name)}</td><td style="${cell};${bg}text-align:center;color:${C.ink2}">${r.played}</td>${diff ? `<td style="${cell};${bg}text-align:center;color:${C.ink2}">${r.goalDiff === undefined ? '' : sign(r.goalDiff)}</td>` : ''}${pts ? `<td style="${cell};${bg}text-align:center;font-weight:bold;color:${C.ink}${form ? '' : `;${edge('right')}`}">${r.points ?? ''}</td>` : ''}${form ? `<td class="m-hide" style="${cell};${bg}${edge('right')}text-align:right;white-space:nowrap">${(r.form ?? []).slice(-5).map(chip).join('')}</td>` : ''}</tr>`
   })
   .join('\n')}
 </table>`
@@ -187,7 +207,7 @@ function clubHtml(d: ClubDigest, site: string) {
   const empty = !hasNews(d)
   return `<tr><td style="padding:0 16px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td class="m-ink" style="padding:20px 20px 22px">
-<h2 class="m-ink" style="margin:0;font-family:${FONT};font-size:24px;line-height:1.15;font-style:italic;font-weight:900;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
+<h2 class="m-ink" style="margin:0;font-family:${DISPLAY};font-size:28px;line-height:1.15;font-style:italic;font-weight:900;text-transform:uppercase;color:${C.ink}">${esc(d.name)}</h2>
 ${d.league ? `<p style="margin:4px 0 0;font-family:${FONT};font-size:13px;color:${C.ink2}">${esc(d.league)}</p>` : ''}
 ${empty ? `<p style="margin:14px 0 0;font-family:${FONT};font-size:15px;color:${C.ink}">Ingen kampe i kalenderen lige nu. Vi skriver igen, når der er nyt.</p>` : ''}
 ${lastHtml(d, site)}
@@ -278,7 +298,7 @@ export function buildConfirmMail(names: string[], o: { confirmUrl: string; site:
 <tr><td style="padding:0 0 12px">${logoBand(o.site, 'Din klub i indbakken')}</td></tr>
 <tr><td>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="border-collapse:separate;background:${C.surface};border-radius:16px"><tr><td class="m-ink" style="padding:26px 24px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.ink}">
-<h1 class="m-ink" style="margin:0 0 12px;font-family:${FONT};font-size:26px;line-height:1.1;font-weight:900;font-style:italic;text-transform:uppercase;color:${C.ink}">${esc(who)} i din indbakke</h1>
+<h1 class="m-ink" style="margin:0 0 12px;font-family:${DISPLAY};font-size:30px;line-height:1.1;font-weight:900;font-style:italic;text-transform:uppercase;color:${C.ink}">${esc(who)} i din indbakke</h1>
 <p style="margin:0 0 16px">Tak fordi du vil følge med. Bekræft med ét klik, så kommer den første mail næste mandag morgen.</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px">
 ${perk('Sidste resultat', 'resultatet og et link til kampen')}

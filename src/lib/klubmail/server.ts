@@ -22,6 +22,7 @@ import { isoDate } from '../time'
 import { cacheDir } from '../tsdb'
 import type { Match } from '../../types'
 import { buildConfirmMail, buildWeeklyMail, hasNews, type ClubDigest, type DigestMatch, type DigestRow, type MailParts } from './build'
+import { getBadges } from '../badges'
 import { KlubmailStore, isoWeek, maskEmail, runWeekly, sendWindow, validEmail, type Db, type RunResult, type Subscriber } from './core'
 
 // "Din klub i indbakken", the server side: the subscribers in SQLite klubmail.db (KLUBMAIL_DB; shared by the site
@@ -97,6 +98,28 @@ function around<T>(rows: T[], i: number): T[] {
   return rows.slice(start, start + 5)
 }
 
+/**
+ * A logo for the mail: an absolute PNG address. Our own logos (/api/logo/…) are asked for as a small PNG (the site serves
+ * WebP or SVG, which many mail apps don't show); a source's own address is used when it already is a PNG or JPG.
+ */
+function mailLogo(url?: string): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith('/api/logo/')) {
+    const u = new URL(url, SITE_URL)
+    u.searchParams.set('w', '64')
+    u.searchParams.set('format', 'png')
+    return u.toString()
+  }
+  if (url.startsWith('/')) return /\.(png|jpe?g)(\?|$)/i.test(url) ? `${SITE_URL}${url}` : undefined
+  return /^https:\/\/.+\.(png|jpe?g)(\?|$)/i.test(url) ? url : undefined
+}
+
+/** Our clubs' logos (the admin's, as on the site's table) on the mail's table rows */
+async function withLogos(rows: DigestRow[]): Promise<DigestRow[]> {
+  const badges = await getBadges().catch(() => ({}) as Record<string, string>)
+  return rows.map((r) => ({ ...r, logo: mailLogo(badges[r.name]) }))
+}
+
 /** A team outside our leagues: its league's table as the club page has it (the source's own, else ours from the saved games) */
 async function externalTable(t: TeamEntry, own: (name: string) => boolean): Promise<DigestRow[] | undefined> {
   if (!t.leagueSlug) return undefined
@@ -111,7 +134,15 @@ async function externalTable(t: TeamEntry, own: (name: string) => boolean): Prom
   const names = new Set((t.names ?? [t.name]).map(women))
   const i = table.findIndex((r) => own(r.name) || names.has(women(r.name)))
   if (i < 0 || table.length < 2) return undefined
-  return around(table, i).map((r) => ({ rank: r.rank, name: shownTeam(r.name, t.country), played: r.played, points: r.points, me: r === table[i] }))
+  return around(table, i).map((r) => ({
+    rank: r.rank,
+    name: shownTeam(r.name, t.country),
+    played: r.played,
+    points: r.points,
+    goalDiff: r.for !== undefined && r.against !== undefined ? r.for - r.against : undefined,
+    logo: mailLogo(r.logo),
+    me: r === table[i],
+  }))
 }
 
 /** One club's part of the mail, from the site's own data */
@@ -135,7 +166,9 @@ export async function clubDigest(slug: string, now = Date.now()): Promise<ClubDi
       league: division.name,
       last: last && asDigestMatch(last, own),
       next: next && asDigestMatch(next, own),
-      table: played ? around(rows.map((r, k) => ({ rank: k + 1, name: r.club.name, played: r.played, points: r.points, me: r.club.id === club.id })), i) : undefined,
+      table: played
+        ? await withLogos(around(rows.map((r, k) => ({ rank: k + 1, name: r.club.name, played: r.played, points: r.points, goalDiff: r.goalsFor - r.goalsAgainst, form: r.form.slice(-5), me: r.club.id === club.id })), i))
+        : undefined,
       articles: articlesAbout({ club }, 2).map((a) => ({ title: a.title, slug: a.slug })),
     }
   }

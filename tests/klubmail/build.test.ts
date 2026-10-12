@@ -45,14 +45,13 @@ test('ugens mail: links med utm, afmeldingslink, James og ingen kilder', () => {
   assert.match(m.html, /TV3\+/)
   // Escaped, and the club's own row marked in the mini table
   assert.match(m.html, /FCK &amp; Brøndby: &lt;derbyet&gt; i tal/)
-  assert.match(m.html, /background:#c6f135;font-weight:bold;">3</)
+  assert.match(m.html, /<tr class="m-lime"><td style="[^"]*background:#c6f135;[^"]*">3</)
   assert.match(m.text, /> {2}3\. FC København – 12 kampe, 24 point/)
   assert.match(m.text, /Seneste resultat: Sejr 2-1 hjemme mod Brøndby IF/)
   for (const word of [/fodboldlandshold/i, /api-sports/i, /\bDBU\b/, /Z-15/i, /Claude/]) {
     assert.doesNotMatch(m.html, word)
     assert.doesNotMatch(m.text, word)
   }
-  // Gmail: tables and inline styles, no <style> block or scripts
   // No scripts; the only <style> is the head's light-design guard, the layout itself is inline styles
   assert.doesNotMatch(m.html, /<script/)
   assert.equal((m.html.match(/<style/g) ?? []).length, 1)
