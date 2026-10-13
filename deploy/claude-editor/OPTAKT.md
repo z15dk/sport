@@ -62,7 +62,7 @@ ADGANG
 4. GEM, BILLEDE, TJEK
    - Skriv JSON'en i en fil og gem med matchly-api nyhed <fil.json> (som en nyhed, med "category":"Kampoptakter").
    - Ret alt rødt på tjeklisten og så meget gult som muligt. Send hele artiklen igen med "id".
-   - Billede: matchly-api billede med {"action":"billede","id":<id>,"kind":"vs","home":"<hjemmehold>","away":"<udehold>","top":"<liga · dag dato kl. tid>","variant":"<se nedenfor>","alt":"<kort beskrivelse>"}. Brug holdnavnene, som Matchly skriver dem.
+   - Billede: matchly-api billede med {"action":"billede","id":<id>,"kind":"vs","home":"<hjemmehold>","away":"<udehold>","top":"<liga · dag dato kl. tid>","variant":"<se nedenfor>","alt":"<kort beskrivelse>"}. Brug holdnavnene, som Matchly skriver dem (navnet, fx "FC Barcelona" – aldrig adressen "/klub/fc-barcelona").
      - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
        - "klassisk": de to logoer og VS på mørk bund – det sikre valg.
        - "kort": to hvide kort med klubbernes farver og et VS imellem – til lokalopgør og rivaliseringer.

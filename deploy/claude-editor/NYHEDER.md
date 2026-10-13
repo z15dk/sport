@@ -98,7 +98,7 @@ ADGANG
    - Læs tjeklisten i svaret. Ret alt rødt og så meget gult som muligt. Send hele artiklen igen med "id".
    - BILLEDE (hver kladde får et): matchly-api billede <fil.json> med {"action":"billede","id":<id>,"kind":…}. Kun Matchlys egne grafikker, aldrig fotos.
      - Et referat af en spillet kamp: "kind":"resultat","home":"<klub>","away":"<klub>","hs":<mål>,"as":<mål>,"top":"<liga · dag dato>","homeGoals":["Navn 12'","Navn 67'"],"awayGoals":[…].
-     - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>","variant":"<design>". Brug klubbernes navne, som Matchly skriver dem.
+     - En kamp eller et opgør: "kind":"vs","home":"<klub>","away":"<klub>","top":"<liga · dag dato kl. tid>","variant":"<design>". Brug klubbernes navne, som Matchly skriver dem (navnet, fx "FC Barcelona" – aldrig adressen "/klub/fc-barcelona").
        - Vælg selv grafikken med "variant", efter kampens historie. Der er 8:
          - "klassisk": de to logoer og VS på mørk bund – det sikre valg.
          - "kort": to hvide kort med klubbernes farver og et VS imellem – til lokalopgør og rivaliseringer.

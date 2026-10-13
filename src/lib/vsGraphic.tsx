@@ -9,7 +9,7 @@ import { proxiedPicture, proxyImage } from './imageProxy'
 import { nationalTeams } from './nationalTeams'
 import { mOutline, OG_SIZE, ogFonts } from './ogImage'
 import { withPhotoDb } from './photos/server'
-import { allTeams } from '../data/teams'
+import { allTeams, teamBySlug } from '../data/teams'
 import { externalLeagueKey } from '../data/external'
 import { shownDivisions } from '../data/leagues'
 import { divisionOfGame } from '../data/ourLeagues'
@@ -28,6 +28,12 @@ import { readUpload, saveUpload } from './uploads'
 // under a second and fails with a clear message. `vsGraphicPng` is the picture (the live preview in the
 // article editor and /admin/grafik/vs), `makeVsGraphic` saves it as an upload (WebP, in the photo
 // archive as a graphic credited Matchly.dk), ready as the article's picture.
+
+/** A team as James may write it by mistake – its address ("/klub/galatasaray") – as the team's name */
+const teamName = (name: string): string => {
+  const m = /^\/?klub\/([a-z0-9-]+)\/?$/i.exec(name.trim())
+  return m ? (teamBySlug(m[1].toLowerCase())?.name ?? name.trim()) : name.trim()
+}
 
 export interface VsInput {
   home: string
@@ -120,8 +126,8 @@ function Club({ name, logo, flag, light }: { name: string; logo?: string; flag: 
 
 /** The graphic as PNG (1200×630) */
 export async function vsGraphicPng(input: VsInput): Promise<Buffer> {
-  const home = input.home.trim()
-  const away = input.away.trim()
+  const home = teamName(input.home)
+  const away = teamName(input.away)
   if (!home || !away) throw new Error('Vælg begge klubber')
   // The other seven designs (the classic one below takes a photo behind it)
   if (input.variant && input.variant !== 'klassisk' && VS_VARIANTS.includes(input.variant)) return vsVariantPng({ ...input, home, away }, input.variant)
@@ -170,7 +176,7 @@ export async function makeVsGraphic(input: VsInput): Promise<{ url: string }> {
     const name = saved.url.replace('/uploads/', '')
     withPhotoDb((db) => {
       const id = registerArticleUpload(db, name)
-      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(`${input.home.trim()} vs ${input.away.trim()}`, id)
+      db.prepare(`UPDATE photos SET kind = 'grafik', kind_manual = 1, credit = 'Matchly.dk', metadata_done = 1, title = ? WHERE id = ?`).run(`${teamName(input.home)} vs ${teamName(input.away)}`, id)
     })
   } catch {
     // the article still gets its picture
@@ -215,7 +221,7 @@ function clubColor(name: string, flag: boolean): string {
 
 /** The club picture as PNG (1200×630): only the club's logo (or a national team's flag) on Matchly's dark top */
 export async function clubGraphicPng(input: { club: string; bg?: string; light?: boolean }): Promise<Buffer> {
-  const club = input.club.trim()
+  const club = teamName(input.club)
   if (!club) throw new Error('Vælg en klub')
   const badges = await getBadges()
   const flags = nationalTeams()
@@ -496,8 +502,8 @@ function Scorers({ goals, color = 'rgba(255,255,255,0.82)', align = 'center', si
 
 /** The match's result as PNG (1200×630) in one of the eight designs (RESULT_VARIANTS) */
 export async function resultGraphicPng(input: ResultInput): Promise<Buffer> {
-  const home = input.home.trim()
-  const away = input.away.trim()
+  const home = teamName(input.home)
+  const away = teamName(input.away)
   if (!home || !away) throw new Error('Begge hold skal med')
   const badges = await getBadges()
   // The crests: a logo chosen in the editor, else the team's own (our clubs, a national team's flag – also women's and youth teams – or the sources')
