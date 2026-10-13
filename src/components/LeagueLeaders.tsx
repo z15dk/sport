@@ -8,7 +8,7 @@ import { sportOf } from '../data/leagues'
 import { normalize, clubNames } from '../data/aliases'
 
 /** Our club's own name for API-Sports' team name ("FC Copenhagen" -> "FC København") */
-function ourName(team: string) {
+export function ourName(team: string) {
   const n = normalize(team)
   const found = seasonClubs().filter(
     ({ club, division }) => sportOf(division) === 'soccer' && clubNames(club).some((x) => normalize(x) === n),

@@ -109,7 +109,7 @@ ADGANG
          - "tv": TV-bjælken med tiden – når kampen vises på TV.
          - "stribe": et bredt lime bånd med VS og kampstart – til kampe i dag eller i aften.
          - Varier: ikke samme variant to gange i træk, og helst ikke samme variant to gange samme dag. "top" skal have tiden med ("kl. 16.00"), ellers mangler den på bane, billet, tv og stribe.
-     - Om én klub (fyring, ansættelse, krise): "kind":"klub","club":"<klub>".
+     - Om én klub (fyring, ansættelse, krise): "kind":"klub","club":"<klubbens navn, som Matchly skriver det, fx Manchester City – aldrig adressen /klub/…>". Har klubben intet logo, svarer billede med en fejl: brug så "kind":"tekst".
      - Om en liga (statistik, runde, oprykning): "kind":"liga","league":"<liga>".
      - Alt andet: "kind":"tekst","title":"<kort rubrik, højst 8 ord>","top":"<lille linje, fx ligaen>","sub":"<valgfri linje>".
      - Giv også "alt": en kort beskrivelse af billedet.

@@ -132,7 +132,11 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   }
   const t1 = Date.now()
   let games = 0
-  for (const g of getRealData()?.external ?? []) {
+  // A club's own country's league before the continental cups (Al-Nassr's plain address is the Pro League's, not the
+  // AFC Champions League's – week 42: "al-nassr stillinger" landed on the cup's table): the games and tables of the
+  // countries' leagues first, then the international tournaments'. A stable order within each.
+  const domesticFirst = <T,>(list: T[], country: (x: T) => string | undefined) => [...list.filter((x) => !isInternational(country(x))), ...list.filter((x) => isInternational(country(x)))]
+  for (const g of domesticFirst(getRealData()?.external ?? [], (g) => g.league.country)) {
     games++
     if (divisionOfGame(g)) continue
     const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country, slugLeague: g.league.slugName }
@@ -140,7 +144,7 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   }
   // The rest of the leagues' tables: teams without a game in the fetched days
   const t2 = Date.now()
-  for (const [leagueSlug, l] of Object.entries(getRealData()?.tableTeams ?? {})) {
+  for (const [leagueSlug, l] of domesticFirst(Object.entries(getRealData()?.tableTeams ?? {}), ([, l]) => l.country)) {
     // The league by our Danish name for it; the address from the source's own, as before
     for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: danishLeagueName(l.league, l.country) ?? l.league, leagueSlug, country: l.country, slugLeague: l.league })
   }

@@ -53,6 +53,8 @@ export const ADMIN_MENU: AdminMenuItem[] = [
       { href: '/admin/vaekst', label: 'Ugens opgaver' },
       // The mail to the clubs of 1.–3. division about their page and the table widget
       { href: '/admin/klubkontakt', label: 'Klubkontakt' },
+      // "Din klub i indbakken": the fans' weekly club mail – subscribers, the last run, a preview and a test mail
+      { href: '/admin/klubmail', label: 'Klubmail' },
     ],
   },
   { href: '/admin/klubber', label: 'Klubber' },

@@ -69,6 +69,8 @@ import { paths } from '../../../lib/site'
 import { sportById } from '../../../sports'
 import { seoIntro, withSeoFaq, withSeoOverride } from '../../../lib/seoOverrides'
 import { PageStory } from '../../../components/PageStory'
+import { ClubMailSignup } from '../../../components/ClubMailSignup'
+import { klubmailName } from '../../../lib/klubmail/server'
 
 /** A men's football national team ("Luxembourg"), not a youth or women's team ("Danmark U19", "Danmark (K)") */
 const seniorNationalTeam = (name: string, sport?: string) => sport === 'soccer' && isNationalTeam(name) && !/\b(u\d{2}|w)$|\(k\)$/i.test(name.trim())
@@ -413,6 +415,8 @@ async function LeagueClubInner({ club, division }: { club: Club; division: Divis
             {newHeader && <AdSlot placement="feed" className="ad--panel" />}
           </div>
         </MasonryFlow>
+        {/* The weekly club mail ("Din klub i indbakken", src/lib/klubmail): football only */}
+        {sport === 'soccer' && <ClubMailSignup clubs={[{ slug: club.slug, name: club.name }]} />}
 
         {/* The source's team statistics replace our own box where it has them */}
         {newHeader && <TaggedArticles articles={articles} title={`Artikler om ${club.name}`} id="artikler" />}
@@ -800,6 +804,7 @@ async function TeamPageInner({ team }: { team: TeamEntry }) {
             {newPage && <AdSlot placement="feed" className="ad--panel" />}
           </div>
         </MasonryFlow>
+        {team.sport === 'soccer' && <ClubMailSignup clubs={[{ slug: team.slug, name: klubmailName(team) }]} />}
 
         {n >= 3 && (
           <section className={newPage ? 'panel stats-panel kh-target' : 'panel stats-panel'} id={newPage ? 'holdstatistik' : undefined}>

@@ -15,6 +15,7 @@ import { paths } from '../lib/site'
 import { formatNumeric, formatTime, formatWeekday, isoDate } from '../lib/time'
 import type { Match } from '../types'
 import { TeamBadge } from './TeamBadge'
+import { ClubMailSignup } from './ClubMailSignup'
 
 /** "om 2 t 15 min", "i morgen kl. 15.00", "lør 3. okt. kl. 15.00" */
 function until(kickoff: Date, now: number): string {
@@ -188,6 +189,21 @@ export function MyTeams({ now }: { now: number }) {
           <TeamCard key={slug} slug={slug} now={now} followed={followed} onUnfollow={() => toggle(slug)} />
         ))}
       </ul>
+      {(() => {
+        // The weekly club mail for the followed football teams (src/lib/klubmail), folded away until asked for
+        const football = teams
+          .map((slug) => teamBySlug(slug))
+          .filter((t): t is NonNullable<typeof t> => t?.sport === 'soccer')
+          .slice(0, 10)
+          .map((t) => ({ slug: t.slug, name: t.name }))
+        if (!football.length) return null
+        return (
+          <details className="my-teams__mail">
+            <summary>✉ Få {football.length === 1 ? football[0].name : 'dine hold'} i indbakken hver mandag</summary>
+            <ClubMailSignup clubs={football} compact />
+          </details>
+        )
+      })()}
     </section>
   )
 }
