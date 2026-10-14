@@ -149,7 +149,7 @@ export async function growthBrief(now = Date.now()) {
           // Google counts a day for about three days: the newest days are low until then, not a fall (James read 20, 6
           // and 5 views as a collapse on 14/10-2026)
           note: 'De tre nyeste dage (partial: true) er ikke talt færdigt hos Google og er altid for lave. Sammenlign dem aldrig med tidligere dage.',
-          perDay: g.perDay.slice(-14).map((d) => ({ ...d, ...(Date.parse(g.fetchedAt) - Date.parse(`${d.date}T12:00:00Z`) < 3.5 * 86_400_000 && { partial: true } }) })),
+          perDay: g.perDay.slice(-14).map((d) => (Date.parse(g.fetchedAt) - Date.parse(`${d.date}T12:00:00Z`) < 3.5 * 86_400_000 ? { ...d, partial: true } : d)),
           topQueries: g.topQueries,
         }
       : { error: 'Ingen Google-tal (nøglen mangler på serveren)' },
