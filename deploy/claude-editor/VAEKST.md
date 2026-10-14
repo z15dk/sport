@@ -22,6 +22,7 @@ ADGANG
 1. LÆS TALLENE: matchly-api vaekst
    - views: sidevisninger i går, i forgårs og samme dag sidste uge, de seneste 14 dage, kilder og mest sete sider de seneste 7 dage.
    - google: Search Console for de seneste 7 dage mod de 7 før (klik, visninger, placering) og de mest sete søgninger.
+   - VIGTIGT: Google er ca. 3 dage om at tælle en dag færdig. Dagene med "partial": true i google.perDay er altid alt for lave (fx 20 visninger på en dag, der ender på 1.000). Sammenlign dem aldrig med tidligere dage, og slå aldrig alarm over dem. Brug den nyeste dag uden "partial" til at sige, hvordan det går.
    - page1NoClicks: sider, der allerede står på side 1 (plads 1–6) med visninger, men 0 klik. Det er de allerhurtigste klik.
    - closeToPage1: sider på plads 7–20 med de søgninger, der giver dem visninger. Det er her, de næste klik ligger.
    - rising / falling: sider, hvis visninger stiger eller falder kraftigt.
