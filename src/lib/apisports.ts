@@ -415,13 +415,43 @@ type Store = Record<string, ApiState>
 const file = (): string => process.env.APISPORTS_FILE ?? path.join(/*turbopackIgnore: true*/ cacheDir(), 'apisports.json')
 
 // On globalThis: the job and the pages load separate copies of this module
-const holder = globalThis as { __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string; season?: ExternalGame[]; seasonFor?: number } }
+const holder = globalThis as {
+  __scorelineApiSports?: { store: Store; mtime: number; readAt: number; games?: ExternalGame[]; gamesVersion?: string; season?: ExternalGame[]; seasonFor?: number; side?: SideStore; sideMtime?: number; sideWritten?: string }
+}
 const mem = (holder.__scorelineApiSports ??= { store: {}, mtime: 0, readAt: 0 })
+
+// The seasons' games (`past`) and programmes change seldom but are most of the data: kept in a file of their own
+// (apisports-season.json), written only when they change and read only then – the site process reads the main file
+// every few minutes, and parsing all of it held every page up to 0.6 s (the server's response time, 16/10-2026)
+const SIDE_KEYS = ['past', 'programme'] as const
+type SideStore = Record<string, Pick<ApiState, (typeof SIDE_KEYS)[number]>>
+const sideFile = (): string => file().replace(/\.json$/, '-season.json')
+
+/** The season file's parts on each API's state (after either file was read) */
+function attachSide() {
+  if (!mem.side) return
+  for (const [api, part] of Object.entries(mem.side)) {
+    const st = (mem.store[api] ??= { days: {} })
+    if (part.past !== undefined) st.past = part.past
+    if (part.programme !== undefined) st.programme = part.programme
+  }
+}
 
 function load() {
   const now = Date.now()
   if (now - mem.readAt < 5_000) return
   mem.readAt = now
+  let changed = false
+  try {
+    const sideMtime = statSync(sideFile()).mtimeMs
+    if (sideMtime !== mem.sideMtime) {
+      mem.side = timed('apisports-season.json læses', () => JSON.parse(readFileSync(sideFile(), 'utf8')) as SideStore)
+      mem.sideMtime = sideMtime
+      changed = true
+    }
+  } catch {
+    // No season file yet (the main file still holds the seasons, from before the split)
+  }
   try {
     const mtime = statSync(file()).mtimeMs
     if (mtime !== mem.mtime) {
@@ -429,11 +459,15 @@ function load() {
       // A count below 0 saved before the check above: unknown, not used up
       for (const st of Object.values(mem.store)) if (st && typeof st.remaining === 'number' && st.remaining < 0) st.remaining = undefined
       mem.mtime = mtime
-      mem.games = undefined
-      mem.season = undefined
+      changed = true
     }
   } catch {
     // No file yet
+  }
+  if (changed) {
+    attachSide()
+    mem.games = undefined
+    mem.season = undefined
   }
 }
 
@@ -442,7 +476,23 @@ function save() {
   if (!runsJobs()) return
   try {
     mkdirSync(path.dirname(file()), { recursive: true })
-    timed('apisports.json gemmes', () => writeFileSync(`${file()}.tmp`, JSON.stringify(mem.store)))
+    // The seasons to their own file, only when they have changed (the site process then reads it once)
+    const side: SideStore = {}
+    const main: Store = {}
+    for (const [api, st] of Object.entries(mem.store)) {
+      const { past, programme, ...rest } = st
+      side[api] = { past, programme }
+      main[api] = rest as ApiState
+    }
+    const sideText = JSON.stringify(side)
+    if (sideText !== mem.sideWritten) {
+      timed('apisports-season.json gemmes', () => writeFileSync(`${sideFile()}.tmp`, sideText))
+      renameSync(`${sideFile()}.tmp`, sideFile())
+      mem.sideWritten = sideText
+      mem.side = side
+      mem.sideMtime = statSync(sideFile()).mtimeMs
+    }
+    timed('apisports.json gemmes', () => writeFileSync(`${file()}.tmp`, JSON.stringify(main)))
     renameSync(`${file()}.tmp`, file())
     mem.mtime = statSync(file()).mtimeMs
     mem.games = undefined
