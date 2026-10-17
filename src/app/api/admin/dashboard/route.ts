@@ -21,11 +21,24 @@ import { widgetStats } from '../../../../lib/widgetStats'
 import { adStats } from '../../../../lib/adStats'
 import { ticketStats } from '../../../../lib/tickets'
 import { paths } from '../../../../lib/site'
+import { articleById } from '../../../../lib/articles'
+import { tagOptions } from '../../../../lib/articleTopics'
+import { ticketConfig, DEFAULT_CLUB_TICKETS } from '../../../../lib/tickets'
+import { leads } from '../../../../lib/ticketShop'
+import { womenPage } from '../../../../lib/womenPage'
+import { clubLogoOverview, logoStatus } from '../../../../lib/badges'
+import { channelConfig, tvStatus } from '../../../../lib/channels'
+import { socialHandles } from '../../../../lib/socialStore'
+import { readSeries } from '../../../../lib/quizReel'
+import { klubmailStatus } from '../../../../lib/klubmail/server'
+import { readOutreach, sentToday } from '../../../../lib/clubOutreach'
+import { adsConfig } from '../../../../lib/adsConfig'
+import { trackingConfig } from '../../../../lib/tracking'
 
 export const dynamic = 'force-dynamic'
 
 // Admin-data som JSON til Runes dashboard (crmm). Kun for en logget-ind admin (samme cookie som /admin).
-// GET /api/admin/dashboard?side=oversigt|artikler|redaktoer|datavagt|sociale|vaekst|statistik
+// GET /api/admin/dashboard?side=<navn> (se `sides` nedenfor)
 // Ændringer laves stadig gennem de eksisterende /api/admin/*-ruter. Hemmeligheder (tokens, koder) sendes aldrig med.
 
 type Handler = (q: URLSearchParams) => unknown | Promise<unknown>
@@ -107,6 +120,56 @@ const sides: Record<string, Handler> = {
     }
   },
 
+  // Hele artiklen til editoren (?id=), eller tom til en ny
+  artikel(q) {
+    const id = Number(q.get('id'))
+    const article = id ? articleById(id) ?? null : null
+    return { article, categories: categories(), tagOptions: tagOptions(), quality: article ? readQuality()[String(article.id)] ?? null : null }
+  },
+
+  billetter() {
+    return { config: ticketConfig(), defaults: DEFAULT_CLUB_TICKETS, stats: ticketStats(), leads: leads('billet') }
+  },
+
+  reklamer() {
+    const { settings } = siteSettings()
+    return { config: adsConfig().config, enabled: (settings as Record<string, unknown>).ads ?? null, leads: leads('annoncering') }
+  },
+
+  kvindesport() {
+    return { page: womenPage() }
+  },
+
+  klubber() {
+    return { clubs: clubLogoOverview(), logoStatus: logoStatus() }
+  },
+
+  kanaler() {
+    return { config: channelConfig(), tv: tvStatus() }
+  },
+
+  sociale_indstillinger() {
+    const cfg = socialConfig()
+    return { config: cfg, handles: socialHandles(), platforms: PLATFORMS.map((p) => ({ id: p, name: PLATFORM_NAMES[p], connected: connected(p) })) }
+  },
+
+  quiz() {
+    return { series: readSeries() }
+  },
+
+  klubmail() {
+    return { status: klubmailStatus() }
+  },
+
+  klubkontakt() {
+    const state = readOutreach()
+    return { state, sentToday: sentToday(state) }
+  },
+
+  tracking() {
+    return { config: trackingConfig() }
+  },
+
   statistik() {
     return { widget: widgetStats(30), ads: adStats(30), tickets: ticketStats() }
   },
@@ -117,7 +180,7 @@ export async function GET(request: Request) {
   const q = new URL(request.url).searchParams
   const side = q.get('side') ?? ''
   const handler = sides[side]
-  if (!handler) return Response.json({ error: 'Ukendt side', sider: Object.keys(sides) }, { status: 404 })
+  if (!handler || !Object.hasOwn(sides, side)) return Response.json({ error: 'Ukendt side', sider: Object.keys(sides) }, { status: 404 })
   try {
     const data = await handler(q)
     return Response.json({ side, at: new Date().toISOString(), data }, { headers: { 'cache-control': 'no-store' } })
