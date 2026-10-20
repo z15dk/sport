@@ -24,7 +24,7 @@ import { SPORTS } from '../sports'
 
 // The sitemap: /sitemap.xml is an index of /sitemaps/sider.xml (front page,
 // tournaments, clubs, articles) and /sitemaps/kampe-<n>.xml (every match with a
-// page: the whole season in our leagues, cups, Champions League, every other
+// page: the season up to two weeks ahead in our leagues, cups, Champions League, every other
 // stored game and the older matches of the match database and statistics bank), at most 40,000 addresses per file (Google's limit is 50,000),
 // plus /sitemaps/nyheder.xml (Google News sitemap: the articles of the last two days, made on request, src/lib/articleFeed.ts).
 
@@ -35,6 +35,8 @@ export interface SitemapEntry {
 
 const PER_FILE = 40_000
 const FULL_TIME_MS = 3 * 3_600_000
+/** Matches further ahead stay out: a page with no line-ups or form yet, and Google's time goes on what can rank now */
+const AHEAD_MS = 14 * 86_400_000
 
 export function pageEntries(): SitemapEntry[] {
   const ours = new Set(shownDivisions().map((d) => d.slug))
@@ -98,7 +100,9 @@ async function matchEntries(): Promise<SitemapEntry[]> {
   const key = (name: string) => keys.get(name) ?? keys.set(name, teamKey(name)).get(name)!
   const pairs = new Set<string>()
   let step = 0
+  const last = isoDate(new Date(now + AHEAD_MS))
   for (const day of [...days].sort().reverse()) {
+    if (day > last) continue
     if (++step % 10 === 0) await breather()
     for (const m of getMatches(day, 'all', now)) {
       if (seen.has(m.slug)) continue

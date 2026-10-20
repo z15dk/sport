@@ -1223,9 +1223,11 @@ export function pastLeagueSlug(g: PastGame): string | undefined {
 
 // ---------------------------------------------------------------- which older matches search engines get
 
-/** The leagues whose older matches people search for (by our division ids) */
-const TOP_LEAGUES = new Set(['superliga', '1div', 'premierleague', 'bundesliga', 'laliga'])
-const TOP_TOURNAMENT = /champions league/i
+/** The leagues whose older matches Danes search for (by our division ids). Premier League, Bundesliga, La Liga and the
+ * Champions League were here too: 20,000 archive pages on a new domain, and Google cut its crawling to a sixth (week 42) */
+const TOP_LEAGUES = new Set(['superliga', '1div'])
+/** Older than this, a match is history few look up */
+const ARCHIVE_FROM = Date.UTC(2016, 6, 1)
 
 // football.db's matches with named scorers, found once an hour
 let dbDetailed: { at: number; ids: Set<number> } | undefined
@@ -1250,14 +1252,14 @@ function dbDetailedIds(): Set<number> {
 
 /**
  * Whether an older match's page (one the season's data no longer has) is for
- * search engines: only a match in one of the big leagues or the Champions
- * League that has named scorers or players' numbers. The rest keep their page
+ * search engines: only a Superliga or 1. division match from the last ten
+ * seasons that has named scorers or players' numbers. The rest keep their page
  * (links, visitors) but get noindex and stay out of the sitemap, so search
  * engines spend their time on the pages that can rank.
  */
 export function pastGameIndexable(g: PastGame): boolean {
-  const top = TOP_LEAGUES.has(g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0] || '') || TOP_TOURNAMENT.test(g.tournament)
-  if (!top) return false
+  if (g.date.getTime() < ARCHIVE_FROM) return false
+  if (!TOP_LEAGUES.has(g.divisionId || DIVISION_TOURNAMENTS.find(([, re]) => re.test(g.tournament))?.[0] || '')) return false
   return g.source.archive ? archiveDetailedEvents().has(g.source.archive) : g.source.db !== undefined && dbDetailedIds().has(g.source.db)
 }
 
