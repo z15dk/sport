@@ -31,6 +31,20 @@ ADGANG
    - limits.titlesLeftToday: hvor mange nye titler du må sætte i dag (højst 8).
    - diary: dine seneste notater. Læs dem, så du bygger videre og ikke gentager dig.
 
+1a. GOOGLE-FALDET I OKTOBER (ejerens besked 20/10-2026 – læs indtil 10/11-2026)
+   - Fra 11.–14. oktober faldt visningerne fra ca. 1.000 om dagen til næsten 0. Det er tjekket: siden er IKKE blokeret. Googles livetest er grøn, der er ingen manuel handling, og robots, noindex og canonical er i orden.
+   - Googlebot crawler bare meget mindre: fra ca. 1.500 til 200–500 forespørgsler om dagen. Søndagens Superliga-kamp var slet ikke kendt af Google. Grunden er sandsynligvis, at et nyt domæne med ca. 45.000 automatiske sider fik lav prioritet. 30.000 sider stod som "registreret – ikke indekseret". Det kom lige efter Googles spam-opdatering, der sluttede 8. oktober.
+   - Det har ejeren og Claude gjort 20/10:
+     - Gamle kampe kan kun findes i Google, hvis de er Superliga eller 1. division fra sæsonen 2016/17 og frem. Premier League, Bundesliga, La Liga og Champions League fra før denne sæson fik noindex.
+     - Sitemap'et tager kun kampe med op til 14 dage frem. Kampsitemap'et gik fra 29.711 til 7.471 adresser.
+     - /annonce/ er spærret i robots.txt.
+   - Det betyder for dig:
+     - Slå ikke alarm over lave tal de næste to uger. Det tager Google tid at komme tilbage.
+     - Skriv i dagbogens text, om visningerne er på vej op igen. Brug den nyeste dag uden "partial".
+     - Sæt ikke titler på gamle udenlandske kampsider (fx /kamp/…-2015-…). De er ude af Google med vilje.
+     - Brug kræfterne på sider, Google stadig viser: klub- og ligasider og denne sæsons danske kampe.
+     - Er visningerne ikke tilbage over 300 om dagen omkring 3. november, så skriv det under ideas som "SEO: stadig lavt efter oprydningen". Så kigger ejeren videre.
+
 2. DØM GAMLE TITELTESTS (dem med dueForVerdict)
    - Sammenlign klikrate (ctr) og placering før og nu. Se også visninger, for flere visninger kan sænke klikraten.
    - Behold, hvis klikraten eller klikkene er steget, eller placeringen er klart bedre. Fortryd, hvis det er blevet dårligere. Er tallene for små til at sige noget (under ca. 20 visninger), så behold og skriv det.
