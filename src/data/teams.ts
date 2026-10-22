@@ -53,8 +53,9 @@ const movedSlugs = new Map<string, string>()
 /** Where a team's page is, when the address asked for is one it had by mistake */
 export const movedTeamSlug = (slug: string): string | undefined => (teams(), movedSlugs.get(slug))
 
-/** API-Sports' teams in their other leagues, and the teams of the starting tables (src/data/baselines.ts) */
-function externalTeams(taken: Set<string>): TeamEntry[] {
+/** API-Sports' teams in their other leagues, and the teams of the starting tables (src/data/baselines.ts); yields after
+ * each game and table, so the server can build it a slice at a time (see `rebuildInSlices`) */
+function* externalTeams(taken: Set<string>, data: ReturnType<typeof getRealData>): Generator<void, TeamEntry[]> {
   const out = new Map<string, TeamEntry>()
   const add = (name: string, e: Omit<TeamEntry, 'slug' | 'name'>) => {
     const key = `${e.leagueSlug}|${name}`
@@ -136,7 +137,8 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   // AFC Champions League's – week 42: "al-nassr stillinger" landed on the cup's table): the games and tables of the
   // countries' leagues first, then the international tournaments'. A stable order within each.
   const domesticFirst = <T,>(list: T[], country: (x: T) => string | undefined) => [...list.filter((x) => !isInternational(country(x))), ...list.filter((x) => isInternational(country(x)))]
-  for (const g of domesticFirst(getRealData()?.external ?? [], (g) => g.league.country)) {
+  for (const g of domesticFirst(data?.external ?? [], (g) => g.league.country)) {
+    yield
     games++
     if (divisionOfGame(g)) continue
     const e = { sport: g.sport, league: g.league.name, leagueSlug: externalLeagueKey(g.league), country: g.league.country, slugLeague: g.league.slugName }
@@ -144,19 +146,20 @@ function externalTeams(taken: Set<string>): TeamEntry[] {
   }
   // The rest of the leagues' tables: teams without a game in the fetched days
   const t2 = Date.now()
-  for (const [leagueSlug, l] of domesticFirst(Object.entries(getRealData()?.tableTeams ?? {}), ([, l]) => l.country)) {
+  for (const [leagueSlug, l] of domesticFirst(Object.entries(data?.tableTeams ?? {}), ([, l]) => l.country)) {
+    yield
     // The league by our Danish name for it; the address from the source's own, as before
     for (const t of l.teams) place(t.name, t.logo, { sport: l.sport, league: danishLeagueName(l.league, l.country) ?? l.league, leagueSlug, country: l.country, slugLeague: l.league })
   }
   const t3 = Date.now()
   // Where the time goes when the register is slow (server log, see realdata.ts warm())
-  if (typeof window === 'undefined' && t3 - t0 > 500)
+  if (typeof window === 'undefined' && t3 - t0 > 500 && !slicing)
     console.log(`[data] klubregister: udgangspunkter ${t1 - t0} ms, ${games} kampe ${t2 - t1} ms, tabeller ${t3 - t2} ms, ${placed.size} hold`)
   return [...out.values()]
 }
 
-function build(): TeamEntry[] {
-  const ours = seasonClubs().map(({ club, division }): TeamEntry => ({
+function* build(clubs: ReturnType<typeof seasonClubs>, data: ReturnType<typeof getRealData>): Generator<void, TeamEntry[]> {
+  const ours = clubs.map(({ club, division }): TeamEntry => ({
     slug: club.slug,
     name: club.name,
     sport: sportOf(division),
@@ -166,7 +169,15 @@ function build(): TeamEntry[] {
     colors: club.colors,
     season: { club, division },
   }))
-  return [...ours, ...externalTeams(new Set(ours.map((t) => t.slug)))]
+  return [...ours, ...(yield* externalTeams(new Set(ours.map((t) => t.slug)), data))]
+}
+
+/** Runs a step-by-step job to its end at once */
+function finish<T>(job: Generator<void, T>): T {
+  for (;;) {
+    const r = job.next()
+    if (r.done) return r.value
+  }
 }
 
 /**
@@ -200,11 +211,77 @@ let cache: Register | undefined
 // data from the job, and the same with the live games the pages fetch every 15 seconds, some without their logos), and
 // each swing rebuilt the register – 0.7 seconds with every page waiting, every minute or two on a match evening
 const recent: Register[] = []
-function teams() {
+
+/** The register and its lookups, step by step */
+function* register(clubs: ReturnType<typeof seasonClubs>, signature: number, data: ReturnType<typeof getRealData>): Generator<void, Register> {
+  const list = yield* build(clubs, data)
+  // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
+  const byName = new Map<string, TeamEntry>()
+  // And by league and name: the same name is another team in another league or sport (AGF's handball team is not AGF's footballers)
+  const byLeagueName = new Map<string, TeamEntry>()
+  for (const t of list)
+    for (const n of t.names ?? [t.name]) {
+      if (!byName.has(n)) byName.set(n, t)
+      if (t.leagueSlug && !byLeagueName.has(`${t.leagueSlug}|${n}`)) byLeagueName.set(`${t.leagueSlug}|${n}`, t)
+    }
+  return { clubs, signature, external: data?.external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName, byLeagueName }
+}
+
+function keep(r: Register) {
+  cache = r
+  recent.unshift(r)
+  recent.length = Math.min(recent.length, 4)
+}
+
+/** The register being built in slices, if any */
+let slicing: { clubs: ReturnType<typeof seasonClubs>; signature: number } | undefined
+const SLICE_MS = 15
+const breather = () => new Promise<void>((r) => setImmediate(r))
+
+/** Builds the register (and the browser's name index) at most SLICE_MS at a time, then puts it in place */
+function rebuildInSlices(clubs: ReturnType<typeof seasonClubs>, signature: number) {
+  if (slicing && slicing.clubs === clubs && slicing.signature === signature) return
+  const me = (slicing = { clubs, signature })
+  const data = getRealData()
+  const started = Date.now()
+  void (async () => {
+    try {
+      const built = await sliced(register(clubs, signature, data), () => slicing !== me)
+      const names = built && (await sliced(nameIndexOf(built), () => slicing !== me))
+      // Newer data started another build meanwhile: that one wins
+      if (!built || !names || slicing !== me) return
+      keep(built)
+      nameIndex = { for: built.byName, index: names }
+      if (Date.now() - started > 3000) console.log(`[data] klubregister bygget i baggrunden på ${Date.now() - started} ms`)
+    } catch (err) {
+      console.error('[data] klubregistret kunne ikke bygges:', err)
+    } finally {
+      if (slicing === me) slicing = undefined
+    }
+  })()
+}
+
+/** Runs a step-by-step job at most SLICE_MS at a time, letting the server answer in between; nothing when it is given up */
+async function sliced<T>(job: Generator<void, T>, givenUp: () => boolean): Promise<T | undefined> {
+  for (;;) {
+    const t = Date.now()
+    let r = job.next()
+    while (!r.done && Date.now() - t < SLICE_MS) r = job.next()
+    if (r.done) return r.value
+    await breather()
+    if (givenUp()) return undefined
+  }
+}
+
+let lastSignature: { external: ExternalGame[] | undefined; signature: number } | undefined
+function teams(): Register {
   const clubs = seasonClubs()
   const external = getRealData()?.external
-  // The signature is only worked out when the data is another object (also when a page adds games in the browser)
-  const signature = cache && cache.external === external && cache.clubs === clubs ? cache.signature : teamSignature(external)
+  // The signature is only worked out when the data is another object (also when a page adds games in the browser); while
+  // a new register is built, the pages ask again and again with the same data
+  const signature =
+    cache && cache.external === external && cache.clubs === clubs ? cache.signature : lastSignature && lastSignature.external === external ? lastSignature.signature : teamSignature(external)
+  lastSignature = { external, signature }
   if (!cache || cache.clubs !== clubs || cache.signature !== signature) {
     const known = recent.find((r) => r.clubs === clubs && r.signature === signature)
     if (known) {
@@ -212,22 +289,18 @@ function teams() {
       cache.external = external
       return cache
     }
+    // On the server, with a register already there: the pages keep it (a minute old at most) while the new one is built
+    // a slice at a time – before, the page that noticed the change built it, 0.7 seconds with every page waiting
+    if (cache && typeof window === 'undefined') {
+      rebuildInSlices(clubs, signature)
+      return cache
+    }
     const started = Date.now()
     const why = !cache ? 'første gang' : cache.clubs !== clubs ? 'ny sæsondata' : `nye hold (signatur ${cache.signature} → ${signature})`
-    const list = build()
+    const built = finish(register(clubs, signature, getRealData()))
+    keep(built)
     if (typeof window === 'undefined' && Date.now() - started > 500) console.log(`[data] klubregister bygget forfra (${why}), ${Date.now() - started} ms`)
-    // By every name a team goes by; our clubs first, so a shared name ("Brøndby IF") stays theirs
-    const byName = new Map<string, TeamEntry>()
-    // And by league and name: the same name is another team in another league or sport (AGF's handball team is not AGF's footballers)
-    const byLeagueName = new Map<string, TeamEntry>()
-    for (const t of list)
-      for (const n of t.names ?? [t.name]) {
-        if (!byName.has(n)) byName.set(n, t)
-        if (t.leagueSlug && !byLeagueName.has(`${t.leagueSlug}|${n}`)) byLeagueName.set(`${t.leagueSlug}|${n}`, t)
-      }
-    cache = { clubs, signature, external, list, bySlug: new Map(list.map((t) => [t.slug, t])), byName, byLeagueName }
-    recent.unshift(cache)
-    recent.length = Math.min(recent.length, 4)
+    return built
   } else if (cache.external !== external) {
     cache.external = external
   }
@@ -266,22 +339,29 @@ export const teamByName = (name: string, leagueSlug?: string): TeamEntry | undef
 /** Every team name's slug, '' when it is the name's own slug, and the team's name when it is shown under another (sent to the browser as RealData.teamIndex) */
 let nameIndex: { for: Map<string, TeamEntry>; index: Record<string, string> } | undefined
 export function teamNameIndex(): Record<string, string> {
-  // Made once per register (the layout asks for it on every page; it took up to 100 ms each time)
-  const byName = teams().byName
-  if (nameIndex?.for === byName) return nameIndex.index
+  // Made once per register (the layout asks for it on every page; it took up to 100 ms each time); a register built in
+  // slices brings its index along
+  const r = teams()
+  if (nameIndex?.for === r.byName) return nameIndex.index
+  nameIndex = { for: r.byName, index: finish(nameIndexOf(r)) }
+  return nameIndex.index
+}
+
+function* nameIndexOf({ byName, byLeagueName }: Pick<Register, 'byName' | 'byLeagueName'>): Generator<void, Record<string, string>> {
   const index: Record<string, string> = {}
+  let n = 0
   for (const [name, t] of byName) {
+    if (++n % 200 === 0) yield
     // A name we show differently ("Scotland" as "Skotland") is found through the shown one (teamByName), so the list is no longer
     const shown = shownTeam(name, 'World')
     if (shown !== name && byName.get(shown) === t) continue
     index[name] = t.name !== name ? `${t.slug}|${t.name}` : t.slug === slugify(name) ? '' : t.slug === sourceSlug(name) ? 'w' : t.slug
   }
   // A name that is another team in another league: that team under "<league>|<name>" (few, so the list stays short)
-  for (const [key, t] of teams().byLeagueName) {
+  for (const [key, t] of byLeagueName) {
     const name = key.slice(key.indexOf('|') + 1)
     if (byName.get(name) !== t) index[key] = t.name !== name ? `${t.slug}|${t.name}` : t.slug
   }
-  nameIndex = { for: byName, index }
   return index
 }
 
