@@ -201,6 +201,9 @@ const dayKey = (at: number) => isoDate(at)
 export function adviceFor(signals: Pick<SignalStatus, 'id' | 'level'>[]): string {
   const bad = (id: SignalId) => signals.find((s) => s.id === id)?.level === 'upgrade'
   if (bad('mem') && !bad('load') && !bad('lag')) return 'Mere hukommelse: næste trin op i samme serie (fx Hetzner CPX52, 24 GB).'
+  // Waits with room in both memory and CPU: one process blocks one core while the other cores idle, so a bigger server
+  // changes little; the heavy work (see "Opgave over 0,2 sek.") has to leave the site's process
+  if (bad('lag') && !bad('load') && !bad('mem')) return 'Ikke serveren: hukommelse og CPU har plads. Ventetiden kommer af, at siden laver tungt arbejde på én kerne, mens de andre står stille (se "Opgave over 0,2 sek."). En større server hjælper ikke – det tunge arbejde skal flyttes ud af sidens proces.'
   if ((bad('load') || bad('lag')) && !bad('mem')) return 'Flere og roligere kerner: dedikerede vCPU\'er (fx Hetzner CCX33, 8 kerner, 32 GB) – delte kerner svinger ved spidsbelastning.'
   if (bad('mem')) return 'Både hukommelse og CPU: dedikerede kerner med mere hukommelse (fx Hetzner CCX33, 8 kerner, 32 GB).'
   if (signals.some((s) => s.level === 'watch')) return 'Ikke tid endnu: et signal har været over grænsen en enkelt dag. Sker det 3 af 7 dage, er det tid.'
@@ -240,7 +243,10 @@ export function capacityStatus(): CapacityStatus {
     const badDays = days.filter((d) => d.over).length
     return { id: s.id, name: s.name, level: levelOf(badDays), now: show(s.id, current), worst24: show(s.id, peak(s.id, last24)), limit: s.limit, days, badDays }
   })
-  const level = signals.reduce((l, s) => worst(l, s.level), 'ok' as Level)
+  // Waits alone (memory and CPU fine) are the code's, not the machine's: "hold øje" and no upgrade mail
+  const hardware = signals.filter((s) => s.id !== 'lag').reduce((l, s) => worst(l, s.level), 'ok' as Level)
+  const lag = signals.find((s) => s.id === 'lag')!.level
+  const level = hardware === 'upgrade' ? 'upgrade' : worst(hardware, lag === 'upgrade' ? 'watch' : lag)
   const m = machineMemory()
   const cores = Math.max(1, os.cpus().length)
   return {

@@ -181,8 +181,9 @@ export default async function DataStatusPage() {
           <Tile
             label="Kampdata"
             value={ago(s.fetchedAt)}
-            sub={s.lastError ? `Fejl: ${s.lastError}` : s.running ? 'henter nu' : `fuld hentning ${ago(s.lastFull)}`}
-            level={s.lastError ? 'bad' : dataAge > 60 ? 'warn' : 'ok'}
+            sub={s.lastError ? `${dataAge > 60 ? 'Fejl' : 'Fejl ved sidste hentning, data er friske'}: ${s.lastError}` : s.running ? 'henter nu' : `fuld hentning ${ago(s.lastFull)}`}
+            // Red only when the data is old: a refused request (TheSportsDB's 429) is retried after a minute's pause
+            level={dataAge > 60 ? (s.lastError ? 'bad' : 'warn') : s.lastError ? 'warn' : 'ok'}
           />
           <Tile label="Statistikbank" value={`${num(a.total)} kampe`} sub={`${num(pg.rows)} spillertal · gemt ${clock(a.lastRun)}`} level={a.lastError ? 'bad' : 'ok'} />
           <Tile label="Historik" value={h.error ? 'fejl' : `${num(h.matches)} kampe`} sub={h.error ?? `${h.clubs} klubber · ${h.from ?? ''}–${h.to ?? ''}`} level={h.error ? 'warn' : 'ok'} />

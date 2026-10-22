@@ -738,6 +738,8 @@ async function runHot() {
 async function guarded(job: () => Promise<void>) {
   if (state.running) return
   state.running = true
+  // The error shown is the latest run's: one rate-limited request this morning no longer marks the data as failing all day
+  state.lastError = undefined
   try {
     await job()
   } catch (err) {
